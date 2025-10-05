@@ -10,12 +10,6 @@ import typer
 from rich.console import Console
 
 
-class DataValidationError(Exception):
-    """Exception raised when data validation fails."""
-
-    pass
-
-
 class ServiceDataPublisher:
     """Publishes service data to UnitySVC backend endpoints."""
 
@@ -58,86 +52,6 @@ class ServiceDataPublisher:
 
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
-
-    def validate_directory_data(self, directory: Path) -> None:
-        """Validate data files in a directory for consistency.
-
-        Validation rules:
-        1. All service_v1 files in same directory must have unique names
-        2. All listing_v1 files must reference a service name that exists in the same directory
-        3. If service_name is defined in listing_v1, it must match a service in the directory
-
-        Args:
-            directory: Directory containing data files to validate
-
-        Raises:
-            DataValidationError: If validation fails
-        """
-        # Find all JSON and TOML files in the directory (not recursive)
-        data_files: list[Path] = []
-        for pattern in ["*.json", "*.toml"]:
-            data_files.extend(directory.glob(pattern))
-
-        # Load all files and categorize by schema
-        services: dict[str, Path] = {}  # name -> file_path
-        listings: list[tuple[Path, dict[str, Any]]] = []  # list of (file_path, data)
-
-        for file_path in data_files:
-            try:
-                data = self.load_data_file(file_path)
-                schema = data.get("schema")
-
-                if schema == "service_v1":
-                    service_name = data.get("name")
-                    if not service_name:
-                        raise DataValidationError(f"Service file {file_path} missing 'name' field")
-
-                    # Check for duplicate service names in same directory
-                    if service_name in services:
-                        raise DataValidationError(
-                            f"Duplicate service name '{service_name}' found in directory {directory}:\n"
-                            f"  - {services[service_name]}\n"
-                            f"  - {file_path}"
-                        )
-
-                    services[service_name] = file_path
-
-                elif schema == "listing_v1":
-                    listings.append((file_path, data))
-
-            except Exception as e:
-                # Skip files that can't be loaded or don't have schema
-                if isinstance(e, DataValidationError):
-                    raise
-                continue
-
-        # Validate listings reference valid services
-        for listing_file, listing_data in listings:
-            service_name = listing_data.get("service_name")
-
-            if service_name:
-                # If service_name is explicitly defined, it must match a service in the directory
-                if service_name not in services:
-                    available_services = ", ".join(services.keys()) if services else "none"
-                    raise DataValidationError(
-                        f"Listing file {listing_file} references service_name '{service_name}' "
-                        f"which does not exist in the same directory.\n"
-                        f"Available services: {available_services}"
-                    )
-            else:
-                # If service_name not defined, there should be exactly one service in the directory
-                if len(services) == 0:
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"and no service files found in the same directory."
-                    )
-                elif len(services) > 1:
-                    available_services = ", ".join(services.keys())
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"but multiple services exist in the same directory: {available_services}. "
-                        f"Please add 'service_name' field to the listing to specify which service it belongs to."
-                    )
 
     def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
@@ -508,36 +422,6 @@ class ServiceDataPublisher:
                     pass
         return sorted(sellers)
 
-    def validate_all_service_directories(self, data_dir: Path) -> list[str]:
-        """
-        Validate all service directories in a directory tree.
-
-        Returns a list of validation error messages (empty if all valid).
-        """
-        errors = []
-
-        # Find all directories containing service or listing files
-        directories_to_validate = set()
-
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    schema = data.get("schema")
-                    if schema in ["service_v1", "listing_v1"]:
-                        directories_to_validate.add(file_path.parent)
-                except Exception:
-                    continue
-
-        # Validate each directory
-        for directory in sorted(directories_to_validate):
-            try:
-                self.validate_directory_data(directory)
-            except DataValidationError as e:
-                errors.append(str(e))
-
-        return errors
-
     def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all service offerings found in a directory tree.
@@ -545,8 +429,11 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
+        from .validator import DataValidator
+
         # Validate all service directories first
-        validation_errors = self.validate_all_service_directories(data_dir)
+        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
                 "total": 0,
@@ -580,8 +467,11 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
+        from .validator import DataValidator
+
         # Validate all service directories first
-        validation_errors = self.validate_all_service_directories(data_dir)
+        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
                 "total": 0,

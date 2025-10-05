@@ -1,10 +1,10 @@
 """Utility functions for file handling and data operations."""
 
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import tomli
 import tomli_w
 
 
@@ -26,7 +26,7 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
             return json.load(f), "json"
     elif file_path.suffix == ".toml":
         with open(file_path, "rb") as f:
-            return tomli.load(f), "toml"
+            return tomllib.load(f), "toml"
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
@@ -148,3 +148,93 @@ def find_files_by_schema(
             continue
 
     return matching_files
+
+
+def resolve_provider_name(file_path: Path) -> str | None:
+    """
+    Resolve the provider name from the file path.
+
+    The provider name is determined by the directory structure:
+    - For service offerings: <provider_name>/services/<service_name>/service.{json,toml}
+    - For service listings: <provider_name>/services/<service_name>/listing-*.{json,toml}
+
+    Args:
+        file_path: Path to the service offering or listing file
+
+    Returns:
+        Provider name if found in directory structure, None otherwise
+    """
+    # Check if file is under a "services" directory
+    parts = file_path.parts
+
+    try:
+        # Find the "services" directory in the path
+        services_idx = parts.index("services")
+
+        # Provider name is the directory before "services"
+        if services_idx > 0:
+            provider_dir = parts[services_idx - 1]
+
+            # The provider directory should contain a provider data file
+            # Get the full path to the provider directory
+            provider_path = Path(*parts[:services_idx])
+
+            # Look for provider data file to validate and get the actual provider name
+            for data_file in find_data_files(provider_path):
+                try:
+                    # Only check files in the provider directory itself, not subdirectories
+                    if data_file.parent == provider_path:
+                        data, _file_format = load_data_file(data_file)
+                        if data.get("schema") == "provider_v1":
+                            return data.get("name")
+                except Exception:
+                    continue
+
+            # Fallback to directory name if no provider file found
+            return provider_dir
+    except (ValueError, IndexError):
+        # "services" not in path or invalid structure
+        pass
+
+    return None
+
+
+def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
+    """
+    Resolve the service name for a listing file.
+
+    Rules:
+    1. If service_name is defined in listing_data, return it
+    2. Otherwise, find the only service offering in the same directory and return its name
+
+    Args:
+        listing_file: Path to the listing file
+        listing_data: Listing data dictionary
+
+    Returns:
+        Service name if found, None otherwise
+    """
+    # Rule 1: If service_name is already defined, use it
+    if "service_name" in listing_data and listing_data["service_name"]:
+        return listing_data["service_name"]
+
+    # Rule 2: Find the only service offering in the same directory
+    listing_dir = listing_file.parent
+
+    # Find all service offering files in the same directory
+    service_files: list[tuple[Path, str, dict[str, Any]]] = []
+    for data_file in find_data_files(listing_dir):
+        try:
+            data, file_format = load_data_file(data_file)
+            if data.get("schema") == "service_v1":
+                service_files.append((data_file, file_format, data))
+        except Exception:
+            continue
+
+    # If there's exactly one service file, use its name
+    if len(service_files) == 1:
+        _service_file, _service_format, service_data = service_files[0]
+        return service_data.get("name")
+
+    # Otherwise, return None (either no service files or multiple service files)
+    return None
