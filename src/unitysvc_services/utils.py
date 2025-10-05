@@ -1,10 +1,10 @@
 """Utility functions for file handling and data operations."""
 
 import json
+import tomllib
 from pathlib import Path
 from typing import Any
 
-import tomli
 import tomli_w
 
 
@@ -26,7 +26,7 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
             return json.load(f), "json"
     elif file_path.suffix == ".toml":
         with open(file_path, "rb") as f:
-            return tomli.load(f), "toml"
+            return tomllib.load(f), "toml"
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
