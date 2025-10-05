@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from unitysvc_services.utils import resolve_service_name_for_listing
+from unitysvc_services.utils import resolve_provider_name, resolve_service_name_for_listing
 
 
 @pytest.fixture
@@ -57,3 +57,46 @@ def test_resolve_service_name_no_service_offering(tmp_path: Path) -> None:
 
     service_name = resolve_service_name_for_listing(listing_file, listing_data)
     assert service_name is None
+
+
+def test_resolve_provider_name_from_service_offering(example_data_dir: Path) -> None:
+    """Test that provider name is resolved from service offering file path."""
+    from unitysvc_services.utils import find_files_by_schema
+
+    # Find a service offering file
+    service_files = find_files_by_schema(example_data_dir, "service_v1")
+
+    # Find the provider1 service file
+    for file_path, _format, _data in service_files:
+        if "provider1" in str(file_path):
+            provider_name = resolve_provider_name(file_path)
+            assert provider_name == "provider1"
+            break
+    else:
+        pytest.fail("No provider1 service file found")
+
+
+def test_resolve_provider_name_from_listing(example_data_dir: Path) -> None:
+    """Test that provider name is resolved from listing file path."""
+    from unitysvc_services.utils import find_files_by_schema
+
+    # Find a listing file
+    listing_files = find_files_by_schema(example_data_dir, "listing_v1")
+
+    # Find the provider2 listing file
+    for file_path, _format, _data in listing_files:
+        if "provider2" in str(file_path):
+            provider_name = resolve_provider_name(file_path)
+            assert provider_name == "provider2"
+            break
+    else:
+        pytest.fail("No provider2 listing file found")
+
+
+def test_resolve_provider_name_invalid_path(tmp_path: Path) -> None:
+    """Test that None is returned for invalid path structure."""
+    # Create a file not under a "services" directory
+    invalid_file = tmp_path / "some_file.json"
+
+    provider_name = resolve_provider_name(invalid_file)
+    assert provider_name is None

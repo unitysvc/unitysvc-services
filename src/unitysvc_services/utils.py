@@ -150,6 +150,55 @@ def find_files_by_schema(
     return matching_files
 
 
+def resolve_provider_name(file_path: Path) -> str | None:
+    """
+    Resolve the provider name from the file path.
+
+    The provider name is determined by the directory structure:
+    - For service offerings: <provider_name>/services/<service_name>/service.{json,toml}
+    - For service listings: <provider_name>/services/<service_name>/listing-*.{json,toml}
+
+    Args:
+        file_path: Path to the service offering or listing file
+
+    Returns:
+        Provider name if found in directory structure, None otherwise
+    """
+    # Check if file is under a "services" directory
+    parts = file_path.parts
+
+    try:
+        # Find the "services" directory in the path
+        services_idx = parts.index("services")
+
+        # Provider name is the directory before "services"
+        if services_idx > 0:
+            provider_dir = parts[services_idx - 1]
+
+            # The provider directory should contain a provider data file
+            # Get the full path to the provider directory
+            provider_path = Path(*parts[:services_idx])
+
+            # Look for provider data file to validate and get the actual provider name
+            for data_file in find_data_files(provider_path):
+                try:
+                    # Only check files in the provider directory itself, not subdirectories
+                    if data_file.parent == provider_path:
+                        data, _file_format = load_data_file(data_file)
+                        if data.get("schema") == "provider_v1":
+                            return data.get("name")
+                except Exception:
+                    continue
+
+            # Fallback to directory name if no provider file found
+            return provider_dir
+    except (ValueError, IndexError):
+        # "services" not in path or invalid structure
+        pass
+
+    return None
+
+
 def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
     """
     Resolve the service name for a listing file.
