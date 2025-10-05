@@ -7,7 +7,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .utils import find_files_by_schema
+from .utils import find_files_by_schema, resolve_service_name_for_listing
 
 app = typer.Typer(help="List data files in directory")
 console = Console()
@@ -215,9 +215,12 @@ def list_listings(
         seller_name = data.get("seller_name", "N/A")
         seller_display = seller_info.get(seller_name, seller_name)
 
+        # Resolve service name using the utility function
+        service_name = resolve_service_name_for_listing(file_path, data) or "N/A"
+
         table.add_row(
             str(file_path.relative_to(data_dir)),
-            data.get("service_name", "N/A"),
+            service_name,
             seller_display,
             data.get("listing_status", "N/A"),
         )

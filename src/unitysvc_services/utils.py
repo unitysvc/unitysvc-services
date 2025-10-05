@@ -148,3 +148,44 @@ def find_files_by_schema(
             continue
 
     return matching_files
+
+
+def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
+    """
+    Resolve the service name for a listing file.
+
+    Rules:
+    1. If service_name is defined in listing_data, return it
+    2. Otherwise, find the only service offering in the same directory and return its name
+
+    Args:
+        listing_file: Path to the listing file
+        listing_data: Listing data dictionary
+
+    Returns:
+        Service name if found, None otherwise
+    """
+    # Rule 1: If service_name is already defined, use it
+    if "service_name" in listing_data and listing_data["service_name"]:
+        return listing_data["service_name"]
+
+    # Rule 2: Find the only service offering in the same directory
+    listing_dir = listing_file.parent
+
+    # Find all service offering files in the same directory
+    service_files: list[tuple[Path, str, dict[str, Any]]] = []
+    for data_file in find_data_files(listing_dir):
+        try:
+            data, file_format = load_data_file(data_file)
+            if data.get("schema") == "service_v1":
+                service_files.append((data_file, file_format, data))
+        except Exception:
+            continue
+
+    # If there's exactly one service file, use its name
+    if len(service_files) == 1:
+        _service_file, _service_format, service_data = service_files[0]
+        return service_data.get("name")
+
+    # Otherwise, return None (either no service files or multiple service files)
+    return None
