@@ -9,11 +9,13 @@ by copying from existing examples or data directories and updating the name fiel
 import json
 import shutil
 import sys
+import tomllib  # Built-in since Python 3.11
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-import tomllib  # Built-in since Python 3.11
+import typer
+from rich.console import Console
 
 try:
     import tomli_w
@@ -91,9 +93,7 @@ def save_data_file(file_path: Path, data: dict[str, Any]) -> None:
             f.write("\n")
     elif suffix == ".toml":
         if not TOML_WRITE_AVAILABLE:
-            raise ImportError(
-                "tomli_w is required to write TOML files. Install with: pip install tomli-w"
-            )
+            raise ImportError("tomli_w is required to write TOML files. Install with: pip install tomli-w")
         with open(file_path, "wb") as f:
             tomli_w.dump(data, f)
     else:
@@ -117,7 +117,7 @@ def detect_source_format(source_dir: Path) -> str:
     if max(format_counts.values()) == 0:
         return "toml"
 
-    return max(format_counts, key=format_counts.get)
+    return max(format_counts, key=lambda x: format_counts[x])
 
 
 def normalize_name(name: str) -> str:
@@ -125,9 +125,9 @@ def normalize_name(name: str) -> str:
     return name.replace("_", "-")
 
 
-def discover_schemas(schema_dir: Path) -> dict[str, dict]:
+def discover_schemas(schema_dir: Path) -> dict[str, dict[str, Any]]:
     """Discover available schemas by scanning the schema directory."""
-    schemas = {}
+    schemas: dict[str, dict[str, Any]] = {}
     if not schema_dir.exists():
         return schemas
 
@@ -143,9 +143,7 @@ def discover_schemas(schema_dir: Path) -> dict[str, dict]:
     return schemas
 
 
-def generate_example_value(
-    property_def: dict, property_name: str, schema_name: str
-) -> Any:
+def generate_example_value(property_def: dict, property_name: str, schema_name: str) -> Any:
     """Generate an example value based on JSON schema property definition."""
     # Handle default values first
     if "default" in property_def:
@@ -217,10 +215,7 @@ def generate_example_value(
                 }
             else:
                 return {"example_key": "example_value"}
-        elif (
-            isinstance(additional_props, dict)
-            and additional_props.get("type") == "string"
-        ):
+        elif isinstance(additional_props, dict) and additional_props.get("type") == "string":
             # additionalProperties with string type - create example key-value pairs
             return {
                 "feature1": "Feature description 1",
@@ -235,9 +230,7 @@ def generate_example_value(
             example_obj = {}
             if "properties" in items_def:
                 for item_prop, item_def in items_def["properties"].items():
-                    example_obj[item_prop] = generate_example_value(
-                        item_def, item_prop, schema_name
-                    )
+                    example_obj[item_prop] = generate_example_value(item_def, item_prop, schema_name)
             return [example_obj]
         return []
 
@@ -250,9 +243,7 @@ def generate_example_value(
     return None
 
 
-def generate_data_from_schema(
-    schema_def: dict, schema_name: str, dir_name: str
-) -> dict[str, Any]:
+def generate_data_from_schema(schema_def: dict, schema_name: str, dir_name: str) -> dict[str, Any]:
     """Generate example data based on JSON schema definition."""
     data = {}
 
@@ -271,9 +262,7 @@ def generate_data_from_schema(
                 data[prop_name] = dir_name
         elif prop_name == "schema":
             data[prop_name] = schema_name
-        elif (
-            value is not None
-        ):  # Only add non-None values to avoid TOML serialization issues
+        elif value is not None:  # Only add non-None values to avoid TOML serialization issues
             data[prop_name] = value
         # Skip None values unless they're required
         elif prop_name in required:
@@ -295,9 +284,7 @@ def get_data_filename_from_schema(schema_name: str, format_type: str) -> str:
         return f"{base_name}.{format_type}"
 
 
-def create_additional_files_from_schema(
-    dest_dir: Path, schema_def: dict, schema_name: str, dir_name: str
-) -> list[str]:
+def create_additional_files_from_schema(dest_dir: Path, schema_def: dict, schema_name: str, dir_name: str) -> list[str]:
     """Create additional files based on schema requirements (like terms-of-service.md)."""
     created_files = []
 
@@ -330,9 +317,7 @@ def create_additional_files_from_schema(
                 if prop_name == "terms_of_service":
                     content = f"# Terms of Service for {dir_name}\n\nPlaceholder terms of service document.\n"
                 elif prop_name == "code_example":
-                    content = (
-                        f"# Code Example for {dir_name}\n\nPlaceholder code example.\n"
-                    )
+                    content = f"# Code Example for {dir_name}\n\nPlaceholder code example.\n"
                 elif prop_name == "api_documentation":
                     content = f"# API Documentation for {dir_name}\n\nPlaceholder API documentation.\n"
                 else:
@@ -357,9 +342,7 @@ def handle_destination_directory(dest_dir: Path, force: bool = False) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
 
 
-def update_string_references(
-    obj, old_values: set[str], new_values: dict[str, str], context: str = ""
-) -> bool:
+def update_string_references(obj, old_values: set[str], new_values: dict[str, str], context: str = "") -> bool:
     """Recursively update string references in nested data structures.
 
     Args:
@@ -418,9 +401,7 @@ def create_schema_based_structure(
     available_schemas = discover_schemas(schema_dir)
 
     if schema_name not in available_schemas:
-        schema_list = (
-            ", ".join(available_schemas.keys()) if available_schemas else "none"
-        )
+        schema_list = ", ".join(available_schemas.keys()) if available_schemas else "none"
         print(
             f"Error: Unknown schema '{schema_name}'. Available schemas: {schema_list}",
             file=sys.stderr,
@@ -434,9 +415,7 @@ def create_schema_based_structure(
         data = generate_data_from_schema(schema_def, schema_name, dir_name)
 
         # Create additional files based on schema requirements
-        created_files = create_additional_files_from_schema(
-            dest_dir, schema_def, schema_name, dir_name
-        )
+        created_files = create_additional_files_from_schema(dest_dir, schema_def, schema_name, dir_name)
 
         # Save the data file
         data_filename = get_data_filename_from_schema(schema_name, format_type)
@@ -504,9 +483,7 @@ def copy_and_update_structure(
         dest_path.mkdir(parents=True, exist_ok=True)
 
         # Collect .md files in current source directory for reference conversion
-        md_files_in_dir = {
-            f.name for f in source_path.iterdir() if f.is_file() and f.suffix == ".md"
-        }
+        md_files_in_dir = {f.name for f in source_path.iterdir() if f.is_file() and f.suffix == ".md"}
 
         for item in source_path.iterdir():
             source_file = source_path / item.name
@@ -514,9 +491,7 @@ def copy_and_update_structure(
 
             if source_file.is_dir():
                 # Recursively process subdirectory
-                new_relative = (
-                    f"{relative_path}/{item.name}" if relative_path else item.name
-                )
+                new_relative = f"{relative_path}/{item.name}" if relative_path else item.name
                 process_directory(source_file, dest_file, new_relative)
             elif source_file.is_file():
                 # Handle files based on type
@@ -545,47 +520,32 @@ def copy_and_update_structure(
                             # Calculate the path relative to the data directory
                             if project_root and "example_data" in str(source_dir):
                                 # Source is in example_data, get relative path from example_data
-                                source_relative_to_base = source_dir.relative_to(
-                                    project_root / "example_data"
-                                )
+                                source_relative_to_base = source_dir.relative_to(project_root / "example_data")
                             elif project_root and "data" in str(source_dir):
                                 # Source is in data directory, get relative path from data
-                                source_relative_to_base = source_dir.relative_to(
-                                    project_root / "data"
-                                )
+                                source_relative_to_base = source_dir.relative_to(project_root / "data")
                             else:
                                 # Fallback: use the source directory name
                                 source_relative_to_base = Path(source_dir.name)
 
                             if relative_path:
                                 # For nested directories, append the relative path
-                                source_path_with_relative = (
-                                    source_relative_to_base / relative_path
-                                )
+                                source_path_with_relative = source_relative_to_base / relative_path
                             else:
                                 # For root level, use just the source path
                                 source_path_with_relative = source_relative_to_base
 
                             path_prefix = f"/{source_path_with_relative}"
-                            new_values = {
-                                md_file: f"{path_prefix}/{md_file}"
-                                for md_file in md_files_in_dir
-                            }
+                            new_values = {md_file: f"{path_prefix}/{md_file}" for md_file in md_files_in_dir}
 
-                            update_string_references(
-                                data, md_files_in_dir, new_values, " file reference"
-                            )
+                            update_string_references(data, md_files_in_dir, new_values, " file reference")
 
                         # Save the updated data file in the specified format
                         # Determine the new file path with the correct extension
                         if format_type != "json" or dest_file.suffix.lower() != ".json":
                             # Change extension to match the format
-                            dest_file_with_format = (
-                                dest_file.parent / f"{dest_file.stem}.{format_type}"
-                            )
-                            print(
-                                f"  Converting format: {dest_file.name} -> {dest_file_with_format.name}"
-                            )
+                            dest_file_with_format = dest_file.parent / f"{dest_file.stem}.{format_type}"
+                            print(f"  Converting format: {dest_file.name} -> {dest_file_with_format.name}")
                         else:
                             dest_file_with_format = dest_file
 
@@ -641,11 +601,7 @@ def copy_and_update_structure(
             if not copy_data:
 
                 def fix_renamed_paths_in_files(old_dir_name: str, new_dir_name: str):
-                    data_files = [
-                        file
-                        for ext in DATA_FILE_EXTENSIONS
-                        for file in dest_dir.glob(f"**/*{ext}")
-                    ]
+                    data_files = [file for ext in DATA_FILE_EXTENSIONS for file in dest_dir.glob(f"**/*{ext}")]
                     for data_file in data_files:
                         try:
                             data = load_data_file(data_file)
@@ -654,9 +610,7 @@ def copy_and_update_structure(
                             def collect_old_paths(obj, old_paths, new_path_mappings):
                                 if isinstance(obj, dict):
                                     for value in obj.values():
-                                        if isinstance(value, str) and value.startswith(
-                                            f"/{old_dir_name}/"
-                                        ):
+                                        if isinstance(value, str) and value.startswith(f"/{old_dir_name}/"):
                                             old_paths.add(value)
                                             new_path_mappings[value] = value.replace(
                                                 f"/{old_dir_name}/",
@@ -664,14 +618,10 @@ def copy_and_update_structure(
                                                 1,
                                             )
                                         else:
-                                            collect_old_paths(
-                                                value, old_paths, new_path_mappings
-                                            )
+                                            collect_old_paths(value, old_paths, new_path_mappings)
                                 elif isinstance(obj, list):
                                     for item in obj:
-                                        if isinstance(item, str) and item.startswith(
-                                            f"/{old_dir_name}/"
-                                        ):
+                                        if isinstance(item, str) and item.startswith(f"/{old_dir_name}/"):
                                             old_paths.add(item)
                                             new_path_mappings[item] = item.replace(
                                                 f"/{old_dir_name}/",
@@ -679,12 +629,10 @@ def copy_and_update_structure(
                                                 1,
                                             )
                                         else:
-                                            collect_old_paths(
-                                                item, old_paths, new_path_mappings
-                                            )
+                                            collect_old_paths(item, old_paths, new_path_mappings)
 
-                            old_paths = set()
-                            new_path_mappings = {}
+                            old_paths: set[str] = set()
+                            new_path_mappings: dict[str, str] = {}
                             collect_old_paths(data, old_paths, new_path_mappings)
 
                             if old_paths:
@@ -709,9 +657,6 @@ def copy_and_update_structure(
 
 
 # Typer CLI app for init commands
-import typer
-from rich.console import Console
-
 app = typer.Typer(help="Initialize new data files from schemas")
 console = Console()
 
@@ -739,10 +684,6 @@ def init_offering(
     ),
 ):
     """Create a new service offering skeleton."""
-    # Get schema directory
-    pkg_path = Path(__file__).parent
-    schema_dir = pkg_path / "schema"
-
     # Prepare arguments for scaffold
     if source:
         # Copy mode
@@ -760,18 +701,16 @@ def init_offering(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            copy_directory(
+            copy_and_update_structure(
                 source_dir=source_dir,
-                dest_name=name,
-                format_override=format,
-                base_dir=output_dir,
-                copy_markdown=True,
+                dest_dir=output_dir / name,
+                new_name=name,
                 copy_data=False,
-                schema_dir=schema_dir,
+                project_root=None,
+                format_type=format,
+                force=False,
             )
-            console.print(
-                f"[green]✓[/green] Service offering created: {output_dir / name}"
-            )
+            console.print(f"[green]✓[/green] Service offering created: {output_dir / name}")
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service offering: {e}",
@@ -785,16 +724,14 @@ def init_offering(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            create_directories_with_schema(
-                names=[name],
+            create_schema_based_structure(
+                dest_dir=output_dir / name,
+                dir_name=name,
                 schema_name="service_v1",
-                format=format,
-                base_dir=output_dir,
-                schema_dir=schema_dir,
+                format_type=format,
+                force=False,
             )
-            console.print(
-                f"[green]✓[/green] Service offering created: {output_dir / name}"
-            )
+            console.print(f"[green]✓[/green] Service offering created: {output_dir / name}")
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service offering: {e}",
@@ -826,10 +763,6 @@ def init_listing(
     ),
 ):
     """Create a new service listing skeleton."""
-    # Get schema directory
-    pkg_path = Path(__file__).parent
-    schema_dir = pkg_path / "schema"
-
     # Prepare arguments for scaffold
     if source:
         # Copy mode
@@ -847,18 +780,16 @@ def init_listing(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            copy_directory(
+            copy_and_update_structure(
                 source_dir=source_dir,
-                dest_name=name,
-                format_override=format,
-                base_dir=output_dir,
-                copy_markdown=True,
+                dest_dir=output_dir / name,
+                new_name=name,
                 copy_data=False,
-                schema_dir=schema_dir,
+                project_root=None,
+                format_type=format,
+                force=False,
             )
-            console.print(
-                f"[green]✓[/green] Service listing created: {output_dir / name}"
-            )
+            console.print(f"[green]✓[/green] Service listing created: {output_dir / name}")
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service listing: {e}",
@@ -872,16 +803,14 @@ def init_listing(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            create_directories_with_schema(
-                names=[name],
+            create_schema_based_structure(
+                dest_dir=output_dir / name,
+                dir_name=name,
                 schema_name="listing_v1",
-                format=format,
-                base_dir=output_dir,
-                schema_dir=schema_dir,
+                format_type=format,
+                force=False,
             )
-            console.print(
-                f"[green]✓[/green] Service listing created: {output_dir / name}"
-            )
+            console.print(f"[green]✓[/green] Service listing created: {output_dir / name}")
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service listing: {e}",
@@ -913,10 +842,6 @@ def init_provider(
     ),
 ):
     """Create a new provider skeleton."""
-    # Get schema directory
-    pkg_path = Path(__file__).parent
-    schema_dir = pkg_path / "schema"
-
     # Prepare arguments for scaffold
     if source:
         # Copy mode
@@ -934,20 +859,18 @@ def init_provider(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            copy_directory(
+            copy_and_update_structure(
                 source_dir=source_dir,
-                dest_name=name,
-                format_override=format,
-                base_dir=output_dir,
-                copy_markdown=True,
+                dest_dir=output_dir / name,
+                new_name=name,
                 copy_data=False,
-                schema_dir=schema_dir,
+                project_root=None,
+                format_type=format,
+                force=False,
             )
             console.print(f"[green]✓[/green] Provider created: {output_dir / name}")
         except Exception as e:
-            console.print(
-                f"[red]✗[/red] Failed to create provider: {e}", style="bold red"
-            )
+            console.print(f"[red]✗[/red] Failed to create provider: {e}", style="bold red")
             raise typer.Exit(code=1)
     else:
         # Generate from schema
@@ -956,18 +879,16 @@ def init_provider(
         console.print(f"[blue]Format:[/blue] {format}\n")
 
         try:
-            create_directories_with_schema(
-                names=[name],
+            create_schema_based_structure(
+                dest_dir=output_dir / name,
+                dir_name=name,
                 schema_name="provider_v1",
-                format=format,
-                base_dir=output_dir,
-                schema_dir=schema_dir,
+                format_type=format,
+                force=False,
             )
             console.print(f"[green]✓[/green] Provider created: {output_dir / name}")
         except Exception as e:
-            console.print(
-                f"[red]✗[/red] Failed to create provider: {e}", style="bold red"
-            )
+            console.print(f"[red]✗[/red] Failed to create provider: {e}", style="bold red")
             raise typer.Exit(code=1)
 
 
@@ -994,10 +915,6 @@ def init_seller(
     ),
 ):
     """Create a new seller skeleton."""
-    # Get schema directory
-    pkg_path = Path(__file__).parent
-    schema_dir = pkg_path / "schema"
-
     # Prepare arguments for scaffold
     if source:
         # Copy mode - for seller, source is a file not a directory
@@ -1063,9 +980,7 @@ def init_seller(
 
             console.print(f"[green]✓[/green] Seller created: {output_file}")
         except Exception as e:
-            console.print(
-                f"[red]✗[/red] Failed to create seller: {e}", style="bold red"
-            )
+            console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
             raise typer.Exit(code=1)
     else:
         # Generate from schema
@@ -1077,13 +992,17 @@ def init_seller(
             # Ensure output directory exists
             output_dir.mkdir(parents=True, exist_ok=True)
 
+            # Get schema directory
+            pkg_path = Path(__file__).parent
+            schema_dir = pkg_path / "schema"
+
             # Load schema to generate example
             schema_file = schema_dir / "seller_v1.json"
             if not schema_file.exists():
                 raise FileNotFoundError(f"Schema file not found: {schema_file}")
 
             with open(schema_file) as f:
-                schema = json.load(f)
+                json.load(f)
 
             # Create basic seller data from schema
             seller_data = {
@@ -1116,7 +1035,5 @@ def init_seller(
 
             console.print(f"[green]✓[/green] Seller created: {output_file}")
         except Exception as e:
-            console.print(
-                f"[red]✗[/red] Failed to create seller: {e}", style="bold red"
-            )
+            console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
             raise typer.Exit(code=1)

@@ -886,6 +886,11 @@
       "title": "Schema",
       "type": "string"
     },
+    "seller_name": {
+      "description": "Name of the seller offering this service listing",
+      "title": "Seller Name",
+      "type": "string"
+    },
     "service_name": {
       "anyOf": [
         {
@@ -954,6 +959,7 @@
   },
   "required": [
     "time_created",
+    "seller_name",
     "user_access_interfaces",
     "user_price"
   ],

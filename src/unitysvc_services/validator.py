@@ -41,7 +41,7 @@ class DataValidator:
 
     def find_union_fields(self, schema: dict[str, Any]) -> set[str]:
         """Find fields that are Union[str, HttpUrl] types in the schema."""
-        union_fields = set()
+        union_fields: set[str] = set()
 
         def traverse_schema(obj: Any, path: str = "") -> None:
             if isinstance(obj, dict):
@@ -49,16 +49,12 @@ class DataValidator:
                 if "anyOf" in obj:
                     any_of = obj["anyOf"]
                     # Count non-null items for the check
-                    non_null_items = [
-                        item for item in any_of if item.get("type") != "null"
-                    ]
+                    non_null_items = [item for item in any_of if item.get("type") != "null"]
                     has_plain_string = any(
-                        item.get("type") == "string" and "format" not in item
-                        for item in non_null_items
+                        item.get("type") == "string" and "format" not in item for item in non_null_items
                     )
                     has_uri_string = any(
-                        item.get("type") == "string" and item.get("format") == "uri"
-                        for item in non_null_items
+                        item.get("type") == "string" and item.get("format") == "uri" for item in non_null_items
                     )
 
                     # Check for Union[str, HttpUrl] or Union[str, HttpUrl, None]
@@ -73,9 +69,7 @@ class DataValidator:
 
                 # Check other schema structures
                 for key, value in obj.items():
-                    if key not in ["properties", "anyOf"] and isinstance(
-                        value, dict | list
-                    ):
+                    if key not in ["properties", "anyOf"] and isinstance(value, dict | list):
                         traverse_schema(value, path)
 
             elif isinstance(obj, list):
@@ -85,15 +79,13 @@ class DataValidator:
         traverse_schema(schema)
         return union_fields
 
-    def validate_file_references(
-        self, data: dict[str, Any], file_path: Path, union_fields: set[str]
-    ) -> list[str]:
+    def validate_file_references(self, data: dict[str, Any], file_path: Path, union_fields: set[str]) -> list[str]:
         """
         Validate that file references in Union[str, HttpUrl] fields exist.
 
         Also validates that all file_path fields use relative paths.
         """
-        errors = []
+        errors: list[str] = []
 
         def check_field(obj: Any, field_path: str, current_path: str = "") -> None:
             if isinstance(obj, dict):
@@ -109,9 +101,7 @@ class DataValidator:
                     ):
                         # Empty string is not a valid file reference
                         if value == "":
-                            errors.append(
-                                f"Empty string in field '{new_path}' is not a valid file reference or URL"
-                            )
+                            errors.append(f"Empty string in field '{new_path}' is not a valid file reference or URL")
                         # It's a file reference, must be relative path
                         elif Path(value).is_absolute():
                             errors.append(
@@ -153,11 +143,9 @@ class DataValidator:
         check_field(data, str(file_path))
         return errors
 
-    def validate_name_consistency(
-        self, data: dict[str, Any], file_path: Path, schema_name: str
-    ) -> list[str]:
+    def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
         """Validate that the name field matches the directory name."""
-        errors = []
+        errors: list[str] = []
 
         # Only validate files with a 'name' field
         if "name" not in data:
@@ -180,9 +168,7 @@ class DataValidator:
         elif file_path.name in ["service.json", "service.toml"]:
             # For service.json, the service directory should match the service name
             service_directory_name = file_path.parent.name
-            if self._normalize_name(name_value) != self._normalize_name(
-                service_directory_name
-            ):
+            if self._normalize_name(name_value) != self._normalize_name(service_directory_name):
                 normalized_name = self._normalize_name(name_value)
                 errors.append(
                     f"Service name '{name_value}' does not match "
@@ -201,11 +187,9 @@ class DataValidator:
         normalized = normalized.strip("-")
         return normalized
 
-    def load_data_file(
-        self, file_path: Path
-    ) -> tuple[dict[str, Any] | None, list[str]]:
+    def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
         """Load data from JSON or TOML file."""
-        errors = []
+        errors: list[str] = []
 
         try:
             if file_path.suffix == ".toml":
@@ -218,18 +202,20 @@ class DataValidator:
                 return None, [f"Unsupported file format: {file_path.suffix}"]
             return data, errors
         except Exception as e:
-            format_name = {".json": "JSON", ".toml": "TOML"}.get(
-                file_path.suffix, "data"
-            )
+            format_name = {".json": "JSON", ".toml": "TOML"}.get(file_path.suffix, "data")
             return None, [f"Failed to parse {format_name}: {e}"]
 
     def validate_data_file(self, file_path: Path) -> tuple[bool, list[str]]:
         """Validate a single data file (JSON or TOML)."""
-        errors = []
+        errors: list[str] = []
 
         data, load_errors = self.load_data_file(file_path)
         if load_errors:
             return False, load_errors
+
+        # data could be None if loading failed
+        if data is None:
+            return False, ["Failed to load data file"]
 
         # Check for schema field
         if "schema" not in data:
@@ -245,17 +231,13 @@ class DataValidator:
 
         # Validate against schema with format checking enabled
         try:
-            validator = Draft7Validator(
-                schema, format_checker=Draft7Validator.FORMAT_CHECKER
-            )
+            validator = Draft7Validator(schema, format_checker=Draft7Validator.FORMAT_CHECKER)
             validator.check_schema(schema)  # Validate the schema itself
             validation_errors = list(validator.iter_errors(data))
             for error in validation_errors:
                 errors.append(f"Schema validation error: {error.message}")
                 if error.absolute_path:
-                    errors.append(
-                        f"  Path: {'.'.join(str(p) for p in error.absolute_path)}"
-                    )
+                    errors.append(f"  Path: {'.'.join(str(p) for p in error.absolute_path)}")
         except Exception as e:
             errors.append(f"Validation error: {e}")
 
@@ -272,7 +254,7 @@ class DataValidator:
 
     def validate_md_file(self, file_path: Path) -> tuple[bool, list[str]]:
         """Validate a markdown file (basic existence check and Jinja2 syntax)."""
-        errors = []
+        errors: list[str] = []
 
         try:
             with open(file_path, encoding="utf-8") as f:
@@ -300,8 +282,8 @@ class DataValidator:
 
         Each repository should have one and only one seller.json file using the seller_v1 schema.
         """
-        errors = []
-        seller_files = []
+        errors: list[str] = []
+        seller_files: list[Path] = []
 
         if not self.data_dir.exists():
             return True, []
@@ -323,9 +305,7 @@ class DataValidator:
                 "No seller file found. Each repository must have exactly one data file using the 'seller_v1' schema."
             )
         elif len(seller_files) > 1:
-            errors.append(
-                f"Found {len(seller_files)} seller files, but only one is allowed per repository:"
-            )
+            errors.append(f"Found {len(seller_files)} seller files, but only one is allowed per repository:")
             for seller_file in seller_files:
                 errors.append(f"  - {seller_file}")
 
@@ -333,7 +313,7 @@ class DataValidator:
 
     def validate_all(self) -> dict[str, tuple[bool, list[str]]]:
         """Validate all files in the data directory."""
-        results = {}
+        results: dict[str, tuple[bool, list[str]]] = {}
 
         if not self.data_dir.exists():
             return results

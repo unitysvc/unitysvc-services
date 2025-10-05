@@ -3,7 +3,7 @@
 import json
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -15,7 +15,7 @@ console = Console()
 
 @app.command("providers")
 def list_providers(
-    data_dir: Optional[Path] = typer.Argument(
+    data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing provider files (default: ./data or UNITYSVC_DATA_DIR env var)",
     ),
@@ -33,15 +33,13 @@ def list_providers(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for providers in:[/blue] {data_dir}\n")
 
     # Find provider files
-    provider_files = []
+    provider_files: list[Path] = []
     for ext in ["json", "toml"]:
         provider_files.extend(data_dir.rglob(f"provider.{ext}"))
 
@@ -58,7 +56,7 @@ def list_providers(
     for provider_file in sorted(provider_files):
         try:
             if provider_file.suffix == ".json":
-                with open(provider_file, "r", encoding="utf-8") as f:
+                with open(provider_file, encoding="utf-8") as f:
                     data = json.load(f)
             else:
                 import tomli
@@ -84,7 +82,7 @@ def list_providers(
 
 @app.command("sellers")
 def list_sellers(
-    data_dir: Optional[Path] = typer.Argument(
+    data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing seller files (default: ./data or UNITYSVC_DATA_DIR env var)",
     ),
@@ -102,15 +100,13 @@ def list_sellers(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for sellers in:[/blue] {data_dir}\n")
 
     # Find seller files
-    seller_files = []
+    seller_files: list[Path] = []
     for ext in ["json", "toml"]:
         seller_files.extend(data_dir.rglob(f"seller.{ext}"))
 
@@ -127,7 +123,7 @@ def list_sellers(
     for seller_file in sorted(seller_files):
         try:
             if seller_file.suffix == ".json":
-                with open(seller_file, "r", encoding="utf-8") as f:
+                with open(seller_file, encoding="utf-8") as f:
                     data = json.load(f)
             else:
                 import tomli
@@ -153,7 +149,7 @@ def list_sellers(
 
 @app.command("offerings")
 def list_offerings(
-    data_dir: Optional[Path] = typer.Argument(
+    data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing service files (default: ./data or UNITYSVC_DATA_DIR env var)",
     ),
@@ -171,20 +167,18 @@ def list_offerings(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for service offerings in:[/blue] {data_dir}\n")
 
     # Find service files with schema service_v1
-    service_files = []
+    service_files: list[tuple[Path, dict[str, Any]]] = []
     for ext in ["json", "toml"]:
         for file_path in data_dir.rglob(f"*.{ext}"):
             try:
                 if file_path.suffix == ".json":
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         data = json.load(f)
                 else:
                     import tomli
@@ -217,14 +211,12 @@ def list_offerings(
         )
 
     console.print(table)
-    console.print(
-        f"\n[green]Total:[/green] {len(service_files)} service offering file(s)"
-    )
+    console.print(f"\n[green]Total:[/green] {len(service_files)} service offering file(s)")
 
 
 @app.command("listings")
 def list_listings(
-    data_dir: Optional[Path] = typer.Argument(
+    data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing listing files (default: ./data or UNITYSVC_DATA_DIR env var)",
     ),
@@ -242,20 +234,18 @@ def list_listings(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
 
     # Find listing files with schema listing_v1
-    listing_files = []
+    listing_files: list[tuple[Path, dict[str, Any]]] = []
     for ext in ["json", "toml"]:
         for file_path in data_dir.rglob(f"*.{ext}"):
             try:
                 if file_path.suffix == ".json":
-                    with open(file_path, "r", encoding="utf-8") as f:
+                    with open(file_path, encoding="utf-8") as f:
                         data = json.load(f)
                 else:
                     import tomli
@@ -286,6 +276,4 @@ def list_listings(
         )
 
     console.print(table)
-    console.print(
-        f"\n[green]Total:[/green] {len(listing_files)} service listing file(s)"
-    )
+    console.print(f"\n[green]Total:[/green] {len(listing_files)} service listing file(s)")
