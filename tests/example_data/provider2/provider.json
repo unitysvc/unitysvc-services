@@ -1,0 +1,16 @@
+{
+  "contact_email": "support@openai.com",
+  "homepage": "https://openai.com/",
+  "name": "provider2",
+  "provider_access_info": {
+    "api_endpoint": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+    "api_key": "sk_example_key"
+  },
+  "schema": "provider_v1",
+  "secondary_contact_email": "enterprise@openai.com",
+  "services_populator": {
+    "command": "scripts/update_openai_services.py --api-key sk_example_key --force"
+  },
+  "terms_of_service": "https://openai.com/policies/terms-of-use",
+  "time_created": "2024-03-15T10:30:00.000Z"
+}

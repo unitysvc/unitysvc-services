@@ -1,0 +1,57 @@
+{
+  "description": "State-of-the-art image generation model with exceptional quality and prompt adherence. Capable of producing photorealistic images, artwork, and creative visuals.",
+  "details": {
+    "contextLength": 512,
+    "defaultPrecision": "FP16",
+    "defaultSamplingSteps": 25,
+    "guidanceScale": 7.5,
+    "maxResolution": "2048x2048",
+    "modelType": "diffusion",
+    "parameterCount": "12000000000",
+    "supportedFormats": [
+      "PNG",
+      "JPEG",
+      "WEBP"
+    ],
+    "supportedSchedulers": [
+      "DDIM",
+      "DDPM",
+      "DPMSolverMultistep"
+    ],
+    "supportsImageInput": false,
+    "supportsTools": false
+  },
+  "display_name": "FLUX Pro Ultra",
+  "name": "service2",
+  "schema": "service_v1",
+  "service_type": "image_generation",
+  "time_created": "2024-03-15T10:30:00.000Z",
+  "upstream_access_interface": {
+    "access_method": "http",
+    "api_endpoint": "https://api.fireworks.ai/inference/v1/image/generation",
+    "api_key": "your_api_key_here",
+    "documents": [
+      {
+        "category": "code_examples",
+        "description": "Example code to use the model",
+        "file_path": "code-example.md",
+        "is_active": true,
+        "is_public": true,
+        "mime_type": "python",
+        "title": "Python Code Example"
+      }
+    ],
+    "name": "Fireworks Image API"
+  },
+  "upstream_price": {
+    "currency": "USD",
+    "description": "Pricing Per Image",
+    "price_data": {
+      "price": 0.04
+    },
+    "reference": null,
+    "unit": "image"
+  },
+  "upstream_status": "ready",
+  "version": "1.0"
+}

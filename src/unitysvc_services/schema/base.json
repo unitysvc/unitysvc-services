@@ -1,0 +1,762 @@
+{
+  "$defs": {
+    "AccessMethodEnum": {
+      "enum": [
+        "http",
+        "websocket",
+        "grpc"
+      ],
+      "title": "AccessMethodEnum",
+      "type": "string"
+    },
+    "AuthMethodEnum": {
+      "enum": [
+        "api_key",
+        "oauth",
+        "jwt",
+        "bearer_token",
+        "basic_auth"
+      ],
+      "title": "AuthMethodEnum",
+      "type": "string"
+    },
+    "ContentFilterEnum": {
+      "enum": [
+        "adult",
+        "violence",
+        "hate_speech",
+        "profanity",
+        "pii"
+      ],
+      "title": "ContentFilterEnum",
+      "type": "string"
+    },
+    "Document": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/DocumentCategoryEnum",
+          "description": "Document category for organization and filtering"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document description",
+          "title": "Description"
+        },
+        "external_url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "External URL for the document (mutually exclusive with object_key)",
+          "title": "External Url"
+        },
+        "file_path": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to file to upload (mutually exclusive with external_url)",
+          "title": "File Path"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether document is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_public": {
+          "default": false,
+          "description": "Whether document is publicly accessible without authentication",
+          "title": "Is Public",
+          "type": "boolean"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON containing operation stats",
+          "title": "Meta"
+        },
+        "mime_type": {
+          "$ref": "#/$defs/MimeTypeEnum",
+          "description": "Document MIME type"
+        },
+        "sort_order": {
+          "default": 0,
+          "description": "Sort order within category",
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "title": {
+          "description": "Document title",
+          "maxLength": 255,
+          "minLength": 5,
+          "title": "Title",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document version",
+          "title": "Version"
+        }
+      },
+      "required": [
+        "title",
+        "mime_type",
+        "category"
+      ],
+      "title": "Document",
+      "type": "object"
+    },
+    "DocumentCategoryEnum": {
+      "enum": [
+        "getting_started",
+        "api_reference",
+        "tutorials",
+        "code_examples",
+        "use_cases",
+        "troubleshooting",
+        "changelog",
+        "best_practices",
+        "specification",
+        "service_level_agreement",
+        "terms_of_service",
+        "invoice",
+        "logo",
+        "avatar",
+        "other"
+      ],
+      "title": "DocumentCategoryEnum",
+      "type": "string"
+    },
+    "MimeTypeEnum": {
+      "enum": [
+        "markdown",
+        "python",
+        "javascript",
+        "bash",
+        "html",
+        "text",
+        "pdf",
+        "jpeg",
+        "png",
+        "svg",
+        "url"
+      ],
+      "title": "MimeTypeEnum",
+      "type": "string"
+    },
+    "OveragePolicyEnum": {
+      "enum": [
+        "block",
+        "throttle",
+        "charge",
+        "queue"
+      ],
+      "title": "OveragePolicyEnum",
+      "type": "string"
+    },
+    "QuotaResetCycleEnum": {
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly"
+      ],
+      "title": "QuotaResetCycleEnum",
+      "type": "string"
+    },
+    "RateLimit": {
+      "additionalProperties": false,
+      "description": "Store rate limiting rules for services.",
+      "properties": {
+        "burst_limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short-term burst allowance",
+          "title": "Burst Limit"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Human-readable description",
+          "title": "Description"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether rate limit is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "limit": {
+          "description": "Maximum allowed in the time window",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "unit": {
+          "$ref": "#/$defs/RateLimitUnitEnum",
+          "description": "What is being limited"
+        },
+        "window": {
+          "$ref": "#/$defs/TimeWindowEnum",
+          "description": "Time window for the limit"
+        }
+      },
+      "required": [
+        "limit",
+        "unit",
+        "window"
+      ],
+      "title": "RateLimit",
+      "type": "object"
+    },
+    "RateLimitUnitEnum": {
+      "enum": [
+        "requests",
+        "tokens",
+        "input_tokens",
+        "output_tokens",
+        "bytes",
+        "concurrent"
+      ],
+      "title": "RateLimitUnitEnum",
+      "type": "string"
+    },
+    "RequestTransformEnum": {
+      "enum": [
+        "proxy_rewrite",
+        "body_transformer"
+      ],
+      "title": "RequestTransformEnum",
+      "type": "string"
+    },
+    "ServiceConstraints": {
+      "additionalProperties": false,
+      "properties": {
+        "auth_methods": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/AuthMethodEnum"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Supported authentication methods",
+          "title": "Auth Methods"
+        },
+        "connection_timeout_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Connection timeout in seconds",
+          "title": "Connection Timeout Seconds"
+        },
+        "content_filters": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ContentFilterEnum"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Active content filtering policies",
+          "title": "Content Filters"
+        },
+        "daily_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Daily usage quota (requests, tokens, etc.)",
+          "title": "Daily Quota"
+        },
+        "input_languages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Supported input languages (ISO 639-1 codes)",
+          "title": "Input Languages"
+        },
+        "ip_whitelist_required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Whether IP whitelisting is required",
+          "title": "Ip Whitelist Required"
+        },
+        "maintenance_windows": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scheduled maintenance windows",
+          "title": "Maintenance Windows"
+        },
+        "max_batch_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of items in batch requests",
+          "title": "Max Batch Size"
+        },
+        "max_concurrent_requests": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum concurrent requests allowed",
+          "title": "Max Concurrent Requests"
+        },
+        "max_connections_per_ip": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum connections per IP address",
+          "title": "Max Connections Per Ip"
+        },
+        "max_context_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum context length in tokens",
+          "title": "Max Context Length"
+        },
+        "max_request_size_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum request payload size in bytes",
+          "title": "Max Request Size Bytes"
+        },
+        "max_response_size_bytes": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum response payload size in bytes",
+          "title": "Max Response Size Bytes"
+        },
+        "monthly_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Monthly usage quota (requests, tokens, etc.)",
+          "title": "Monthly Quota"
+        },
+        "output_languages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Supported output languages (ISO 639-1 codes)",
+          "title": "Output Languages"
+        },
+        "overage_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OveragePolicyEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What happens when quota is exceeded"
+        },
+        "quota_reset_cycle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotaResetCycleEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How often quotas reset"
+        },
+        "quota_unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RateLimitUnitEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit for quota limits"
+        },
+        "region_restrictions": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Geographic restrictions (ISO country codes)",
+          "title": "Region Restrictions"
+        },
+        "response_time_sla_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Response time SLA in milliseconds",
+          "title": "Response Time Sla Ms"
+        },
+        "timeout_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Request timeout in seconds",
+          "title": "Timeout Seconds"
+        },
+        "tls_version_min": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Minimum TLS version required",
+          "title": "Tls Version Min"
+        },
+        "uptime_sla_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Uptime SLA percentage (e.g., 99.9)",
+          "title": "Uptime Sla Percent"
+        }
+      },
+      "title": "ServiceConstraints",
+      "type": "object"
+    },
+    "TimeWindowEnum": {
+      "enum": [
+        "second",
+        "minute",
+        "hour",
+        "day",
+        "month"
+      ],
+      "title": "TimeWindowEnum",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "access_method": {
+      "$ref": "#/$defs/AccessMethodEnum",
+      "default": "http",
+      "description": "Type of access method"
+    },
+    "api_endpoint": {
+      "description": "API endpoint URL",
+      "maxLength": 500,
+      "title": "Api Endpoint",
+      "type": "string"
+    },
+    "api_key": {
+      "anyOf": [
+        {
+          "maxLength": 2000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "API key if required",
+      "title": "Api Key"
+    },
+    "constraint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServiceConstraints"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Service constraints and conditions"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Interface description",
+      "title": "Description"
+    },
+    "documents": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Document"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "List of documents associated with the interface",
+      "title": "Documents"
+    },
+    "is_active": {
+      "default": true,
+      "description": "Whether interface is active",
+      "title": "Is Active",
+      "type": "boolean"
+    },
+    "is_primary": {
+      "default": false,
+      "description": "Whether this is the primary interface",
+      "title": "Is Primary",
+      "type": "boolean"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Interface name",
+      "title": "Name"
+    },
+    "rate_limits": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/RateLimit"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Rate limit",
+      "title": "Rate Limits"
+    },
+    "request_transformer": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "propertyNames": {
+            "$ref": "#/$defs/RequestTransformEnum"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Request transformation configuration",
+      "title": "Request Transformer"
+    },
+    "sort_order": {
+      "default": 0,
+      "description": "Display order",
+      "title": "Sort Order",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "api_endpoint"
+  ],
+  "title": "AccessInterface",
+  "type": "object"
+}

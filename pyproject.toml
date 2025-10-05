@@ -1,0 +1,74 @@
+[project]
+name = "unitysvc-services"
+version = "0.1.0"
+description = "SDK for digital service providers on UnitySVC"
+readme = "README.md"
+authors = [{ name = "Bo Peng", email = "bo.peng@unitysvc.com" }]
+maintainers = [{ name = "Bo Peng", email = "bo.peng@unitysvc.com" }]
+classifiers = [
+  # TODO
+]
+license = { text = "MIT" }
+dependencies = [
+  "typer",
+  "pydantic",
+  "jsonschema",
+  "jinja2",
+  "rich",
+  "httpx",
+  "tomli-w",
+]
+requires-python = ">= 3.11"
+
+[project.optional-dependencies]
+test = [
+  "coverage", # testing
+  "pytest",   # testing
+  "ruff",     # linting
+  "ty",       # checking types
+  "ipdb",     # debugging
+]
+dev = [
+  "coverage",
+  "pytest",
+  "ruff",
+  "ty",
+  "ipdb",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocs-autorefs",
+]
+docs = [
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocs-autorefs",
+]
+
+[project.urls]
+bugs = "https://github.com/unitysvc/unitysvc-services/issues"
+changelog = "https://github.com/unitysvc/unitysvc-services/blob/master/changelog.md"
+homepage = "https://github.com/unitysvc/unitysvc-services"
+
+[project.scripts]
+unitysvc_services = "unitysvc_services.cli:app"
+
+[tool.ty]
+# All rules are enabled as "error" by default; no need to specify unless overriding.
+# Example override: relax a rule for the entire project (uncomment if needed).
+# rules.TY015 = "warn"  # For invalid-argument-type, warn instead of error.
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+  "E",  # pycodestyle errors
+  "W",  # pycodestyle warnings
+  "F",  # Pyflakes
+  "I",  # isort
+  "B",  # flake8-bugbear
+  "UP", # pyupgrade
+]
+
+[tool.uv]
+package = true
