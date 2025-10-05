@@ -22,7 +22,7 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
         ValueError: If file format is not supported
     """
     if file_path.suffix == ".json":
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             return json.load(f), "json"
     elif file_path.suffix == ".toml":
         with open(file_path, "rb") as f:
@@ -68,7 +68,7 @@ def find_data_files(data_dir: Path, extensions: list[str] | None = None) -> list
     if extensions is None:
         extensions = ["json", "toml"]
 
-    data_files = []
+    data_files: list[Path] = []
     for ext in extensions:
         data_files.extend(data_dir.rglob(f"*.{ext}"))
     return data_files
@@ -122,7 +122,7 @@ def find_files_by_schema(
         List of tuples (file_path, format, data) for matching files
     """
     data_files = find_data_files(data_dir)
-    matching_files = []
+    matching_files: list[tuple[Path, str, dict[str, Any]]] = []
 
     for data_file in data_files:
         try:

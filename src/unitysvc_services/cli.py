@@ -2,7 +2,8 @@
 
 import typer
 
-from . import list as list_cmd, publisher, query, scaffold, standalone, update
+from . import list as list_cmd
+from . import publisher, query, scaffold, standalone, update
 
 app = typer.Typer()
 

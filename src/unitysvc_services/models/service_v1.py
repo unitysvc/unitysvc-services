@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
-from scripts.models.base import (
+from unitysvc_services.models.base import (
     AccessInterface,
     Document,
     Pricing,
@@ -19,9 +19,7 @@ class ServiceV1(BaseModel):
     #
     # fields for business data collection and maintenance
     #
-    schema_version: str = Field(
-        default="service_v1", description="Schema identifier", alias="schema"
-    )
+    schema_version: str = Field(default="service_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
     #
@@ -63,9 +61,7 @@ class ServiceV1(BaseModel):
 
     # static information from upstream, each service_type will have a
     # set of mandatory fields
-    details: dict[str, Any] = Field(
-        description="Dictionary of static features and information"
-    )
+    details: dict[str, Any] = Field(description="Dictionary of static features and information")
 
     documents: list[Document] | None = Field(
         default=None,
@@ -76,9 +72,7 @@ class ServiceV1(BaseModel):
     #  - endpoint
     #  - apikey
     #  - access_method
-    upstream_access_interface: AccessInterface = Field(
-        description="Dictionary of upstream access interface"
-    )
+    upstream_access_interface: AccessInterface = Field(description="Dictionary of upstream access interface")
     #
     # how upstream charges for their services, which can include
     # a list of pricing models

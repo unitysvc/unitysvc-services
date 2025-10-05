@@ -25,7 +25,7 @@ test = [
   "coverage", # testing
   "pytest",   # testing
   "ruff",     # linting
-  "ty",       # checking types
+  "mypy",     # type checking
   "ipdb",     # debugging
 ]
 dev = [
@@ -69,6 +69,15 @@ select = [
   "B",  # flake8-bugbear
   "UP", # pyupgrade
 ]
+ignore = [
+  "B008",  # Do not perform function calls in argument defaults (Typer pattern)
+  "B904",  # Within except clause raise with from err - not needed for CLI exit codes
+]
+
+[tool.mypy]
+ignore_missing_imports = true
+warn_unused_ignores = false
+disable_error_code = ["import-untyped"]
 
 [tool.uv]
 package = true

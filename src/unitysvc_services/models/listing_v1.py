@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from scripts.models.base import (
+from unitysvc_services.models.base import (
     AccessInterface,
     Document,
     ListingStatusEnum,
@@ -17,9 +17,7 @@ class ListingV1(BaseModel):
     #
     # fields for business data collection and maintenance
     #
-    schema_version: str = Field(
-        default="listing_v1", description="Schema identifier", alias="schema"
-    )
+    schema_version: str = Field(default="listing_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
     #
@@ -27,7 +25,13 @@ class ListingV1(BaseModel):
     #
     service_name: str | None = Field(
         default=None,
-        description="Name of the service (ServiceV1.name), optional if only one service is defined under the same directory.",
+        description=(
+            "Name of the service (ServiceV1.name), optional if only one service is defined under the same directory."
+        ),
+    )
+
+    seller_name: str = Field(
+        description="Name of the seller offering this service listing"
     )
 
     # unique name for each provider, usually following upstream naming convention
@@ -44,9 +48,7 @@ class ListingV1(BaseModel):
     #  - code_examples
     # multiple access interfaces can be provided, for example, if the service
     # is available through multiple interfaces or service groups
-    user_access_interfaces: list[AccessInterface] = Field(
-        description="Dictionary of user access interfaces"
-    )
+    user_access_interfaces: list[AccessInterface] = Field(description="Dictionary of user access interfaces")
 
     #
     # how upstream charges for their services, which can include

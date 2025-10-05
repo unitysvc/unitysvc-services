@@ -2,7 +2,6 @@
 
 import json
 import os
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -14,13 +13,13 @@ console = Console()
 
 @app.command("sellers")
 def query_sellers(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -91,13 +90,13 @@ def query_sellers(
 
 @app.command("providers")
 def query_providers(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -164,13 +163,13 @@ def query_providers(
 
 @app.command("offerings")
 def query_offerings(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -234,26 +233,22 @@ def query_offerings(
                         )
 
                     console.print(table)
-                    console.print(
-                        f"\n[green]Total:[/green] {len(offerings)} service offering(s)"
-                    )
+                    console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
 
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to list service offerings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to list service offerings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
 @app.command("listings")
 def query_listings(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -306,9 +301,7 @@ def query_listings(
                     table.add_column("Interfaces")
 
                     for listing in listings:
-                        interfaces_count = len(
-                            listing.get("user_access_interfaces", [])
-                        )
+                        interfaces_count = len(listing.get("user_access_interfaces", []))
                         table.add_row(
                             str(listing.get("id", "N/A")),
                             str(listing.get("service_id", "N/A")),
@@ -318,26 +311,22 @@ def query_listings(
                         )
 
                     console.print(table)
-                    console.print(
-                        f"\n[green]Total:[/green] {len(listings)} service listing(s)"
-                    )
+                    console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
 
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to list service listings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to list service listings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
 @app.command("interfaces")
 def query_interfaces(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -406,26 +395,22 @@ def query_interfaces(
                     )
 
                 console.print(table)
-                console.print(
-                    f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)"
-                )
+                console.print(f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)")
 
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
 @app.command("documents")
 def query_documents(
-    backend_url: Optional[str] = typer.Option(
+    backend_url: str | None = typer.Option(
         None,
         "--backend-url",
         "-u",
         help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
     ),
-    api_key: Optional[str] = typer.Option(
+    api_key: str | None = typer.Option(
         None,
         "--api-key",
         "-k",
@@ -494,12 +479,8 @@ def query_documents(
                     )
 
                 console.print(table)
-                console.print(
-                    f"\n[green]Total:[/green] {data.get('count', 0)} document(s)"
-                )
+                console.print(f"\n[green]Total:[/green] {data.get('count', 0)} document(s)")
 
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to query documents: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to query documents: {e}", style="bold red")
         raise typer.Exit(code=1)

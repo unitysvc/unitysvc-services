@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -21,28 +21,28 @@ def update_offering(
         "-n",
         help="Name of the service offering to update (matches 'name' field in service file)",
     ),
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None,
         "--status",
         "-s",
         help="New upstream_status (uploading, ready, deprecated)",
     ),
-    display_name: Optional[str] = typer.Option(
+    display_name: str | None = typer.Option(
         None,
         "--display-name",
         help="New display name for the offering",
     ),
-    description: Optional[str] = typer.Option(
+    description: str | None = typer.Option(
         None,
         "--description",
         help="New description for the offering",
     ),
-    version: Optional[str] = typer.Option(
+    version: str | None = typer.Option(
         None,
         "--version",
         help="New version for the offering",
     ),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",
@@ -73,7 +73,10 @@ def update_offering(
     # Check if any update field is provided
     if not any([status, display_name, description, version]):
         console.print(
-            "[red]✗[/red] No fields to update. Provide at least one of: --status, --display-name, --description, --version",
+            (
+                "[red]✗[/red] No fields to update. Provide at least one of: "
+                "--status, --display-name, --description, --version"
+            ),
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -90,9 +93,7 @@ def update_offering(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for offering:[/blue] {name}")
@@ -133,7 +134,7 @@ def update_offering(
         # Write back in same format
         write_data_file(matching_file, data, matching_format)
 
-        console.print(f"[green]✓[/green] Updated offering successfully!")
+        console.print("[green]✓[/green] Updated offering successfully!")
         console.print(f"[cyan]File:[/cyan] {matching_file.relative_to(data_dir)}")
         console.print(f"[cyan]Format:[/cyan] {matching_format.upper()}\n")
 
@@ -162,18 +163,21 @@ def update_listing(
         "-n",
         help="Name of the service (to search for listing files in service directory)",
     ),
-    status: Optional[str] = typer.Option(
+    status: str | None = typer.Option(
         None,
         "--status",
         "-s",
-        help="New listing_status (unknown, upstream_ready, downstream_ready, ready, in_service, upstream_deprecated, deprecated)",
+        help=(
+            "New listing_status (unknown, upstream_ready, downstream_ready, "
+            "ready, in_service, upstream_deprecated, deprecated)"
+        ),
     ),
-    seller_name: Optional[str] = typer.Option(
+    seller_name: str | None = typer.Option(
         None,
         "--seller",
         help="Seller name to filter listings (updates only matching seller's listing)",
     ),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",
@@ -233,9 +237,7 @@ def update_listing(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for service:[/blue] {service_name}")
@@ -250,13 +252,11 @@ def update_listing(
         field_filter["seller_name"] = seller_name
 
     # Find listing files matching criteria
-    listing_files = find_files_by_schema(
-        data_dir, "listing_v1", path_filter=service_name, field_filter=field_filter
-    )
+    listing_files = find_files_by_schema(data_dir, "listing_v1", path_filter=service_name, field_filter=field_filter)
 
     if not listing_files:
         console.print(
-            f"[red]✗[/red] No listing files found matching criteria",
+            "[red]✗[/red] No listing files found matching criteria",
             style="bold red",
         )
         raise typer.Exit(code=1)
