@@ -238,10 +238,11 @@ def populate(
 
     console.print(f"[blue]Scanning for provider configurations in:[/blue] {data_dir}\n")
 
-    # Find all provider files
-    provider_files: list[Path] = []
-    for ext in ["toml", "json"]:
-        provider_files.extend(data_dir.rglob(f"provider.{ext}"))
+    # Find all provider files by schema
+    from .utils import find_files_by_schema
+
+    provider_results = find_files_by_schema(data_dir, "provider_v1")
+    provider_files = [file_path for file_path, _, _ in provider_results]
 
     if not provider_files:
         console.print("[yellow]No provider files found.[/yellow]")

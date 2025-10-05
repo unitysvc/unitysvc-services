@@ -1,13 +1,13 @@
 """List command group - list local data files."""
 
-import json
 import os
 from pathlib import Path
-from typing import Any
 
 import typer
 from rich.console import Console
 from rich.table import Table
+
+from .utils import find_files_by_schema
 
 app = typer.Typer(help="List data files in directory")
 console = Console()
@@ -38,10 +38,8 @@ def list_providers(
 
     console.print(f"[blue]Searching for providers in:[/blue] {data_dir}\n")
 
-    # Find provider files
-    provider_files: list[Path] = []
-    for ext in ["json", "toml"]:
-        provider_files.extend(data_dir.rglob(f"provider.{ext}"))
+    # Find provider files by schema
+    provider_files = find_files_by_schema(data_dir, "provider_v1")
 
     if not provider_files:
         console.print("[yellow]No provider files found.[/yellow]")
@@ -53,28 +51,12 @@ def list_providers(
     table.add_column("Name", style="green")
     table.add_column("Display Name", style="blue")
 
-    for provider_file in sorted(provider_files):
-        try:
-            if provider_file.suffix == ".json":
-                with open(provider_file, encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                import tomli
-
-                with open(provider_file, "rb") as f:
-                    data = tomli.load(f)
-
-            table.add_row(
-                str(provider_file.relative_to(data_dir)),
-                data.get("name", "N/A"),
-                data.get("display_name", "N/A"),
-            )
-        except Exception as e:
-            table.add_row(
-                str(provider_file.relative_to(data_dir)),
-                f"[red]Error: {e}[/red]",
-                "",
-            )
+    for file_path, _file_format, data in sorted(provider_files, key=lambda x: x[0]):
+        table.add_row(
+            str(file_path.relative_to(data_dir)),
+            data.get("name", "N/A"),
+            data.get("display_name", "N/A"),
+        )
 
     console.print(table)
     console.print(f"\n[green]Total:[/green] {len(provider_files)} provider file(s)")
@@ -105,10 +87,8 @@ def list_sellers(
 
     console.print(f"[blue]Searching for sellers in:[/blue] {data_dir}\n")
 
-    # Find seller files
-    seller_files: list[Path] = []
-    for ext in ["json", "toml"]:
-        seller_files.extend(data_dir.rglob(f"seller.{ext}"))
+    # Find seller files by schema
+    seller_files = find_files_by_schema(data_dir, "seller_v1")
 
     if not seller_files:
         console.print("[yellow]No seller files found.[/yellow]")
@@ -120,28 +100,12 @@ def list_sellers(
     table.add_column("Name", style="green")
     table.add_column("Display Name", style="blue")
 
-    for seller_file in sorted(seller_files):
-        try:
-            if seller_file.suffix == ".json":
-                with open(seller_file, encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                import tomli
-
-                with open(seller_file, "rb") as f:
-                    data = tomli.load(f)
-
-            table.add_row(
-                str(seller_file.relative_to(data_dir)),
-                data.get("name", "N/A"),
-                data.get("display_name", "N/A"),
-            )
-        except Exception as e:
-            table.add_row(
-                str(seller_file.relative_to(data_dir)),
-                f"[red]Error: {e}[/red]",
-                "",
-            )
+    for file_path, _file_format, data in sorted(seller_files, key=lambda x: x[0]):
+        table.add_row(
+            str(file_path.relative_to(data_dir)),
+            data.get("name", "N/A"),
+            data.get("display_name", "N/A"),
+        )
 
     console.print(table)
     console.print(f"\n[green]Total:[/green] {len(seller_files)} seller file(s)")
@@ -172,24 +136,8 @@ def list_offerings(
 
     console.print(f"[blue]Searching for service offerings in:[/blue] {data_dir}\n")
 
-    # Find service files with schema service_v1
-    service_files: list[tuple[Path, dict[str, Any]]] = []
-    for ext in ["json", "toml"]:
-        for file_path in data_dir.rglob(f"*.{ext}"):
-            try:
-                if file_path.suffix == ".json":
-                    with open(file_path, encoding="utf-8") as f:
-                        data = json.load(f)
-                else:
-                    import tomli
-
-                    with open(file_path, "rb") as f:
-                        data = tomli.load(f)
-
-                if data.get("schema") == "service_v1":
-                    service_files.append((file_path, data))
-            except Exception:
-                continue
+    # Find service files by schema
+    service_files = find_files_by_schema(data_dir, "service_v1")
 
     if not service_files:
         console.print("[yellow]No service offering files found.[/yellow]")
@@ -202,9 +150,9 @@ def list_offerings(
     table.add_column("Display Name", style="blue")
     table.add_column("Status", style="magenta")
 
-    for service_file, data in sorted(service_files, key=lambda x: x[0]):
+    for file_path, _file_format, data in sorted(service_files, key=lambda x: x[0]):
         table.add_row(
-            str(service_file.relative_to(data_dir)),
+            str(file_path.relative_to(data_dir)),
             data.get("name", "N/A"),
             data.get("display_name", "N/A"),
             data.get("upstream_status", "N/A"),
@@ -239,24 +187,8 @@ def list_listings(
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
 
-    # Find listing files with schema listing_v1
-    listing_files: list[tuple[Path, dict[str, Any]]] = []
-    for ext in ["json", "toml"]:
-        for file_path in data_dir.rglob(f"*.{ext}"):
-            try:
-                if file_path.suffix == ".json":
-                    with open(file_path, encoding="utf-8") as f:
-                        data = json.load(f)
-                else:
-                    import tomli
-
-                    with open(file_path, "rb") as f:
-                        data = tomli.load(f)
-
-                if data.get("schema") == "listing_v1":
-                    listing_files.append((file_path, data))
-            except Exception:
-                continue
+    # Find listing files by schema
+    listing_files = find_files_by_schema(data_dir, "listing_v1")
 
     if not listing_files:
         console.print("[yellow]No service listing files found.[/yellow]")
@@ -268,9 +200,9 @@ def list_listings(
     table.add_column("Seller", style="green")
     table.add_column("Status", style="magenta")
 
-    for listing_file, data in sorted(listing_files, key=lambda x: x[0]):
+    for file_path, _file_format, data in sorted(listing_files, key=lambda x: x[0]):
         table.add_row(
-            str(listing_file.relative_to(data_dir)),
+            str(file_path.relative_to(data_dir)),
             data.get("seller_name", "N/A"),
             data.get("listing_status", "N/A"),
         )
