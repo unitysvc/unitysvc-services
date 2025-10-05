@@ -2,13 +2,118 @@
 
 import json
 import os
+from typing import Any
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
 
 app = typer.Typer(help="Query backend API for data")
 console = Console()
+
+
+class ServiceDataQuery:
+    """Query service data from UnitySVC backend endpoints."""
+
+    def __init__(self, base_url: str, api_key: str):
+        """Initialize query client with backend URL and API key.
+
+        Args:
+            base_url: UnitySVC backend URL
+            api_key: API key for authentication
+
+        Raises:
+            ValueError: If base_url or api_key is not provided
+        """
+        if not base_url:
+            raise ValueError(
+                "Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var."
+            )
+        if not api_key:
+            raise ValueError("API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.")
+
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.client = httpx.Client(
+            headers={
+                "X-API-Key": api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=30.0,
+        )
+
+    def list_service_offerings(self) -> list[dict[str, Any]]:
+        """List all service offerings from the backend."""
+        response = self.client.get(f"{self.base_url}/publish/service_offering")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_service_listings(self) -> list[dict[str, Any]]:
+        """List all service listings from the backend."""
+        response = self.client.get(f"{self.base_url}/services/")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_providers(self) -> list[dict[str, Any]]:
+        """List all providers from the backend."""
+        response = self.client.get(f"{self.base_url}/providers/")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_sellers(self) -> list[dict[str, Any]]:
+        """List all sellers from the backend."""
+        response = self.client.get(f"{self.base_url}/sellers/")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_access_interfaces(self) -> dict[str, Any]:
+        """List all access interfaces from the backend (private endpoint)."""
+        response = self.client.get(f"{self.base_url}/private/access_interfaces")
+        response.raise_for_status()
+        return response.json()
+
+    def list_documents(self) -> dict[str, Any]:
+        """List all documents from the backend (private endpoint)."""
+        response = self.client.get(f"{self.base_url}/private/documents")
+        response.raise_for_status()
+        return response.json()
+
+    def close(self):
+        """Close the HTTP client."""
+        self.client.close()
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+
+    @staticmethod
+    def from_env(
+        backend_url: str | None = None, api_key: str | None = None
+    ) -> "ServiceDataQuery":
+        """Create ServiceDataQuery from environment variables or arguments.
+
+        Args:
+            backend_url: Optional backend URL (falls back to UNITYSVC_BACKEND_URL env var)
+            api_key: Optional API key (falls back to UNITYSVC_API_KEY env var)
+
+        Returns:
+            ServiceDataQuery instance
+
+        Raises:
+            ValueError: If required credentials are not provided
+        """
+        resolved_backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL") or ""
+        resolved_api_key = api_key or os.getenv("UNITYSVC_API_KEY") or ""
+        return ServiceDataQuery(base_url=resolved_backend_url, api_key=resolved_api_key)
 
 
 @app.command("sellers")
@@ -33,34 +138,13 @@ def query_sellers(
     ),
 ):
     """Query all sellers from the backend."""
-    from unitysvc_services.publisher import ServiceDataPublisher
-
-    # Get backend URL
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
-            sellers = publisher.list_sellers()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            sellers = query.list_sellers()
 
             if format == "json":
                 console.print(json.dumps(sellers, indent=2))
             else:
-                # Display as a table
                 if not sellers:
                     console.print("[yellow]No sellers found.[/yellow]")
                 else:
@@ -83,8 +167,11 @@ def query_sellers(
                         )
 
                     console.print(table)
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to list sellers: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to query sellers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -110,34 +197,13 @@ def query_providers(
     ),
 ):
     """Query all providers from the backend."""
-    from unitysvc_services.publisher import ServiceDataPublisher
-
-    # Get backend URL
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
-            providers = publisher.list_providers()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            providers = query.list_providers()
 
             if format == "json":
                 console.print(json.dumps(providers, indent=2))
             else:
-                # Display as a table
                 if not providers:
                     console.print("[yellow]No providers found.[/yellow]")
                 else:
@@ -156,8 +222,11 @@ def query_providers(
                         )
 
                     console.print(table)
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to list providers: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to query providers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -183,34 +252,13 @@ def query_offerings(
     ),
 ):
     """Query all service offerings from UnitySVC backend."""
-    from unitysvc_services.publisher import ServiceDataPublisher
-
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
-            offerings = publisher.list_service_offerings()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            offerings = query.list_service_offerings()
 
             if format == "json":
                 console.print(json.dumps(offerings, indent=2))
             else:
-                # Table format
                 if not offerings:
                     console.print("[yellow]No service offerings found.[/yellow]")
                 else:
@@ -234,9 +282,11 @@ def query_offerings(
 
                     console.print(table)
                     console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
-
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to list service offerings: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to query service offerings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -262,34 +312,13 @@ def query_listings(
     ),
 ):
     """Query all service listings from UnitySVC backend."""
-    from unitysvc_services.publisher import ServiceDataPublisher
-
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
-            listings = publisher.list_service_listings()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            listings = query.list_service_listings()
 
             if format == "json":
                 console.print(json.dumps(listings, indent=2))
             else:
-                # Table format
                 if not listings:
                     console.print("[yellow]No service listings found.[/yellow]")
                 else:
@@ -312,9 +341,11 @@ def query_listings(
 
                     console.print(table)
                     console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
-
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to list service listings: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to query service listings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -340,63 +371,40 @@ def query_interfaces(
     ),
 ):
     """Query all access interfaces from UnitySVC backend (private endpoint)."""
-    import requests
-
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        response = requests.get(
-            f"{backend_url}/private/access_interfaces",
-            headers={"X-API-Key": api_key},
-        )
-        response.raise_for_status()
-        data = response.json()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            data = query.list_access_interfaces()
 
-        if format == "json":
-            console.print(json.dumps(data, indent=2))
-        else:
-            # Table format
-            interfaces = data.get("data", [])
-            if not interfaces:
-                console.print("[yellow]No access interfaces found.[/yellow]")
+            if format == "json":
+                console.print(json.dumps(data, indent=2))
             else:
-                table = Table(title="Access Interfaces", show_lines=True)
-                table.add_column("ID", style="cyan")
-                table.add_column("Name", style="green")
-                table.add_column("Context", style="blue")
-                table.add_column("Entity ID", style="yellow")
-                table.add_column("Method", style="magenta")
-                table.add_column("Active", style="green")
+                interfaces = data.get("data", [])
+                if not interfaces:
+                    console.print("[yellow]No access interfaces found.[/yellow]")
+                else:
+                    table = Table(title="Access Interfaces", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Name", style="green")
+                    table.add_column("Context", style="blue")
+                    table.add_column("Entity ID", style="yellow")
+                    table.add_column("Method", style="magenta")
+                    table.add_column("Active", style="green")
 
-                for interface in interfaces:
-                    table.add_row(
-                        str(interface.get("id", "N/A"))[:8] + "...",
-                        interface.get("name", "N/A"),
-                        interface.get("context_type", "N/A"),
-                        str(interface.get("entity_id", "N/A"))[:8] + "...",
-                        interface.get("access_method", "N/A"),
-                        "✓" if interface.get("is_active") else "✗",
-                    )
+                    for interface in interfaces:
+                        table.add_row(
+                            str(interface.get("id", "N/A"))[:8] + "...",
+                            interface.get("name", "N/A"),
+                            interface.get("context_type", "N/A"),
+                            str(interface.get("entity_id", "N/A"))[:8] + "...",
+                            interface.get("access_method", "N/A"),
+                            "✓" if interface.get("is_active") else "✗",
+                        )
 
-                console.print(table)
-                console.print(f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)")
-
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red")
         raise typer.Exit(code=1)
@@ -424,63 +432,40 @@ def query_documents(
     ),
 ):
     """Query all documents from UnitySVC backend (private endpoint)."""
-    import requests
-
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        response = requests.get(
-            f"{backend_url}/private/documents",
-            headers={"X-API-Key": api_key},
-        )
-        response.raise_for_status()
-        data = response.json()
+        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+            data = query.list_documents()
 
-        if format == "json":
-            console.print(json.dumps(data, indent=2))
-        else:
-            # Table format
-            documents = data.get("data", [])
-            if not documents:
-                console.print("[yellow]No documents found.[/yellow]")
+            if format == "json":
+                console.print(json.dumps(data, indent=2))
             else:
-                table = Table(title="Documents", show_lines=True)
-                table.add_column("ID", style="cyan")
-                table.add_column("Title", style="green")
-                table.add_column("Category", style="blue")
-                table.add_column("MIME Type", style="yellow")
-                table.add_column("Context", style="magenta")
-                table.add_column("Public", style="red")
+                documents = data.get("data", [])
+                if not documents:
+                    console.print("[yellow]No documents found.[/yellow]")
+                else:
+                    table = Table(title="Documents", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Title", style="green")
+                    table.add_column("Category", style="blue")
+                    table.add_column("MIME Type", style="yellow")
+                    table.add_column("Context", style="magenta")
+                    table.add_column("Public", style="red")
 
-                for doc in documents:
-                    table.add_row(
-                        str(doc.get("id", "N/A"))[:8] + "...",
-                        doc.get("title", "N/A")[:40],
-                        doc.get("category", "N/A"),
-                        doc.get("mime_type", "N/A"),
-                        doc.get("context_type", "N/A"),
-                        "✓" if doc.get("is_public") else "✗",
-                    )
+                    for doc in documents:
+                        table.add_row(
+                            str(doc.get("id", "N/A"))[:8] + "...",
+                            doc.get("title", "N/A")[:40],
+                            doc.get("category", "N/A"),
+                            doc.get("mime_type", "N/A"),
+                            doc.get("context_type", "N/A"),
+                            "✓" if doc.get("is_public") else "✗",
+                        )
 
-                console.print(table)
-                console.print(f"\n[green]Total:[/green] {data.get('count', 0)} document(s)")
-
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} document(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to query documents: {e}", style="bold red")
         raise typer.Exit(code=1)

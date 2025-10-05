@@ -227,8 +227,6 @@ def list_listings(
     table.add_column("Status", style="magenta")
 
     for file_path, _file_format, data in sorted(listing_files, key=lambda x: x[0]):
-        seller_name = data.get("seller_name", "N/A")
-
         # Resolve provider and service names using the utility functions
         provider_name = resolve_provider_name(file_path) or "N/A"
         service_name = resolve_service_name_for_listing(file_path, data) or "N/A"
@@ -237,7 +235,7 @@ def list_listings(
             str(file_path.relative_to(data_dir)),
             provider_name,
             service_name,
-            seller_info["name"],
+            seller_info.get("name", "N/A"),
             data.get("listing_status", "N/A"),
         )
 
