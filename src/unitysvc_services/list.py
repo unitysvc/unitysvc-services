@@ -187,6 +187,16 @@ def list_listings(
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
 
+    # Find seller definition to get display names
+    seller_files = find_files_by_schema(data_dir, "seller_v1")
+    seller_info = {}
+    if seller_files:
+        # Use the first (and should be only) seller file
+        _seller_path, _seller_format, seller_data = seller_files[0]
+        seller_name = seller_data.get("name", "")
+        seller_display_name = seller_data.get("display_name", seller_name)
+        seller_info[seller_name] = seller_display_name
+
     # Find listing files by schema
     listing_files = find_files_by_schema(data_dir, "listing_v1")
 
@@ -197,13 +207,18 @@ def list_listings(
     # Create table
     table = Table(title="Service Listing Files", show_lines=True)
     table.add_column("File", style="cyan")
+    table.add_column("Service", style="blue")
     table.add_column("Seller", style="green")
     table.add_column("Status", style="magenta")
 
     for file_path, _file_format, data in sorted(listing_files, key=lambda x: x[0]):
+        seller_name = data.get("seller_name", "N/A")
+        seller_display = seller_info.get(seller_name, seller_name)
+
         table.add_row(
             str(file_path.relative_to(data_dir)),
-            data.get("seller_name", "N/A"),
+            data.get("service_name", "N/A"),
+            seller_display,
             data.get("listing_status", "N/A"),
         )
 
