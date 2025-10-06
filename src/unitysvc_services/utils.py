@@ -267,8 +267,6 @@ def convert_convenience_fields_to_documents(
         >>> result = convert_convenience_fields_to_documents(data, Path("/data/provider"))
         >>> # Result will have logo removed and added to documents list
     """
-    from unitysvc_services.models.base import DocumentCategoryEnum, MimeTypeEnum
-
     # Initialize documents list if not present
     if "documents" not in data or data["documents"] is None:
         data["documents"] = []
@@ -277,23 +275,23 @@ def convert_convenience_fields_to_documents(
     def get_mime_type(path_or_url: str) -> str:
         path_lower = path_or_url.lower()
         if path_lower.endswith((".png", ".jpg", ".jpeg")):
-            return MimeTypeEnum.png if ".png" in path_lower else MimeTypeEnum.jpeg
+            return "png" if ".png" in path_lower else "jpeg"
         elif path_lower.endswith(".svg"):
-            return MimeTypeEnum.svg
+            return "svg"
         elif path_lower.endswith(".pdf"):
-            return MimeTypeEnum.pdf
+            return "pdf"
         elif path_lower.endswith(".md"):
-            return MimeTypeEnum.markdown
+            return "markdown"
         else:
             # Default to URL if it looks like a URL, otherwise markdown
-            return MimeTypeEnum.url if path_or_url.startswith("http") else MimeTypeEnum.markdown
+            return "url" if path_or_url.startswith("http") else "markdown"
 
     # Convert logo field
     if logo_field in data and data[logo_field]:
         logo_value = data[logo_field]
         logo_doc: dict[str, Any] = {
             "title": "Company Logo",
-            "category": DocumentCategoryEnum.logo,
+            "category": "logo",
             "mime_type": get_mime_type(str(logo_value)),
             "is_public": True,
         }
@@ -314,7 +312,7 @@ def convert_convenience_fields_to_documents(
         terms_value = data[terms_field]
         terms_doc: dict[str, Any] = {
             "title": "Terms of Service",
-            "category": DocumentCategoryEnum.terms_of_service,
+            "category": "terms_of_service",
             "mime_type": get_mime_type(str(terms_value)),
             "is_public": True,
         }
