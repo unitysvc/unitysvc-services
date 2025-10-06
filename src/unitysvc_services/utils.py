@@ -238,3 +238,94 @@ def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str,
 
     # Otherwise, return None (either no service files or multiple service files)
     return None
+
+
+def convert_convenience_fields_to_documents(
+    data: dict[str, Any],
+    base_path: Path,
+    *,
+    logo_field: str = "logo",
+    terms_field: str | None = "terms_of_service",
+) -> dict[str, Any]:
+    """
+    Convert convenience fields (logo, terms_of_service) to Document objects.
+
+    This utility function converts file paths or URLs in convenience fields
+    to proper Document structures that can be stored in the backend.
+
+    Args:
+        data: Data dictionary containing potential convenience fields
+        base_path: Base path for resolving relative file paths
+        logo_field: Name of the logo field (default: "logo")
+        terms_field: Name of the terms of service field (default: "terms_of_service", None to skip)
+
+    Returns:
+        Updated data dictionary with convenience fields converted to documents list
+
+    Example:
+        >>> data = {"logo": "assets/logo.png", "documents": []}
+        >>> result = convert_convenience_fields_to_documents(data, Path("/data/provider"))
+        >>> # Result will have logo removed and added to documents list
+    """
+    # Initialize documents list if not present
+    if "documents" not in data or data["documents"] is None:
+        data["documents"] = []
+
+    # Helper to determine MIME type from file path/URL
+    def get_mime_type(path_or_url: str) -> str:
+        path_lower = path_or_url.lower()
+        if path_lower.endswith((".png", ".jpg", ".jpeg")):
+            return "png" if ".png" in path_lower else "jpeg"
+        elif path_lower.endswith(".svg"):
+            return "svg"
+        elif path_lower.endswith(".pdf"):
+            return "pdf"
+        elif path_lower.endswith(".md"):
+            return "markdown"
+        else:
+            # Default to URL if it looks like a URL, otherwise markdown
+            return "url" if path_or_url.startswith("http") else "markdown"
+
+    # Convert logo field
+    if logo_field in data and data[logo_field]:
+        logo_value = data[logo_field]
+        logo_doc: dict[str, Any] = {
+            "title": "Company Logo",
+            "category": "logo",
+            "mime_type": get_mime_type(str(logo_value)),
+            "is_public": True,
+        }
+
+        # Check if it's a URL or file path
+        if str(logo_value).startswith("http"):
+            logo_doc["external_url"] = str(logo_value)
+        else:
+            # It's a file path - will be resolved by resolve_file_references
+            logo_doc["file_path"] = str(logo_value)
+
+        data["documents"].append(logo_doc)
+        # Remove the convenience field
+        del data[logo_field]
+
+    # Convert terms_of_service field if specified
+    if terms_field and terms_field in data and data[terms_field]:
+        terms_value = data[terms_field]
+        terms_doc: dict[str, Any] = {
+            "title": "Terms of Service",
+            "category": "terms_of_service",
+            "mime_type": get_mime_type(str(terms_value)),
+            "is_public": True,
+        }
+
+        # Check if it's a URL or file path
+        if str(terms_value).startswith("http"):
+            terms_doc["external_url"] = str(terms_value)
+        else:
+            # It's a file path - will be resolved by resolve_file_references
+            terms_doc["file_path"] = str(terms_value)
+
+        data["documents"].append(terms_doc)
+        # Remove the convenience field
+        del data[terms_field]
+
+    return data

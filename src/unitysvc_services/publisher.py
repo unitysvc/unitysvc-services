@@ -246,11 +246,18 @@ class ServiceDataPublisher:
 
     def post_provider(self, data_file: Path) -> dict[str, Any]:
         """Post provider data to the backend."""
+        from unitysvc_services.utils import convert_convenience_fields_to_documents
+
         # Load the data file
         data = self.load_data_file(data_file)
 
-        # Resolve file references and include content
+        # Convert convenience fields (logo, terms_of_service) to documents
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(
+            data, base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
         # Post to the endpoint
@@ -263,11 +270,18 @@ class ServiceDataPublisher:
 
     def post_seller(self, data_file: Path) -> dict[str, Any]:
         """Post seller data to the backend."""
+        from unitysvc_services.utils import convert_convenience_fields_to_documents
+
         # Load the data file
         data = self.load_data_file(data_file)
 
-        # Resolve file references and include content
+        # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(
+            data, base_path, logo_field="logo", terms_field=None
+        )
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
         # Post to the endpoint
