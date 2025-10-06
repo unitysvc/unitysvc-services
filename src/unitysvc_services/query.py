@@ -31,7 +31,9 @@ class ServiceDataQuery:
                 "Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var."
             )
         if not api_key:
-            raise ValueError("API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.")
+            raise ValueError(
+                "API key not provided. Use --api-key or set UNITYSVC_API_KEY env var."
+            )
 
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -45,28 +47,28 @@ class ServiceDataQuery:
 
     def list_service_offerings(self) -> list[dict[str, Any]]:
         """List all service offerings from the backend."""
-        response = self.client.get(f"{self.base_url}/publish/service_offering")
+        response = self.client.get(f"{self.base_url}/publish/service_offerings")
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
     def list_service_listings(self) -> list[dict[str, Any]]:
         """List all service listings from the backend."""
-        response = self.client.get(f"{self.base_url}/services/")
+        response = self.client.get(f"{self.base_url}/publish/services")
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
     def list_providers(self) -> list[dict[str, Any]]:
         """List all providers from the backend."""
-        response = self.client.get(f"{self.base_url}/providers/")
+        response = self.client.get(f"{self.base_url}/publish/providers")
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
     def list_sellers(self) -> list[dict[str, Any]]:
         """List all sellers from the backend."""
-        response = self.client.get(f"{self.base_url}/sellers/")
+        response = self.client.get(f"{self.base_url}/publish/sellers")
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -281,12 +283,16 @@ def query_offerings(
                         )
 
                     console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
+                    console.print(
+                        f"\n[green]Total:[/green] {len(offerings)} service offering(s)"
+                    )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to query service offerings: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to query service offerings: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
 
 
@@ -330,7 +336,9 @@ def query_listings(
                     table.add_column("Interfaces")
 
                     for listing in listings:
-                        interfaces_count = len(listing.get("user_access_interfaces", []))
+                        interfaces_count = len(
+                            listing.get("user_access_interfaces", [])
+                        )
                         table.add_row(
                             str(listing.get("id", "N/A")),
                             str(listing.get("service_id", "N/A")),
@@ -340,12 +348,16 @@ def query_listings(
                         )
 
                     console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
+                    console.print(
+                        f"\n[green]Total:[/green] {len(listings)} service listing(s)"
+                    )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to query service listings: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to query service listings: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
 
 
@@ -401,12 +413,16 @@ def query_interfaces(
                         )
 
                     console.print(table)
-                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)")
+                    console.print(
+                        f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)"
+                    )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
 
 
@@ -462,7 +478,9 @@ def query_documents(
                         )
 
                     console.print(table)
-                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} document(s)")
+                    console.print(
+                        f"\n[green]Total:[/green] {data.get('count', 0)} document(s)"
+                    )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)

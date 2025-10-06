@@ -53,7 +53,9 @@ class ServiceDataPublisher:
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
+    def resolve_file_references(
+        self, data: dict[str, Any], base_path: Path
+    ) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
         result: dict[str, Any] = {}
 
@@ -64,7 +66,11 @@ class ServiceDataPublisher:
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
-                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
+                    (
+                        self.resolve_file_references(item, base_path)
+                        if isinstance(item, dict)
+                        else item
+                    )
                     for item in value
                 ]
             elif key == "file_path" and isinstance(value, str):
@@ -77,7 +83,9 @@ class ServiceDataPublisher:
                         content = self.load_file_content(Path(value), base_path)
                         result["file_content"] = content
                     except Exception as e:
-                        raise ValueError(f"Failed to load file content from '{value}': {e}")
+                        raise ValueError(
+                            f"Failed to load file content from '{value}': {e}"
+                        )
             else:
                 result[key] = value
 
@@ -143,7 +151,10 @@ class ServiceDataPublisher:
             )
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if "service_name" not in data_with_content or not data_with_content["service_name"]:
+        if (
+            "service_name" not in data_with_content
+            or not data_with_content["service_name"]
+        ):
             # Find all service files in the same directory
             service_files = []
             for pattern in ["*.json", "*.toml"]:
@@ -161,7 +172,9 @@ class ServiceDataPublisher:
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [data.get("name", "unknown") for _, data in service_files]
+                service_names = [
+                    data.get("name", "unknown") for _, data in service_files
+                ]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {data_file.name} to specify which "
@@ -181,8 +194,13 @@ class ServiceDataPublisher:
                 for file_path in data_file.parent.glob(pattern):
                     try:
                         file_data = self.load_data_file(file_path)
-                        if file_data.get("schema") == "service_v1" and file_data.get("name") == service_name:
-                            data_with_content["service_version"] = file_data.get("version")
+                        if (
+                            file_data.get("schema") == "service_v1"
+                            and file_data.get("name") == service_name
+                        ):
+                            data_with_content["service_version"] = file_data.get(
+                                "version"
+                            )
                             service_found = True
                             break
                     except Exception:
@@ -224,7 +242,9 @@ class ServiceDataPublisher:
         # Load seller data and extract name
         seller_data = self.load_data_file(seller_file)
         if seller_data.get("schema") != "seller_v1":
-            raise ValueError(f"Seller file {seller_file} does not have schema='seller_v1'")
+            raise ValueError(
+                f"Seller file {seller_file} does not have schema='seller_v1'"
+            )
 
         seller_name = seller_data.get("name")
         if not seller_name:
@@ -262,7 +282,7 @@ class ServiceDataPublisher:
 
         # Post to the endpoint
         response = self.client.post(
-            f"{self.base_url}/providers/",
+            f"{self.base_url}/publish/provider",
             json=data_with_content,
         )
         response.raise_for_status()
@@ -286,80 +306,8 @@ class ServiceDataPublisher:
 
         # Post to the endpoint
         response = self.client.post(
-            f"{self.base_url}/sellers/",
+            f"{self.base_url}/publish/seller",
             json=data_with_content,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def list_service_offerings(self) -> list[dict[str, Any]]:
-        """List all service offerings from the backend.
-
-        Note: This endpoint doesn't exist yet in the backend.
-        TODO: Add GET /publish/service_offering endpoint.
-        """
-        response = self.client.get(f"{self.base_url}/publish/service_offering")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_service_listings(self) -> list[dict[str, Any]]:
-        """List all service listings from the backend."""
-        response = self.client.get(f"{self.base_url}/services/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_providers(self) -> list[dict[str, Any]]:
-        """List all providers from the backend."""
-        response = self.client.get(f"{self.base_url}/providers/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_sellers(self) -> list[dict[str, Any]]:
-        """List all sellers from the backend."""
-        response = self.client.get(f"{self.base_url}/sellers/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def update_service_offering_status(self, offering_id: int | str, status: str) -> dict[str, Any]:
-        """
-        Update the status of a service offering.
-
-        Allowed statuses (UpstreamStatusEnum):
-        - uploading: Service is being uploaded (not ready)
-        - ready: Service is ready to be used
-        - deprecated: Service is deprecated from upstream
-        """
-        response = self.client.patch(
-            f"{self.base_url}/service_offering/{offering_id}/",
-            json={"upstream_status": status},
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def update_service_listing_status(self, listing_id: int | str, status: str) -> dict[str, Any]:
-        """
-        Update the status of a service listing.
-
-        Allowed statuses (ListingStatusEnum):
-        - unknown: Not yet determined
-        - upstream_ready: Upstream is ready to be used
-        - downstream_ready: Downstream is ready with proper routing, logging, and billing
-        - ready: Operationally ready (with docs, metrics, and pricing)
-        - in_service: Service is in service
-        - upstream_deprecated: Service is deprecated from upstream
-        - deprecated: Service is no longer offered to users
-        """
-        response = self.client.patch(
-            f"{self.base_url}/service_listing/{listing_id}/",
-            json={"listing_status": status},
         )
         response.raise_for_status()
         return response.json()
@@ -453,7 +401,10 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [{"file": "validation", "error": error} for error in validation_errors],
+                "errors": [
+                    {"file": "validation", "error": error}
+                    for error in validation_errors
+                ],
             }
 
         offering_files = self.find_offering_files(data_dir)
@@ -491,11 +442,19 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [{"file": "validation", "error": error} for error in validation_errors],
+                "errors": [
+                    {"file": "validation", "error": error}
+                    for error in validation_errors
+                ],
             }
 
         listing_files = self.find_listing_files(data_dir)
-        results: dict[str, Any] = {"total": len(listing_files), "success": 0, "failed": 0, "errors": []}
+        results: dict[str, Any] = {
+            "total": len(listing_files),
+            "success": 0,
+            "failed": 0,
+            "errors": [],
+        }
 
         for listing_file in listing_files:
             try:
@@ -662,7 +621,9 @@ def publish_providers(
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to publish providers: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
 
 
@@ -748,7 +709,9 @@ def publish_sellers(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print("\n[green]✓[/green] All sellers published successfully!")
+                    console.print(
+                        "\n[green]✓[/green] All sellers published successfully!"
+                    )
 
     except typer.Exit:
         raise
@@ -819,11 +782,15 @@ def publish_offerings(
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_offering(data_path)
-                console.print("[green]✓[/green] Service offering published successfully!")
+                console.print(
+                    "[green]✓[/green] Service offering published successfully!"
+                )
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
+                console.print(
+                    f"[blue]Scanning for service offerings in:[/blue] {data_path}"
+                )
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_offerings(data_path)
 
@@ -839,12 +806,16 @@ def publish_offerings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print("\n[green]✓[/green] All service offerings published successfully!")
+                    console.print(
+                        "\n[green]✓[/green] All service offerings published successfully!"
+                    )
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
 
 
@@ -910,11 +881,15 @@ def publish_listings(
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_listing(data_path)
-                console.print("[green]✓[/green] Service listing published successfully!")
+                console.print(
+                    "[green]✓[/green] Service listing published successfully!"
+                )
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
+                console.print(
+                    f"[blue]Scanning for service listings in:[/blue] {data_path}"
+                )
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_listings(data_path)
 
@@ -930,10 +905,14 @@ def publish_listings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print("\n[green]✓[/green] All service listings published successfully!")
+                    console.print(
+                        "\n[green]✓[/green] All service listings published successfully!"
+                    )
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red")
+        console.print(
+            f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red"
+        )
         raise typer.Exit(code=1)
