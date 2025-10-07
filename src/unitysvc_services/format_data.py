@@ -1,6 +1,5 @@
 """Format command - format data files."""
 
-import os
 from pathlib import Path
 
 import typer

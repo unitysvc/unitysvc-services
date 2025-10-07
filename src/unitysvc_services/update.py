@@ -1,6 +1,5 @@
 """Update command group - update local data files."""
 
-import os
 from pathlib import Path
 from typing import Any
 

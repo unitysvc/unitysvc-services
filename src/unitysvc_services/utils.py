@@ -56,9 +56,7 @@ def write_data_file(file_path: Path, data: dict[str, Any], format: str) -> None:
 
 
 @lru_cache(maxsize=128)
-def find_data_files(
-    data_dir: Path, extensions: tuple[str, ...] | None = None
-) -> list[Path]:
+def find_data_files(data_dir: Path, extensions: tuple[str, ...] | None = None) -> list[Path]:
     """
     Find all data files in a directory with specified extensions.
 
@@ -208,9 +206,7 @@ def resolve_provider_name(file_path: Path) -> str | None:
     return None
 
 
-def resolve_service_name_for_listing(
-    listing_file: Path, listing_data: dict[str, Any]
-) -> str | None:
+def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
     """
     Resolve the service name for a listing file.
 

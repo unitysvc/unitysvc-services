@@ -12,17 +12,13 @@ class ProviderV1(BaseModel):
     #
     # fields for business data collection and maintenance
     #
-    schema_version: str = Field(
-        default="provider_v1", description="Schema identifier", alias="schema"
-    )
+    schema_version: str = Field(default="provider_v1", description="Schema identifier", alias="schema")
     time_created: datetime
     # how to automatically populate service data, if available
     services_populator: dict[str, Any] | None = None
     # parameters for accessing service provider, which typically
     # include "api_endpoint" and "api_key"
-    provider_access_info: AccessInterface = Field(
-        description="Dictionary of upstream access interface"
-    )
+    provider_access_info: AccessInterface = Field(description="Dictionary of upstream access interface")
     #
     # fields that will be stored in backend database
     #
