@@ -1,11 +1,11 @@
 """Data publisher module for posting service data to UnitySVC backend."""
 
+import base64
 import json
+import os
 import tomllib as toml
 from pathlib import Path
 from typing import Any
-import os
-import base64
 
 import httpx
 import typer
@@ -126,11 +126,18 @@ class ServiceDataPublisher:
             )
 
         # Check provider status - skip if incomplete
+        # Find provider file by checking schema field
         provider_file = None
-        for pattern in ["provider.json", "provider.toml"]:
-            potential_provider = provider_dir / pattern
-            if potential_provider.exists():
-                provider_file = potential_provider
+        for pattern in ["*.json", "*.toml"]:
+            for potential_file in provider_dir.glob(pattern):
+                try:
+                    file_data = self.load_data_file(potential_file)
+                    if file_data.get("schema") == "provider_v1":
+                        provider_file = potential_file
+                        break
+                except Exception:
+                    continue
+            if provider_file:
                 break
 
         if provider_file:
@@ -251,26 +258,27 @@ class ServiceDataPublisher:
                 f"Expected path structure includes a 'data' directory."
             )
 
-        # Look for seller file in the data directory
+        # Look for seller file in the data directory by checking schema field
         seller_file = None
-        for pattern in ["seller.json", "seller.toml"]:
-            potential_seller = data_dir / pattern
-            if potential_seller.exists():
-                seller_file = potential_seller
+        for pattern in ["*.json", "*.toml"]:
+            for potential_file in data_dir.glob(pattern):
+                try:
+                    file_data = self.load_data_file(potential_file)
+                    if file_data.get("schema") == "seller_v1":
+                        seller_file = potential_file
+                        break
+                except Exception:
+                    continue
+            if seller_file:
                 break
 
         if not seller_file:
             raise ValueError(
-                f"Cannot find seller.json or seller.toml in {data_dir}. "
-                f"A seller definition is required in the data directory."
+                f"Cannot find seller_v1 file in {data_dir}. A seller definition is required in the data directory."
             )
 
         # Load seller data and extract name
         seller_data = self.load_data_file(seller_file)
-        if seller_data.get("schema") != "seller_v1":
-            raise ValueError(
-                f"Seller file {seller_file} does not have schema='seller_v1'"
-            )
 
         # Check seller status - skip if incomplete
         seller_status = seller_data.get("status", SellerStatus.active)
