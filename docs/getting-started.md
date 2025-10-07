@@ -125,14 +125,19 @@ export UNITYSVC_BACKEND_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
 ```
 
-Publish your data:
+Publish your data (publishes all types in correct order: sellers → providers → offerings → listings):
 
 ```bash
-# Publish in order
+# From data directory
+cd data
+unitysvc_services publish
+
+# Or specify path
+unitysvc_services publish --data-path ./data
+
+# Or publish specific types
 unitysvc_services publish providers
 unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
 ```
 
 ### Step 9: Verify Your Published Data
@@ -190,8 +195,9 @@ See [Workflows](workflows.md#automated-workflow) for details.
 ### Publishing Errors
 
 - Verify API credentials are set correctly
-- Check that you're publishing in the correct order (providers → sellers → offerings → listings)
+- Use `unitysvc_services publish` (without subcommand) to publish all types in the correct order automatically
 - Ensure backend URL is accessible
+- Check that you're running from the correct directory or using `--data-path`
 
 ### Format Issues
 

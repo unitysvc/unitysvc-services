@@ -37,14 +37,13 @@ unitysvc_services init seller my-marketplace
 unitysvc_services validate
 unitysvc_services format
 
-# Publish to platform
+# Publish to platform (publishes all: sellers, providers, offerings, listings)
 export UNITYSVC_BACKEND_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
+unitysvc_services publish
 
+# Or publish specific types only
 unitysvc_services publish providers
-unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
 
 # Verify
 unitysvc_services query offerings

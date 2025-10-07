@@ -208,16 +208,56 @@ unitysvc_services query listings \
 
 Publish local data files to UnitySVC backend.
 
+**Default Behavior:** When called without a subcommand, publishes all data types in the correct order: sellers → providers → offerings → listings.
+
+**Usage:**
+```bash
+# Publish all data types (default)
+unitysvc_services publish [OPTIONS]
+
+# Or publish specific data types
+unitysvc_services publish COMMAND [OPTIONS]
+```
+
+**Common Options:**
+- `--data-path, -d PATH` - Data directory path (default: current directory)
+- `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
+- `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
+
+**Examples:**
+```bash
+# Publish all data from current directory
+unitysvc_services publish
+
+# Publish all data from custom directory
+unitysvc_services publish --data-path ./data
+
+# With explicit credentials
+unitysvc_services publish \
+  --backend-url https://api.unitysvc.com/api/v1 \
+  --api-key your-key \
+  --data-path ./data
+
+# Publish only providers
+unitysvc_services publish providers
+```
+
+**Publishing Order (when publishing all):**
+1. Sellers - Must exist before listings
+2. Providers - Must exist before offerings
+3. Service Offerings - Must exist before listings
+4. Service Listings - Depends on sellers, providers, and offerings
+
 ### publish providers
 
+Publish only providers (ignoring other types).
+
 ```bash
-unitysvc_services publish providers [DATA_PATH] [OPTIONS]
+unitysvc_services publish providers [OPTIONS]
 ```
 
 **Options:**
 - `--data-path, -d PATH` - File or directory path (default: current directory)
-
-**Additional Options:**
 - `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
 - `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
 
@@ -235,21 +275,33 @@ unitysvc_services publish providers --data-path ./custom-data
 
 ### publish sellers
 
+Publish only sellers (ignoring other types).
+
 ```bash
-unitysvc_services publish sellers [DATA_PATH] [OPTIONS]
+unitysvc_services publish sellers [OPTIONS]
 ```
+
+**Options:** Same as `publish providers`
 
 ### publish offerings
 
+Publish only service offerings (ignoring other types).
+
 ```bash
-unitysvc_services publish offerings [DATA_PATH] [OPTIONS]
+unitysvc_services publish offerings [OPTIONS]
 ```
+
+**Options:** Same as `publish providers`
 
 ### publish listings
 
+Publish only service listings (ignoring other types).
+
 ```bash
-unitysvc_services publish listings [DATA_PATH] [OPTIONS]
+unitysvc_services publish listings [OPTIONS]
 ```
+
+**Options:** Same as `publish providers`
 
 **Publishing Order:**
 1. Providers (required first)
@@ -477,11 +529,9 @@ export UNITYSVC_API_KEY=your-key
 unitysvc_services validate
 unitysvc_services format
 
-# Publish in order
-unitysvc_services publish providers
-unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+# Publish all (handles order automatically)
+cd data
+unitysvc_services publish
 
 # Verify
 unitysvc_services query offerings
@@ -510,9 +560,9 @@ unitysvc_services populate
 unitysvc_services validate
 unitysvc_services format
 
-# Publish
-unitysvc_services publish offerings
-unitysvc_services publish listings
+# Publish all
+cd data
+unitysvc_services publish
 ```
 
 ## See Also

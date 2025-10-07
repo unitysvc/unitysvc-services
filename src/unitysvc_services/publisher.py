@@ -487,6 +487,55 @@ class ServiceDataPublisher:
 
         return results
 
+    def publish_all_models(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all data types in the correct order.
+
+        Publishing order:
+        1. Sellers - Must exist before listings
+        2. Providers - Must exist before offerings
+        3. Service Offerings - Must exist before listings
+        4. Service Listings - Depends on sellers, providers, and offerings
+
+        Returns a dict with results for each data type and overall summary.
+        """
+        all_results: dict[str, Any] = {
+            "sellers": {},
+            "providers": {},
+            "offerings": {},
+            "listings": {},
+            "total_success": 0,
+            "total_failed": 0,
+            "total_found": 0,
+        }
+
+        # Publish in order: sellers -> providers -> offerings -> listings
+        publish_order = [
+            ("sellers", self.publish_all_sellers),
+            ("providers", self.publish_all_providers),
+            ("offerings", self.publish_all_offerings),
+            ("listings", self.publish_all_listings),
+        ]
+
+        for data_type, publish_method in publish_order:
+            try:
+                results = publish_method(data_dir)
+                all_results[data_type] = results
+                all_results["total_success"] += results["success"]
+                all_results["total_failed"] += results["failed"]
+                all_results["total_found"] += results["total"]
+            except Exception as e:
+                # If a publish method fails catastrophically, record the error
+                all_results[data_type] = {
+                    "total": 0,
+                    "success": 0,
+                    "failed": 1,
+                    "errors": [{"file": "N/A", "error": str(e)}],
+                }
+                all_results["total_failed"] += 1
+
+        return all_results
+
     def close(self):
         """Close the HTTP client."""
         self.client.close()
@@ -503,6 +552,141 @@ class ServiceDataPublisher:
 # CLI commands for publishing
 app = typer.Typer(help="Publish data to backend")
 console = Console()
+
+
+@app.callback(invoke_without_command=True)
+def publish_callback(
+    ctx: typer.Context,
+    data_path: Path | None = typer.Option(
+        None,
+        "--data-path",
+        "-d",
+        help="Path to data directory (default: current directory)",
+    ),
+    backend_url: str | None = typer.Option(
+        None,
+        "--backend-url",
+        "-u",
+        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
+    ),
+    api_key: str | None = typer.Option(
+        None,
+        "--api-key",
+        "-k",
+        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+    ),
+):
+    """
+    Publish data to backend.
+
+    When called without a subcommand, publishes all data types in order:
+    sellers → providers → offerings → listings.
+
+    Use subcommands to publish specific data types:
+    - providers: Publish only providers
+    - sellers: Publish only sellers
+    - offerings: Publish only service offerings
+    - listings: Publish only service listings
+    """
+    # If a subcommand was invoked, skip this callback logic
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand - publish all
+    # Set data path
+    if data_path is None:
+        data_path = Path.cwd()
+
+    if not data_path.is_absolute():
+        data_path = Path.cwd() / data_path
+
+    if not data_path.exists():
+        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
+        raise typer.Exit(code=1)
+
+    # Get backend URL from argument or environment
+    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    if not backend_url:
+        console.print(
+            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
+    # Get API key from argument or environment
+    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    if not api_key:
+        console.print(
+            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
+    console.print(f"[bold blue]Backend URL:[/bold blue] {backend_url}\n")
+
+    try:
+        with ServiceDataPublisher(backend_url, api_key) as publisher:
+            # Call the publish_all_models method
+            all_results = publisher.publish_all_models(data_path)
+
+            # Display results for each data type
+            data_type_display_names = {
+                "sellers": "Sellers",
+                "providers": "Providers",
+                "offerings": "Service Offerings",
+                "listings": "Service Listings",
+            }
+
+            for data_type in ["sellers", "providers", "offerings", "listings"]:
+                display_name = data_type_display_names[data_type]
+                results = all_results[data_type]
+
+                console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+                console.print(f"[bold cyan]{display_name}[/bold cyan]")
+                console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+
+                console.print(f"  Total found: {results['total']}")
+                console.print(f"  [green]✓ Success:[/green] {results['success']}")
+                console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+
+                # Display errors if any
+                if results.get("errors"):
+                    console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
+                    for error in results["errors"]:
+                        # Check if this is a skipped item
+                        if isinstance(error, dict) and error.get(
+                            "error", ""
+                        ).startswith("skipped"):
+                            continue
+                        console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
+                        console.print(f"    {error.get('error', 'unknown error')}")
+
+            # Final summary
+            console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+            console.print("[bold]Final Publishing Summary[/bold]")
+            console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+            console.print(f"  Total found: {all_results['total_found']}")
+            console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
+            console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
+
+            if all_results["total_failed"] > 0:
+                console.print(
+                    f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
+                    style="bold yellow",
+                )
+                raise typer.Exit(code=1)
+            else:
+                console.print(
+                    "\n[green]✓[/green] All data published successfully!",
+                    style="bold green",
+                )
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to publish all data: {e}", style="bold red")
+        raise typer.Exit(code=1)
 
 
 @app.command("providers")

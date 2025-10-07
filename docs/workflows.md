@@ -88,11 +88,12 @@ unitysvc_services update listing --service-name my-service --status in_service
 export UNITYSVC_BACKEND_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
 
-# Publish in order (dependencies matter!)
-unitysvc_services publish providers
-unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+# Publish all (handles order automatically: sellers → providers → offerings → listings)
+cd data
+unitysvc_services publish
+
+# Or from parent directory
+unitysvc_services publish --data-path ./data
 ```
 
 #### 7. Verify on Platform
@@ -113,9 +114,7 @@ git push
 
 # Publish from CI/CD
 unitysvc_services validate
-unitysvc_services publish providers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+unitysvc_services publish --data-path ./data
 ```
 
 ## Automated Workflow
@@ -259,9 +258,8 @@ git commit -m "Update service catalog from API"
 #### 7. Publish
 
 ```bash
-unitysvc_services publish providers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+cd data
+unitysvc_services publish
 ```
 
 #### 8. Verify
@@ -318,9 +316,7 @@ jobs:
           UNITYSVC_BACKEND_URL: ${{ secrets.UNITYSVC_BACKEND_URL }}
           UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
         run: |
-          unitysvc_services publish providers
-          unitysvc_services publish offerings
-          unitysvc_services publish listings
+          unitysvc_services publish --data-path ./data
 ```
 
 ## Hybrid Workflow
@@ -344,12 +340,14 @@ unitysvc_services update offering --name premium-service --status ready
 
 ## Publishing Order
 
-Always publish in this order (dependencies matter):
+**Recommended:** Use `unitysvc_services publish` without subcommands to publish all types automatically in the correct order:
 
-1. **Providers** - Must exist before offerings
-2. **Sellers** - Must exist before listings
+1. **Sellers** - Must exist before listings
+2. **Providers** - Must exist before offerings
 3. **Service Offerings** - Links providers to services
 4. **Service Listings** - Links sellers to offerings
+
+The CLI handles this order automatically when you use `publish` without a subcommand. You can also publish specific types individually if needed (e.g., `unitysvc_services publish providers`).
 
 Incorrect order will result in foreign key errors.
 
@@ -395,8 +393,9 @@ Incorrect order will result in foreign key errors.
 ### Publishing Failures
 - Verify credentials are set
 - Check network connectivity
-- Ensure correct publishing order
+- Use `unitysvc_services publish` to handle publishing order automatically
 - Look for foreign key constraint errors
+- Verify you're in the correct directory or using `--data-path`
 
 ## Next Steps
 
