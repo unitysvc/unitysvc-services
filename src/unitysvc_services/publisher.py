@@ -202,7 +202,7 @@ class ServiceDataPublisher:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
             service_files = find_files_by_schema(
-                data_file.parent, "service_v1", field_filter={"name": service_name}
+                data_file.parent, "service_v1", field_filter=(("name", service_name),)
             )
 
             if not service_files:
