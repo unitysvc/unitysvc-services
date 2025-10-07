@@ -577,7 +577,7 @@ def publish_callback(
     - listings: Publish only service listings
 
     Required environment variables:
-    - UNITYSVC_BACKEND_URL: Backend API URL
+    - UNITYSVC_BASE_URL: Backend API URL
     - UNITYSVC_API_KEY: API key for authentication
     """
     # If a subcommand was invoked, skip this callback logic
@@ -597,10 +597,10 @@ def publish_callback(
         raise typer.Exit(code=1)
 
     # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -704,10 +704,10 @@ def publish_providers(
         raise typer.Exit(code=1)
 
     # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -783,10 +783,10 @@ def publish_sellers(
         raise typer.Exit(code=1)
 
     # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -860,10 +860,10 @@ def publish_offerings(
         raise typer.Exit(code=1)
 
     # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -944,10 +944,10 @@ def publish_listings(
         raise typer.Exit(code=1)
 
     # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)

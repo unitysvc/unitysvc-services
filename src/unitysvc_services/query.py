@@ -27,13 +27,9 @@ class ServiceDataQuery:
             ValueError: If base_url or api_key is not provided
         """
         if not base_url:
-            raise ValueError(
-                "UNITYSVC_BACKEND_URL environment variable not set."
-            )
+            raise ValueError("UNITYSVC_BASE_URL environment variable not set.")
         if not api_key:
-            raise ValueError(
-                "UNITYSVC_API_KEY environment variable not set."
-            )
+            raise ValueError("UNITYSVC_API_KEY environment variable not set.")
 
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
@@ -107,7 +103,7 @@ class ServiceDataQuery:
         Raises:
             ValueError: If required environment variables are not set
         """
-        backend_url = os.getenv("UNITYSVC_BACKEND_URL") or ""
+        backend_url = os.getenv("UNITYSVC_BASE_URL") or ""
         api_key = os.getenv("UNITYSVC_API_KEY") or ""
         return ServiceDataQuery(base_url=backend_url, api_key=api_key)
 
