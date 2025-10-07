@@ -28,11 +28,11 @@ class ServiceDataQuery:
         """
         if not base_url:
             raise ValueError(
-                "Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var."
+                "UNITYSVC_BACKEND_URL environment variable not set."
             )
         if not api_key:
             raise ValueError(
-                "API key not provided. Use --api-key or set UNITYSVC_API_KEY env var."
+                "UNITYSVC_API_KEY environment variable not set."
             )
 
         self.base_url = base_url.rstrip("/")
@@ -98,40 +98,22 @@ class ServiceDataQuery:
         self.close()
 
     @staticmethod
-    def from_env(
-        backend_url: str | None = None, api_key: str | None = None
-    ) -> "ServiceDataQuery":
-        """Create ServiceDataQuery from environment variables or arguments.
-
-        Args:
-            backend_url: Optional backend URL (falls back to UNITYSVC_BACKEND_URL env var)
-            api_key: Optional API key (falls back to UNITYSVC_API_KEY env var)
+    def from_env() -> "ServiceDataQuery":
+        """Create ServiceDataQuery from environment variables.
 
         Returns:
             ServiceDataQuery instance
 
         Raises:
-            ValueError: If required credentials are not provided
+            ValueError: If required environment variables are not set
         """
-        resolved_backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL") or ""
-        resolved_api_key = api_key or os.getenv("UNITYSVC_API_KEY") or ""
-        return ServiceDataQuery(base_url=resolved_backend_url, api_key=resolved_api_key)
+        backend_url = os.getenv("UNITYSVC_BACKEND_URL") or ""
+        api_key = os.getenv("UNITYSVC_API_KEY") or ""
+        return ServiceDataQuery(base_url=backend_url, api_key=api_key)
 
 
 @app.command("sellers")
 def query_sellers(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -141,7 +123,7 @@ def query_sellers(
 ):
     """Query all sellers from the backend."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             sellers = query.list_sellers()
 
             if format == "json":
@@ -179,18 +161,6 @@ def query_sellers(
 
 @app.command("providers")
 def query_providers(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -200,7 +170,7 @@ def query_providers(
 ):
     """Query all providers from the backend."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             providers = query.list_providers()
 
             if format == "json":
@@ -234,18 +204,6 @@ def query_providers(
 
 @app.command("offerings")
 def query_offerings(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -255,7 +213,7 @@ def query_offerings(
 ):
     """Query all service offerings from UnitySVC backend."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             offerings = query.list_service_offerings()
 
             if format == "json":
@@ -298,18 +256,6 @@ def query_offerings(
 
 @app.command("listings")
 def query_listings(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -319,7 +265,7 @@ def query_listings(
 ):
     """Query all service listings from UnitySVC backend."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             listings = query.list_service_listings()
 
             if format == "json":
@@ -363,18 +309,6 @@ def query_listings(
 
 @app.command("interfaces")
 def query_interfaces(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -384,7 +318,7 @@ def query_interfaces(
 ):
     """Query all access interfaces from UnitySVC backend (private endpoint)."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             data = query.list_access_interfaces()
 
             if format == "json":
@@ -428,18 +362,6 @@ def query_interfaces(
 
 @app.command("documents")
 def query_documents(
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -449,7 +371,7 @@ def query_documents(
 ):
     """Query all documents from UnitySVC backend (private endpoint)."""
     try:
-        with ServiceDataQuery.from_env(backend_url, api_key) as query:
+        with ServiceDataQuery.from_env() as query:
             data = query.list_documents()
 
             if format == "json":

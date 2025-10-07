@@ -563,18 +563,6 @@ def publish_callback(
         "-d",
         help="Path to data directory (default: current directory)",
     ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
 ):
     """
     Publish data to backend.
@@ -587,6 +575,10 @@ def publish_callback(
     - sellers: Publish only sellers
     - offerings: Publish only service offerings
     - listings: Publish only service listings
+
+    Required environment variables:
+    - UNITYSVC_BACKEND_URL: Backend API URL
+    - UNITYSVC_API_KEY: API key for authentication
     """
     # If a subcommand was invoked, skip this callback logic
     if ctx.invoked_subcommand is not None:
@@ -604,20 +596,20 @@ def publish_callback(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -697,18 +689,6 @@ def publish_providers(
         "-d",
         help="Path to provider file or directory (default: current directory)",
     ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
 ):
     """Publish provider(s) from a file or directory."""
 
@@ -723,20 +703,20 @@ def publish_providers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -789,18 +769,6 @@ def publish_sellers(
         "-d",
         help="Path to seller file or directory (default: current directory)",
     ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
 ):
     """Publish seller(s) from a file or directory."""
     # Set data path
@@ -814,20 +782,20 @@ def publish_sellers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -878,18 +846,6 @@ def publish_offerings(
         "-d",
         help="Path to service offering file or directory (default: current directory)",
     ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
 ):
     """Publish service offering(s) from a file or directory."""
     # Set data path
@@ -903,20 +859,20 @@ def publish_offerings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -973,18 +929,6 @@ def publish_listings(
         "-d",
         help="Path to service listing file or directory (default: current directory)",
     ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
-    ),
 ):
     """Publish service listing(s) from a file or directory."""
 
@@ -999,20 +943,20 @@ def publish_listings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BACKEND_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BACKEND_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)

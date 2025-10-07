@@ -152,9 +152,11 @@ unitysvc_services query providers [OPTIONS]
 ```
 
 **Options:**
-- `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
-- `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
 - `--format, -f {table|json}` - Output format (default: table)
+
+**Required Environment Variables:**
+- `UNITYSVC_BACKEND_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
 
 ### query sellers
 
@@ -197,11 +199,6 @@ unitysvc_services query providers
 
 # JSON output
 unitysvc_services query offerings --format json
-
-# With explicit credentials
-unitysvc_services query listings \
-  --backend-url https://api.unitysvc.com/api/v1 \
-  --api-key your-key
 ```
 
 ## publish - Publish to Backend
@@ -221,8 +218,10 @@ unitysvc_services publish COMMAND [OPTIONS]
 
 **Common Options:**
 - `--data-path, -d PATH` - Data directory path (default: current directory)
-- `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
-- `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
+
+**Required Environment Variables:**
+- `UNITYSVC_BACKEND_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
 
 **Examples:**
 ```bash
@@ -231,12 +230,6 @@ unitysvc_services publish
 
 # Publish all data from custom directory
 unitysvc_services publish --data-path ./data
-
-# With explicit credentials
-unitysvc_services publish \
-  --backend-url https://api.unitysvc.com/api/v1 \
-  --api-key your-key \
-  --data-path ./data
 
 # Publish only providers
 unitysvc_services publish providers
@@ -258,8 +251,6 @@ unitysvc_services publish providers [OPTIONS]
 
 **Options:**
 - `--data-path, -d PATH` - File or directory path (default: current directory)
-- `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
-- `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
 
 **Examples:**
 ```bash
@@ -281,7 +272,8 @@ Publish only sellers (ignoring other types).
 unitysvc_services publish sellers [OPTIONS]
 ```
 
-**Options:** Same as `publish providers`
+**Options:**
+- `--data-path, -d PATH` - File or directory path (default: current directory)
 
 ### publish offerings
 
@@ -291,7 +283,8 @@ Publish only service offerings (ignoring other types).
 unitysvc_services publish offerings [OPTIONS]
 ```
 
-**Options:** Same as `publish providers`
+**Options:**
+- `--data-path, -d PATH` - File or directory path (default: current directory)
 
 ### publish listings
 
@@ -301,7 +294,8 @@ Publish only service listings (ignoring other types).
 unitysvc_services publish listings [OPTIONS]
 ```
 
-**Options:** Same as `publish providers`
+**Options:**
+- `--data-path, -d PATH` - File or directory path (default: current directory)
 
 **Publishing Order:**
 1. Providers (required first)
