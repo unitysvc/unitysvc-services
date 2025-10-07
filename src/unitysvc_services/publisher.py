@@ -12,7 +12,7 @@ import typer
 from rich.console import Console
 
 from .models.base import ProviderStatus, SellerStatus
-from .utils import convert_convenience_fields_to_documents
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema
 from .validator import DataValidator
 
 
@@ -57,9 +57,7 @@ class ServiceDataPublisher:
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(
-        self, data: dict[str, Any], base_path: Path
-    ) -> dict[str, Any]:
+    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
         result: dict[str, Any] = {}
 
@@ -70,11 +68,7 @@ class ServiceDataPublisher:
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
-                    (
-                        self.resolve_file_references(item, base_path)
-                        if isinstance(item, dict)
-                        else item
-                    )
+                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
                     for item in value
                 ]
             elif key == "file_path" and isinstance(value, str):
@@ -87,9 +81,7 @@ class ServiceDataPublisher:
                         content = self.load_file_content(Path(value), base_path)
                         result["file_content"] = content
                     except Exception as e:
-                        raise ValueError(
-                            f"Failed to load file content from '{value}': {e}"
-                        )
+                        raise ValueError(f"Failed to load file content from '{value}': {e}")
             else:
                 result[key] = value
 
@@ -126,22 +118,10 @@ class ServiceDataPublisher:
             )
 
         # Check provider status - skip if incomplete
-        # Find provider file by checking schema field
-        provider_file = None
-        for pattern in ["*.json", "*.toml"]:
-            for potential_file in provider_dir.glob(pattern):
-                try:
-                    file_data = self.load_data_file(potential_file)
-                    if file_data.get("schema") == "provider_v1":
-                        provider_file = potential_file
-                        break
-                except Exception:
-                    continue
-            if provider_file:
-                break
-
-        if provider_file:
-            provider_data = self.load_data_file(provider_file)
+        provider_files = find_files_by_schema(provider_dir, "provider_v1")
+        if provider_files:
+            # Should only be one provider file in the directory
+            _provider_file, _format, provider_data = provider_files[0]
             provider_status = provider_data.get("status", ProviderStatus.active)
             if provider_status == ProviderStatus.incomplete:
                 return {
@@ -184,20 +164,9 @@ class ServiceDataPublisher:
             )
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if (
-            "service_name" not in data_with_content
-            or not data_with_content["service_name"]
-        ):
+        if "service_name" not in data_with_content or not data_with_content["service_name"]:
             # Find all service files in the same directory
-            service_files = []
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if file_data.get("schema") == "service_v1":
-                            service_files.append((file_path, file_data))
-                    except Exception:
-                        continue
+            service_files = find_files_by_schema(data_file.parent, "service_v1")
 
             if len(service_files) == 0:
                 raise ValueError(
@@ -205,9 +174,7 @@ class ServiceDataPublisher:
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [
-                    data.get("name", "unknown") for _, data in service_files
-                ]
+                service_names = [data.get("name", "unknown") for _, _, data in service_files]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {data_file.name} to specify which "
@@ -215,36 +182,22 @@ class ServiceDataPublisher:
                 )
             else:
                 # Exactly one service found - use it
-                service_file, service_data = service_files[0]
+                _service_file, _format, service_data = service_files[0]
                 data_with_content["service_name"] = service_data.get("name")
                 data_with_content["service_version"] = service_data.get("version")
         else:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
-            service_found = False
+            service_files = find_files_by_schema(data_file.parent, "service_v1", field_filter={"name": service_name})
 
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if (
-                            file_data.get("schema") == "service_v1"
-                            and file_data.get("name") == service_name
-                        ):
-                            data_with_content["service_version"] = file_data.get(
-                                "version"
-                            )
-                            service_found = True
-                            break
-                    except Exception:
-                        continue
-                if service_found:
-                    break
-
-            if not service_found:
+            if not service_files:
                 raise ValueError(
                     f"Service '{service_name}' specified in {data_file.name} not found in {data_file.parent}."
                 )
+
+            # Get version from the found service
+            _service_file, _format, service_data = service_files[0]
+            data_with_content["service_version"] = service_data.get("version")
 
         # Find seller_name from seller definition in the data directory
         # Navigate up to find the data directory and look for seller file
@@ -259,26 +212,15 @@ class ServiceDataPublisher:
             )
 
         # Look for seller file in the data directory by checking schema field
-        seller_file = None
-        for pattern in ["*.json", "*.toml"]:
-            for potential_file in data_dir.glob(pattern):
-                try:
-                    file_data = self.load_data_file(potential_file)
-                    if file_data.get("schema") == "seller_v1":
-                        seller_file = potential_file
-                        break
-                except Exception:
-                    continue
-            if seller_file:
-                break
+        seller_files = find_files_by_schema(data_dir, "seller_v1")
 
-        if not seller_file:
+        if not seller_files:
             raise ValueError(
                 f"Cannot find seller_v1 file in {data_dir}. A seller definition is required in the data directory."
             )
 
-        # Load seller data and extract name
-        seller_data = self.load_data_file(seller_file)
+        # Should only be one seller file in the data directory
+        _seller_file, _format, seller_data = seller_files[0]
 
         # Check seller status - skip if incomplete
         seller_status = seller_data.get("status", SellerStatus.active)
@@ -291,7 +233,7 @@ class ServiceDataPublisher:
 
         seller_name = seller_data.get("name")
         if not seller_name:
-            raise ValueError(f"Seller file {seller_file} missing 'name' field")
+            raise ValueError("Seller data missing 'name' field")
 
         data_with_content["seller_name"] = seller_name
 
@@ -363,9 +305,7 @@ class ServiceDataPublisher:
 
         # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field=None
-        )
+        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -384,76 +324,24 @@ class ServiceDataPublisher:
         return response.json()
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service offering files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="service_v1".
-        """
-        offerings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "service_v1":
-                        offerings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(offerings)
+        """Find all service offering files in a directory tree."""
+        files = find_files_by_schema(data_dir, "service_v1")
+        return sorted([f[0] for f in files])
 
     def find_listing_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service listing files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="listing_v1".
-        """
-        listings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "listing_v1":
-                        listings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(listings)
+        """Find all service listing files in a directory tree."""
+        files = find_files_by_schema(data_dir, "listing_v1")
+        return sorted([f[0] for f in files])
 
     def find_provider_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all provider files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="provider_v1".
-        """
-        providers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "provider_v1":
-                        providers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(providers)
+        """Find all provider files in a directory tree."""
+        files = find_files_by_schema(data_dir, "provider_v1")
+        return sorted([f[0] for f in files])
 
     def find_seller_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all seller files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="seller_v1".
-        """
-        sellers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "seller_v1":
-                        sellers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(sellers)
+        """Find all seller files in a directory tree."""
+        files = find_files_by_schema(data_dir, "seller_v1")
+        return sorted([f[0] for f in files])
 
     def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
         """
@@ -471,10 +359,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         offering_files = self.find_offering_files(data_dir)
@@ -510,10 +395,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         listing_files = self.find_listing_files(data_dir)
@@ -688,9 +570,7 @@ def publish_providers(
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish providers: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -774,9 +654,7 @@ def publish_sellers(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All sellers published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All sellers published successfully!")
 
     except typer.Exit:
         raise
@@ -845,15 +723,11 @@ def publish_offerings(
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_offering(data_path)
-                console.print(
-                    "[green]✓[/green] Service offering published successfully!"
-                )
+                console.print("[green]✓[/green] Service offering published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service offerings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_offerings(data_path)
 
@@ -869,16 +743,12 @@ def publish_offerings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service offerings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service offerings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -943,15 +813,11 @@ def publish_listings(
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_listing(data_path)
-                console.print(
-                    "[green]✓[/green] Service listing published successfully!"
-                )
+                console.print("[green]✓[/green] Service listing published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service listings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_listings(data_path)
 
@@ -967,14 +833,10 @@ def publish_listings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service listings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service listings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red")
         raise typer.Exit(code=1)
