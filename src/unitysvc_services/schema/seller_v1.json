@@ -107,11 +107,7 @@
           "title": "Version"
         }
       },
-      "required": [
-        "title",
-        "mime_type",
-        "category"
-      ],
+      "required": ["title", "mime_type", "category"],
       "title": "Document",
       "type": "object"
     },
@@ -153,23 +149,14 @@
       "title": "MimeTypeEnum",
       "type": "string"
     },
-    "SellerStatus": {
+    "SellerStatusEnum": {
       "description": "Seller status enum.",
-      "enum": [
-        "active",
-        "disabled",
-        "incomplete"
-      ],
-      "title": "SellerStatus",
+      "enum": ["active", "disabled", "incomplete"],
+      "title": "SellerStatusEnum",
       "type": "string"
     },
     "SellerTypeEnum": {
-      "enum": [
-        "individual",
-        "organization",
-        "partnership",
-        "corporation"
-      ],
+      "enum": ["individual", "organization", "partnership", "corporation"],
       "title": "SellerTypeEnum",
       "type": "string"
     }
@@ -328,7 +315,7 @@
       "description": "Type of seller entity"
     },
     "status": {
-      "$ref": "#/$defs/SellerStatus",
+      "$ref": "#/$defs/SellerStatusEnum",
       "default": "active",
       "description": "Seller status: active, disabled, or incomplete"
     },
@@ -366,11 +353,7 @@
       "type": "string"
     }
   },
-  "required": [
-    "time_created",
-    "name",
-    "contact_email"
-  ],
+  "required": ["time_created", "name", "contact_email"],
   "title": "SellerV1",
   "type": "object"
 }
