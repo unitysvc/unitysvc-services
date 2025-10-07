@@ -157,7 +157,7 @@ def test_validate_all_files(schema_dir, example_data_dir):
     invalid_count = len(results) - valid_count
 
     # Print summary
-    print(f"\nValidation Summary:")
+    print("\nValidation Summary:")
     print(f"  Total files: {len(results)}")
     print(f"  Valid: {valid_count}")
     print(f"  Invalid: {invalid_count}")
@@ -183,7 +183,7 @@ def test_file_reference_validation(schema_dir, example_data_dir):
 
     # Check for file reference errors
     file_ref_errors = []
-    for file_path, (is_valid, errors) in results.items():
+    for file_path, (_is_valid, errors) in results.items():
         for error in errors:
             if "does not exist" in error or "file reference" in error.lower():
                 file_ref_errors.append((file_path, error))

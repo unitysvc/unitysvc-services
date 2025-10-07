@@ -320,6 +320,100 @@ class DataValidator:
 
         return len(errors) == 0, errors
 
+    def validate_provider_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate provider status and warn about services under disabled/incomplete providers.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate services
+        that will be affected by provider status.
+        """
+        from unitysvc_services.models.base import ProviderStatus
+        from unitysvc_services.models.provider_v1 import ProviderV1
+
+        warnings: list[str] = []
+
+        # Find all provider files
+        provider_files = list(self.data_dir.glob("*/provider.*"))
+
+        for provider_file in provider_files:
+            try:
+                # Load provider data
+                data = {}
+                if provider_file.suffix == ".json":
+                    with open(provider_file, encoding="utf-8") as f:
+                        data = json.load(f)
+                elif provider_file.suffix == ".toml":
+                    with open(provider_file, "rb") as f:
+                        data = toml.load(f)
+                else:
+                    continue
+
+                # Parse as ProviderV1
+                provider = ProviderV1.model_validate(data)
+                provider_dir = provider_file.parent
+                provider_name = provider.name
+
+                # Check if provider is not active
+                if provider.status != ProviderStatus.active:
+                    # Find all services under this provider
+                    services_dir = provider_dir / "services"
+                    if services_dir.exists():
+                        service_count = len(list(services_dir.iterdir()))
+                        if service_count > 0:
+                            warnings.append(
+                                f"Provider '{provider_name}' has status '{provider.status}' but has {service_count} "
+                                f"service(s). All services under this provider will be affected."
+                            )
+
+            except Exception as e:
+                warnings.append(f"Error checking provider status in {provider_file}: {e}")
+
+        # Return True (valid) but with warnings
+        return True, warnings
+
+    def validate_seller_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate seller status and warn if seller is disabled/incomplete.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
+        """
+        from unitysvc_services.models.base import SellerStatus
+        from unitysvc_services.models.seller_v1 import SellerV1
+
+        warnings: list[str] = []
+
+        # Find all seller files
+        seller_files = list(self.data_dir.glob("seller.*"))
+
+        for seller_file in seller_files:
+            try:
+                # Load seller data
+                data = {}
+                if seller_file.suffix == ".json":
+                    with open(seller_file, encoding="utf-8") as f:
+                        data = json.load(f)
+                elif seller_file.suffix == ".toml":
+                    with open(seller_file, "rb") as f:
+                        data = toml.load(f)
+                else:
+                    continue
+
+                # Parse as SellerV1
+                seller = SellerV1.model_validate(data)
+                seller_name = seller.name
+
+                # Check if seller is not active
+                if seller.status != SellerStatus.active:
+                    warnings.append(
+                        f"Seller '{seller_name}' has status '{seller.status}'. Seller will not be published to backend."
+                    )
+
+            except Exception as e:
+                warnings.append(f"Error checking seller status in {seller_file}: {e}")
+
+        # Return True (valid) but with warnings
+        return True, warnings
+
     def validate_all(self) -> dict[str, tuple[bool, list[str]]]:
         """Validate all files in the data directory."""
         results: dict[str, tuple[bool, list[str]]] = {}
@@ -331,6 +425,16 @@ class DataValidator:
         seller_valid, seller_errors = self.validate_seller_uniqueness()
         if not seller_valid:
             results["_seller_uniqueness"] = (False, seller_errors)
+
+        # Validate seller status
+        seller_status_valid, seller_warnings = self.validate_seller_status()
+        if seller_warnings:
+            results["_seller_status"] = (True, seller_warnings)  # Warnings, not errors
+
+        # Validate provider status and check for affected services
+        provider_status_valid, provider_warnings = self.validate_provider_status()
+        if provider_warnings:
+            results["_provider_status"] = (True, provider_warnings)  # Warnings, not errors
 
         # Find all data and MD files recursively
         for file_path in self.data_dir.rglob("*"):

@@ -37,9 +37,7 @@ def list_providers(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for providers in:[/blue] {data_dir}\n")
@@ -88,9 +86,7 @@ def list_sellers(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for sellers in:[/blue] {data_dir}\n")
@@ -139,9 +135,7 @@ def list_offerings(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for service offerings in:[/blue] {data_dir}\n")
@@ -172,9 +166,7 @@ def list_offerings(
         )
 
     console.print(table)
-    console.print(
-        f"\n[green]Total:[/green] {len(service_files)} service offering file(s)"
-    )
+    console.print(f"\n[green]Total:[/green] {len(service_files)} service offering file(s)")
 
 
 @app.command("listings")
@@ -197,9 +189,7 @@ def list_listings(
         data_dir = Path.cwd() / data_dir
 
     if not data_dir.exists():
-        console.print(
-            f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
@@ -240,6 +230,4 @@ def list_listings(
         )
 
     console.print(table)
-    console.print(
-        f"\n[green]Total:[/green] {len(listing_files)} service listing file(s)"
-    )
+    console.print(f"\n[green]Total:[/green] {len(listing_files)} service listing file(s)")

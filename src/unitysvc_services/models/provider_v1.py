@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
-from unitysvc_services.models.base import AccessInterface, Document
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatus
 
 
 class ProviderV1(BaseModel):
@@ -51,3 +51,9 @@ class ProviderV1(BaseModel):
     homepage: HttpUrl
     contact_email: EmailStr
     secondary_contact_email: EmailStr | None = None
+
+    # Status field to track provider state
+    status: ProviderStatus = Field(
+        default=ProviderStatus.active,
+        description="Provider status: active, disabled, or incomplete",
+    )

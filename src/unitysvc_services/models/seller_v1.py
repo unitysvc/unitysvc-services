@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
-from unitysvc_services.models.base import Document, SellerTypeEnum
+from unitysvc_services.models.base import Document, SellerStatus, SellerTypeEnum
 
 
 class SellerV1(BaseModel):
@@ -98,10 +98,10 @@ class SellerV1(BaseModel):
     # fields for business operation purposes
     #
 
-    # Status flags - these would typically be set by the backend
-    is_active: bool = Field(
-        default=True,
-        description="Whether the seller is active on the marketplace",
+    # Status field to track seller state
+    status: SellerStatus = Field(
+        default=SellerStatus.active,
+        description="Seller status: active, disabled, or incomplete",
     )
 
     is_verified: bool = Field(

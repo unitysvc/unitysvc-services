@@ -339,6 +339,16 @@
       "title": "OveragePolicyEnum",
       "type": "string"
     },
+    "ProviderStatus": {
+      "description": "Provider status enum.",
+      "enum": [
+        "active",
+        "disabled",
+        "incomplete"
+      ],
+      "title": "ProviderStatus",
+      "type": "string"
+    },
     "QuotaResetCycleEnum": {
       "enum": [
         "daily",
@@ -860,6 +870,11 @@
       ],
       "default": null,
       "title": "Services Populator"
+    },
+    "status": {
+      "$ref": "#/$defs/ProviderStatus",
+      "default": "active",
+      "description": "Provider status: active, disabled, or incomplete"
     },
     "terms_of_service": {
       "anyOf": [

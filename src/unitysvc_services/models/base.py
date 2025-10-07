@@ -206,6 +206,22 @@ class UpstreamStatusEnum(StrEnum):
     deprecated = "deprecated"
 
 
+class ProviderStatus(StrEnum):
+    """Provider status enum."""
+
+    active = "active"
+    disabled = "disabled"
+    incomplete = "incomplete"  # Provider information is incomplete
+
+
+class SellerStatus(StrEnum):
+    """Seller status enum."""
+
+    active = "active"
+    disabled = "disabled"
+    incomplete = "incomplete"  # Seller information is incomplete
+
+
 class Document(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

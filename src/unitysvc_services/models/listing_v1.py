@@ -30,9 +30,7 @@ class ListingV1(BaseModel):
         ),
     )
 
-    seller_name: str = Field(
-        description="Name of the seller offering this service listing"
-    )
+    seller_name: str = Field(description="Name of the seller offering this service listing")
 
     # unique name for each provider, usually following upstream naming convention
     # status of the service, public, deprecated etc
