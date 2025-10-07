@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
-from unitysvc_services.models.base import AccessInterface, Document
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum
 
 
 class ProviderV1(BaseModel):
@@ -12,13 +12,17 @@ class ProviderV1(BaseModel):
     #
     # fields for business data collection and maintenance
     #
-    schema_version: str = Field(default="provider_v1", description="Schema identifier", alias="schema")
+    schema_version: str = Field(
+        default="provider_v1", description="Schema identifier", alias="schema"
+    )
     time_created: datetime
     # how to automatically populate service data, if available
     services_populator: dict[str, Any] | None = None
     # parameters for accessing service provider, which typically
     # include "api_endpoint" and "api_key"
-    provider_access_info: AccessInterface = Field(description="Dictionary of upstream access interface")
+    provider_access_info: AccessInterface = Field(
+        description="Dictionary of upstream access interface"
+    )
     #
     # fields that will be stored in backend database
     #
@@ -51,3 +55,9 @@ class ProviderV1(BaseModel):
     homepage: HttpUrl
     contact_email: EmailStr
     secondary_contact_email: EmailStr | None = None
+
+    # Status field to track provider state
+    status: ProviderStatusEnum = Field(
+        default=ProviderStatusEnum.active,
+        description="Provider status: active, disabled, or incomplete",
+    )

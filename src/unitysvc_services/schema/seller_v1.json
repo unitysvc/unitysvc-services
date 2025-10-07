@@ -153,6 +153,16 @@
       "title": "MimeTypeEnum",
       "type": "string"
     },
+    "SellerStatusEnum": {
+      "description": "Seller status enum.",
+      "enum": [
+        "active",
+        "disabled",
+        "incomplete"
+      ],
+      "title": "SellerStatusEnum",
+      "type": "string"
+    },
     "SellerTypeEnum": {
       "enum": [
         "individual",
@@ -261,12 +271,6 @@
       "description": "Seller's homepage URL",
       "title": "Homepage"
     },
-    "is_active": {
-      "default": true,
-      "description": "Whether the seller is active on the marketplace",
-      "title": "Is Active",
-      "type": "boolean"
-    },
     "is_verified": {
       "default": false,
       "description": "Whether the seller has been verified (KYC/business verification)",
@@ -322,6 +326,11 @@
       "$ref": "#/$defs/SellerTypeEnum",
       "default": "individual",
       "description": "Type of seller entity"
+    },
+    "status": {
+      "$ref": "#/$defs/SellerStatusEnum",
+      "default": "active",
+      "description": "Seller status: active, disabled, or incomplete"
     },
     "stripe_connect_id": {
       "anyOf": [

@@ -1,6 +1,8 @@
 """Data publisher module for posting service data to UnitySVC backend."""
 
+import base64
 import json
+import os
 import tomllib as toml
 from pathlib import Path
 from typing import Any
@@ -8,6 +10,10 @@ from typing import Any
 import httpx
 import typer
 from rich.console import Console
+
+from .models.base import ProviderStatusEnum, SellerStatusEnum
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema
+from .validator import DataValidator
 
 
 class ServiceDataPublisher:
@@ -48,8 +54,6 @@ class ServiceDataPublisher:
                 return f.read()
         except UnicodeDecodeError:
             # If it fails, read as binary and encode as base64
-            import base64
-
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
@@ -97,6 +101,7 @@ class ServiceDataPublisher:
         Extracts provider_name from the directory structure.
         Expected path: .../{provider_name}/services/{service_name}/...
         """
+
         # Load the data file
         data = self.load_data_file(data_file)
 
@@ -111,11 +116,27 @@ class ServiceDataPublisher:
             services_idx = parts.index("services")
             provider_name = parts[services_idx - 1]
             data_with_content["provider_name"] = provider_name
+
+            # Find provider directory to check status
+            provider_dir = Path(*parts[:services_idx])
         except (ValueError, IndexError):
             raise ValueError(
                 f"Cannot extract provider_name from path: {data_file}. "
                 f"Expected path to contain .../{{provider_name}}/services/..."
             )
+
+        # Check provider status - skip if incomplete
+        provider_files = find_files_by_schema(provider_dir, "provider_v1")
+        if provider_files:
+            # Should only be one provider file in the directory
+            _provider_file, _format, provider_data = provider_files[0]
+            provider_status = provider_data.get("status", ProviderStatusEnum.active)
+            if provider_status == ProviderStatusEnum.incomplete:
+                return {
+                    "skipped": True,
+                    "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
+                    "name": data.get("name", "unknown"),
+                }
 
         # Post to the endpoint
         response = self.client.post(
@@ -156,15 +177,7 @@ class ServiceDataPublisher:
             or not data_with_content["service_name"]
         ):
             # Find all service files in the same directory
-            service_files = []
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if file_data.get("schema") == "service_v1":
-                            service_files.append((file_path, file_data))
-                    except Exception:
-                        continue
+            service_files = find_files_by_schema(data_file.parent, "service_v1")
 
             if len(service_files) == 0:
                 raise ValueError(
@@ -173,7 +186,7 @@ class ServiceDataPublisher:
                 )
             elif len(service_files) > 1:
                 service_names = [
-                    data.get("name", "unknown") for _, data in service_files
+                    data.get("name", "unknown") for _, _, data in service_files
                 ]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
@@ -182,36 +195,24 @@ class ServiceDataPublisher:
                 )
             else:
                 # Exactly one service found - use it
-                service_file, service_data = service_files[0]
+                _service_file, _format, service_data = service_files[0]
                 data_with_content["service_name"] = service_data.get("name")
                 data_with_content["service_version"] = service_data.get("version")
         else:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
-            service_found = False
+            service_files = find_files_by_schema(
+                data_file.parent, "service_v1", field_filter=(("name", service_name),)
+            )
 
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if (
-                            file_data.get("schema") == "service_v1"
-                            and file_data.get("name") == service_name
-                        ):
-                            data_with_content["service_version"] = file_data.get(
-                                "version"
-                            )
-                            service_found = True
-                            break
-                    except Exception:
-                        continue
-                if service_found:
-                    break
-
-            if not service_found:
+            if not service_files:
                 raise ValueError(
                     f"Service '{service_name}' specified in {data_file.name} not found in {data_file.parent}."
                 )
+
+            # Get version from the found service
+            _service_file, _format, service_data = service_files[0]
+            data_with_content["service_version"] = service_data.get("version")
 
         # Find seller_name from seller definition in the data directory
         # Navigate up to find the data directory and look for seller file
@@ -225,30 +226,29 @@ class ServiceDataPublisher:
                 f"Expected path structure includes a 'data' directory."
             )
 
-        # Look for seller file in the data directory
-        seller_file = None
-        for pattern in ["seller.json", "seller.toml"]:
-            potential_seller = data_dir / pattern
-            if potential_seller.exists():
-                seller_file = potential_seller
-                break
+        # Look for seller file in the data directory by checking schema field
+        seller_files = find_files_by_schema(data_dir, "seller_v1")
 
-        if not seller_file:
+        if not seller_files:
             raise ValueError(
-                f"Cannot find seller.json or seller.toml in {data_dir}. "
-                f"A seller definition is required in the data directory."
+                f"Cannot find seller_v1 file in {data_dir}. A seller definition is required in the data directory."
             )
 
-        # Load seller data and extract name
-        seller_data = self.load_data_file(seller_file)
-        if seller_data.get("schema") != "seller_v1":
-            raise ValueError(
-                f"Seller file {seller_file} does not have schema='seller_v1'"
-            )
+        # Should only be one seller file in the data directory
+        _seller_file, _format, seller_data = seller_files[0]
+
+        # Check seller status - skip if incomplete
+        seller_status = seller_data.get("status", SellerStatusEnum.active)
+        if seller_status == SellerStatusEnum.incomplete:
+            return {
+                "skipped": True,
+                "reason": f"Seller status is '{seller_status}' - not publishing listing to backend",
+                "name": data.get("name", "unknown"),
+            }
 
         seller_name = seller_data.get("name")
         if not seller_name:
-            raise ValueError(f"Seller file {seller_file} missing 'name' field")
+            raise ValueError("Seller data missing 'name' field")
 
         data_with_content["seller_name"] = seller_name
 
@@ -266,10 +266,19 @@ class ServiceDataPublisher:
 
     def post_provider(self, data_file: Path) -> dict[str, Any]:
         """Post provider data to the backend."""
-        from unitysvc_services.utils import convert_convenience_fields_to_documents
 
         # Load the data file
         data = self.load_data_file(data_file)
+
+        # Check provider status - skip if incomplete
+        provider_status = data.get("status", ProviderStatusEnum.active)
+        if provider_status == ProviderStatusEnum.incomplete:
+            # Return success without publishing - provider is incomplete
+            return {
+                "skipped": True,
+                "reason": f"Provider status is '{provider_status}' - not publishing to backend",
+                "name": data.get("name", "unknown"),
+            }
 
         # Convert convenience fields (logo, terms_of_service) to documents
         base_path = data_file.parent
@@ -279,6 +288,11 @@ class ServiceDataPublisher:
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
+
+        # Remove status field before sending to backend (backend uses is_active)
+        status = data_with_content.pop("status", ProviderStatusEnum.active)
+        # Map status to is_active: active and disabled -> True (published), incomplete -> False (not published)
+        data_with_content["is_active"] = status != ProviderStatusEnum.disabled
 
         # Post to the endpoint
         response = self.client.post(
@@ -290,10 +304,19 @@ class ServiceDataPublisher:
 
     def post_seller(self, data_file: Path) -> dict[str, Any]:
         """Post seller data to the backend."""
-        from unitysvc_services.utils import convert_convenience_fields_to_documents
 
         # Load the data file
         data = self.load_data_file(data_file)
+
+        # Check seller status - skip if incomplete
+        seller_status = data.get("status", SellerStatusEnum.active)
+        if seller_status == SellerStatusEnum.incomplete:
+            # Return success without publishing - seller is incomplete
+            return {
+                "skipped": True,
+                "reason": f"Seller status is '{seller_status}' - not publishing to backend",
+                "name": data.get("name", "unknown"),
+            }
 
         # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
@@ -304,6 +327,11 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
+        # Remove status field before sending to backend (backend uses is_active)
+        status = data_with_content.pop("status", SellerStatusEnum.active)
+        # Map status to is_active: active and disabled -> True (published), incomplete -> False (not published)
+        data_with_content["is_active"] = status != SellerStatusEnum.disabled
+
         # Post to the endpoint
         response = self.client.post(
             f"{self.base_url}/publish/seller",
@@ -313,76 +341,24 @@ class ServiceDataPublisher:
         return response.json()
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service offering files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="service_v1".
-        """
-        offerings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "service_v1":
-                        offerings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(offerings)
+        """Find all service offering files in a directory tree."""
+        files = find_files_by_schema(data_dir, "service_v1")
+        return sorted([f[0] for f in files])
 
     def find_listing_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service listing files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="listing_v1".
-        """
-        listings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "listing_v1":
-                        listings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(listings)
+        """Find all service listing files in a directory tree."""
+        files = find_files_by_schema(data_dir, "listing_v1")
+        return sorted([f[0] for f in files])
 
     def find_provider_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all provider files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="provider_v1".
-        """
-        providers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "provider_v1":
-                        providers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(providers)
+        """Find all provider files in a directory tree."""
+        files = find_files_by_schema(data_dir, "provider_v1")
+        return sorted([f[0] for f in files])
 
     def find_seller_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all seller files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="seller_v1".
-        """
-        sellers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "seller_v1":
-                        sellers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(sellers)
+        """Find all seller files in a directory tree."""
+        files = find_files_by_schema(data_dir, "seller_v1")
+        return sorted([f[0] for f in files])
 
     def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
         """
@@ -391,7 +367,6 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
-        from .validator import DataValidator
 
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
@@ -432,8 +407,6 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
-        from .validator import DataValidator
-
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
         validation_errors = validator.validate_all_service_directories(data_dir)
@@ -552,7 +525,6 @@ def publish_providers(
     ),
 ):
     """Publish provider(s) from a file or directory."""
-    import os
 
     # Set data path
     if data_path is None:
@@ -647,8 +619,6 @@ def publish_sellers(
     ),
 ):
     """Publish seller(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
         data_path_str = os.getenv("UNITYSVC_DATA_DIR")
@@ -740,8 +710,6 @@ def publish_offerings(
     ),
 ):
     """Publish service offering(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
         data_path_str = os.getenv("UNITYSVC_DATA_DIR")
@@ -839,7 +807,6 @@ def publish_listings(
     ),
 ):
     """Publish service listing(s) from a file or directory."""
-    import os
 
     # Set data path
     if data_path is None:

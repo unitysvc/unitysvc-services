@@ -13,6 +13,8 @@ from jinja2 import Environment, TemplateSyntaxError
 from jsonschema.validators import Draft7Validator
 from rich.console import Console
 
+import unitysvc_services
+
 
 class DataValidationError(Exception):
     """Exception raised when data validation fails."""
@@ -58,12 +60,16 @@ class DataValidator:
                 if "anyOf" in obj:
                     any_of = obj["anyOf"]
                     # Count non-null items for the check
-                    non_null_items = [item for item in any_of if item.get("type") != "null"]
+                    non_null_items = [
+                        item for item in any_of if item.get("type") != "null"
+                    ]
                     has_plain_string = any(
-                        item.get("type") == "string" and "format" not in item for item in non_null_items
+                        item.get("type") == "string" and "format" not in item
+                        for item in non_null_items
                     )
                     has_uri_string = any(
-                        item.get("type") == "string" and item.get("format") == "uri" for item in non_null_items
+                        item.get("type") == "string" and item.get("format") == "uri"
+                        for item in non_null_items
                     )
 
                     # Check for Union[str, HttpUrl] or Union[str, HttpUrl, None]
@@ -78,7 +84,9 @@ class DataValidator:
 
                 # Check other schema structures
                 for key, value in obj.items():
-                    if key not in ["properties", "anyOf"] and isinstance(value, dict | list):
+                    if key not in ["properties", "anyOf"] and isinstance(
+                        value, dict | list
+                    ):
                         traverse_schema(value, path)
 
             elif isinstance(obj, list):
@@ -88,7 +96,9 @@ class DataValidator:
         traverse_schema(schema)
         return union_fields
 
-    def validate_file_references(self, data: dict[str, Any], file_path: Path, union_fields: set[str]) -> list[str]:
+    def validate_file_references(
+        self, data: dict[str, Any], file_path: Path, union_fields: set[str]
+    ) -> list[str]:
         """
         Validate that file references in Union[str, HttpUrl] fields exist.
 
@@ -110,7 +120,9 @@ class DataValidator:
                     ):
                         # Empty string is not a valid file reference
                         if value == "":
-                            errors.append(f"Empty string in field '{new_path}' is not a valid file reference or URL")
+                            errors.append(
+                                f"Empty string in field '{new_path}' is not a valid file reference or URL"
+                            )
                         # It's a file reference, must be relative path
                         elif Path(value).is_absolute():
                             errors.append(
@@ -139,6 +151,14 @@ class DataValidator:
                                 f"File path '{value}' in field '{new_path}' "
                                 f"must be a relative path, not an absolute path"
                             )
+                        # Check that the file exists
+                        else:
+                            referenced_file = file_path.parent / value
+                            if not referenced_file.exists():
+                                errors.append(
+                                    f"File reference '{value}' in field '{new_path}' "
+                                    f"does not exist at {referenced_file}"
+                                )
 
                     # Recurse into nested objects
                     if isinstance(value, dict | list):
@@ -152,7 +172,9 @@ class DataValidator:
         check_field(data, str(file_path))
         return errors
 
-    def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
+    def validate_name_consistency(
+        self, data: dict[str, Any], file_path: Path, schema_name: str
+    ) -> list[str]:
         """Validate that the name field matches the directory name."""
         errors: list[str] = []
 
@@ -177,7 +199,9 @@ class DataValidator:
         elif file_path.name in ["service.json", "service.toml"]:
             # For service.json, the service directory should match the service name
             service_directory_name = file_path.parent.name
-            if self._normalize_name(name_value) != self._normalize_name(service_directory_name):
+            if self._normalize_name(name_value) != self._normalize_name(
+                service_directory_name
+            ):
                 normalized_name = self._normalize_name(name_value)
                 errors.append(
                     f"Service name '{name_value}' does not match "
@@ -196,7 +220,9 @@ class DataValidator:
         normalized = normalized.strip("-")
         return normalized
 
-    def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
+    def load_data_file(
+        self, file_path: Path
+    ) -> tuple[dict[str, Any] | None, list[str]]:
         """Load data from JSON or TOML file."""
         errors: list[str] = []
 
@@ -211,7 +237,9 @@ class DataValidator:
                 return None, [f"Unsupported file format: {file_path.suffix}"]
             return data, errors
         except Exception as e:
-            format_name = {".json": "JSON", ".toml": "TOML"}.get(file_path.suffix, "data")
+            format_name = {".json": "JSON", ".toml": "TOML"}.get(
+                file_path.suffix, "data"
+            )
             return None, [f"Failed to parse {format_name}: {e}"]
 
     def validate_data_file(self, file_path: Path) -> tuple[bool, list[str]]:
@@ -240,13 +268,17 @@ class DataValidator:
 
         # Validate against schema with format checking enabled
         try:
-            validator = Draft7Validator(schema, format_checker=Draft7Validator.FORMAT_CHECKER)
+            validator = Draft7Validator(
+                schema, format_checker=Draft7Validator.FORMAT_CHECKER
+            )
             validator.check_schema(schema)  # Validate the schema itself
             validation_errors = list(validator.iter_errors(data))
             for error in validation_errors:
                 errors.append(f"Schema validation error: {error.message}")
                 if error.absolute_path:
-                    errors.append(f"  Path: {'.'.join(str(p) for p in error.absolute_path)}")
+                    errors.append(
+                        f"  Path: {'.'.join(str(p) for p in error.absolute_path)}"
+                    )
         except Exception as e:
             errors.append(f"Validation error: {e}")
 
@@ -314,11 +346,109 @@ class DataValidator:
                 "No seller file found. Each repository must have exactly one data file using the 'seller_v1' schema."
             )
         elif len(seller_files) > 1:
-            errors.append(f"Found {len(seller_files)} seller files, but only one is allowed per repository:")
+            errors.append(
+                f"Found {len(seller_files)} seller files, but only one is allowed per repository:"
+            )
             for seller_file in seller_files:
                 errors.append(f"  - {seller_file}")
 
         return len(errors) == 0, errors
+
+    def validate_provider_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate provider status and warn about services under disabled/incomplete providers.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate services
+        that will be affected by provider status.
+        """
+        from unitysvc_services.models.base import ProviderStatusEnum
+        from unitysvc_services.models.provider_v1 import ProviderV1
+
+        warnings: list[str] = []
+
+        # Find all provider files
+        provider_files = list(self.data_dir.glob("*/provider.*"))
+
+        for provider_file in provider_files:
+            try:
+                # Load provider data
+                data = {}
+                if provider_file.suffix == ".json":
+                    with open(provider_file, encoding="utf-8") as f:
+                        data = json.load(f)
+                elif provider_file.suffix == ".toml":
+                    with open(provider_file, "rb") as f:
+                        data = toml.load(f)
+                else:
+                    continue
+
+                # Parse as ProviderV1
+                provider = ProviderV1.model_validate(data)
+                provider_dir = provider_file.parent
+                provider_name = provider.name
+
+                # Check if provider is not active
+                if provider.status != ProviderStatusEnum.active:
+                    # Find all services under this provider
+                    services_dir = provider_dir / "services"
+                    if services_dir.exists():
+                        service_count = len(list(services_dir.iterdir()))
+                        if service_count > 0:
+                            warnings.append(
+                                f"Provider '{provider_name}' has status '{provider.status}' but has {service_count} "
+                                f"service(s). All services under this provider will be affected."
+                            )
+
+            except Exception as e:
+                warnings.append(
+                    f"Error checking provider status in {provider_file}: {e}"
+                )
+
+        # Return True (valid) but with warnings
+        return True, warnings
+
+    def validate_seller_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate seller status and warn if seller is disabled/incomplete.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
+        """
+        from unitysvc_services.models.base import SellerStatusEnum
+        from unitysvc_services.models.seller_v1 import SellerV1
+
+        warnings: list[str] = []
+
+        # Find all seller files
+        seller_files = list(self.data_dir.glob("seller.*"))
+
+        for seller_file in seller_files:
+            try:
+                # Load seller data
+                data = {}
+                if seller_file.suffix == ".json":
+                    with open(seller_file, encoding="utf-8") as f:
+                        data = json.load(f)
+                elif seller_file.suffix == ".toml":
+                    with open(seller_file, "rb") as f:
+                        data = toml.load(f)
+                else:
+                    continue
+
+                # Parse as SellerV1
+                seller = SellerV1.model_validate(data)
+                seller_name = seller.name
+
+                # Check if seller is not active
+                if seller.status != SellerStatusEnum.active:
+                    warnings.append(
+                        f"Seller '{seller_name}' has status '{seller.status}'. Seller will not be published to backend."
+                    )
+
+            except Exception as e:
+                warnings.append(f"Error checking seller status in {seller_file}: {e}")
+
+        # Return True (valid) but with warnings
+        return True, warnings
 
     def validate_all(self) -> dict[str, tuple[bool, list[str]]]:
         """Validate all files in the data directory."""
@@ -331,6 +461,19 @@ class DataValidator:
         seller_valid, seller_errors = self.validate_seller_uniqueness()
         if not seller_valid:
             results["_seller_uniqueness"] = (False, seller_errors)
+
+        # Validate seller status
+        seller_status_valid, seller_warnings = self.validate_seller_status()
+        if seller_warnings:
+            results["_seller_status"] = (True, seller_warnings)  # Warnings, not errors
+
+        # Validate provider status and check for affected services
+        provider_status_valid, provider_warnings = self.validate_provider_status()
+        if provider_warnings:
+            results["_provider_status"] = (
+                True,
+                provider_warnings,
+            )  # Warnings, not errors
 
         # Find all data and MD files recursively
         for file_path in self.data_dir.rglob("*"):
@@ -382,7 +525,9 @@ class DataValidator:
                 if schema == "service_v1":
                     service_name = data.get("name")
                     if not service_name:
-                        raise DataValidationError(f"Service file {file_path} missing 'name' field")
+                        raise DataValidationError(
+                            f"Service file {file_path} missing 'name' field"
+                        )
 
                     # Check for duplicate service names in same directory
                     if service_name in services:
@@ -410,7 +555,9 @@ class DataValidator:
             if service_name:
                 # If service_name is explicitly defined, it must match a service in the directory
                 if service_name not in services:
-                    available_services = ", ".join(services.keys()) if services else "none"
+                    available_services = (
+                        ", ".join(services.keys()) if services else "none"
+                    )
                     raise DataValidationError(
                         f"Listing file {listing_file} references service_name '{service_name}' "
                         f"which does not exist in the same directory.\n"
@@ -500,12 +647,30 @@ def validate(
     console.print(f"[cyan]Validating data files in:[/cyan] {data_dir}")
     console.print()
 
+    # Get schema directory from installed package
+    schema_dir = Path(unitysvc_services.__file__).parent / "schema"
+
     # Create validator and run validation
-    validator = DataValidator(data_dir, data_dir.parent / "schema")
-    validation_errors = validator.validate_all_service_directories(data_dir)
+    validator = DataValidator(data_dir, schema_dir)
+
+    # Run comprehensive validation (schema, file references, etc.)
+    all_results = validator.validate_all()
+    validation_errors = []
+
+    # Collect all errors from validate_all()
+    for file_path, (is_valid, errors) in all_results.items():
+        if not is_valid and errors:
+            for error in errors:
+                validation_errors.append(f"{file_path}: {error}")
+
+    # Also run service directory validation (service/listing relationships)
+    directory_errors = validator.validate_all_service_directories(data_dir)
+    validation_errors.extend(directory_errors)
 
     if validation_errors:
-        console.print(f"[red]✗ Validation failed with {len(validation_errors)} error(s):[/red]")
+        console.print(
+            f"[red]✗ Validation failed with {len(validation_errors)} error(s):[/red]"
+        )
         console.print()
         for i, error in enumerate(validation_errors, 1):
             console.print(f"[red]{i}.[/red] {error}")

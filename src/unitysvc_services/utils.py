@@ -2,6 +2,7 @@
 
 import json
 import tomllib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -54,23 +55,27 @@ def write_data_file(file_path: Path, data: dict[str, Any], format: str) -> None:
         raise ValueError(f"Unsupported format: {format}")
 
 
-def find_data_files(data_dir: Path, extensions: list[str] | None = None) -> list[Path]:
+@lru_cache(maxsize=128)
+def find_data_files(
+    data_dir: Path, extensions: tuple[str, ...] | None = None
+) -> list[Path]:
     """
     Find all data files in a directory with specified extensions.
 
     Args:
         data_dir: Directory to search
-        extensions: List of extensions to search for (default: ["json", "toml"])
+        extensions: Tuple of extensions to search for (default: ("json", "toml"))
 
     Returns:
         List of Path objects for matching files
     """
     if extensions is None:
-        extensions = ["json", "toml"]
+        extensions = ("json", "toml")
 
     data_files: list[Path] = []
     for ext in extensions:
         data_files.extend(data_dir.rglob(f"*.{ext}"))
+
     return data_files
 
 
@@ -103,11 +108,12 @@ def find_file_by_schema_and_name(
     return None
 
 
+@lru_cache(maxsize=256)
 def find_files_by_schema(
     data_dir: Path,
     schema: str,
     path_filter: str | None = None,
-    field_filter: dict[str, Any] | None = None,
+    field_filter: tuple[tuple[str, Any], ...] | None = None,
 ) -> list[tuple[Path, str, dict[str, Any]]]:
     """
     Find all data files matching a schema with optional filters.
@@ -116,13 +122,16 @@ def find_files_by_schema(
         data_dir: Directory to search
         schema: Schema identifier (e.g., "service_v1", "listing_v1")
         path_filter: Optional string that must be in the file path
-        field_filter: Optional dict of field:value pairs to filter by
+        field_filter: Optional tuple of (key, value) pairs to filter by
 
     Returns:
         List of tuples (file_path, format, data) for matching files
     """
     data_files = find_data_files(data_dir)
     matching_files: list[tuple[Path, str, dict[str, Any]]] = []
+
+    # Convert field_filter tuple back to dict for filtering
+    field_filter_dict = dict(field_filter) if field_filter else None
 
     for data_file in data_files:
         try:
@@ -137,8 +146,8 @@ def find_files_by_schema(
                 continue
 
             # Apply field filters
-            if field_filter:
-                if not all(data.get(k) == v for k, v in field_filter.items()):
+            if field_filter_dict:
+                if not all(data.get(k) == v for k, v in field_filter_dict.items()):
                     continue
 
             matching_files.append((data_file, file_format, data))
@@ -199,7 +208,9 @@ def resolve_provider_name(file_path: Path) -> str | None:
     return None
 
 
-def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
+def resolve_service_name_for_listing(
+    listing_file: Path, listing_data: dict[str, Any]
+) -> str | None:
     """
     Resolve the service name for a listing file.
 

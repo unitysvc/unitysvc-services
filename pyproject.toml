@@ -12,6 +12,7 @@ license = { text = "MIT" }
 dependencies = [
   "typer",
   "pydantic",
+  "email-validator",
   "jsonschema",
   "jinja2",
   "rich",
