@@ -46,7 +46,7 @@ def update_offering(
         None,
         "--data-dir",
         "-d",
-        help="Directory containing data files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing data files (default: current directory)",
     ),
 ):
     """
@@ -83,11 +83,7 @@ def update_offering(
 
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir
@@ -181,7 +177,7 @@ def update_listing(
         None,
         "--data-dir",
         "-d",
-        help="Directory containing data files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing data files (default: current directory)",
     ),
 ):
     """
@@ -227,11 +223,7 @@ def update_listing(
 
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir

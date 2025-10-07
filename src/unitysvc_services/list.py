@@ -21,17 +21,13 @@ console = Console()
 def list_providers(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing provider files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing provider files (default: current directory)",
     ),
 ):
     """List all provider files found in the data directory."""
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir
@@ -72,17 +68,13 @@ def list_providers(
 def list_sellers(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing seller files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing seller files (default: current directory)",
     ),
 ):
     """List all seller files found in the data directory."""
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir
@@ -123,17 +115,13 @@ def list_sellers(
 def list_offerings(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing service files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing service files (default: current directory)",
     ),
 ):
     """List all service offering files found in the data directory."""
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir
@@ -181,17 +169,13 @@ def list_offerings(
 def list_listings(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing listing files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing listing files (default: current directory)",
     ),
 ):
     """List all service listing files found in the data directory."""
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir

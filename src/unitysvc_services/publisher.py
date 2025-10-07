@@ -507,9 +507,11 @@ console = Console()
 
 @app.command("providers")
 def publish_providers(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to provider file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
+        "--data-path",
+        "-d",
+        help="Path to provider file or directory (default: current directory)",
     ),
     backend_url: str | None = typer.Option(
         None,
@@ -528,11 +530,7 @@ def publish_providers(
 
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -601,9 +599,11 @@ def publish_providers(
 
 @app.command("sellers")
 def publish_sellers(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to seller file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
+        "--data-path",
+        "-d",
+        help="Path to seller file or directory (default: current directory)",
     ),
     backend_url: str | None = typer.Option(
         None,
@@ -621,11 +621,7 @@ def publish_sellers(
     """Publish seller(s) from a file or directory."""
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -692,9 +688,11 @@ def publish_sellers(
 
 @app.command("offerings")
 def publish_offerings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service offering file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
+        "--data-path",
+        "-d",
+        help="Path to service offering file or directory (default: current directory)",
     ),
     backend_url: str | None = typer.Option(
         None,
@@ -712,11 +710,7 @@ def publish_offerings(
     """Publish service offering(s) from a file or directory."""
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -789,9 +783,11 @@ def publish_offerings(
 
 @app.command("listings")
 def publish_listings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service listing file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
+        "--data-path",
+        "-d",
+        help="Path to service listing file or directory (default: current directory)",
     ),
     backend_url: str | None = typer.Option(
         None,
@@ -810,11 +806,7 @@ def publish_listings(
 
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path

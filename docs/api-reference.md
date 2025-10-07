@@ -358,9 +358,6 @@ The SDK respects these environment variables:
 ```python
 import os
 
-# Data directory
-data_dir = os.getenv("UNITYSVC_DATA_DIR", "./data")
-
 # Backend connection
 backend_url = os.getenv("UNITYSVC_BACKEND_URL", "https://api.unitysvc.com/api/v1")
 api_key = os.getenv("UNITYSVC_API_KEY")

@@ -621,7 +621,7 @@ console = Console()
 def validate(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing data files to validate (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing data files to validate (default: current directory)",
     ),
 ):
     """
@@ -634,11 +634,7 @@ def validate(
     """
     # Determine data directory
     if data_dir is None:
-        data_dir_str = os.environ.get("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.exists():
         console.print(f"[red]✗[/red] Data directory not found: {data_dir}")

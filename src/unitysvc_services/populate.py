@@ -19,7 +19,7 @@ console = Console()
 def populate(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing provider data files (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing provider data files (default: current directory)",
     ),
     provider_name: str | None = typer.Option(
         None,
@@ -41,11 +41,7 @@ def populate(
     """
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir

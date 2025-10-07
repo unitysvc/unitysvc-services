@@ -368,7 +368,6 @@ Incorrect order will result in foreign key errors.
 
 ### Environment Management
 - Use different API keys for dev/staging/prod
-- Set `UNITYSVC_DATA_DIR` for custom data locations
 - Store secrets in environment variables, not files
 
 ### Error Handling

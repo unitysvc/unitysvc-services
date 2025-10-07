@@ -117,7 +117,7 @@ unitysvc_services list providers [DATA_DIR]
 ```
 
 **Arguments:**
-- `[DATA_DIR]` - Data directory (default: ./data or $UNITYSVC_DATA_DIR)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 ### list sellers
 
@@ -214,23 +214,23 @@ Publish local data files to UnitySVC backend.
 unitysvc_services publish providers [DATA_PATH] [OPTIONS]
 ```
 
-**Arguments:**
-- `[DATA_PATH]` - File or directory path (default: ./data or $UNITYSVC_DATA_DIR)
-
 **Options:**
+- `--data-path, -d PATH` - File or directory path (default: current directory)
+
+**Additional Options:**
 - `--backend-url, -u URL` - Backend URL (or $UNITYSVC_BACKEND_URL)
 - `--api-key, -k KEY` - API key (or $UNITYSVC_API_KEY)
 
 **Examples:**
 ```bash
-# Publish all providers in ./data
+# Publish all providers in current directory
 unitysvc_services publish providers
 
 # Publish specific file
-unitysvc_services publish providers ./data/my-provider/provider.json
+unitysvc_services publish providers --data-path ./data/my-provider/provider.json
 
 # Publish from custom directory
-unitysvc_services publish providers ./custom-data
+unitysvc_services publish providers --data-path ./custom-data
 ```
 
 ### publish sellers
@@ -273,7 +273,7 @@ unitysvc_services update offering --name <name> [OPTIONS]
 - `--display-name NAME` - New display name
 - `--description TEXT` - New description
 - `--version VERSION` - New version
-- `--data-dir, -d PATH` - Data directory (default: ./data)
+- `--data-dir, -d PATH` - Data directory (default: current directory)
 
 **Examples:**
 ```bash
@@ -297,7 +297,7 @@ unitysvc_services update listing --service-name <name> [OPTIONS]
 - `--service-name, -n NAME` - Service name (required)
 - `--status, -s STATUS` - New listing_status
 - `--seller SELLER` - Filter by seller name
-- `--data-dir, -d PATH` - Data directory (default: ./data)
+- `--data-dir, -d PATH` - Data directory (default: current directory)
 
 **Listing Status Values:**
 - `unknown` - Not yet determined
@@ -329,7 +329,7 @@ unitysvc_services validate [DATA_DIR]
 ```
 
 **Arguments:**
-- `[DATA_DIR]` - Data directory (default: ./data or $UNITYSVC_DATA_DIR)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Checks:**
 - Schema compliance
@@ -341,15 +341,11 @@ unitysvc_services validate [DATA_DIR]
 
 **Examples:**
 ```bash
-# Validate ./data
+# Validate current directory
 unitysvc_services validate
 
 # Validate specific directory
-unitysvc_services validate ./my-data
-
-# Using environment variable
-export UNITYSVC_DATA_DIR=/path/to/data
-unitysvc_services validate
+unitysvc_services validate ./data
 ```
 
 **Exit Codes:**
@@ -365,7 +361,7 @@ unitysvc_services format [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
-- `[DATA_DIR]` - Data directory (default: ./data or $UNITYSVC_DATA_DIR)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 - `--check` - Check formatting without modifying files
@@ -378,14 +374,14 @@ unitysvc_services format [DATA_DIR] [OPTIONS]
 
 **Examples:**
 ```bash
-# Format all files
+# Format all files in current directory
 unitysvc_services format
 
 # Check formatting without changes
 unitysvc_services format --check
 
 # Format specific directory
-unitysvc_services format ./my-data
+unitysvc_services format ./data
 ```
 
 **Exit Codes:**
@@ -401,7 +397,7 @@ unitysvc_services populate [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
-- `[DATA_DIR]` - Data directory (default: ./data or $UNITYSVC_DATA_DIR)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 - `--provider, -p NAME` - Only populate specific provider
@@ -428,13 +424,11 @@ unitysvc_services populate --dry-run
 
 | Variable | Description | Used By |
 |----------|-------------|---------|
-| `UNITYSVC_DATA_DIR` | Default data directory | All file commands |
 | `UNITYSVC_BACKEND_URL` | Backend API URL | query, publish |
 | `UNITYSVC_API_KEY` | API authentication key | query, publish |
 
 **Example:**
 ```bash
-export UNITYSVC_DATA_DIR=/path/to/data
 export UNITYSVC_BACKEND_URL=https://api.unitysvc.com/api/v1
 export UNITYSVC_API_KEY=your-api-key
 

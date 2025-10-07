@@ -14,7 +14,7 @@ console = Console()
 def format_data(
     data_dir: Path | None = typer.Argument(
         None,
-        help="Directory containing data files to format (default: ./data or UNITYSVC_DATA_DIR env var)",
+        help="Directory containing data files to format (default: current directory)",
     ),
     check_only: bool = typer.Option(
         False,
@@ -35,11 +35,7 @@ def format_data(
 
     # Set data directory
     if data_dir is None:
-        data_dir_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_dir_str:
-            data_dir = Path(data_dir_str)
-        else:
-            data_dir = Path.cwd() / "data"
+        data_dir = Path.cwd()
 
     if not data_dir.is_absolute():
         data_dir = Path.cwd() / data_dir
