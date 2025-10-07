@@ -2,12 +2,14 @@
 
 import json
 import tomllib
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import tomli_w
 
 
+@lru_cache
 def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
     """
     Load a data file (JSON or TOML) and return (data, format).
@@ -54,6 +56,7 @@ def write_data_file(file_path: Path, data: dict[str, Any], format: str) -> None:
         raise ValueError(f"Unsupported format: {format}")
 
 
+@lru_cache
 def find_data_files(data_dir: Path, extensions: list[str] | None = None) -> list[Path]:
     """
     Find all data files in a directory with specified extensions.
@@ -103,6 +106,7 @@ def find_file_by_schema_and_name(
     return None
 
 
+@lru_cache
 def find_files_by_schema(
     data_dir: Path,
     schema: str,
@@ -199,7 +203,9 @@ def resolve_provider_name(file_path: Path) -> str | None:
     return None
 
 
-def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str, Any]) -> str | None:
+def resolve_service_name_for_listing(
+    listing_file: Path, listing_data: dict[str, Any]
+) -> str | None:
     """
     Resolve the service name for a listing file.
 
