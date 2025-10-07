@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 import typer
+import unitysvc_services
 from jinja2 import Environment, TemplateSyntaxError
 from jsonschema.validators import Draft7Validator
 from rich.console import Console
@@ -149,6 +150,14 @@ class DataValidator:
                                 f"File path '{value}' in field '{new_path}' "
                                 f"must be a relative path, not an absolute path"
                             )
+                        # Check that the file exists
+                        else:
+                            referenced_file = file_path.parent / value
+                            if not referenced_file.exists():
+                                errors.append(
+                                    f"File reference '{value}' in field '{new_path}' "
+                                    f"does not exist at {referenced_file}"
+                                )
 
                     # Recurse into nested objects
                     if isinstance(value, dict | list):
@@ -637,9 +646,25 @@ def validate(
     console.print(f"[cyan]Validating data files in:[/cyan] {data_dir}")
     console.print()
 
+    # Get schema directory from installed package
+    schema_dir = Path(unitysvc_services.__file__).parent / "schema"
+
     # Create validator and run validation
-    validator = DataValidator(data_dir, data_dir.parent / "schema")
-    validation_errors = validator.validate_all_service_directories(data_dir)
+    validator = DataValidator(data_dir, schema_dir)
+
+    # Run comprehensive validation (schema, file references, etc.)
+    all_results = validator.validate_all()
+    validation_errors = []
+
+    # Collect all errors from validate_all()
+    for file_path, (is_valid, errors) in all_results.items():
+        if not is_valid and errors:
+            for error in errors:
+                validation_errors.append(f"{file_path}: {error}")
+
+    # Also run service directory validation (service/listing relationships)
+    directory_errors = validator.validate_all_service_directories(data_dir)
+    validation_errors.extend(directory_errors)
 
     if validation_errors:
         console.print(
