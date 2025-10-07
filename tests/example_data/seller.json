@@ -6,6 +6,6 @@
   "seller_type": "organization",
   "contact_email": "contact@svcreseller.com",
   "description": "Example seller for testing",
-  "is_active": true,
+  "status": "active",
   "is_verified": false
 }

@@ -57,9 +57,7 @@ class ServiceDataPublisher:
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(
-        self, data: dict[str, Any], base_path: Path
-    ) -> dict[str, Any]:
+    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
         result: dict[str, Any] = {}
 
@@ -70,11 +68,7 @@ class ServiceDataPublisher:
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
-                    (
-                        self.resolve_file_references(item, base_path)
-                        if isinstance(item, dict)
-                        else item
-                    )
+                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
                     for item in value
                 ]
             elif key == "file_path" and isinstance(value, str):
@@ -87,9 +81,7 @@ class ServiceDataPublisher:
                         content = self.load_file_content(Path(value), base_path)
                         result["file_content"] = content
                     except Exception as e:
-                        raise ValueError(
-                            f"Failed to load file content from '{value}': {e}"
-                        )
+                        raise ValueError(f"Failed to load file content from '{value}': {e}")
             else:
                 result[key] = value
 
@@ -172,10 +164,7 @@ class ServiceDataPublisher:
             )
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if (
-            "service_name" not in data_with_content
-            or not data_with_content["service_name"]
-        ):
+        if "service_name" not in data_with_content or not data_with_content["service_name"]:
             # Find all service files in the same directory
             service_files = find_files_by_schema(data_file.parent, "service_v1")
 
@@ -185,9 +174,7 @@ class ServiceDataPublisher:
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [
-                    data.get("name", "unknown") for _, _, data in service_files
-                ]
+                service_names = [data.get("name", "unknown") for _, _, data in service_files]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {data_file.name} to specify which "
@@ -201,9 +188,7 @@ class ServiceDataPublisher:
         else:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
-            service_files = find_files_by_schema(
-                data_file.parent, "service_v1", field_filter={"name": service_name}
-            )
+            service_files = find_files_by_schema(data_file.parent, "service_v1", field_filter={"name": service_name})
 
             if not service_files:
                 raise ValueError(
@@ -320,9 +305,7 @@ class ServiceDataPublisher:
 
         # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field=None
-        )
+        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -376,10 +359,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         offering_files = self.find_offering_files(data_dir)
@@ -415,10 +395,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         listing_files = self.find_listing_files(data_dir)
@@ -593,9 +570,7 @@ def publish_providers(
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish providers: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -679,9 +654,7 @@ def publish_sellers(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All sellers published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All sellers published successfully!")
 
     except typer.Exit:
         raise
@@ -750,15 +723,11 @@ def publish_offerings(
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_offering(data_path)
-                console.print(
-                    "[green]✓[/green] Service offering published successfully!"
-                )
+                console.print("[green]✓[/green] Service offering published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service offerings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_offerings(data_path)
 
@@ -774,16 +743,12 @@ def publish_offerings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service offerings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service offerings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
@@ -848,15 +813,11 @@ def publish_listings(
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_listing(data_path)
-                console.print(
-                    "[green]✓[/green] Service listing published successfully!"
-                )
+                console.print("[green]✓[/green] Service listing published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service listings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_listings(data_path)
 
@@ -872,14 +833,10 @@ def publish_listings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service listings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service listings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red")
         raise typer.Exit(code=1)
