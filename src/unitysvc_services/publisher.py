@@ -4,10 +4,16 @@ import json
 import tomllib as toml
 from pathlib import Path
 from typing import Any
+import os
+import base64
 
 import httpx
 import typer
 from rich.console import Console
+
+from .models.base import ProviderStatus, SellerStatus
+from .utils import convert_convenience_fields_to_documents
+from .validator import DataValidator
 
 
 class ServiceDataPublisher:
@@ -48,8 +54,6 @@ class ServiceDataPublisher:
                 return f.read()
         except UnicodeDecodeError:
             # If it fails, read as binary and encode as base64
-            import base64
-
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
@@ -89,7 +93,6 @@ class ServiceDataPublisher:
         Extracts provider_name from the directory structure.
         Expected path: .../{provider_name}/services/{service_name}/...
         """
-        from unitysvc_services.models.base import ProviderStatus
 
         # Load the data file
         data = self.load_data_file(data_file)
@@ -245,8 +248,6 @@ class ServiceDataPublisher:
             )
 
         # Load seller data and extract name
-        from unitysvc_services.models.base import SellerStatus
-
         seller_data = self.load_data_file(seller_file)
         if seller_data.get("schema") != "seller_v1":
             raise ValueError(f"Seller file {seller_file} does not have schema='seller_v1'")
@@ -280,8 +281,6 @@ class ServiceDataPublisher:
 
     def post_provider(self, data_file: Path) -> dict[str, Any]:
         """Post provider data to the backend."""
-        from unitysvc_services.models.base import ProviderStatus
-        from unitysvc_services.utils import convert_convenience_fields_to_documents
 
         # Load the data file
         data = self.load_data_file(data_file)
@@ -320,8 +319,6 @@ class ServiceDataPublisher:
 
     def post_seller(self, data_file: Path) -> dict[str, Any]:
         """Post seller data to the backend."""
-        from unitysvc_services.models.base import SellerStatus
-        from unitysvc_services.utils import convert_convenience_fields_to_documents
 
         # Load the data file
         data = self.load_data_file(data_file)
@@ -435,7 +432,6 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
-        from .validator import DataValidator
 
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
@@ -473,8 +469,6 @@ class ServiceDataPublisher:
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
-        from .validator import DataValidator
-
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
         validation_errors = validator.validate_all_service_directories(data_dir)
@@ -590,7 +584,6 @@ def publish_providers(
     ),
 ):
     """Publish provider(s) from a file or directory."""
-    import os
 
     # Set data path
     if data_path is None:
@@ -683,8 +676,6 @@ def publish_sellers(
     ),
 ):
     """Publish seller(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
         data_path_str = os.getenv("UNITYSVC_DATA_DIR")
@@ -774,8 +765,6 @@ def publish_offerings(
     ),
 ):
     """Publish service offering(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
         data_path_str = os.getenv("UNITYSVC_DATA_DIR")
@@ -865,7 +854,6 @@ def publish_listings(
     ),
 ):
     """Publish service listing(s) from a file or directory."""
-    import os
 
     # Set data path
     if data_path is None:
