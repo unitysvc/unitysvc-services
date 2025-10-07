@@ -26,14 +26,17 @@ data, file_format = load_data_file(Path("data/my-provider/provider.json"))
 ```
 
 **Parameters:**
-- `file_path` (Path): Path to the data file
+
+-   `file_path` (Path): Path to the data file
 
 **Returns:**
-- `tuple[dict[str, Any], str]`: Data dictionary and format ("json" or "toml")
+
+-   `tuple[dict[str, Any], str]`: Data dictionary and format ("json" or "toml")
 
 **Raises:**
-- `ValueError`: If file format is not supported
-- `FileNotFoundError`: If file doesn't exist
+
+-   `ValueError`: If file format is not supported
+-   `FileNotFoundError`: If file doesn't exist
 
 #### write_data_file()
 
@@ -48,12 +51,14 @@ write_data_file(Path("data/my-provider/provider.json"), data, "json")
 ```
 
 **Parameters:**
-- `file_path` (Path): Path to write to
-- `data` (dict): Data to write
-- `file_format` (str): Format ("json" or "toml")
+
+-   `file_path` (Path): Path to write to
+-   `data` (dict): Data to write
+-   `file_format` (str): Format ("json" or "toml")
 
 **Returns:**
-- `None`
+
+-   `None`
 
 #### find_data_files()
 
@@ -68,10 +73,12 @@ files = find_data_files(Path("data"))
 ```
 
 **Parameters:**
-- `data_dir` (Path): Directory to search
+
+-   `data_dir` (Path): Directory to search
 
 **Returns:**
-- `list[Path]`: List of data file paths
+
+-   `list[Path]`: List of data file paths
 
 #### find_files_by_schema()
 
@@ -90,12 +97,14 @@ service_files = find_files_by_schema(
 ```
 
 **Parameters:**
-- `data_dir` (Path): Directory to search
-- `schema` (str): Schema to match (e.g., "service_v1")
-- `field_filter` (dict, optional): Additional field filters
+
+-   `data_dir` (Path): Directory to search
+-   `schema` (str): Schema to match (e.g., "service_v1")
+-   `field_filter` (dict, optional): Additional field filters
 
 **Returns:**
-- `list[tuple[Path, dict]]`: List of (file_path, data) tuples
+
+-   `list[tuple[Path, dict]]`: List of (file_path, data) tuples
 
 #### find_file_by_schema_and_name()
 
@@ -121,13 +130,15 @@ else:
 ```
 
 **Parameters:**
-- `data_dir` (Path): Directory to search
-- `schema` (str): Schema to match
-- `name_field` (str): Field name to match (e.g., "name")
-- `name_value` (str): Field value to match
+
+-   `data_dir` (Path): Directory to search
+-   `schema` (str): Schema to match
+-   `name_field` (str): Field name to match (e.g., "name")
+-   `name_value` (str): Field value to match
 
 **Returns:**
-- `tuple[Path, str, dict] | None`: (file_path, format, data) or None if not found
+
+-   `tuple[Path, str, dict] | None`: (file_path, format, data) or None if not found
 
 ### unitysvc_services.cli
 
@@ -165,11 +176,13 @@ client = get_api_client(
 ```
 
 **Parameters:**
-- `backend_url` (str): Backend API URL
-- `api_key` (str): API authentication key
+
+-   `backend_url` (str): Backend API URL
+-   `api_key` (str): API authentication key
 
 **Returns:**
-- `AuthenticatedClient`: Configured API client
+
+-   `AuthenticatedClient`: Configured API client
 
 #### publish_provider()
 
@@ -186,16 +199,19 @@ success = publish_provider(
 ```
 
 **Parameters:**
-- `client` (AuthenticatedClient): API client
-- `provider_file` (Path): Path to provider file
+
+-   `client` (AuthenticatedClient): API client
+-   `provider_file` (Path): Path to provider file
 
 **Returns:**
-- `bool`: True if successful
+
+-   `bool`: True if successful
 
 Similar functions exist for:
-- `publish_seller()`
-- `publish_offering()`
-- `publish_listing()`
+
+-   `publish_seller()`
+-   `publish_offering()`
+-   `publish_listing()`
 
 ### unitysvc_services.validator
 
@@ -217,18 +233,21 @@ if not is_valid:
 ```
 
 **Parameters:**
-- `data_dir` (Path): Directory to validate
+
+-   `data_dir` (Path): Directory to validate
 
 **Returns:**
-- `tuple[bool, list[str]]`: (is_valid, list of error messages)
+
+-   `tuple[bool, list[str]]`: (is_valid, list of error messages)
 
 **Validation checks:**
-- Schema compliance
-- Required fields present
-- Name uniqueness
-- Directory name matching
-- Valid references
-- File path validity
+
+-   Schema compliance
+-   Required fields present
+-   Name uniqueness
+-   Directory name matching
+-   Valid references
+-   File path validity
 
 ### unitysvc_services.formatter
 
@@ -252,17 +271,20 @@ for file_path in modified_files:
 ```
 
 **Parameters:**
-- `data_dir` (Path): Directory to format
-- `check_only` (bool): If True, don't modify files
+
+-   `data_dir` (Path): Directory to format
+-   `check_only` (bool): If True, don't modify files
 
 **Returns:**
-- `list[Path]`: List of modified (or would-be modified) files
+
+-   `list[Path]`: List of modified (or would-be modified) files
 
 **Formatting rules:**
-- JSON: 2-space indentation, sorted keys
-- TOML: Standard formatting
-- Remove trailing whitespace
-- Single newline at end of file
+
+-   JSON: 2-space indentation, sorted keys
+-   TOML: Standard formatting
+-   Remove trailing whitespace
+-   Single newline at end of file
 
 ### unitysvc_services.populator
 
@@ -288,12 +310,14 @@ for provider, success, output in results:
 ```
 
 **Parameters:**
-- `data_dir` (Path): Data directory
-- `provider_filter` (str, optional): Run for specific provider only
-- `dry_run` (bool): If True, don't actually execute
+
+-   `data_dir` (Path): Data directory
+-   `provider_filter` (str, optional): Run for specific provider only
+-   `dry_run` (bool): If True, don't actually execute
 
 **Returns:**
-- `list[tuple[str, bool, str]]`: List of (provider_name, success, output)
+
+-   `list[tuple[str, bool, str]]`: List of (provider_name, success, output)
 
 ## Pydantic Models
 
@@ -358,11 +382,8 @@ The SDK respects these environment variables:
 ```python
 import os
 
-# Data directory
-data_dir = os.getenv("UNITYSVC_DATA_DIR", "./data")
-
 # Backend connection
-backend_url = os.getenv("UNITYSVC_BACKEND_URL", "https://api.unitysvc.com/api/v1")
+backend_url = os.getenv("UNITYSVC_BASE_URL", "https://api.unitysvc.com/api/v1")
 api_key = os.getenv("UNITYSVC_API_KEY")
 ```
 
@@ -502,6 +523,6 @@ def get_service(name: str, data_dir: Path = Path("data")) -> dict[str, Any] | No
 
 ## See Also
 
-- [CLI Reference](cli-reference.md) - Command-line interface
-- [File Schemas](file-schemas.md) - Data schema specifications
-- [Workflows](workflows.md) - Usage patterns and examples
+-   [CLI Reference](cli-reference.md) - Command-line interface
+-   [File Schemas](file-schemas.md) - Data schema specifications
+-   [Workflows](workflows.md) - Usage patterns and examples

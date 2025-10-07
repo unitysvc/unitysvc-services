@@ -12,9 +12,10 @@ The SDK supports two primary workflows:
 ## Manual Workflow
 
 Best for providers with:
-- Small number of services (< 20)
-- Infrequently changing catalogs
-- One-time service setup
+
+-   Small number of services (< 20)
+-   Infrequently changing catalogs
+-   One-time service setup
 
 ### Step-by-Step Process
 
@@ -38,10 +39,10 @@ unitysvc_services init listing my-listing
 
 Open files in `./data/` and fill in your service details:
 
-- Provider information (name, contact, metadata)
-- Seller business information
-- Service offering details (API endpoints, pricing, capabilities)
-- Service listing details (user-facing info, documentation)
+-   Provider information (name, contact, metadata)
+-   Seller business information
+-   Service offering details (API endpoints, pricing, capabilities)
+-   Service listing details (user-facing info, documentation)
 
 #### 3. Validate Data
 
@@ -50,9 +51,10 @@ unitysvc_services validate
 ```
 
 Fix any validation errors. Common issues:
-- Directory names not matching field values
-- Missing required fields
-- Invalid file paths
+
+-   Directory names not matching field values
+-   Missing required fields
+-   Invalid file paths
 
 #### 4. Format Files
 
@@ -61,9 +63,10 @@ unitysvc_services format
 ```
 
 This ensures:
-- JSON files have 2-space indentation
-- Files end with single newline
-- No trailing whitespace
+
+-   JSON files have 2-space indentation
+-   Files end with single newline
+-   No trailing whitespace
 
 #### 5. Update Local Files as Needed
 
@@ -85,14 +88,15 @@ unitysvc_services update listing --service-name my-service --status in_service
 
 ```bash
 # Set credentials
-export UNITYSVC_BACKEND_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
 
-# Publish in order (dependencies matter!)
-unitysvc_services publish providers
-unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+# Publish all (handles order automatically: sellers → providers → offerings → listings)
+cd data
+unitysvc_services publish
+
+# Or from parent directory
+unitysvc_services publish --data-path ./data
 ```
 
 #### 7. Verify on Platform
@@ -113,18 +117,17 @@ git push
 
 # Publish from CI/CD
 unitysvc_services validate
-unitysvc_services publish providers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+unitysvc_services publish --data-path ./data
 ```
 
 ## Automated Workflow
 
 Best for providers with:
-- Large service catalogs (> 20 services)
-- Frequently changing services
-- Dynamic pricing or availability
-- Services added/deprecated automatically
+
+-   Large service catalogs (> 20 services)
+-   Frequently changing services
+-   Dynamic pricing or availability
+-   Services added/deprecated automatically
 
 ### How It Works
 
@@ -259,9 +262,8 @@ git commit -m "Update service catalog from API"
 #### 7. Publish
 
 ```bash
-unitysvc_services publish providers
-unitysvc_services publish offerings
-unitysvc_services publish listings
+cd data
+unitysvc_services publish
 ```
 
 #### 8. Verify
@@ -278,49 +280,47 @@ Create `.github/workflows/update-services.yml`:
 name: Update Services
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Daily at midnight
-  workflow_dispatch:
+    schedule:
+        - cron: "0 0 * * *" # Daily at midnight
+    workflow_dispatch:
 
 jobs:
-  update:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
+    update:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+            - name: Set up Python
+              uses: actions/setup-python@v4
+              with:
+                  python-version: "3.11"
 
-      - name: Install dependencies
-        run: pip install unitysvc-services requests
+            - name: Install dependencies
+              run: pip install unitysvc-services requests
 
-      - name: Generate services
-        run: unitysvc_services populate
+            - name: Generate services
+              run: unitysvc_services populate
 
-      - name: Validate
-        run: unitysvc_services validate
+            - name: Validate
+              run: unitysvc_services validate
 
-      - name: Format
-        run: unitysvc_services format
+            - name: Format
+              run: unitysvc_services format
 
-      - name: Commit changes
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add data/
-          git diff --staged --quiet || git commit -m "Update services from API"
-          git push
+            - name: Commit changes
+              run: |
+                  git config user.name "GitHub Actions"
+                  git config user.email "actions@github.com"
+                  git add data/
+                  git diff --staged --quiet || git commit -m "Update services from API"
+                  git push
 
-      - name: Publish to UnitySVC
-        env:
-          UNITYSVC_BACKEND_URL: ${{ secrets.UNITYSVC_BACKEND_URL }}
-          UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
-        run: |
-          unitysvc_services publish providers
-          unitysvc_services publish offerings
-          unitysvc_services publish listings
+            - name: Publish to UnitySVC
+              env:
+                  UNITYSVC_BASE_URL: ${{ secrets.UNITYSVC_BASE_URL }}
+                  UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
+              run: |
+                  unitysvc_services publish --data-path ./data
 ```
 
 ## Hybrid Workflow
@@ -344,63 +344,73 @@ unitysvc_services update offering --name premium-service --status ready
 
 ## Publishing Order
 
-Always publish in this order (dependencies matter):
+**Recommended:** Use `unitysvc_services publish` without subcommands to publish all types automatically in the correct order:
 
-1. **Providers** - Must exist before offerings
-2. **Sellers** - Must exist before listings
+1. **Sellers** - Must exist before listings
+2. **Providers** - Must exist before offerings
 3. **Service Offerings** - Links providers to services
 4. **Service Listings** - Links sellers to offerings
+
+The CLI handles this order automatically when you use `publish` without a subcommand. You can also publish specific types individually if needed (e.g., `unitysvc_services publish providers`).
 
 Incorrect order will result in foreign key errors.
 
 ## Best Practices
 
 ### Version Control
-- Commit generated files to git
-- Review changes before publishing
-- Use meaningful commit messages
-- Tag releases
+
+-   Commit generated files to git
+-   Review changes before publishing
+-   Use meaningful commit messages
+-   Tag releases
 
 ### Validation
-- Always run `validate` before `publish`
-- Fix all validation errors
-- Use `format --check` in CI to enforce formatting
+
+-   Always run `validate` before `publish`
+-   Fix all validation errors
+-   Use `format --check` in CI to enforce formatting
 
 ### Environment Management
-- Use different API keys for dev/staging/prod
-- Set `UNITYSVC_DATA_DIR` for custom data locations
-- Store secrets in environment variables, not files
+
+-   Use different API keys for dev/staging/prod
+-   Store secrets in environment variables, not files
 
 ### Error Handling
-- Check exit codes in scripts
-- Log populate script output
-- Retry failed publishes with exponential backoff
+
+-   Check exit codes in scripts
+-   Log populate script output
+-   Retry failed publishes with exponential backoff
 
 ### Documentation
-- Document custom populate scripts
-- Keep README.md updated with service catalog
-- Explain any special services or pricing
+
+-   Document custom populate scripts
+-   Keep README.md updated with service catalog
+-   Explain any special services or pricing
 
 ## Troubleshooting
 
 ### Populate Script Fails
-- Check API credentials in `provider_access_info`
-- Verify script has execute permissions
-- Test script manually: `python3 populate_services.py`
+
+-   Check API credentials in `provider_access_info`
+-   Verify script has execute permissions
+-   Test script manually: `python3 populate_services.py`
 
 ### Validation Errors After Populate
-- Check generated file formats
-- Verify all required fields are populated
-- Ensure file paths are relative
+
+-   Check generated file formats
+-   Verify all required fields are populated
+-   Ensure file paths are relative
 
 ### Publishing Failures
-- Verify credentials are set
-- Check network connectivity
-- Ensure correct publishing order
-- Look for foreign key constraint errors
+
+-   Verify credentials are set
+-   Check network connectivity
+-   Use `unitysvc_services publish` to handle publishing order automatically
+-   Look for foreign key constraint errors
+-   Verify you're in the correct directory or using `--data-path`
 
 ## Next Steps
 
-- [CLI Reference](cli-reference.md) - Detailed command documentation
-- [Data Structure](data-structure.md) - File organization rules
-- [File Schemas](file-schemas.md) - Schema specifications
+-   [CLI Reference](cli-reference.md) - Detailed command documentation
+-   [Data Structure](data-structure.md) - File organization rules
+-   [File Schemas](file-schemas.md) - Schema specifications

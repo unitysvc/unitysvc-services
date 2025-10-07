@@ -57,9 +57,7 @@ class ServiceDataPublisher:
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(
-        self, data: dict[str, Any], base_path: Path
-    ) -> dict[str, Any]:
+    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
         result: dict[str, Any] = {}
 
@@ -70,11 +68,7 @@ class ServiceDataPublisher:
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
-                    (
-                        self.resolve_file_references(item, base_path)
-                        if isinstance(item, dict)
-                        else item
-                    )
+                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
                     for item in value
                 ]
             elif key == "file_path" and isinstance(value, str):
@@ -87,9 +81,7 @@ class ServiceDataPublisher:
                         content = self.load_file_content(Path(value), base_path)
                         result["file_content"] = content
                     except Exception as e:
-                        raise ValueError(
-                            f"Failed to load file content from '{value}': {e}"
-                        )
+                        raise ValueError(f"Failed to load file content from '{value}': {e}")
             else:
                 result[key] = value
 
@@ -172,10 +164,7 @@ class ServiceDataPublisher:
             )
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if (
-            "service_name" not in data_with_content
-            or not data_with_content["service_name"]
-        ):
+        if "service_name" not in data_with_content or not data_with_content["service_name"]:
             # Find all service files in the same directory
             service_files = find_files_by_schema(data_file.parent, "service_v1")
 
@@ -185,9 +174,7 @@ class ServiceDataPublisher:
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [
-                    data.get("name", "unknown") for _, _, data in service_files
-                ]
+                service_names = [data.get("name", "unknown") for _, _, data in service_files]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {data_file.name} to specify which "
@@ -201,9 +188,7 @@ class ServiceDataPublisher:
         else:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
-            service_files = find_files_by_schema(
-                data_file.parent, "service_v1", field_filter=(("name", service_name),)
-            )
+            service_files = find_files_by_schema(data_file.parent, "service_v1", field_filter=(("name", service_name),))
 
             if not service_files:
                 raise ValueError(
@@ -320,9 +305,7 @@ class ServiceDataPublisher:
 
         # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field=None
-        )
+        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -376,10 +359,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         offering_files = self.find_offering_files(data_dir)
@@ -415,10 +395,7 @@ class ServiceDataPublisher:
                 "total": 0,
                 "success": 0,
                 "failed": 0,
-                "errors": [
-                    {"file": "validation", "error": error}
-                    for error in validation_errors
-                ],
+                "errors": [{"file": "validation", "error": error} for error in validation_errors],
             }
 
         listing_files = self.find_listing_files(data_dir)
@@ -487,6 +464,55 @@ class ServiceDataPublisher:
 
         return results
 
+    def publish_all_models(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all data types in the correct order.
+
+        Publishing order:
+        1. Sellers - Must exist before listings
+        2. Providers - Must exist before offerings
+        3. Service Offerings - Must exist before listings
+        4. Service Listings - Depends on sellers, providers, and offerings
+
+        Returns a dict with results for each data type and overall summary.
+        """
+        all_results: dict[str, Any] = {
+            "sellers": {},
+            "providers": {},
+            "offerings": {},
+            "listings": {},
+            "total_success": 0,
+            "total_failed": 0,
+            "total_found": 0,
+        }
+
+        # Publish in order: sellers -> providers -> offerings -> listings
+        publish_order = [
+            ("sellers", self.publish_all_sellers),
+            ("providers", self.publish_all_providers),
+            ("offerings", self.publish_all_offerings),
+            ("listings", self.publish_all_listings),
+        ]
+
+        for data_type, publish_method in publish_order:
+            try:
+                results = publish_method(data_dir)
+                all_results[data_type] = results
+                all_results["total_success"] += results["success"]
+                all_results["total_failed"] += results["failed"]
+                all_results["total_found"] += results["total"]
+            except Exception as e:
+                # If a publish method fails catastrophically, record the error
+                all_results[data_type] = {
+                    "total": 0,
+                    "success": 0,
+                    "failed": 1,
+                    "errors": [{"file": "N/A", "error": str(e)}],
+                }
+                all_results["total_failed"] += 1
+
+        return all_results
+
     def close(self):
         """Close the HTTP client."""
         self.client.close()
@@ -505,34 +531,40 @@ app = typer.Typer(help="Publish data to backend")
 console = Console()
 
 
-@app.command("providers")
-def publish_providers(
-    data_path: Path | None = typer.Argument(
+@app.callback(invoke_without_command=True)
+def publish_callback(
+    ctx: typer.Context,
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to provider file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to data directory (default: current directory)",
     ),
 ):
-    """Publish provider(s) from a file or directory."""
+    """
+    Publish data to backend.
 
+    When called without a subcommand, publishes all data types in order:
+    sellers → providers → offerings → listings.
+
+    Use subcommands to publish specific data types:
+    - providers: Publish only providers
+    - sellers: Publish only sellers
+    - offerings: Publish only service offerings
+    - listings: Publish only service listings
+
+    Required environment variables:
+    - UNITYSVC_BASE_URL: Backend API URL
+    - UNITYSVC_API_KEY: API key for authentication
+    """
+    # If a subcommand was invoked, skip this callback logic
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand - publish all
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -541,20 +573,125 @@ def publish_providers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
+    console.print(f"[bold blue]Backend URL:[/bold blue] {backend_url}\n")
+
+    try:
+        with ServiceDataPublisher(backend_url, api_key) as publisher:
+            # Call the publish_all_models method
+            all_results = publisher.publish_all_models(data_path)
+
+            # Display results for each data type
+            data_type_display_names = {
+                "sellers": "Sellers",
+                "providers": "Providers",
+                "offerings": "Service Offerings",
+                "listings": "Service Listings",
+            }
+
+            for data_type in ["sellers", "providers", "offerings", "listings"]:
+                display_name = data_type_display_names[data_type]
+                results = all_results[data_type]
+
+                console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+                console.print(f"[bold cyan]{display_name}[/bold cyan]")
+                console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+
+                console.print(f"  Total found: {results['total']}")
+                console.print(f"  [green]✓ Success:[/green] {results['success']}")
+                console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+
+                # Display errors if any
+                if results.get("errors"):
+                    console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
+                    for error in results["errors"]:
+                        # Check if this is a skipped item
+                        if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
+                            continue
+                        console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
+                        console.print(f"    {error.get('error', 'unknown error')}")
+
+            # Final summary
+            console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+            console.print("[bold]Final Publishing Summary[/bold]")
+            console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+            console.print(f"  Total found: {all_results['total_found']}")
+            console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
+            console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
+
+            if all_results["total_failed"] > 0:
+                console.print(
+                    f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
+                    style="bold yellow",
+                )
+                raise typer.Exit(code=1)
+            else:
+                console.print(
+                    "\n[green]✓[/green] All data published successfully!",
+                    style="bold green",
+                )
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to publish all data: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("providers")
+def publish_providers(
+    data_path: Path | None = typer.Option(
+        None,
+        "--data-path",
+        "-d",
+        help="Path to provider file or directory (default: current directory)",
+    ),
+):
+    """Publish provider(s) from a file or directory."""
+
+    # Set data path
+    if data_path is None:
+        data_path = Path.cwd()
+
+    if not data_path.is_absolute():
+        data_path = Path.cwd() / data_path
+
+    if not data_path.exists():
+        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
+        raise typer.Exit(code=1)
+
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
+    if not backend_url:
+        console.print(
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
+    if not api_key:
+        console.print(
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -593,39 +730,23 @@ def publish_providers(
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish providers: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
 @app.command("sellers")
 def publish_sellers(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to seller file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to seller file or directory (default: current directory)",
     ),
 ):
     """Publish seller(s) from a file or directory."""
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -634,20 +755,20 @@ def publish_sellers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -679,9 +800,7 @@ def publish_sellers(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All sellers published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All sellers published successfully!")
 
     except typer.Exit:
         raise
@@ -692,31 +811,17 @@ def publish_sellers(
 
 @app.command("offerings")
 def publish_offerings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service offering file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to service offering file or directory (default: current directory)",
     ),
 ):
     """Publish service offering(s) from a file or directory."""
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -725,20 +830,20 @@ def publish_offerings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -750,15 +855,11 @@ def publish_offerings(
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_offering(data_path)
-                console.print(
-                    "[green]✓[/green] Service offering published successfully!"
-                )
+                console.print("[green]✓[/green] Service offering published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service offerings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_offerings(data_path)
 
@@ -774,47 +875,29 @@ def publish_offerings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service offerings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service offerings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 
 @app.command("listings")
 def publish_listings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service listing file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to service listing file or directory (default: current directory)",
     ),
 ):
     """Publish service listing(s) from a file or directory."""
 
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -823,20 +906,20 @@ def publish_listings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
+    # Get backend URL from environment
+    backend_url = os.getenv("UNITYSVC_BASE_URL")
     if not backend_url:
         console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
+            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
+    # Get API key from environment
+    api_key = os.getenv("UNITYSVC_API_KEY")
     if not api_key:
         console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
+            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -848,15 +931,11 @@ def publish_listings(
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 result = publisher.post_service_listing(data_path)
-                console.print(
-                    "[green]✓[/green] Service listing published successfully!"
-                )
+                console.print("[green]✓[/green] Service listing published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
-                console.print(
-                    f"[blue]Scanning for service listings in:[/blue] {data_path}"
-                )
+                console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
                 results = publisher.publish_all_listings(data_path)
 
@@ -872,14 +951,10 @@ def publish_listings(
                         console.print(f"    {error['error']}")
                     raise typer.Exit(code=1)
                 else:
-                    console.print(
-                        "\n[green]✓[/green] All service listings published successfully!"
-                    )
+                    console.print("\n[green]✓[/green] All service listings published successfully!")
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(
-            f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red"
-        )
+        console.print(f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red")
         raise typer.Exit(code=1)

@@ -17,9 +17,7 @@ class ListingV1(BaseModel):
     #
     # fields for business data collection and maintenance
     #
-    schema_version: str = Field(
-        default="listing_v1", description="Schema identifier", alias="schema"
-    )
+    schema_version: str = Field(default="listing_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
     #
@@ -32,9 +30,7 @@ class ListingV1(BaseModel):
         ),
     )
 
-    seller_name: str | None = Field(
-        default=None, description="Name of the seller offering this service listing"
-    )
+    seller_name: str | None = Field(default=None, description="Name of the seller offering this service listing")
 
     # unique name for each provider, usually following upstream naming convention
     # status of the service, public, deprecated etc
@@ -50,9 +46,7 @@ class ListingV1(BaseModel):
     #  - code_examples
     # multiple access interfaces can be provided, for example, if the service
     # is available through multiple interfaces or service groups
-    user_access_interfaces: list[AccessInterface] = Field(
-        description="Dictionary of user access interfaces"
-    )
+    user_access_interfaces: list[AccessInterface] = Field(description="Dictionary of user access interfaces")
 
     #
     # how upstream charges for their services, which can include
