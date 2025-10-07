@@ -16,26 +16,24 @@ console = Console()
 class ServiceDataQuery:
     """Query service data from UnitySVC backend endpoints."""
 
-    def __init__(self, base_url: str, api_key: str):
-        """Initialize query client with backend URL and API key.
-
-        Args:
-            base_url: UnitySVC backend URL
-            api_key: API key for authentication
+    def __init__(self):
+        """Initialize query client from environment variables.
 
         Raises:
-            ValueError: If base_url or api_key is not provided
+            ValueError: If required environment variables are not set
         """
-        if not base_url:
-            raise ValueError("UNITYSVC_BASE_URL environment variable not set.")
-        if not api_key:
-            raise ValueError("UNITYSVC_API_KEY environment variable not set.")
+        self.base_url = os.environ.get("UNITYSVC_BASE_URL")
+        if not self.base_url:
+            raise ValueError("UNITYSVC_BASE_URL environment variable not set")
 
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+        self.api_key = os.environ.get("UNITYSVC_API_KEY")
+        if not self.api_key:
+            raise ValueError("UNITYSVC_API_KEY environment variable not set")
+
+        self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(
             headers={
-                "X-API-Key": api_key,
+                "X-API-Key": self.api_key,
                 "Content-Type": "application/json",
             },
             timeout=30.0,
@@ -93,20 +91,6 @@ class ServiceDataQuery:
         """Context manager exit."""
         self.close()
 
-    @staticmethod
-    def from_env() -> "ServiceDataQuery":
-        """Create ServiceDataQuery from environment variables.
-
-        Returns:
-            ServiceDataQuery instance
-
-        Raises:
-            ValueError: If required environment variables are not set
-        """
-        backend_url = os.getenv("UNITYSVC_BASE_URL") or ""
-        api_key = os.getenv("UNITYSVC_API_KEY") or ""
-        return ServiceDataQuery(base_url=backend_url, api_key=api_key)
-
 
 @app.command("sellers")
 def query_sellers(
@@ -119,7 +103,7 @@ def query_sellers(
 ):
     """Query all sellers from the backend."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             sellers = query.list_sellers()
 
             if format == "json":
@@ -166,7 +150,7 @@ def query_providers(
 ):
     """Query all providers from the backend."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             providers = query.list_providers()
 
             if format == "json":
@@ -209,7 +193,7 @@ def query_offerings(
 ):
     """Query all service offerings from UnitySVC backend."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             offerings = query.list_service_offerings()
 
             if format == "json":
@@ -257,7 +241,7 @@ def query_listings(
 ):
     """Query all service listings from UnitySVC backend."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             listings = query.list_service_listings()
 
             if format == "json":
@@ -304,7 +288,7 @@ def query_interfaces(
 ):
     """Query all access interfaces from UnitySVC backend (private endpoint)."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             data = query.list_access_interfaces()
 
             if format == "json":
@@ -353,7 +337,7 @@ def query_documents(
 ):
     """Query all documents from UnitySVC backend (private endpoint)."""
     try:
-        with ServiceDataQuery.from_env() as query:
+        with ServiceDataQuery() as query:
             data = query.list_documents()
 
             if format == "json":

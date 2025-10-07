@@ -19,12 +19,19 @@ from .validator import DataValidator
 class ServiceDataPublisher:
     """Publishes service data to UnitySVC backend endpoints."""
 
-    def __init__(self, base_url: str, api_key: str):
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
+    def __init__(self):
+        self.base_url = os.environ.get("UNITYSVC_BASE_URL")
+        if not self.base_url:
+            raise ValueError("UNITYSVC_BASE_URL environment variable not set")
+
+        self.api_key = os.environ.get("UNITYSVC_API_KEY")
+        if not self.api_key:
+            raise ValueError("UNITYSVC_API_KEY environment variable not set")
+
+        self.base_url = self.base_url.rstrip("/")
         self.client = httpx.Client(
             headers={
-                "X-API-Key": api_key,
+                "X-API-Key": self.api_key,
                 "Content-Type": "application/json",
             },
             timeout=30.0,
@@ -573,29 +580,11 @@ def publish_callback(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BASE_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from environment
-    api_key = os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
-    console.print(f"[bold blue]Backend URL:[/bold blue] {backend_url}\n")
+    console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
 
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Call the publish_all_models method
             all_results = publisher.publish_all_models(data_path)
 
@@ -678,37 +667,19 @@ def publish_providers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BASE_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from environment
-    api_key = os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing provider:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 result = publisher.post_provider(data_path)
                 console.print("[green]✓[/green] Provider published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 results = publisher.publish_all_providers(data_path)
 
                 # Display summary
@@ -755,37 +726,19 @@ def publish_sellers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BASE_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from environment
-    api_key = os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing seller:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 result = publisher.post_seller(data_path)
                 console.print("[green]✓[/green] Seller published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 results = publisher.publish_all_sellers(data_path)
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
@@ -830,37 +783,19 @@ def publish_offerings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BASE_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from environment
-    api_key = os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 result = publisher.post_service_offering(data_path)
                 console.print("[green]✓[/green] Service offering published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 results = publisher.publish_all_offerings(data_path)
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
@@ -906,37 +841,19 @@ def publish_listings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from environment
-    backend_url = os.getenv("UNITYSVC_BASE_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] UNITYSVC_BASE_URL environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from environment
-    api_key = os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] UNITYSVC_API_KEY environment variable not set.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 result = publisher.post_service_listing(data_path)
                 console.print("[green]✓[/green] Service listing published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
                 results = publisher.publish_all_listings(data_path)
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
