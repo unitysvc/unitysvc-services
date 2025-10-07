@@ -9,10 +9,11 @@ from typing import Any
 from urllib.parse import urlparse
 
 import typer
-import unitysvc_services
 from jinja2 import Environment, TemplateSyntaxError
 from jsonschema.validators import Draft7Validator
 from rich.console import Console
+
+import unitysvc_services
 
 
 class DataValidationError(Exception):
