@@ -219,40 +219,6 @@ unitysvc_services query listings [OPTIONS]
 
 id, offering_id, seller_id, status, created_at, updated_at, parameters_schema, parameters_ui_schema, tags, service_name, service_type, provider_name, seller_name, listing_type
 
-### query interfaces
-
-```bash
-unitysvc_services query interfaces [OPTIONS]
-```
-
-Query access interfaces (private endpoint).
-
-**Options:**
-
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,context_type,access_method,is_active)
-
-**Available Fields:**
-
-id, entity_id, context_type, access_method, api_endpoint, name, description, request_transformer, rate_limits, constraint, is_active, is_primary, sort_order, created_at, updated_at
-
-### query documents
-
-```bash
-unitysvc_services query documents [OPTIONS]
-```
-
-Query documents (private endpoint).
-
-**Options:**
-
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,title,category,mime_type,context_type,is_public)
-
-**Available Fields:**
-
-id, entity_id, context_type, title, description, mime_type, version, category, meta, sort_order, is_active, is_public, external_url, object_key, filename, filesize, created_at, updated_at
-
 **Required Environment Variables:**
 
 -   `UNITYSVC_BASE_URL` - Backend API URL
