@@ -19,7 +19,7 @@ from .validator import DataValidator
 class ServiceDataPublisher:
     """Publishes service data to UnitySVC backend endpoints."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.base_url = os.environ.get("UNITYSVC_BASE_URL")
         if not self.base_url:
             raise ValueError("UNITYSVC_BASE_URL environment variable not set")
@@ -139,7 +139,7 @@ class ServiceDataPublisher:
 
         # Post to the endpoint
         response = self.client.post(
-            f"{self.base_url}/publish/service_offering",
+            f"{self.base_url}/publish/offering",
             json=data_with_content,
         )
         response.raise_for_status()
@@ -250,7 +250,7 @@ class ServiceDataPublisher:
 
         # Post to the endpoint
         response = self.client.post(
-            f"{self.base_url}/publish/service_listing",
+            f"{self.base_url}/publish/listing",
             json=data_with_content,
         )
         response.raise_for_status()
