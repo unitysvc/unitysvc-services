@@ -102,9 +102,14 @@ unitysvc_services publish --data-path ./data
 #### 7. Verify on Platform
 
 ```bash
+# Query with default fields
 unitysvc_services query providers
 unitysvc_services query offerings
 unitysvc_services query listings
+
+# Or query with custom fields for focused output
+unitysvc_services query providers --fields id,name,status
+unitysvc_services query listings --fields id,service_name,listing_type,status
 ```
 
 ### Version Control Integration
@@ -269,7 +274,11 @@ unitysvc_services publish
 #### 8. Verify
 
 ```bash
+# Query with default fields
 unitysvc_services query offerings
+
+# Or query with custom fields
+unitysvc_services query offerings --fields id,service_name,status
 ```
 
 ### Automation with CI/CD

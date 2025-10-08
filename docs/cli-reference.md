@@ -157,6 +157,8 @@ unitysvc_services list listings [DATA_DIR]
 
 Query data from UnitySVC backend API.
 
+All query commands support field selection to customize output columns.
+
 ### query providers
 
 ```bash
@@ -166,11 +168,11 @@ unitysvc_services query providers [OPTIONS]
 **Options:**
 
 -   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,status)
 
-**Required Environment Variables:**
+**Available Fields:**
 
--   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication
+id, name, display_name, contact_email, secondary_contact_email, homepage, description, status, created_at, updated_at
 
 ### query sellers
 
@@ -178,17 +180,44 @@ unitysvc_services query providers [OPTIONS]
 unitysvc_services query sellers [OPTIONS]
 ```
 
+**Options:**
+
+-   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,seller_type)
+
+**Available Fields:**
+
+id, name, display_name, seller_type, contact_email, secondary_contact_email, homepage, description, business_registration, tax_id, account_manager_id, created_at, updated_at, status
+
 ### query offerings
 
 ```bash
 unitysvc_services query offerings [OPTIONS]
 ```
 
+**Options:**
+
+-   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,provider_name,status)
+
+**Available Fields:**
+
+id, definition_id, provider_id, status, price, service_name, service_type, provider_name
+
 ### query listings
 
 ```bash
 unitysvc_services query listings [OPTIONS]
 ```
+
+**Options:**
+
+-   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,seller_name,listing_type,status)
+
+**Available Fields:**
+
+id, offering_id, seller_id, status, created_at, updated_at, parameters_schema, parameters_ui_schema, tags, service_name, service_type, provider_name, seller_name, listing_type
 
 ### query interfaces
 
@@ -198,6 +227,15 @@ unitysvc_services query interfaces [OPTIONS]
 
 Query access interfaces (private endpoint).
 
+**Options:**
+
+-   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,context_type,access_method,is_active)
+
+**Available Fields:**
+
+id, entity_id, context_type, access_method, api_endpoint, name, description, request_transformer, rate_limits, constraint, is_active, is_primary, sort_order, created_at, updated_at
+
 ### query documents
 
 ```bash
@@ -206,14 +244,37 @@ unitysvc_services query documents [OPTIONS]
 
 Query documents (private endpoint).
 
+**Options:**
+
+-   `--format, -f {table|json}` - Output format (default: table)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,title,category,mime_type,context_type,is_public)
+
+**Available Fields:**
+
+id, entity_id, context_type, title, description, mime_type, version, category, meta, sort_order, is_active, is_public, external_url, object_key, filename, filesize, created_at, updated_at
+
+**Required Environment Variables:**
+
+-   `UNITYSVC_BASE_URL` - Backend API URL
+-   `UNITYSVC_API_KEY` - API key for authentication
+
 **Examples:**
 
 ```bash
-# Table output
+# Table output with default fields
 unitysvc_services query providers
 
 # JSON output
 unitysvc_services query offerings --format json
+
+# Custom fields - show only specific columns
+unitysvc_services query providers --fields id,name,contact_email
+
+# Show all available fields for sellers
+unitysvc_services query sellers --fields id,name,display_name,seller_type,contact_email,homepage,created_at,updated_at
+
+# Custom fields for listings
+unitysvc_services query listings --fields id,service_name,listing_type,status
 ```
 
 ## publish - Publish to Backend

@@ -45,8 +45,11 @@ unitysvc_services publish
 # Or publish specific types only
 unitysvc_services publish providers
 
-# Verify
+# Verify with default fields
 unitysvc_services query offerings
+
+# Query with custom fields
+unitysvc_services query providers --fields id,name,contact_email
 ```
 
 ## Key Features

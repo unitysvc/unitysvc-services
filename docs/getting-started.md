@@ -147,9 +147,17 @@ unitysvc_services publish sellers
 ### Step 9: Verify Your Published Data
 
 ```bash
+# Query with default fields
 unitysvc_services query providers
 unitysvc_services query offerings
 unitysvc_services query listings
+
+# Query with custom fields - show only specific columns
+unitysvc_services query providers --fields id,name,contact_email
+unitysvc_services query listings --fields id,service_name,listing_type,status
+
+# Query as JSON for programmatic use
+unitysvc_services query offerings --format json
 ```
 
 ## Next Steps
