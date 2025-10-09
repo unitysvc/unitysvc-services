@@ -157,7 +157,7 @@ unitysvc_services list listings [DATA_DIR]
 
 Query data from UnitySVC backend API.
 
-All query commands support field selection to customize output columns.
+All query commands support field selection to customize output columns and pagination options.
 
 ### query providers
 
@@ -169,6 +169,8 @@ unitysvc_services query providers [OPTIONS]
 
 -   `--format, -f {table|json}` - Output format (default: table)
 -   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,status)
+-   `--skip SKIP` - Number of records to skip for pagination (default: 0)
+-   `--limit LIMIT` - Maximum number of records to return (default: 100)
 
 **Available Fields:**
 
@@ -184,6 +186,8 @@ unitysvc_services query sellers [OPTIONS]
 
 -   `--format, -f {table|json}` - Output format (default: table)
 -   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,seller_type)
+-   `--skip SKIP` - Number of records to skip for pagination (default: 0)
+-   `--limit LIMIT` - Maximum number of records to return (default: 100)
 
 **Available Fields:**
 
@@ -199,6 +203,8 @@ unitysvc_services query offerings [OPTIONS]
 
 -   `--format, -f {table|json}` - Output format (default: table)
 -   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,provider_name,status)
+-   `--skip SKIP` - Number of records to skip for pagination (default: 0)
+-   `--limit LIMIT` - Maximum number of records to return (default: 100)
 
 **Available Fields:**
 
@@ -214,6 +220,8 @@ unitysvc_services query listings [OPTIONS]
 
 -   `--format, -f {table|json}` - Output format (default: table)
 -   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,seller_name,listing_type,status)
+-   `--skip SKIP` - Number of records to skip for pagination (default: 0)
+-   `--limit LIMIT` - Maximum number of records to return (default: 100)
 
 **Available Fields:**
 
@@ -241,6 +249,18 @@ unitysvc_services query sellers --fields id,name,display_name,seller_type,contac
 
 # Custom fields for listings
 unitysvc_services query listings --fields id,service_name,listing_type,status
+
+# Retrieve more than 100 records
+unitysvc_services query providers --limit 500
+
+# Pagination: get second page of 100 records
+unitysvc_services query offerings --skip 100 --limit 100
+
+# Large dataset retrieval
+unitysvc_services query listings --limit 1000
+
+# Combine pagination with custom fields
+unitysvc_services query sellers --skip 50 --limit 50 --fields id,name,contact_email
 ```
 
 ## publish - Publish to Backend

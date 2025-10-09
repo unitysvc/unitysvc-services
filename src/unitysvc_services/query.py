@@ -39,30 +39,62 @@ class ServiceDataQuery:
             timeout=30.0,
         )
 
-    def list_service_offerings(self) -> list[dict[str, Any]]:
-        """List all service offerings from the backend."""
-        response = self.client.get(f"{self.base_url}/publish/offerings")
+    def list_service_offerings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        """List all service offerings from the backend.
+
+        Args:
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        """
+        response = self.client.get(
+            f"{self.base_url}/publish/offerings",
+            params={"skip": skip, "limit": limit}
+        )
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
-    def list_service_listings(self) -> list[dict[str, Any]]:
-        """List all service listings from the backend."""
-        response = self.client.get(f"{self.base_url}/publish/listings")
+    def list_service_listings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        """List all service listings from the backend.
+
+        Args:
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        """
+        response = self.client.get(
+            f"{self.base_url}/publish/listings",
+            params={"skip": skip, "limit": limit}
+        )
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
-    def list_providers(self) -> list[dict[str, Any]]:
-        """List all providers from the backend."""
-        response = self.client.get(f"{self.base_url}/publish/providers")
+    def list_providers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        """List all providers from the backend.
+
+        Args:
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        """
+        response = self.client.get(
+            f"{self.base_url}/publish/providers",
+            params={"skip": skip, "limit": limit}
+        )
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
 
-    def list_sellers(self) -> list[dict[str, Any]]:
-        """List all sellers from the backend."""
-        response = self.client.get(f"{self.base_url}/publish/sellers")
+    def list_sellers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+        """List all sellers from the backend.
+
+        Args:
+            skip: Number of records to skip (for pagination)
+            limit: Maximum number of records to return
+        """
+        response = self.client.get(
+            f"{self.base_url}/publish/sellers",
+            params={"skip": skip, "limit": limit}
+        )
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -99,6 +131,16 @@ def query_sellers(
             "created_at, updated_at, status"
         ),
     ),
+    skip: int = typer.Option(
+        0,
+        "--skip",
+        help="Number of records to skip (for pagination)",
+    ),
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        help="Maximum number of records to return (default: 100)",
+    ),
 ):
     """Query all sellers from the backend.
 
@@ -108,6 +150,12 @@ def query_sellers(
 
         # Show only specific fields
         unitysvc_services query sellers --fields id,name,contact_email
+
+        # Retrieve more than 100 records
+        unitysvc_services query sellers --limit 500
+
+        # Pagination: skip first 100, get next 100
+        unitysvc_services query sellers --skip 100 --limit 100
 
         # Show all available fields
         unitysvc_services query sellers --fields \\
@@ -146,7 +194,7 @@ def query_sellers(
 
     try:
         with ServiceDataQuery() as query:
-            sellers = query.list_sellers()
+            sellers = query.list_sellers(skip=skip, limit=limit)
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
@@ -243,12 +291,28 @@ def query_providers(
             "homepage, description, status, created_at, updated_at"
         ),
     ),
+    skip: int = typer.Option(
+        0,
+        "--skip",
+        help="Number of records to skip (for pagination)",
+    ),
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        help="Maximum number of records to return (default: 100)",
+    ),
 ):
     """Query all providers from the backend.
 
     Examples:
         # Use default fields
         unitysvc_services query providers
+
+        # Retrieve more than 100 records
+        unitysvc_services query providers --limit 500
+
+        # Pagination: skip first 100, get next 100
+        unitysvc_services query providers --skip 100 --limit 100
 
         # Show only specific fields
         unitysvc_services query providers --fields id,name,contact_email
@@ -286,7 +350,7 @@ def query_providers(
 
     try:
         with ServiceDataQuery() as query:
-            providers = query.list_providers()
+            providers = query.list_providers(skip=skip, limit=limit)
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
@@ -377,6 +441,16 @@ def query_offerings(
             "service_type, provider_name"
         ),
     ),
+    skip: int = typer.Option(
+        0,
+        "--skip",
+        help="Number of records to skip (for pagination)",
+    ),
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        help="Maximum number of records to return (default: 100)",
+    ),
 ):
     """Query all service offerings from UnitySVC backend.
 
@@ -386,6 +460,12 @@ def query_offerings(
 
         # Show only specific fields
         unitysvc_services query offerings --fields id,service_name,status
+
+        # Retrieve more than 100 records
+        unitysvc_services query offerings --limit 500
+
+        # Pagination: skip first 100, get next 100
+        unitysvc_services query offerings --skip 100 --limit 100
 
         # Show all available fields
         unitysvc_services query offerings --fields \\
@@ -418,7 +498,7 @@ def query_offerings(
 
     try:
         with ServiceDataQuery() as query:
-            offerings = query.list_service_offerings()
+            offerings = query.list_service_offerings(skip=skip, limit=limit)
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
@@ -482,6 +562,16 @@ def query_listings(
             "service_type, provider_name, seller_name, listing_type"
         ),
     ),
+    skip: int = typer.Option(
+        0,
+        "--skip",
+        help="Number of records to skip (for pagination)",
+    ),
+    limit: int = typer.Option(
+        100,
+        "--limit",
+        help="Maximum number of records to return (default: 100)",
+    ),
 ):
     """Query all service listings from UnitySVC backend.
 
@@ -491,6 +581,12 @@ def query_listings(
 
         # Show only specific fields
         unitysvc_services query listings --fields id,service_name,status
+
+        # Retrieve more than 100 records
+        unitysvc_services query listings --limit 500
+
+        # Pagination: skip first 100, get next 100
+        unitysvc_services query listings --skip 100 --limit 100
 
         # Show all available fields
         unitysvc_services query listings --fields \\
@@ -530,7 +626,7 @@ def query_listings(
 
     try:
         with ServiceDataQuery() as query:
-            listings = query.list_service_listings()
+            listings = query.list_service_listings(skip=skip, limit=limit)
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
