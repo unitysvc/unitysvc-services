@@ -477,7 +477,7 @@ def query_listings(
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
-            "id, offering_id, seller_id, status, created_at, updated_at, "
+            "id, offering_id, offering_status, seller_id, status, created_at, updated_at, "
             "parameters_schema, parameters_ui_schema, tags, service_name, "
             "service_type, provider_name, seller_name, listing_type"
         ),
@@ -503,6 +503,7 @@ def query_listings(
     allowed_fields = {
         "id",
         "offering_id",
+        "offering_status",
         "seller_id",
         "status",
         "created_at",
