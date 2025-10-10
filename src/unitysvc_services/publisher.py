@@ -12,7 +12,8 @@ import typer
 from rich.console import Console
 
 from .models.base import ProviderStatusEnum, SellerStatusEnum
-from .utils import convert_convenience_fields_to_documents, find_files_by_schema
+from .utils import (convert_convenience_fields_to_documents,
+                    find_files_by_schema)
 from .validator import DataValidator
 
 
@@ -106,6 +107,11 @@ class ServiceDataPublisher:
 
         # Resolve file references and include content
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(
+            data, base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
         # Extract provider_name from directory structure
