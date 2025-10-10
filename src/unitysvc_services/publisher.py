@@ -12,8 +12,7 @@ import typer
 from rich.console import Console
 
 from .models.base import ProviderStatusEnum, SellerStatusEnum
-from .utils import (convert_convenience_fields_to_documents,
-                    find_files_by_schema)
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema
 from .validator import DataValidator
 
 
