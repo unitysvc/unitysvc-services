@@ -194,6 +194,7 @@ Listing files define how a seller presents/sells a service (downstream/marketpla
 | Field | Type | Description |
 |-------|------|-------------|
 | `schema` | string | Must be `"listing_v1"` |
+| `name` | string | Listing identifier (defaults to filename without extension if not provided) |
 | `seller_name` | string | Seller identifier (references seller file) |
 | `listing_status` | string | Listing status (see Status Values) |
 
@@ -209,6 +210,15 @@ Listing files define how a seller presents/sells a service (downstream/marketpla
 | `documents` | array | Documentation files |
 | `tags` | array | Search/filter tags |
 
+### Listing Name Field
+
+The `name` field identifies the listing and is especially important when multiple listings exist for a single service offering:
+
+- **Automatic naming**: If the `name` field is not provided, the SDK automatically uses the filename (without extension) as the listing name
+- **Multiple listings**: When you have multiple listings for one service (e.g., different tiers or marketplaces), use descriptive filenames
+- **Example**: A file named `listing-premium.json` will automatically get `name = "listing-premium"` if the field is omitted
+- **Best practice**: Use explicit `name` fields for clarity, or use descriptive filenames that will serve as meaningful listing identifiers
+
 ### listing_status Values
 
 - `unknown` - Status not yet determined
@@ -223,6 +233,7 @@ Listing files define how a seller presents/sells a service (downstream/marketpla
 
 ```toml
 schema = "listing_v1"
+name = "listing-premium"
 seller_name = "svcreseller"
 service_name = "gpt-4"
 listing_status = "in_service"

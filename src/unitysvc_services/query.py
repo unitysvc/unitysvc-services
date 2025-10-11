@@ -46,10 +46,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/offerings",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/offerings", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -61,10 +58,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/listings",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/listings", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -76,10 +70,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/providers",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/providers", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -91,10 +82,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/sellers",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/sellers", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result

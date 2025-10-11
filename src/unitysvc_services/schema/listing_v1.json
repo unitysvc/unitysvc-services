@@ -880,6 +880,12 @@
       "default": "unknown",
       "description": "Operation status of the service"
     },
+    "name": {
+      "description": "Name identifier for the service listing, default to filename",
+      "maxLength": 255,
+      "title": "Name",
+      "type": "string"
+    },
     "schema": {
       "default": "listing_v1",
       "description": "Schema identifier",
@@ -967,6 +973,7 @@
   },
   "required": [
     "time_created",
+    "name",
     "user_access_interfaces",
     "user_price"
   ],

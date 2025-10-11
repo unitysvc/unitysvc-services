@@ -159,6 +159,10 @@ class ServiceDataPublisher:
         # Load the listing data file
         data = self.load_data_file(data_file)
 
+        # If name is not provided, use filename (without extension)
+        if "name" not in data or not data.get("name"):
+            data["name"] = data_file.stem
+
         # Resolve file references and include content
         base_path = data_file.parent
         data_with_content = self.resolve_file_references(data, base_path)
