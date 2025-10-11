@@ -578,7 +578,7 @@ def query_listings(
 
         # Show all available fields
         unitysvc_services query listings --fields \\
-            id,service_name,service_type,seller_name,listing_type,status,provider_name
+            id,name,service_name,service_type,seller_name,listing_type,status,provider_name
     """
     # Parse fields list
     field_list = [f.strip() for f in fields.split(",")]
@@ -586,6 +586,7 @@ def query_listings(
     # Define allowed fields from ServiceListingPublic model
     allowed_fields = {
         "id",
+        "name",
         "offering_id",
         "offering_status",
         "seller_id",
