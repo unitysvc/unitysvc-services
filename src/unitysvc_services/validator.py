@@ -205,6 +205,70 @@ class DataValidator:
         normalized = normalized.strip("-")
         return normalized
 
+    def validate_with_pydantic_model(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """
+        Validate data using Pydantic models for additional validation rules.
+
+        This complements JSON schema validation with Pydantic field validators
+        like name format validation.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'provider_v1', 'seller_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        errors: list[str] = []
+
+        # Map schema names to Pydantic model classes
+        model_map = {
+            "provider_v1": "ProviderV1",
+            "seller_v1": "SellerV1",
+            "service_v1": "ServiceV1",
+            "listing_v1": "ListingV1",
+        }
+
+        if schema_name not in model_map:
+            return errors  # No Pydantic model for this schema
+
+        model_class_name = model_map[schema_name]
+
+        try:
+            # Dynamically import the model class
+            if schema_name == "provider_v1":
+                from unitysvc_services.models.provider_v1 import ProviderV1
+
+                model_class = ProviderV1
+            elif schema_name == "seller_v1":
+                from unitysvc_services.models.seller_v1 import SellerV1
+
+                model_class = SellerV1
+            elif schema_name == "service_v1":
+                from unitysvc_services.models.service_v1 import ServiceV1
+
+                model_class = ServiceV1
+            elif schema_name == "listing_v1":
+                from unitysvc_services.models.listing_v1 import ListingV1
+
+                model_class = ListingV1
+            else:
+                return errors
+
+            # Validate using the Pydantic model
+            model_class.model_validate(data)
+
+        except Exception as e:
+            # Extract meaningful error message from Pydantic ValidationError
+            error_msg = str(e)
+            # Pydantic errors can be verbose, try to extract just the relevant part
+            if "validation error" in error_msg.lower():
+                errors.append(f"Pydantic validation error: {error_msg}")
+            else:
+                errors.append(error_msg)
+
+        return errors
+
     def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
         """Load data from JSON or TOML file."""
         errors: list[str] = []
@@ -259,6 +323,10 @@ class DataValidator:
         except Exception as e:
             errors.append(f"Validation error: {e}")
 
+        # Also validate using Pydantic models for additional validation rules
+        pydantic_errors = self.validate_with_pydantic_model(data, schema_name)
+        errors.extend(pydantic_errors)
+
         # Find Union[str, HttpUrl] fields and validate file references
         union_fields = self.find_union_fields(schema)
         file_ref_errors = self.validate_file_references(data, file_path, union_fields)
@@ -308,6 +376,10 @@ class DataValidator:
 
         # Find all data files with seller_v1 schema
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml"]:
                 try:
                     data, load_errors = self.load_data_file(file_path)
@@ -341,8 +413,12 @@ class DataValidator:
 
         warnings: list[str] = []
 
-        # Find all provider files
-        provider_files = list(self.data_dir.glob("*/provider.*"))
+        # Find all provider files (skip hidden directories)
+        provider_files = [
+            f
+            for f in self.data_dir.glob("*/provider.*")
+            if not any(part.startswith(".") for part in f.parts)
+        ]
 
         for provider_file in provider_files:
             try:
@@ -391,8 +467,10 @@ class DataValidator:
 
         warnings: list[str] = []
 
-        # Find all seller files
-        seller_files = list(self.data_dir.glob("seller.*"))
+        # Find all seller files (skip hidden files)
+        seller_files = [
+            f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")
+        ]
 
         for seller_file in seller_files:
             try:
@@ -448,8 +526,12 @@ class DataValidator:
                 provider_warnings,
             )  # Warnings, not errors
 
-        # Find all data and MD files recursively
+        # Find all data and MD files recursively, skipping hidden directories
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml", ".md"]:
                 relative_path = file_path.relative_to(self.data_dir)
 
@@ -560,6 +642,10 @@ class DataValidator:
 
         for pattern in ["*.json", "*.toml"]:
             for file_path in data_dir.rglob(pattern):
+                # Skip hidden directories (those starting with .)
+                if any(part.startswith(".") for part in file_path.parts):
+                    continue
+
                 try:
                     data, load_errors = self.load_data_file(file_path)
                     if load_errors or data is None:

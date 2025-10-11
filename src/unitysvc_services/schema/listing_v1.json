@@ -859,6 +859,20 @@
   },
   "additionalProperties": false,
   "properties": {
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
+      "title": "Display Name"
+    },
     "documents": {
       "anyOf": [
         {

@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import Document, SellerStatusEnum, SellerTypeEnum
+from unitysvc_services.models.base import Document, SellerStatusEnum, SellerTypeEnum, validate_url_safe_name
 
 
 class SellerV1(BaseModel):
@@ -108,3 +108,9 @@ class SellerV1(BaseModel):
         default=False,
         description="Whether the seller has been verified (KYC/business verification)",
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_format(cls, v: str) -> str:
+        """Validate that seller name uses URL-safe identifiers."""
+        return validate_url_safe_name(v, "seller")

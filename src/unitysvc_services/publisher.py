@@ -147,7 +147,21 @@ class ServiceDataPublisher:
             f"{self.base_url}/publish/offering",
             json=data_with_content,
         )
-        response.raise_for_status()
+
+        # Provide detailed error information if request fails
+        if not response.is_success:
+            error_detail = "Unknown error"
+            try:
+                error_json = response.json()
+                error_detail = error_json.get("detail", str(error_json))
+            except Exception:
+                error_detail = response.text or f"HTTP {response.status_code}"
+
+            raise ValueError(
+                f"Failed to publish offering '{data.get('name', 'unknown')}' "
+                f"(provider: {data_with_content.get('provider_name')}): {error_detail}"
+            )
+
         return response.json()
 
     def post_service_listing(self, data_file: Path) -> dict[str, Any]:
@@ -262,7 +276,23 @@ class ServiceDataPublisher:
             f"{self.base_url}/publish/listing",
             json=data_with_content,
         )
-        response.raise_for_status()
+
+        # Provide detailed error information if request fails
+        if not response.is_success:
+            error_detail = "Unknown error"
+            try:
+                error_json = response.json()
+                error_detail = error_json.get("detail", str(error_json))
+            except Exception:
+                error_detail = response.text or f"HTTP {response.status_code}"
+
+            raise ValueError(
+                f"Failed to publish listing '{data.get('name', 'unknown')}' "
+                f"(service: {data_with_content.get('service_name')}, "
+                f"provider: {data_with_content.get('provider_name')}, "
+                f"seller: {data_with_content.get('seller_name')}): {error_detail}"
+            )
+
         return response.json()
 
     def post_provider(self, data_file: Path) -> dict[str, Any]:
@@ -290,17 +320,23 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Remove status field before sending to backend (backend uses is_active)
-        status = data_with_content.pop("status", ProviderStatusEnum.active)
-        # Map status to is_active: active and disabled -> True (published), incomplete -> False (not published)
-        data_with_content["is_active"] = status != ProviderStatusEnum.disabled
-
         # Post to the endpoint
         response = self.client.post(
             f"{self.base_url}/publish/provider",
             json=data_with_content,
         )
-        response.raise_for_status()
+
+        # Provide detailed error information if request fails
+        if not response.is_success:
+            error_detail = "Unknown error"
+            try:
+                error_json = response.json()
+                error_detail = error_json.get("detail", str(error_json))
+            except Exception:
+                error_detail = response.text or f"HTTP {response.status_code}"
+
+            raise ValueError(f"Failed to publish provider '{data.get('name', 'unknown')}': {error_detail}")
+
         return response.json()
 
     def post_seller(self, data_file: Path) -> dict[str, Any]:
@@ -326,17 +362,23 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Remove status field before sending to backend (backend uses is_active)
-        status = data_with_content.pop("status", SellerStatusEnum.active)
-        # Map status to is_active: active and disabled -> True (published), incomplete -> False (not published)
-        data_with_content["is_active"] = status != SellerStatusEnum.disabled
-
         # Post to the endpoint
         response = self.client.post(
             f"{self.base_url}/publish/seller",
             json=data_with_content,
         )
-        response.raise_for_status()
+
+        # Provide detailed error information if request fails
+        if not response.is_success:
+            error_detail = "Unknown error"
+            try:
+                error_json = response.json()
+                error_detail = error_json.get("detail", str(error_json))
+            except Exception:
+                error_detail = response.text or f"HTTP {response.status_code}"
+
+            raise ValueError(f"Failed to publish seller '{data.get('name', 'unknown')}': {error_detail}")
+
         return response.json()
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
@@ -386,11 +428,29 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
+        console = Console()
         for offering_file in offering_files:
             try:
-                self.post_service_offering(offering_file)
+                # Load offering data to get the name
+                data = self.load_data_file(offering_file)
+                offering_name = data.get("name", offering_file.stem)
+
+                # Show what we're publishing
+                console.print(f"  Publishing offering: [cyan]{offering_name}[/cyan]...", end="")
+                console.file.flush()  # Force immediate output before HTTP request
+
+                result = self.post_service_offering(offering_file)
+
+                # Check if it was skipped
+                if result.get("skipped"):
+                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                else:
+                    console.print(" [green]✓[/green]")
+
                 results["success"] += 1
             except Exception as e:
+                console.print(" [red]✗[/red]")
+                console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
                 results["errors"].append({"file": str(offering_file), "error": str(e)})
 
@@ -422,11 +482,29 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
+        console = Console()
         for listing_file in listing_files:
             try:
-                self.post_service_listing(listing_file)
+                # Load listing data to get the name
+                data = self.load_data_file(listing_file)
+                listing_name = data.get("name", listing_file.stem)
+
+                # Show what we're publishing
+                console.print(f"  Publishing listing: [cyan]{listing_name}[/cyan]...", end="")
+                console.file.flush()  # Force immediate output before HTTP request
+
+                result = self.post_service_listing(listing_file)
+
+                # Check if it was skipped
+                if result.get("skipped"):
+                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                else:
+                    console.print(" [green]✓[/green]")
+
                 results["success"] += 1
             except Exception as e:
+                console.print(" [red]✗[/red]")
+                console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
                 results["errors"].append({"file": str(listing_file), "error": str(e)})
 
@@ -446,11 +524,29 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
+        console = Console()
         for provider_file in provider_files:
             try:
-                self.post_provider(provider_file)
+                # Load provider data to get the name
+                data = self.load_data_file(provider_file)
+                provider_name = data.get("name", provider_file.stem)
+
+                # Show what we're publishing
+                console.print(f"  Publishing provider: [cyan]{provider_name}[/cyan]...", end="")
+                console.file.flush()  # Force immediate output before HTTP request
+
+                result = self.post_provider(provider_file)
+
+                # Check if it was skipped
+                if result.get("skipped"):
+                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                else:
+                    console.print(" [green]✓[/green]")
+
                 results["success"] += 1
             except Exception as e:
+                console.print(" [red]✗[/red]")
+                console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
                 results["errors"].append({"file": str(provider_file), "error": str(e)})
 
@@ -470,11 +566,29 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
+        console = Console()
         for seller_file in seller_files:
             try:
-                self.post_seller(seller_file)
+                # Load seller data to get the name
+                data = self.load_data_file(seller_file)
+                seller_name = data.get("name", seller_file.stem)
+
+                # Show what we're publishing
+                console.print(f"  Publishing seller: [cyan]{seller_name}[/cyan]...", end="")
+                console.file.flush()  # Force immediate output before HTTP request
+
+                result = self.post_seller(seller_file)
+
+                # Check if it was skipped
+                if result.get("skipped"):
+                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                else:
+                    console.print(" [green]✓[/green]")
+
                 results["success"] += 1
             except Exception as e:
+                console.print(" [red]✗[/red]")
+                console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
                 results["errors"].append({"file": str(seller_file), "error": str(e)})
 

@@ -157,6 +157,7 @@
       "description": "Seller status enum.",
       "enum": [
         "active",
+        "pending",
         "disabled",
         "incomplete"
       ],

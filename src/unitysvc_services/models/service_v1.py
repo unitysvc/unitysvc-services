@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from unitysvc_services.models.base import (
     AccessInterface,
@@ -10,6 +10,7 @@ from unitysvc_services.models.base import (
     ServiceTypeEnum,
     TagEnum,
     UpstreamStatusEnum,
+    validate_name_with_slashes,
 )
 
 
@@ -78,3 +79,9 @@ class ServiceV1(BaseModel):
     # a list of pricing models
     #
     upstream_price: Pricing | None = Field(description="List of pricing information")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_format(cls, v: str) -> str:
+        """Validate that service name uses valid identifiers (allows slashes for hierarchical names)."""
+        return validate_name_with_slashes(v, "service")
