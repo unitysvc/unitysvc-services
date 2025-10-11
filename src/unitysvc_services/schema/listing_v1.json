@@ -880,6 +880,20 @@
       "default": "unknown",
       "description": "Operation status of the service"
     },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Name identifier for the service listing, default to filename",
+      "title": "Name"
+    },
     "schema": {
       "default": "listing_v1",
       "description": "Schema identifier",

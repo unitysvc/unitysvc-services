@@ -46,10 +46,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/offerings",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/offerings", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -61,10 +58,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/listings",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/listings", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -76,10 +70,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/providers",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/providers", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -91,10 +82,7 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        response = self.client.get(
-            f"{self.base_url}/publish/sellers",
-            params={"skip": skip, "limit": limit}
-        )
+        response = self.client.get(f"{self.base_url}/publish/sellers", params={"skip": skip, "limit": limit})
         response.raise_for_status()
         result = response.json()
         return result.get("data", result) if isinstance(result, dict) else result
@@ -590,7 +578,7 @@ def query_listings(
 
         # Show all available fields
         unitysvc_services query listings --fields \\
-            id,service_name,service_type,seller_name,listing_type,status,provider_name
+            id,name,service_name,service_type,seller_name,listing_type,status,provider_name
     """
     # Parse fields list
     field_list = [f.strip() for f in fields.split(",")]
@@ -598,6 +586,7 @@ def query_listings(
     # Define allowed fields from ServiceListingPublic model
     allowed_fields = {
         "id",
+        "name",
         "offering_id",
         "offering_status",
         "seller_id",
