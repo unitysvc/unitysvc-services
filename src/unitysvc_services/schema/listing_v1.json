@@ -881,10 +881,18 @@
       "description": "Operation status of the service"
     },
     "name": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "Name identifier for the service listing, default to filename",
-      "maxLength": 255,
-      "title": "Name",
-      "type": "string"
+      "title": "Name"
     },
     "schema": {
       "default": "listing_v1",
@@ -973,7 +981,6 @@
   },
   "required": [
     "time_created",
-    "name",
     "user_access_interfaces",
     "user_price"
   ],

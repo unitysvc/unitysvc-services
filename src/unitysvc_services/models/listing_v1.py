@@ -3,7 +3,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unitysvc_services.models.base import AccessInterface, Document, ListingStatusEnum, Pricing
+from unitysvc_services.models.base import (AccessInterface, Document,
+                                           ListingStatusEnum, Pricing)
 
 
 class ListingV1(BaseModel):
@@ -27,7 +28,8 @@ class ListingV1(BaseModel):
 
     seller_name: str | None = Field(default=None, description="Name of the seller offering this service listing")
 
-    name: str = Field(
+    name: str | None = Field(
+        default=None,
         max_length=255,
         description="Name identifier for the service listing, default to filename",
     )
