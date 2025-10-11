@@ -3,8 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from unitysvc_services.models.base import (AccessInterface, Document,
-                                           ListingStatusEnum, Pricing)
+from unitysvc_services.models.base import AccessInterface, Document, ListingStatusEnum, Pricing
 
 
 class ListingV1(BaseModel):
