@@ -97,6 +97,94 @@ class ServiceDataPublisher:
 
         return result
 
+    async def _post_with_retry(
+        self,
+        endpoint: str,
+        data: dict[str, Any],
+        entity_type: str,
+        entity_name: str,
+        context_info: str = "",
+        max_retries: int = 3,
+    ) -> dict[str, Any]:
+        """
+        Generic retry wrapper for posting data to backend API.
+
+        Args:
+            endpoint: API endpoint path (e.g., "/publish/listing")
+            data: JSON data to post
+            entity_type: Type of entity being published (for error messages)
+            entity_name: Name of the entity being published (for error messages)
+            context_info: Additional context for error messages (e.g., provider, service info)
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Response JSON from successful API call
+
+        Raises:
+            ValueError: On client errors (4xx) or after exhausting retries
+        """
+        last_exception = None
+        for attempt in range(max_retries):
+            try:
+                response = await self.async_client.post(
+                    f"{self.base_url}{endpoint}",
+                    json=data,
+                )
+
+                # Provide detailed error information if request fails
+                if not response.is_success:
+                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
+                    if 400 <= response.status_code < 500:
+                        error_detail = "Unknown error"
+                        try:
+                            error_json = response.json()
+                            error_detail = error_json.get("detail", str(error_json))
+                        except Exception:
+                            error_detail = response.text or f"HTTP {response.status_code}"
+
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(
+                            f"Failed to publish {entity_type} '{entity_name}'{context_msg}: {error_detail}"
+                        )
+
+                    # 5xx errors or network errors - retry with exponential backoff
+                    if attempt < max_retries - 1:
+                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        # Last attempt failed
+                        error_detail = "Unknown error"
+                        try:
+                            error_json = response.json()
+                            error_detail = error_json.get("detail", str(error_json))
+                        except Exception:
+                            error_detail = response.text or f"HTTP {response.status_code}"
+
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(
+                            f"Failed to publish {entity_type} after {max_retries} attempts: "
+                            f"'{entity_name}'{context_msg}: {error_detail}"
+                        )
+
+                return response.json()
+
+            except (httpx.NetworkError, httpx.TimeoutException) as e:
+                last_exception = e
+                if attempt < max_retries - 1:
+                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    raise ValueError(
+                        f"Network error after {max_retries} attempts for {entity_type} '{entity_name}': {str(e)}"
+                    )
+
+        # Should never reach here, but just in case
+        if last_exception:
+            raise last_exception
+        raise ValueError("Unexpected error in retry logic")
+
     async def post_service_listing_async(self, listing_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_service_listing for concurrent publishing with retry logic."""
         # Load the listing data file
@@ -202,73 +290,20 @@ class ServiceDataPublisher:
         if "listing_status" in data_with_content:
             data_with_content["status"] = data_with_content.pop("listing_status")
 
-        # Post to the endpoint using async client with retry logic
-        last_exception = None
-        for attempt in range(max_retries):
-            try:
-                response = await self.async_client.post(
-                    f"{self.base_url}/publish/listing",
-                    json=data_with_content,
-                )
-
-                # Provide detailed error information if request fails
-                if not response.is_success:
-                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
-                    if 400 <= response.status_code < 500:
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish listing '{data.get('name', 'unknown')}' "
-                            f"(service: {data_with_content.get('service_name')}, "
-                            f"provider: {data_with_content.get('provider_name')}, "
-                            f"seller: {data_with_content.get('seller_name')}): {error_detail}"
-                        )
-
-                    # 5xx errors or network errors - retry with exponential backoff
-                    if attempt < max_retries - 1:
-                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        # Last attempt failed
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish listing after {max_retries} attempts: "
-                            f"'{data.get('name', 'unknown')}' "
-                            f"(service: {data_with_content.get('service_name')}, "
-                            f"provider: {data_with_content.get('provider_name')}, "
-                            f"seller: {data_with_content.get('seller_name')}): {error_detail}"
-                        )
-
-                return response.json()
-
-            except (httpx.NetworkError, httpx.TimeoutException) as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                    await asyncio.sleep(wait_time)
-                    continue
-                else:
-                    raise ValueError(
-                        f"Network error after {max_retries} attempts for listing "
-                        f"'{data.get('name', 'unknown')}': {str(e)}"
-                    )
-
-        # Should never reach here, but just in case
-        if last_exception:
-            raise last_exception
-        raise ValueError("Unexpected error in retry logic")
+        # Post to the endpoint using retry helper
+        context_info = (
+            f"service: {data_with_content.get('service_name')}, "
+            f"provider: {data_with_content.get('provider_name')}, "
+            f"seller: {data_with_content.get('seller_name')}"
+        )
+        return await self._post_with_retry(
+            endpoint="/publish/listing",
+            data=data_with_content,
+            entity_type="listing",
+            entity_name=data.get("name", "unknown"),
+            context_info=context_info,
+            max_retries=max_retries,
+        )
 
     async def post_service_offering_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_service_offering for concurrent publishing with retry logic."""
@@ -313,69 +348,16 @@ class ServiceDataPublisher:
                     "name": data.get("name", "unknown"),
                 }
 
-        # Post to the endpoint using async client with retry logic
-        last_exception = None
-        for attempt in range(max_retries):
-            try:
-                response = await self.async_client.post(
-                    f"{self.base_url}/publish/offering",
-                    json=data_with_content,
-                )
-
-                # Provide detailed error information if request fails
-                if not response.is_success:
-                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
-                    if 400 <= response.status_code < 500:
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish offering '{data.get('name', 'unknown')}' "
-                            f"(provider: {data_with_content.get('provider_name')}): {error_detail}"
-                        )
-
-                    # 5xx errors or network errors - retry with exponential backoff
-                    if attempt < max_retries - 1:
-                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        # Last attempt failed
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish offering after {max_retries} attempts: "
-                            f"'{data.get('name', 'unknown')}' "
-                            f"(provider: {data_with_content.get('provider_name')}): {error_detail}"
-                        )
-
-                return response.json()
-
-            except (httpx.NetworkError, httpx.TimeoutException) as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                    await asyncio.sleep(wait_time)
-                    continue
-                else:
-                    raise ValueError(
-                        f"Network error after {max_retries} attempts for offering "
-                        f"'{data.get('name', 'unknown')}': {str(e)}"
-                    )
-
-        # Should never reach here, but just in case
-        if last_exception:
-            raise last_exception
-        raise ValueError("Unexpected error in retry logic")
+        # Post to the endpoint using retry helper
+        context_info = f"provider: {data_with_content.get('provider_name')}"
+        return await self._post_with_retry(
+            endpoint="/publish/offering",
+            data=data_with_content,
+            entity_type="offering",
+            entity_name=data.get("name", "unknown"),
+            context_info=context_info,
+            max_retries=max_retries,
+        )
 
     async def post_provider_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_provider for concurrent publishing with retry logic."""
@@ -401,65 +383,14 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Post to the endpoint using async client with retry logic
-        last_exception = None
-        for attempt in range(max_retries):
-            try:
-                response = await self.async_client.post(
-                    f"{self.base_url}/publish/provider",
-                    json=data_with_content,
-                )
-
-                # Provide detailed error information if request fails
-                if not response.is_success:
-                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
-                    if 400 <= response.status_code < 500:
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(f"Failed to publish provider '{data.get('name', 'unknown')}': {error_detail}")
-
-                    # 5xx errors or network errors - retry with exponential backoff
-                    if attempt < max_retries - 1:
-                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        # Last attempt failed
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish provider after {max_retries} attempts: "
-                            f"'{data.get('name', 'unknown')}': {error_detail}"
-                        )
-
-                return response.json()
-
-            except (httpx.NetworkError, httpx.TimeoutException) as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                    await asyncio.sleep(wait_time)
-                    continue
-                else:
-                    raise ValueError(
-                        f"Network error after {max_retries} attempts for provider "
-                        f"'{data.get('name', 'unknown')}': {str(e)}"
-                    )
-
-        # Should never reach here, but just in case
-        if last_exception:
-            raise last_exception
-        raise ValueError("Unexpected error in retry logic")
+        # Post to the endpoint using retry helper
+        return await self._post_with_retry(
+            endpoint="/publish/provider",
+            data=data_with_content,
+            entity_type="provider",
+            entity_name=data.get("name", "unknown"),
+            max_retries=max_retries,
+        )
 
     async def post_seller_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_seller for concurrent publishing with retry logic."""
@@ -483,65 +414,14 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Post to the endpoint using async client with retry logic
-        last_exception = None
-        for attempt in range(max_retries):
-            try:
-                response = await self.async_client.post(
-                    f"{self.base_url}/publish/seller",
-                    json=data_with_content,
-                )
-
-                # Provide detailed error information if request fails
-                if not response.is_success:
-                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
-                    if 400 <= response.status_code < 500:
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(f"Failed to publish seller '{data.get('name', 'unknown')}': {error_detail}")
-
-                    # 5xx errors or network errors - retry with exponential backoff
-                    if attempt < max_retries - 1:
-                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                        await asyncio.sleep(wait_time)
-                        continue
-                    else:
-                        # Last attempt failed
-                        error_detail = "Unknown error"
-                        try:
-                            error_json = response.json()
-                            error_detail = error_json.get("detail", str(error_json))
-                        except Exception:
-                            error_detail = response.text or f"HTTP {response.status_code}"
-
-                        raise ValueError(
-                            f"Failed to publish seller after {max_retries} attempts: "
-                            f"'{data.get('name', 'unknown')}': {error_detail}"
-                        )
-
-                return response.json()
-
-            except (httpx.NetworkError, httpx.TimeoutException) as e:
-                last_exception = e
-                if attempt < max_retries - 1:
-                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
-                    await asyncio.sleep(wait_time)
-                    continue
-                else:
-                    raise ValueError(
-                        f"Network error after {max_retries} attempts for seller "
-                        f"'{data.get('name', 'unknown')}': {str(e)}"
-                    )
-
-        # Should never reach here, but just in case
-        if last_exception:
-            raise last_exception
-        raise ValueError("Unexpected error in retry logic")
+        # Post to the endpoint using retry helper
+        return await self._post_with_retry(
+            endpoint="/publish/seller",
+            data=data_with_content,
+            entity_type="seller",
+            entity_name=data.get("name", "unknown"),
+            max_retries=max_retries,
+        )
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
         """Find all service offering files in a directory tree."""
