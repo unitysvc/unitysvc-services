@@ -3,7 +3,13 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from unitysvc_services.models.base import AccessInterface, Document, ListingStatusEnum, Pricing, validate_name_with_slashes
+from unitysvc_services.models.base import (
+    AccessInterface,
+    Document,
+    ListingStatusEnum,
+    Pricing,
+    validate_name_with_slashes,
+)
 
 
 class ListingV1(BaseModel):

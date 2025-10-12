@@ -411,11 +411,11 @@ def validate_url_safe_name(name: str, entity_type: str, display_name: str | None
                 error_msg += f"  Suggestion: Set name='{suggested_name}' and display_name='{display_name}'\n"
 
         error_msg += (
-            f"  Note: Use 'display_name' field for brand names with spaces and special characters.\n"
-            f"  Examples:\n"
-            f"    - name='amazon-bedrock' or name='Amazon-Bedrock'\n"
-            f"    - name='fireworks.ai' or name='Fireworks.ai'\n"
-            f"    - name='llama-3.1' or name='Llama-3.1'"
+            "  Note: Use 'display_name' field for brand names with spaces and special characters.\n"
+            "  Examples:\n"
+            "    - name='amazon-bedrock' or name='Amazon-Bedrock'\n"
+            "    - name='fireworks.ai' or name='Fireworks.ai'\n"
+            "    - name='llama-3.1' or name='Llama-3.1'"
         )
 
         raise ValueError(error_msg)
@@ -474,11 +474,11 @@ def validate_name_with_slashes(name: str, entity_type: str, display_name: str | 
                 error_msg += f"  Suggestion: Set name='{suggested_name}' and display_name='{display_name}'\n"
 
         error_msg += (
-            f"  Examples:\n"
-            f"    - name='gpt-4' or name='GPT-4'\n"
-            f"    - name='models/gpt-4' or name='models/GPT-4'\n"
-            f"    - name='black-forest-labs/FLUX.1-dev'\n"
-            f"    - name='api/v1/completion'"
+            "  Examples:\n"
+            "    - name='gpt-4' or name='GPT-4'\n"
+            "    - name='models/gpt-4' or name='models/GPT-4'\n"
+            "    - name='black-forest-labs/FLUX.1-dev'\n"
+            "    - name='api/v1/completion'"
         )
 
         raise ValueError(error_msg)

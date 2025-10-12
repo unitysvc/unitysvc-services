@@ -421,7 +421,7 @@ def query_offerings(
         help="Output format: table, json",
     ),
     fields: str = typer.Option(
-        "id,service_name,service_type,provider_name,status",
+        "id,name,service_type,provider_name,status",
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
@@ -447,7 +447,7 @@ def query_offerings(
         unitysvc_services query offerings
 
         # Show only specific fields
-        unitysvc_services query offerings --fields id,service_name,status
+        unitysvc_services query offerings --fields id,name,status
 
         # Retrieve more than 100 records
         unitysvc_services query offerings --limit 500
@@ -469,7 +469,7 @@ def query_offerings(
         "provider_id",
         "status",
         "price",
-        "service_name",
+        "name",
         "service_type",
         "provider_name",
     }

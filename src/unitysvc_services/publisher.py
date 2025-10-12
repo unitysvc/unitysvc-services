@@ -50,7 +50,8 @@ class ServiceDataPublisher:
 
     def load_file_content(self, file_path: Path, base_path: Path) -> str:
         """Load content from a file (text or binary)."""
-        full_path = base_path / file_path if not file_path.is_absolute() else file_path
+        full_path = base_path / file_path if not file_path.is_absolute(
+        ) else file_path
 
         if not full_path.exists():
             raise FileNotFoundError(f"File not found: {full_path}")
@@ -64,7 +65,8 @@ class ServiceDataPublisher:
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
+    def resolve_file_references(self, data: dict[str, Any],
+                                base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
         result: dict[str, Any] = {}
 
@@ -74,10 +76,9 @@ class ServiceDataPublisher:
                 result[key] = self.resolve_file_references(value, base_path)
             elif isinstance(value, list):
                 # Process lists
-                result[key] = [
-                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
-                    for item in value
-                ]
+                result[key] = [(self.resolve_file_references(item, base_path)
+                                if isinstance(item, dict) else item)
+                               for item in value]
             elif key == "file_path" and isinstance(value, str):
                 # This is a file reference - load the content
                 # Store both the original path and the content
@@ -85,10 +86,12 @@ class ServiceDataPublisher:
                 # Add file_content field if not already present (for DocumentCreate compatibility)
                 if "file_content" not in data:
                     try:
-                        content = self.load_file_content(Path(value), base_path)
+                        content = self.load_file_content(
+                            Path(value), base_path)
                         result["file_content"] = content
                     except Exception as e:
-                        raise ValueError(f"Failed to load file content from '{value}': {e}")
+                        raise ValueError(
+                            f"Failed to load file content from '{value}': {e}")
             else:
                 result[key] = value
 
@@ -107,8 +110,7 @@ class ServiceDataPublisher:
         # Resolve file references and include content
         base_path = data_file.parent
         data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field="terms_of_service"
-        )
+            data, base_path, logo_field="logo", terms_field="terms_of_service")
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -126,19 +128,20 @@ class ServiceDataPublisher:
         except (ValueError, IndexError):
             raise ValueError(
                 f"Cannot extract provider_name from path: {data_file}. "
-                f"Expected path to contain .../{{provider_name}}/services/..."
-            )
+                f"Expected path to contain .../{{provider_name}}/services/...")
 
         # Check provider status - skip if incomplete
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
         if provider_files:
             # Should only be one provider file in the directory
             _provider_file, _format, provider_data = provider_files[0]
-            provider_status = provider_data.get("status", ProviderStatusEnum.active)
+            provider_status = provider_data.get("status",
+                                                ProviderStatusEnum.active)
             if provider_status == ProviderStatusEnum.incomplete:
                 return {
                     "skipped": True,
-                    "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
+                    "reason":
+                    f"Provider status is '{provider_status}' - not publishing offering to backend",
                     "name": data.get("name", "unknown"),
                 }
 
@@ -190,13 +193,14 @@ class ServiceDataPublisher:
         except (ValueError, IndexError):
             raise ValueError(
                 f"Cannot extract provider_name from path: {data_file}. "
-                f"Expected path to contain .../{{provider_name}}/services/..."
-            )
+                f"Expected path to contain .../{{provider_name}}/services/...")
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if "service_name" not in data_with_content or not data_with_content["service_name"]:
+        if "service_name" not in data_with_content or not data_with_content[
+                "service_name"]:
             # Find all service files in the same directory
-            service_files = find_files_by_schema(data_file.parent, "service_v1")
+            service_files = find_files_by_schema(data_file.parent,
+                                                 "service_v1")
 
             if len(service_files) == 0:
                 raise ValueError(
@@ -204,21 +208,26 @@ class ServiceDataPublisher:
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [data.get("name", "unknown") for _, _, data in service_files]
+                service_names = [
+                    data.get("name", "unknown") for _, _, data in service_files
+                ]
                 raise ValueError(
                     f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {data_file.name} to specify which "
-                    f"service this listing belongs to."
-                )
+                    f"service this listing belongs to.")
             else:
                 # Exactly one service found - use it
                 _service_file, _format, service_data = service_files[0]
                 data_with_content["service_name"] = service_data.get("name")
-                data_with_content["service_version"] = service_data.get("version")
+                data_with_content["service_version"] = service_data.get(
+                    "version")
         else:
             # service_name is provided in listing data, find the matching service to get version
             service_name = data_with_content["service_name"]
-            service_files = find_files_by_schema(data_file.parent, "service_v1", field_filter=(("name", service_name),))
+            service_files = find_files_by_schema(
+                data_file.parent,
+                "service_v1",
+                field_filter=(("name", service_name), ))
 
             if not service_files:
                 raise ValueError(
@@ -238,8 +247,7 @@ class ServiceDataPublisher:
         if data_dir.name != "data":
             raise ValueError(
                 f"Cannot find 'data' directory in path: {data_file}. "
-                f"Expected path structure includes a 'data' directory."
-            )
+                f"Expected path structure includes a 'data' directory.")
 
         # Look for seller file in the data directory by checking schema field
         seller_files = find_files_by_schema(data_dir, "seller_v1")
@@ -257,7 +265,8 @@ class ServiceDataPublisher:
         if seller_status == SellerStatusEnum.incomplete:
             return {
                 "skipped": True,
-                "reason": f"Seller status is '{seller_status}' - not publishing listing to backend",
+                "reason":
+                f"Seller status is '{seller_status}' - not publishing listing to backend",
                 "name": data.get("name", "unknown"),
             }
 
@@ -269,7 +278,8 @@ class ServiceDataPublisher:
 
         # Map listing_status to status if present
         if "listing_status" in data_with_content:
-            data_with_content["status"] = data_with_content.pop("listing_status")
+            data_with_content["status"] = data_with_content.pop(
+                "listing_status")
 
         # Post to the endpoint
         response = self.client.post(
@@ -307,15 +317,15 @@ class ServiceDataPublisher:
             # Return success without publishing - provider is incomplete
             return {
                 "skipped": True,
-                "reason": f"Provider status is '{provider_status}' - not publishing to backend",
+                "reason":
+                f"Provider status is '{provider_status}' - not publishing to backend",
                 "name": data.get("name", "unknown"),
             }
 
         # Convert convenience fields (logo, terms_of_service) to documents
         base_path = data_file.parent
         data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field="terms_of_service"
-        )
+            data, base_path, logo_field="logo", terms_field="terms_of_service")
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -335,7 +345,9 @@ class ServiceDataPublisher:
             except Exception:
                 error_detail = response.text or f"HTTP {response.status_code}"
 
-            raise ValueError(f"Failed to publish provider '{data.get('name', 'unknown')}': {error_detail}")
+            raise ValueError(
+                f"Failed to publish provider '{data.get('name', 'unknown')}': {error_detail}"
+            )
 
         return response.json()
 
@@ -351,13 +363,17 @@ class ServiceDataPublisher:
             # Return success without publishing - seller is incomplete
             return {
                 "skipped": True,
-                "reason": f"Seller status is '{seller_status}' - not publishing to backend",
+                "reason":
+                f"Seller status is '{seller_status}' - not publishing to backend",
                 "name": data.get("name", "unknown"),
             }
 
         # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
+        data = convert_convenience_fields_to_documents(data,
+                                                       base_path,
+                                                       logo_field="logo",
+                                                       terms_field=None)
 
         # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
@@ -377,7 +393,9 @@ class ServiceDataPublisher:
             except Exception:
                 error_detail = response.text or f"HTTP {response.status_code}"
 
-            raise ValueError(f"Failed to publish seller '{data.get('name', 'unknown')}': {error_detail}")
+            raise ValueError(
+                f"Failed to publish seller '{data.get('name', 'unknown')}': {error_detail}"
+            )
 
         return response.json()
 
@@ -411,13 +429,20 @@ class ServiceDataPublisher:
 
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
-        validation_errors = validator.validate_all_service_directories(data_dir)
+        validation_errors = validator.validate_all_service_directories(
+            data_dir)
         if validation_errors:
             return {
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "errors": [{"file": "validation", "error": error} for error in validation_errors],
+                "total":
+                0,
+                "success":
+                0,
+                "failed":
+                0,
+                "errors": [{
+                    "file": "validation",
+                    "error": error
+                } for error in validation_errors],
             }
 
         offering_files = self.find_offering_files(data_dir)
@@ -436,14 +461,19 @@ class ServiceDataPublisher:
                 offering_name = data.get("name", offering_file.stem)
 
                 # Show what we're publishing
-                console.print(f"  Publishing offering: [cyan]{offering_name}[/cyan]...", end="")
-                console.file.flush()  # Force immediate output before HTTP request
+                console.print(
+                    f"  Publishing offering: [cyan]{offering_name}[/cyan]...",
+                    end="")
+                console.file.flush(
+                )  # Force immediate output before HTTP request
 
                 result = self.post_service_offering(offering_file)
 
                 # Check if it was skipped
                 if result.get("skipped"):
-                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                    console.print(
+                        f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})"
+                    )
                 else:
                     console.print(" [green]✓[/green]")
 
@@ -452,7 +482,10 @@ class ServiceDataPublisher:
                 console.print(" [red]✗[/red]")
                 console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
-                results["errors"].append({"file": str(offering_file), "error": str(e)})
+                results["errors"].append({
+                    "file": str(offering_file),
+                    "error": str(e)
+                })
 
         return results
 
@@ -465,13 +498,20 @@ class ServiceDataPublisher:
         """
         # Validate all service directories first
         validator = DataValidator(data_dir, data_dir.parent / "schema")
-        validation_errors = validator.validate_all_service_directories(data_dir)
+        validation_errors = validator.validate_all_service_directories(
+            data_dir)
         if validation_errors:
             return {
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "errors": [{"file": "validation", "error": error} for error in validation_errors],
+                "total":
+                0,
+                "success":
+                0,
+                "failed":
+                0,
+                "errors": [{
+                    "file": "validation",
+                    "error": error
+                } for error in validation_errors],
             }
 
         listing_files = self.find_listing_files(data_dir)
@@ -488,25 +528,33 @@ class ServiceDataPublisher:
                 # Load listing data to get the name
                 data = self.load_data_file(listing_file)
                 listing_name = data.get("name", listing_file.stem)
-
                 # Show what we're publishing
-                console.print(f"  Publishing listing: [cyan]{listing_name}[/cyan]...", end="")
-                console.file.flush()  # Force immediate output before HTTP request
+                console.print(
+                    f"  Publishing listing: [cyan]{listing_name}[/cyan]...",
+                    end="")
+                console.file.flush(
+                )  # Force immediate output before HTTP request
 
                 result = self.post_service_listing(listing_file)
 
                 # Check if it was skipped
                 if result.get("skipped"):
-                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                    console.print(
+                        f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})"
+                    )
                 else:
-                    console.print(" [green]✓[/green]")
+                    service_name = result.get("service_name")
+                    console.print(f" [green]{service_name} ✓[/green]")
 
                 results["success"] += 1
             except Exception as e:
                 console.print(" [red]✗[/red]")
                 console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
-                results["errors"].append({"file": str(listing_file), "error": str(e)})
+                results["errors"].append({
+                    "file": str(listing_file),
+                    "error": str(e)
+                })
 
         return results
 
@@ -532,14 +580,19 @@ class ServiceDataPublisher:
                 provider_name = data.get("name", provider_file.stem)
 
                 # Show what we're publishing
-                console.print(f"  Publishing provider: [cyan]{provider_name}[/cyan]...", end="")
-                console.file.flush()  # Force immediate output before HTTP request
+                console.print(
+                    f"  Publishing provider: [cyan]{provider_name}[/cyan]...",
+                    end="")
+                console.file.flush(
+                )  # Force immediate output before HTTP request
 
                 result = self.post_provider(provider_file)
 
                 # Check if it was skipped
                 if result.get("skipped"):
-                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                    console.print(
+                        f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})"
+                    )
                 else:
                     console.print(" [green]✓[/green]")
 
@@ -548,7 +601,10 @@ class ServiceDataPublisher:
                 console.print(" [red]✗[/red]")
                 console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
-                results["errors"].append({"file": str(provider_file), "error": str(e)})
+                results["errors"].append({
+                    "file": str(provider_file),
+                    "error": str(e)
+                })
 
         return results
 
@@ -574,14 +630,19 @@ class ServiceDataPublisher:
                 seller_name = data.get("name", seller_file.stem)
 
                 # Show what we're publishing
-                console.print(f"  Publishing seller: [cyan]{seller_name}[/cyan]...", end="")
-                console.file.flush()  # Force immediate output before HTTP request
+                console.print(
+                    f"  Publishing seller: [cyan]{seller_name}[/cyan]...",
+                    end="")
+                console.file.flush(
+                )  # Force immediate output before HTTP request
 
                 result = self.post_seller(seller_file)
 
                 # Check if it was skipped
                 if result.get("skipped"):
-                    console.print(f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})")
+                    console.print(
+                        f" [yellow]⊘ skipped[/yellow] ({result.get('reason', 'unknown')})"
+                    )
                 else:
                     console.print(" [green]✓[/green]")
 
@@ -590,7 +651,10 @@ class ServiceDataPublisher:
                 console.print(" [red]✗[/red]")
                 console.print(f"    [red]Error: {str(e)}[/red]")
                 results["failed"] += 1
-                results["errors"].append({"file": str(seller_file), "error": str(e)})
+                results["errors"].append({
+                    "file": str(seller_file),
+                    "error": str(e)
+                })
 
         return results
 
@@ -637,7 +701,10 @@ class ServiceDataPublisher:
                     "total": 0,
                     "success": 0,
                     "failed": 1,
-                    "errors": [{"file": "N/A", "error": str(e)}],
+                    "errors": [{
+                        "file": "N/A",
+                        "error": str(e)
+                    }],
                 }
                 all_results["total_failed"] += 1
 

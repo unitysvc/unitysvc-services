@@ -219,42 +219,24 @@ class DataValidator:
         Returns:
             List of validation error messages
         """
+        from unitysvc_services.models import ListingV1, ProviderV1, SellerV1, ServiceV1
+
         errors: list[str] = []
 
         # Map schema names to Pydantic model classes
         model_map = {
-            "provider_v1": "ProviderV1",
-            "seller_v1": "SellerV1",
-            "service_v1": "ServiceV1",
-            "listing_v1": "ListingV1",
+            "provider_v1": ProviderV1,
+            "seller_v1": SellerV1,
+            "service_v1": ServiceV1,
+            "listing_v1": ListingV1,
         }
 
         if schema_name not in model_map:
             return errors  # No Pydantic model for this schema
 
-        model_class_name = model_map[schema_name]
+        model_class = model_map[schema_name]
 
         try:
-            # Dynamically import the model class
-            if schema_name == "provider_v1":
-                from unitysvc_services.models.provider_v1 import ProviderV1
-
-                model_class = ProviderV1
-            elif schema_name == "seller_v1":
-                from unitysvc_services.models.seller_v1 import SellerV1
-
-                model_class = SellerV1
-            elif schema_name == "service_v1":
-                from unitysvc_services.models.service_v1 import ServiceV1
-
-                model_class = ServiceV1
-            elif schema_name == "listing_v1":
-                from unitysvc_services.models.listing_v1 import ListingV1
-
-                model_class = ListingV1
-            else:
-                return errors
-
             # Validate using the Pydantic model
             model_class.model_validate(data)
 
@@ -415,9 +397,7 @@ class DataValidator:
 
         # Find all provider files (skip hidden directories)
         provider_files = [
-            f
-            for f in self.data_dir.glob("*/provider.*")
-            if not any(part.startswith(".") for part in f.parts)
+            f for f in self.data_dir.glob("*/provider.*") if not any(part.startswith(".") for part in f.parts)
         ]
 
         for provider_file in provider_files:
@@ -468,9 +448,7 @@ class DataValidator:
         warnings: list[str] = []
 
         # Find all seller files (skip hidden files)
-        seller_files = [
-            f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")
-        ]
+        seller_files = [f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")]
 
         for seller_file in seller_files:
             try:
