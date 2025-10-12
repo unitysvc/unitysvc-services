@@ -8,7 +8,7 @@ from unitysvc_services.models.base import (
     Document,
     ListingStatusEnum,
     Pricing,
-    validate_name_with_slashes,
+    validate_name,
 )
 
 
@@ -89,4 +89,4 @@ class ListingV1(BaseModel):
         """Validate that listing name uses valid identifiers (allows slashes for hierarchical names)."""
         if v is None:
             return v
-        return validate_name_with_slashes(v, "listing")
+        return validate_name(v, "listing", allow_slash=True)

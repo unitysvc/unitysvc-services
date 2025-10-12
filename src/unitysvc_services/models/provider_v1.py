@@ -3,7 +3,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum, validate_url_safe_name
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum, validate_name
 
 
 class ProviderV1(BaseModel):
@@ -71,4 +71,4 @@ class ProviderV1(BaseModel):
         """Validate that provider name uses URL-safe identifiers."""
         # Note: display_name is not available in the validator context for suggesting
         # Display name will be shown in error if user provides it
-        return validate_url_safe_name(v, "provider")
+        return validate_name(v, "provider", allow_slash=False)

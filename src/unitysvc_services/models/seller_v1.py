@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import Document, SellerStatusEnum, SellerTypeEnum, validate_url_safe_name
+from unitysvc_services.models.base import Document, SellerStatusEnum, SellerTypeEnum, validate_name
 
 
 class SellerV1(BaseModel):
@@ -113,4 +113,4 @@ class SellerV1(BaseModel):
     @classmethod
     def validate_name_format(cls, v: str) -> str:
         """Validate that seller name uses URL-safe identifiers."""
-        return validate_url_safe_name(v, "seller")
+        return validate_name(v, "seller", allow_slash=False)

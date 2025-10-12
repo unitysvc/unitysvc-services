@@ -10,7 +10,7 @@ from unitysvc_services.models.base import (
     ServiceTypeEnum,
     TagEnum,
     UpstreamStatusEnum,
-    validate_name_with_slashes,
+    validate_name,
 )
 
 
@@ -84,4 +84,4 @@ class ServiceV1(BaseModel):
     @classmethod
     def validate_name_format(cls, v: str) -> str:
         """Validate that service name uses valid identifiers (allows slashes for hierarchical names)."""
-        return validate_name_with_slashes(v, "service")
+        return validate_name(v, "service", allow_slash=True)
