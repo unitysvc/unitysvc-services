@@ -219,12 +219,14 @@ class DataValidator:
         Returns:
             List of validation error messages
         """
+        from pydantic import BaseModel
+
         from unitysvc_services.models import ListingV1, ProviderV1, SellerV1, ServiceV1
 
         errors: list[str] = []
 
         # Map schema names to Pydantic model classes
-        model_map = {
+        model_map: dict[str, type[BaseModel]] = {
             "provider_v1": ProviderV1,
             "seller_v1": SellerV1,
             "service_v1": ServiceV1,
@@ -402,15 +404,10 @@ class DataValidator:
 
         for provider_file in provider_files:
             try:
-                # Load provider data
-                data = {}
-                if provider_file.suffix == ".json":
-                    with open(provider_file, encoding="utf-8") as f:
-                        data = json.load(f)
-                elif provider_file.suffix == ".toml":
-                    with open(provider_file, "rb") as f:
-                        data = toml.load(f)
-                else:
+                # Load provider data using existing helper method
+                data, load_errors = self.load_data_file(provider_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load provider file {provider_file}: {load_errors}")
                     continue
 
                 # Parse as ProviderV1
@@ -452,15 +449,10 @@ class DataValidator:
 
         for seller_file in seller_files:
             try:
-                # Load seller data
-                data = {}
-                if seller_file.suffix == ".json":
-                    with open(seller_file, encoding="utf-8") as f:
-                        data = json.load(f)
-                elif seller_file.suffix == ".toml":
-                    with open(seller_file, "rb") as f:
-                        data = toml.load(f)
-                else:
+                # Load seller data using existing helper method
+                data, load_errors = self.load_data_file(seller_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load seller file {seller_file}: {load_errors}")
                     continue
 
                 # Parse as SellerV1

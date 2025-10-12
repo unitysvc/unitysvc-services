@@ -454,10 +454,7 @@ def validate_name_with_slashes(name: str, entity_type: str, display_name: str | 
 
     # Check for consecutive slashes
     if "//" in name:
-        raise ValueError(
-            f"Invalid {entity_type} name '{name}'. "
-            f"Name cannot contain consecutive slashes."
-        )
+        raise ValueError(f"Invalid {entity_type} name '{name}'. Name cannot contain consecutive slashes.")
 
     if not re.match(name_pattern, name):
         # Build helpful error message
