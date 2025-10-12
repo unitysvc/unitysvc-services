@@ -343,6 +343,7 @@
       "description": "Provider status enum.",
       "enum": [
         "active",
+        "pending",
         "disabled",
         "incomplete"
       ],
@@ -789,6 +790,20 @@
       ],
       "default": null,
       "title": "Description"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable provider name (e.g., 'Amazon Bedrock', 'Fireworks.ai')",
+      "title": "Display Name"
     },
     "documents": {
       "anyOf": [

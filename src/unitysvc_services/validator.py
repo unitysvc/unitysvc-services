@@ -205,6 +205,54 @@ class DataValidator:
         normalized = normalized.strip("-")
         return normalized
 
+    def validate_with_pydantic_model(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """
+        Validate data using Pydantic models for additional validation rules.
+
+        This complements JSON schema validation with Pydantic field validators
+        like name format validation.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'provider_v1', 'seller_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        from pydantic import BaseModel
+
+        from unitysvc_services.models import ListingV1, ProviderV1, SellerV1, ServiceV1
+
+        errors: list[str] = []
+
+        # Map schema names to Pydantic model classes
+        model_map: dict[str, type[BaseModel]] = {
+            "provider_v1": ProviderV1,
+            "seller_v1": SellerV1,
+            "service_v1": ServiceV1,
+            "listing_v1": ListingV1,
+        }
+
+        if schema_name not in model_map:
+            return errors  # No Pydantic model for this schema
+
+        model_class = model_map[schema_name]
+
+        try:
+            # Validate using the Pydantic model
+            model_class.model_validate(data)
+
+        except Exception as e:
+            # Extract meaningful error message from Pydantic ValidationError
+            error_msg = str(e)
+            # Pydantic errors can be verbose, try to extract just the relevant part
+            if "validation error" in error_msg.lower():
+                errors.append(f"Pydantic validation error: {error_msg}")
+            else:
+                errors.append(error_msg)
+
+        return errors
+
     def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
         """Load data from JSON or TOML file."""
         errors: list[str] = []
@@ -259,6 +307,10 @@ class DataValidator:
         except Exception as e:
             errors.append(f"Validation error: {e}")
 
+        # Also validate using Pydantic models for additional validation rules
+        pydantic_errors = self.validate_with_pydantic_model(data, schema_name)
+        errors.extend(pydantic_errors)
+
         # Find Union[str, HttpUrl] fields and validate file references
         union_fields = self.find_union_fields(schema)
         file_ref_errors = self.validate_file_references(data, file_path, union_fields)
@@ -308,6 +360,10 @@ class DataValidator:
 
         # Find all data files with seller_v1 schema
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml"]:
                 try:
                     data, load_errors = self.load_data_file(file_path)
@@ -341,20 +397,17 @@ class DataValidator:
 
         warnings: list[str] = []
 
-        # Find all provider files
-        provider_files = list(self.data_dir.glob("*/provider.*"))
+        # Find all provider files (skip hidden directories)
+        provider_files = [
+            f for f in self.data_dir.glob("*/provider.*") if not any(part.startswith(".") for part in f.parts)
+        ]
 
         for provider_file in provider_files:
             try:
-                # Load provider data
-                data = {}
-                if provider_file.suffix == ".json":
-                    with open(provider_file, encoding="utf-8") as f:
-                        data = json.load(f)
-                elif provider_file.suffix == ".toml":
-                    with open(provider_file, "rb") as f:
-                        data = toml.load(f)
-                else:
+                # Load provider data using existing helper method
+                data, load_errors = self.load_data_file(provider_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load provider file {provider_file}: {load_errors}")
                     continue
 
                 # Parse as ProviderV1
@@ -391,20 +444,15 @@ class DataValidator:
 
         warnings: list[str] = []
 
-        # Find all seller files
-        seller_files = list(self.data_dir.glob("seller.*"))
+        # Find all seller files (skip hidden files)
+        seller_files = [f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")]
 
         for seller_file in seller_files:
             try:
-                # Load seller data
-                data = {}
-                if seller_file.suffix == ".json":
-                    with open(seller_file, encoding="utf-8") as f:
-                        data = json.load(f)
-                elif seller_file.suffix == ".toml":
-                    with open(seller_file, "rb") as f:
-                        data = toml.load(f)
-                else:
+                # Load seller data using existing helper method
+                data, load_errors = self.load_data_file(seller_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load seller file {seller_file}: {load_errors}")
                     continue
 
                 # Parse as SellerV1
@@ -448,8 +496,12 @@ class DataValidator:
                 provider_warnings,
             )  # Warnings, not errors
 
-        # Find all data and MD files recursively
+        # Find all data and MD files recursively, skipping hidden directories
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml", ".md"]:
                 relative_path = file_path.relative_to(self.data_dir)
 
@@ -560,6 +612,10 @@ class DataValidator:
 
         for pattern in ["*.json", "*.toml"]:
             for file_path in data_dir.rglob(pattern):
+                # Skip hidden directories (those starting with .)
+                if any(part.startswith(".") for part in file_path.parts):
+                    continue
+
                 try:
                     data, load_errors = self.load_data_file(file_path)
                     if load_errors or data is None:

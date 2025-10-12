@@ -1,3 +1,4 @@
+import re
 from enum import StrEnum
 from typing import Any
 
@@ -210,6 +211,7 @@ class ProviderStatusEnum(StrEnum):
     """Provider status enum."""
 
     active = "active"
+    pending = "pending"
     disabled = "disabled"
     incomplete = "incomplete"  # Provider information is incomplete
 
@@ -218,6 +220,7 @@ class SellerStatusEnum(StrEnum):
     """Seller status enum."""
 
     active = "active"
+    pending = "pending"
     disabled = "disabled"
     incomplete = "incomplete"  # Seller information is incomplete
 
@@ -366,3 +369,123 @@ class Pricing(BaseModel):
 
     # Optional reference to upstream pricing
     reference: str | None = Field(default=None, description="Reference URL to upstream pricing")
+
+
+def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:
+    """
+    Validate that a name field uses valid identifiers.
+
+    Name format rules:
+    - Only letters (upper/lowercase), numbers, dots, dashes, and underscores allowed
+    - If allow_slash=True, slashes are also allowed for hierarchical names
+    - Must start and end with alphanumeric characters (not special characters)
+    - Cannot have consecutive slashes (when allow_slash=True)
+    - Cannot be empty
+
+    Args:
+        name: The name value to validate
+        entity_type: Type of entity (provider, seller, service, listing) for error messages
+        display_name: Optional display name to suggest a valid name from
+        allow_slash: Whether to allow slashes for hierarchical names (default: False)
+
+    Returns:
+        The validated name (unchanged if valid)
+
+    Raises:
+        ValueError: If the name doesn't match the required pattern
+
+    Examples:
+        Without slashes (providers, sellers):
+            - name='amazon-bedrock' or name='Amazon-Bedrock'
+            - name='fireworks.ai' or name='Fireworks.ai'
+            - name='llama-3.1' or name='Llama-3.1'
+
+        With slashes (services, listings):
+            - name='gpt-4' or name='GPT-4'
+            - name='models/gpt-4' or name='models/GPT-4'
+            - name='black-forest-labs/FLUX.1-dev'
+            - name='api/v1/completion'
+    """
+    # Build pattern based on allow_slash parameter
+    if allow_slash:
+        # Pattern: starts with alphanumeric, can contain alphanumeric/dot/dash/underscore/slash, ends with alphanumeric
+        name_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9._/-]*[a-zA-Z0-9])?$"
+        allowed_chars = "letters, numbers, dots, dashes, underscores, and slashes"
+    else:
+        # Pattern: starts with alphanumeric, can contain alphanumeric/dot/dash/underscore, ends with alphanumeric
+        name_pattern = r"^[a-zA-Z0-9]([a-zA-Z0-9._-]*[a-zA-Z0-9])?$"
+        allowed_chars = "letters, numbers, dots, dashes, and underscores"
+
+    # Check for consecutive slashes if slashes are allowed
+    if allow_slash and "//" in name:
+        raise ValueError(f"Invalid {entity_type} name '{name}'. Name cannot contain consecutive slashes.")
+
+    if not re.match(name_pattern, name):
+        # Build helpful error message
+        error_msg = (
+            f"Invalid {entity_type} name '{name}'. "
+            f"Name must contain only {allowed_chars}. "
+            f"It must start and end with an alphanumeric character.\n"
+        )
+
+        # Suggest a valid name based on display_name if available
+        if display_name:
+            suggested_name = suggest_valid_name(display_name, allow_slash=allow_slash)
+            if suggested_name and suggested_name != name:
+                error_msg += f"  Suggestion: Set name='{suggested_name}' and display_name='{display_name}'\n"
+
+        # Add appropriate examples based on allow_slash
+        if allow_slash:
+            error_msg += (
+                "  Examples:\n"
+                "    - name='gpt-4' or name='GPT-4'\n"
+                "    - name='models/gpt-4' or name='models/GPT-4'\n"
+                "    - name='black-forest-labs/FLUX.1-dev'\n"
+                "    - name='api/v1/completion'"
+            )
+        else:
+            error_msg += (
+                "  Note: Use 'display_name' field for brand names with spaces and special characters.\n"
+                "  Examples:\n"
+                "    - name='amazon-bedrock' or name='Amazon-Bedrock'\n"
+                "    - name='fireworks.ai' or name='Fireworks.ai'\n"
+                "    - name='llama-3.1' or name='Llama-3.1'"
+            )
+
+        raise ValueError(error_msg)
+
+    return name
+
+
+def suggest_valid_name(display_name: str, *, allow_slash: bool = False) -> str:
+    """
+    Suggest a valid name based on a display name.
+
+    Replaces invalid characters with hyphens and ensures it follows the naming rules.
+    Preserves the original case.
+
+    Args:
+        display_name: The display name to convert
+        allow_slash: Whether to allow slashes for hierarchical names (default: False)
+
+    Returns:
+        A suggested valid name
+    """
+    if allow_slash:
+        # Replace characters that aren't alphanumeric, dot, dash, underscore, or slash with hyphens
+        suggested = re.sub(r"[^a-zA-Z0-9._/-]+", "-", display_name)
+        # Remove leading/trailing special characters
+        suggested = suggested.strip("._/-")
+        # Collapse multiple consecutive dashes
+        suggested = re.sub(r"-+", "-", suggested)
+        # Remove consecutive slashes
+        suggested = re.sub(r"/+", "/", suggested)
+    else:
+        # Replace characters that aren't alphanumeric, dot, dash, or underscore with hyphens
+        suggested = re.sub(r"[^a-zA-Z0-9._-]+", "-", display_name)
+        # Remove leading/trailing dots, dashes, or underscores
+        suggested = suggested.strip("._-")
+        # Collapse multiple consecutive dashes
+        suggested = re.sub(r"-+", "-", suggested)
+
+    return suggested
