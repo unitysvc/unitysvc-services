@@ -97,6 +97,65 @@ class ServiceDataPublisher:
 
         return result
 
+    async def _poll_task_status(
+        self,
+        task_id: str,
+        entity_type: str,
+        entity_name: str,
+        context_info: str = "",
+        poll_interval: float = 2.0,
+        timeout: float = 300.0,
+    ) -> dict[str, Any]:
+        """
+        Poll task status until completion or timeout.
+
+        Args:
+            task_id: Celery task ID
+            entity_type: Type of entity being published (for error messages)
+            entity_name: Name of the entity being published (for error messages)
+            context_info: Additional context for error messages
+            poll_interval: Seconds between status checks
+            timeout: Maximum seconds to wait
+
+        Returns:
+            Task result dictionary
+
+        Raises:
+            ValueError: If task fails or times out
+        """
+        start_time = asyncio.get_event_loop().time()
+
+        while True:
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed > timeout:
+                context_msg = f" ({context_info})" if context_info else ""
+                raise ValueError(f"Task timed out after {timeout}s for {entity_type} '{entity_name}'{context_msg}")
+
+            # Check task status
+            try:
+                response = await self.async_client.get(f"{self.base_url}/tasks/{task_id}")
+                response.raise_for_status()
+                status = response.json()
+            except (httpx.HTTPError, httpx.NetworkError, httpx.TimeoutException):
+                # Network error while checking status - retry
+                await asyncio.sleep(poll_interval)
+                continue
+
+            state = status.get("state", "PENDING")
+
+            # Check if task is complete
+            if status.get("status") == "completed" or state == "SUCCESS":
+                # Task succeeded
+                return status.get("result", {})
+            elif status.get("status") == "failed" or state == "FAILURE":
+                # Task failed
+                error = status.get("error", "Unknown error")
+                context_msg = f" ({context_info})" if context_info else ""
+                raise ValueError(f"Task failed for {entity_type} '{entity_name}'{context_msg}: {error}")
+
+            # Still processing - wait and retry
+            await asyncio.sleep(poll_interval)
+
     async def _post_with_retry(
         self,
         endpoint: str,
@@ -107,7 +166,13 @@ class ServiceDataPublisher:
         max_retries: int = 3,
     ) -> dict[str, Any]:
         """
-        Generic retry wrapper for posting data to backend API.
+        Generic retry wrapper for posting data to backend API with task polling.
+
+        The backend now returns HTTP 202 with a task_id. This method:
+        1. Submits the publish request
+        2. Gets the task_id from the response
+        3. Polls /tasks/{task_id} until completion
+        4. Returns the final result
 
         Args:
             endpoint: API endpoint path (e.g., "/publish/listing")
@@ -130,6 +195,25 @@ class ServiceDataPublisher:
                     f"{self.base_url}{endpoint}",
                     json=data,
                 )
+
+                # Handle task-based response (HTTP 202)
+                if response.status_code == 202:
+                    # Backend returns task_id - poll for completion
+                    response_data = response.json()
+                    task_id = response_data.get("task_id")
+
+                    if not task_id:
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(f"No task_id in response for {entity_type} '{entity_name}'{context_msg}")
+
+                    # Poll task status until completion
+                    result = await self._poll_task_status(
+                        task_id=task_id,
+                        entity_type=entity_type,
+                        entity_name=entity_name,
+                        context_info=context_info,
+                    )
+                    return result
 
                 # Provide detailed error information if request fails
                 if not response.is_success:
@@ -167,6 +251,7 @@ class ServiceDataPublisher:
                             f"'{entity_name}'{context_msg}: {error_detail}"
                         )
 
+                # For non-202 success responses, return the body
                 return response.json()
 
             except (httpx.NetworkError, httpx.TimeoutException) as e:
