@@ -123,10 +123,12 @@ class ServiceDataPublisher:
         Raises:
             ValueError: If task fails or times out
         """
-        start_time = asyncio.get_event_loop().time()
+        import time
+
+        start_time = time.time()
 
         while True:
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = time.time() - start_time
             if elapsed > timeout:
                 context_msg = f" ({context_info})" if context_info else ""
                 raise ValueError(f"Task timed out after {timeout}s for {entity_type} '{entity_name}'{context_msg}")
@@ -563,7 +565,7 @@ class ServiceDataPublisher:
                 console.print(f"  [red]✗[/red] Failed to publish offering: [cyan]{offering_name}[/cyan] - {str(e)}")
                 return (offering_file, e)
 
-    def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
+    async def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all service offerings found in a directory tree concurrently.
 
@@ -595,14 +597,10 @@ class ServiceDataPublisher:
         console = Console()
 
         # Run all offering publications concurrently with rate limiting
-        async def _publish_all() -> list[tuple[Path, dict[str, Any] | Exception]]:
-            # Create semaphore to limit concurrent requests
-            semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-            tasks = [self._publish_offering_task(offering_file, console, semaphore) for offering_file in offering_files]
-            return await asyncio.gather(*tasks)
-
-        # Execute async tasks
-        task_results = asyncio.run(_publish_all())
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_offering_task(offering_file, console, semaphore) for offering_file in offering_files]
+        task_results = await asyncio.gather(*tasks)
 
         # Process results
         for offering_file, result in task_results:
@@ -650,7 +648,7 @@ class ServiceDataPublisher:
                 console.print(f"  [red]✗[/red] Failed to publish listing: [cyan]{listing_file}[/cyan] - {str(e)}")
                 return (listing_file, e)
 
-    def publish_all_listings(self, data_dir: Path) -> dict[str, Any]:
+    async def publish_all_listings(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all service listings found in a directory tree concurrently.
 
@@ -682,14 +680,10 @@ class ServiceDataPublisher:
         console = Console()
 
         # Run all listing publications concurrently with rate limiting
-        async def _publish_all() -> list[tuple[Path, dict[str, Any] | Exception]]:
-            # Create semaphore to limit concurrent requests
-            semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-            tasks = [self._publish_listing_task(listing_file, console, semaphore) for listing_file in listing_files]
-            return await asyncio.gather(*tasks)
-
-        # Execute async tasks
-        task_results = asyncio.run(_publish_all())
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_listing_task(listing_file, console, semaphore) for listing_file in listing_files]
+        task_results = await asyncio.gather(*tasks)
 
         # Process results
         for listing_file, result in task_results:
@@ -732,7 +726,7 @@ class ServiceDataPublisher:
                 console.print(f"  [red]✗[/red] Failed to publish provider: [cyan]{provider_name}[/cyan] - {str(e)}")
                 return (provider_file, e)
 
-    def publish_all_providers(self, data_dir: Path) -> dict[str, Any]:
+    async def publish_all_providers(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all providers found in a directory tree concurrently.
 
@@ -752,14 +746,10 @@ class ServiceDataPublisher:
         console = Console()
 
         # Run all provider publications concurrently with rate limiting
-        async def _publish_all() -> list[tuple[Path, dict[str, Any] | Exception]]:
-            # Create semaphore to limit concurrent requests
-            semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-            tasks = [self._publish_provider_task(provider_file, console, semaphore) for provider_file in provider_files]
-            return await asyncio.gather(*tasks)
-
-        # Execute async tasks
-        task_results = asyncio.run(_publish_all())
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_provider_task(provider_file, console, semaphore) for provider_file in provider_files]
+        task_results = await asyncio.gather(*tasks)
 
         # Process results
         for provider_file, result in task_results:
@@ -802,7 +792,7 @@ class ServiceDataPublisher:
                 console.print(f"  [red]✗[/red] Failed to publish seller: [cyan]{seller_name}[/cyan] - {str(e)}")
                 return (seller_file, e)
 
-    def publish_all_sellers(self, data_dir: Path) -> dict[str, Any]:
+    async def publish_all_sellers(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all sellers found in a directory tree concurrently.
 
@@ -822,14 +812,10 @@ class ServiceDataPublisher:
         console = Console()
 
         # Run all seller publications concurrently with rate limiting
-        async def _publish_all() -> list[tuple[Path, dict[str, Any] | Exception]]:
-            # Create semaphore to limit concurrent requests
-            semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-            tasks = [self._publish_seller_task(seller_file, console, semaphore) for seller_file in seller_files]
-            return await asyncio.gather(*tasks)
-
-        # Execute async tasks
-        task_results = asyncio.run(_publish_all())
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_seller_task(seller_file, console, semaphore) for seller_file in seller_files]
+        task_results = await asyncio.gather(*tasks)
 
         # Process results
         for seller_file, result in task_results:
@@ -841,7 +827,7 @@ class ServiceDataPublisher:
 
         return results
 
-    def publish_all_models(self, data_dir: Path) -> dict[str, Any]:
+    async def publish_all_models(self, data_dir: Path) -> dict[str, Any]:
         """
         Publish all data types in the correct order.
 
@@ -873,7 +859,7 @@ class ServiceDataPublisher:
 
         for data_type, publish_method in publish_order:
             try:
-                results = publish_method(data_dir)
+                results = await publish_method(data_dir)
                 all_results[data_type] = results
                 all_results["total_success"] += results["success"]
                 all_results["total_failed"] += results["failed"]
@@ -890,9 +876,25 @@ class ServiceDataPublisher:
 
         return all_results
 
+    async def aclose(self):
+        """Close HTTP client asynchronously."""
+        await self.async_client.aclose()
+
     def close(self):
-        """Close HTTP client."""
-        asyncio.run(self.async_client.aclose())
+        """Close HTTP client synchronously (best effort)."""
+        try:
+            # Try to close if there's an event loop running
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # Can't close synchronously if loop is running
+                # The client will be garbage collected
+                return
+            else:
+                # Loop exists but not running, we can use it
+                loop.run_until_complete(self.async_client.aclose())
+        except RuntimeError:
+            # No event loop or loop is closed - just let it be garbage collected
+            pass
 
     def __enter__(self):
         """Context manager entry."""
@@ -955,8 +957,8 @@ def publish_callback(
 
     try:
         with ServiceDataPublisher() as publisher:
-            # Call the publish_all_models method
-            all_results = publisher.publish_all_models(data_path)
+            # Call the publish_all_models method (now async)
+            all_results = asyncio.run(publisher.publish_all_models(data_path))
 
             # Display results for each data type
             data_type_display_names = {
@@ -1050,7 +1052,7 @@ def publish_providers(
             else:
                 console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = publisher.publish_all_providers(data_path)
+                results = asyncio.run(publisher.publish_all_providers(data_path))
 
                 # Display summary
                 console.print("\n[bold]Publishing Summary:[/bold]")
@@ -1109,7 +1111,7 @@ def publish_sellers(
             else:
                 console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = publisher.publish_all_sellers(data_path)
+                results = asyncio.run(publisher.publish_all_sellers(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")
@@ -1165,8 +1167,8 @@ def publish_offerings(
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = publisher.publish_all_offerings(data_path)
+                console.print(f"[blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                results = asyncio.run(publisher.publish_all_offerings(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")
@@ -1224,7 +1226,7 @@ def publish_listings(
             else:
                 console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
                 console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = publisher.publish_all_listings(data_path)
+                results = asyncio.run(publisher.publish_all_listings(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")
