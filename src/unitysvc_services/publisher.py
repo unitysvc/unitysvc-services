@@ -13,8 +13,7 @@ import typer
 from rich.console import Console
 
 from .models.base import ProviderStatusEnum, SellerStatusEnum
-from .utils import (convert_convenience_fields_to_documents,
-                    find_files_by_schema)
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema
 from .validator import DataValidator
 
 
@@ -36,7 +35,7 @@ class ServiceDataPublisher:
                 "X-API-Key": self.api_key,
                 "Content-Type": "application/json",
             },
-            timeout=300.0,  # Increased from 30.0 to 300.0 for task polling
+            timeout=30.0,
         )
         # Semaphore to limit concurrent requests and prevent connection pool exhaustion
         self.max_concurrent_requests = 15

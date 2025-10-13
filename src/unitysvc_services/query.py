@@ -2,7 +2,6 @@
 
 import json
 import os
-import subprocess
 from typing import Any
 
 import httpx
@@ -32,59 +31,13 @@ class ServiceDataQuery:
             raise ValueError("UNITYSVC_API_KEY environment variable not set")
 
         self.base_url = self.base_url.rstrip("/")
-
-        # SSL verification - can be disabled with UNITYSVC_VERIFY_SSL=false
-        verify_ssl = os.environ.get("UNITYSVC_VERIFY_SSL", "true").lower() != "false"
-
-        # Force curl fallback if UNITYSVC_USE_CURL is set
-        self.use_curl = os.environ.get("UNITYSVC_USE_CURL", "false").lower() == "true"
-
-        if not self.use_curl:
-            self.client = httpx.Client(
-                headers={
-                    "X-API-Key": self.api_key,
-                    "Content-Type": "application/json",
-                },
-                timeout=30.0,
-                verify=verify_ssl,
-                follow_redirects=True,
-            )
-        else:
-            self.client = None
-
-    def _curl_request(self, url: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Make a request using curl subprocess as a fallback.
-
-        Args:
-            url: The full URL to request
-            params: Query parameters
-
-        Returns:
-            The JSON response
-
-        Raises:
-            ConnectionError: If the curl request fails
-        """
-        # Build query string
-        if params:
-            query_parts = [f"{k}={v}" for k, v in params.items()]
-            url = f"{url}?{'&'.join(query_parts)}"
-
-        try:
-            result = subprocess.run(
-                ["curl", "-X", "GET", url, "-H", "accept: application/json", "-H", f"X-API-Key: {self.api_key}", "-s"],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                check=True,
-            )
-            return json.loads(result.stdout)
-        except subprocess.CalledProcessError as e:
-            raise ConnectionError(f"Curl request failed: {e.stderr}") from e
-        except subprocess.TimeoutExpired as e:
-            raise ConnectionError("Curl request timed out") from e
-        except json.JSONDecodeError as e:
-            raise ConnectionError(f"Invalid JSON response: {result.stdout}") from e
+        self.client = httpx.Client(
+            headers={
+                "X-API-Key": self.api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=30.0,
+        )
 
     def list_service_offerings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         """List all service offerings from the backend.
@@ -93,19 +46,10 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        url = f"{self.base_url}/publish/offerings"
-
-        if self.use_curl:
-            result = self._curl_request(url, {"skip": skip, "limit": limit})
-            return result.get("data", result) if isinstance(result, dict) else result
-
-        try:
-            response = self.client.get(url, params={"skip": skip, "limit": limit})
-            response.raise_for_status()
-            result = response.json()
-            return result.get("data", result) if isinstance(result, dict) else result
-        except httpx.ConnectError as e:
-            raise ConnectionError(f"Failed to connect to {url}: {e}") from e
+        response = self.client.get(f"{self.base_url}/publish/offerings", params={"skip": skip, "limit": limit})
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
 
     def list_service_listings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         """List all service listings from the backend.
@@ -114,19 +58,10 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        url = f"{self.base_url}/publish/listings"
-
-        if self.use_curl:
-            result = self._curl_request(url, {"skip": skip, "limit": limit})
-            return result.get("data", result) if isinstance(result, dict) else result
-
-        try:
-            response = self.client.get(url, params={"skip": skip, "limit": limit})
-            response.raise_for_status()
-            result = response.json()
-            return result.get("data", result) if isinstance(result, dict) else result
-        except httpx.ConnectError as e:
-            raise ConnectionError(f"Failed to connect to {url}: {e}") from e
+        response = self.client.get(f"{self.base_url}/publish/listings", params={"skip": skip, "limit": limit})
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
 
     def list_providers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         """List all providers from the backend.
@@ -135,19 +70,10 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        url = f"{self.base_url}/publish/providers"
-
-        if self.use_curl:
-            result = self._curl_request(url, {"skip": skip, "limit": limit})
-            return result.get("data", result) if isinstance(result, dict) else result
-
-        try:
-            response = self.client.get(url, params={"skip": skip, "limit": limit})
-            response.raise_for_status()
-            result = response.json()
-            return result.get("data", result) if isinstance(result, dict) else result
-        except httpx.ConnectError as e:
-            raise ConnectionError(f"Failed to connect to {url}: {e}") from e
+        response = self.client.get(f"{self.base_url}/publish/providers", params={"skip": skip, "limit": limit})
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
 
     def list_sellers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
         """List all sellers from the backend.
@@ -156,24 +82,14 @@ class ServiceDataQuery:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
         """
-        url = f"{self.base_url}/publish/sellers"
-
-        if self.use_curl:
-            result = self._curl_request(url, {"skip": skip, "limit": limit})
-            return result.get("data", result) if isinstance(result, dict) else result
-
-        try:
-            response = self.client.get(url, params={"skip": skip, "limit": limit})
-            response.raise_for_status()
-            result = response.json()
-            return result.get("data", result) if isinstance(result, dict) else result
-        except httpx.ConnectError as e:
-            raise ConnectionError(f"Failed to connect to {url}: {e}") from e
+        response = self.client.get(f"{self.base_url}/publish/sellers", params={"skip": skip, "limit": limit})
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
 
     def close(self):
         """Close the HTTP client."""
-        if self.client:
-            self.client.close()
+        self.client.close()
 
     def __enter__(self):
         """Context manager entry."""
