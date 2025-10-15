@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import Document, SellerTypeEnum
+from unitysvc_services.models.base import Document, SellerStatusEnum, SellerTypeEnum, validate_name
 
 
 class SellerV1(BaseModel):
@@ -98,13 +98,19 @@ class SellerV1(BaseModel):
     # fields for business operation purposes
     #
 
-    # Status flags - these would typically be set by the backend
-    is_active: bool = Field(
-        default=True,
-        description="Whether the seller is active on the marketplace",
+    # Status field to track seller state
+    status: SellerStatusEnum = Field(
+        default=SellerStatusEnum.active,
+        description="Seller status: active, disabled, or incomplete",
     )
 
     is_verified: bool = Field(
         default=False,
         description="Whether the seller has been verified (KYC/business verification)",
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_format(cls, v: str) -> str:
+        """Validate that seller name uses URL-safe identifiers."""
+        return validate_name(v, "seller", allow_slash=False)

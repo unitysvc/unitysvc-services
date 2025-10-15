@@ -1,6 +1,9 @@
 """Data publisher module for posting service data to UnitySVC backend."""
 
+import asyncio
+import base64
 import json
+import os
 import tomllib as toml
 from pathlib import Path
 from typing import Any
@@ -9,26 +12,25 @@ import httpx
 import typer
 from rich.console import Console
 
+from .api import UnitySvcAPI
+from .models.base import ProviderStatusEnum, SellerStatusEnum
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema
+from .validator import DataValidator
 
-class DataValidationError(Exception):
-    """Exception raised when data validation fails."""
 
-    pass
+class ServiceDataPublisher(UnitySvcAPI):
+    """Publishes service data to UnitySVC backend endpoints.
 
+    Inherits base HTTP client with curl fallback from UnitySvcAPI.
+    Extends with async operations for concurrent publishing.
+    """
 
-class ServiceDataPublisher:
-    """Publishes service data to UnitySVC backend endpoints."""
+    def __init__(self) -> None:
+        # Initialize base class (provides self.client as AsyncClient with curl fallback)
+        super().__init__()
 
-    def __init__(self, base_url: str, api_key: str):
-        self.base_url = base_url.rstrip("/")
-        self.api_key = api_key
-        self.client = httpx.Client(
-            headers={
-                "X-API-Key": api_key,
-                "Content-Type": "application/json",
-            },
-            timeout=30.0,
-        )
+        # Semaphore to limit concurrent requests and prevent connection pool exhaustion
+        self.max_concurrent_requests = 15
 
     def load_data_file(self, file_path: Path) -> dict[str, Any]:
         """Load data from JSON or TOML file."""
@@ -54,90 +56,8 @@ class ServiceDataPublisher:
                 return f.read()
         except UnicodeDecodeError:
             # If it fails, read as binary and encode as base64
-            import base64
-
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
-
-    def validate_directory_data(self, directory: Path) -> None:
-        """Validate data files in a directory for consistency.
-
-        Validation rules:
-        1. All service_v1 files in same directory must have unique names
-        2. All listing_v1 files must reference a service name that exists in the same directory
-        3. If service_name is defined in listing_v1, it must match a service in the directory
-
-        Args:
-            directory: Directory containing data files to validate
-
-        Raises:
-            DataValidationError: If validation fails
-        """
-        # Find all JSON and TOML files in the directory (not recursive)
-        data_files: list[Path] = []
-        for pattern in ["*.json", "*.toml"]:
-            data_files.extend(directory.glob(pattern))
-
-        # Load all files and categorize by schema
-        services: dict[str, Path] = {}  # name -> file_path
-        listings: list[tuple[Path, dict[str, Any]]] = []  # list of (file_path, data)
-
-        for file_path in data_files:
-            try:
-                data = self.load_data_file(file_path)
-                schema = data.get("schema")
-
-                if schema == "service_v1":
-                    service_name = data.get("name")
-                    if not service_name:
-                        raise DataValidationError(f"Service file {file_path} missing 'name' field")
-
-                    # Check for duplicate service names in same directory
-                    if service_name in services:
-                        raise DataValidationError(
-                            f"Duplicate service name '{service_name}' found in directory {directory}:\n"
-                            f"  - {services[service_name]}\n"
-                            f"  - {file_path}"
-                        )
-
-                    services[service_name] = file_path
-
-                elif schema == "listing_v1":
-                    listings.append((file_path, data))
-
-            except Exception as e:
-                # Skip files that can't be loaded or don't have schema
-                if isinstance(e, DataValidationError):
-                    raise
-                continue
-
-        # Validate listings reference valid services
-        for listing_file, listing_data in listings:
-            service_name = listing_data.get("service_name")
-
-            if service_name:
-                # If service_name is explicitly defined, it must match a service in the directory
-                if service_name not in services:
-                    available_services = ", ".join(services.keys()) if services else "none"
-                    raise DataValidationError(
-                        f"Listing file {listing_file} references service_name '{service_name}' "
-                        f"which does not exist in the same directory.\n"
-                        f"Available services: {available_services}"
-                    )
-            else:
-                # If service_name not defined, there should be exactly one service in the directory
-                if len(services) == 0:
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"and no service files found in the same directory."
-                    )
-                elif len(services) > 1:
-                    available_services = ", ".join(services.keys())
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"but multiple services exist in the same directory: {available_services}. "
-                        f"Please add 'service_name' field to the listing to specify which service it belongs to."
-                    )
 
     def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
         """Recursively resolve file references and include content in data."""
@@ -169,17 +89,282 @@ class ServiceDataPublisher:
 
         return result
 
-    def post_service_offering(self, data_file: Path) -> dict[str, Any]:
-        """Post service offering data to the backend.
+    async def post(  # type: ignore[override]
+        self, endpoint: str, data: dict[str, Any], check_status: bool = True
+    ) -> tuple[dict[str, Any], int]:
+        """Make a POST request to the backend API with automatic curl fallback.
 
-        Extracts provider_name from the directory structure.
-        Expected path: .../{provider_name}/services/{service_name}/...
+        Override of base class post() that returns both JSON and status code.
+        Uses base class client with automatic curl fallback.
+
+        Args:
+            endpoint: API endpoint path (e.g., "/publish/seller")
+            data: JSON data to post
+            check_status: Whether to raise on non-2xx status codes (default: True)
+
+        Returns:
+            Tuple of (JSON response, HTTP status code)
+
+        Raises:
+            RuntimeError: If both httpx and curl fail
         """
+        # Use base class client (self.client from UnitySvcQuery) with automatic curl fallback
+        # If we already know curl is needed, use it directly
+        if self.use_curl_fallback:
+            # Use base class curl fallback method
+            response_json = await super().post(endpoint, json_data=data)
+            # Curl POST doesn't return status code separately, assume 2xx if no exception
+            status_code = 200
+        else:
+            try:
+                response = await self.client.post(f"{self.base_url}{endpoint}", json=data)
+                status_code = response.status_code
+
+                if check_status:
+                    response.raise_for_status()
+
+                response_json = response.json()
+            except (httpx.ConnectError, OSError):
+                # Connection failed - switch to curl fallback and retry
+                self.use_curl_fallback = True
+                response_json = await super().post(endpoint, json_data=data)
+                status_code = 200  # Assume success if curl didn't raise
+
+        return (response_json, status_code)
+
+    async def _post_with_retry(
+        self,
+        endpoint: str,
+        data: dict[str, Any],
+        entity_type: str,
+        entity_name: str,
+        context_info: str = "",
+        max_retries: int = 3,
+    ) -> dict[str, Any]:
+        """
+        Generic retry wrapper for posting data to backend API with task polling.
+
+        The backend now returns HTTP 202 with a task_id. This method:
+        1. Submits the publish request
+        2. Gets the task_id from the response
+        3. Polls /tasks/{task_id} until completion
+        4. Returns the final result
+
+        Args:
+            endpoint: API endpoint path (e.g., "/publish/listing")
+            data: JSON data to post
+            entity_type: Type of entity being published (for error messages)
+            entity_name: Name of the entity being published (for error messages)
+            context_info: Additional context for error messages (e.g., provider, service info)
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Response JSON from successful API call
+
+        Raises:
+            ValueError: On client errors (4xx) or after exhausting retries
+        """
+        last_exception = None
+        for attempt in range(max_retries):
+            try:
+                # Use the public post() method with automatic curl fallback
+                response_json, status_code = await self.post(endpoint, data, check_status=False)
+
+                # Handle task-based response (HTTP 202)
+                if status_code == 202:
+                    # Backend returns task_id - poll for completion
+                    task_id = response_json.get("task_id")
+
+                    if not task_id:
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(f"No task_id in response for {entity_type} '{entity_name}'{context_msg}")
+
+                    # Poll task status until completion using check_task utility
+                    try:
+                        result = await self.check_task(task_id)
+                        return result
+                    except ValueError as e:
+                        # Add context to task errors
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(f"Task failed for {entity_type} '{entity_name}'{context_msg}: {e}")
+
+                # Check for errors
+                if status_code >= 400:
+                    # Don't retry on 4xx errors (client errors) - they won't succeed on retry
+                    if 400 <= status_code < 500:
+                        error_detail = response_json.get("detail", str(response_json))
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(
+                            f"Failed to publish {entity_type} '{entity_name}'{context_msg}: {error_detail}"
+                        )
+
+                    # 5xx errors - retry with exponential backoff
+                    if attempt < max_retries - 1:
+                        wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        # Last attempt failed
+                        error_detail = response_json.get("detail", str(response_json))
+                        context_msg = f" ({context_info})" if context_info else ""
+                        raise ValueError(
+                            f"Failed to publish {entity_type} after {max_retries} attempts: "
+                            f"'{entity_name}'{context_msg}: {error_detail}"
+                        )
+
+                # Success response (2xx)
+                return response_json
+
+            except (httpx.NetworkError, httpx.TimeoutException, RuntimeError) as e:
+                # Network/connection errors - the post() method should have tried curl fallback
+                # If we're here, both httpx and curl failed
+                last_exception = e
+                if attempt < max_retries - 1:
+                    wait_time = 2**attempt  # Exponential backoff: 1s, 2s, 4s
+                    await asyncio.sleep(wait_time)
+                    continue
+                else:
+                    raise ValueError(
+                        f"Network error after {max_retries} attempts for {entity_type} '{entity_name}': {str(e)}"
+                    )
+
+        # Should never reach here, but just in case
+        if last_exception:
+            raise last_exception
+        raise ValueError("Unexpected error in retry logic")
+
+    async def post_service_listing_async(self, listing_file: Path, max_retries: int = 3) -> dict[str, Any]:
+        """Async version of post_service_listing for concurrent publishing with retry logic."""
+        # Load the listing data file
+        data = self.load_data_file(listing_file)
+
+        # If name is not provided, use filename (without extension)
+        if "name" not in data or not data.get("name"):
+            data["name"] = listing_file.stem
+
+        # Resolve file references and include content
+        base_path = listing_file.parent
+        data_with_content = self.resolve_file_references(data, base_path)
+
+        # Extract provider_name from directory structure
+        parts = listing_file.parts
+        try:
+            services_idx = parts.index("services")
+            provider_name = parts[services_idx - 1]
+            data_with_content["provider_name"] = provider_name
+        except (ValueError, IndexError):
+            raise ValueError(
+                f"Cannot extract provider_name from path: {listing_file}. "
+                f"Expected path to contain .../{{provider_name}}/services/..."
+            )
+
+        # If service_name is not in listing data, find it from service files in the same directory
+        if "service_name" not in data_with_content or not data_with_content["service_name"]:
+            # Find all service files in the same directory
+            service_files = find_files_by_schema(listing_file.parent, "service_v1")
+
+            if len(service_files) == 0:
+                raise ValueError(
+                    f"Cannot find any service_v1 files in {listing_file.parent}. "
+                    f"Listing files must be in the same directory as a service definition."
+                )
+            elif len(service_files) > 1:
+                service_names = [data.get("name", "unknown") for _, _, data in service_files]
+                raise ValueError(
+                    f"Multiple services found in {listing_file.parent}: {', '.join(service_names)}. "
+                    f"Please add 'service_name' field to {listing_file.name} to specify which "
+                    f"service this listing belongs to."
+                )
+            else:
+                # Exactly one service found - use it
+                _service_file, _format, service_data = service_files[0]
+                data_with_content["service_name"] = service_data.get("name")
+                data_with_content["service_version"] = service_data.get("version")
+        else:
+            # service_name is provided in listing data, find the matching service to get version
+            service_name = data_with_content["service_name"]
+            service_files = find_files_by_schema(
+                listing_file.parent, "service_v1", field_filter=(("name", service_name),)
+            )
+
+            if not service_files:
+                raise ValueError(
+                    f"Service '{service_name}' specified in {listing_file.name} not found in {listing_file.parent}."
+                )
+
+            # Get version from the found service
+            _service_file, _format, service_data = service_files[0]
+            data_with_content["service_version"] = service_data.get("version")
+
+        # Find seller_name from seller definition in the data directory
+        # Navigate up to find the data directory and look for seller file
+        data_dir = listing_file.parent
+        while data_dir.name != "data" and data_dir.parent != data_dir:
+            data_dir = data_dir.parent
+
+        if data_dir.name != "data":
+            raise ValueError(
+                f"Cannot find 'data' directory in path: {listing_file}. "
+                f"Expected path structure includes a 'data' directory."
+            )
+
+        # Look for seller file in the data directory by checking schema field
+        seller_files = find_files_by_schema(data_dir, "seller_v1")
+
+        if not seller_files:
+            raise ValueError(
+                f"Cannot find seller_v1 file in {data_dir}. A seller definition is required in the data directory."
+            )
+
+        # Should only be one seller file in the data directory
+        _seller_file, _format, seller_data = seller_files[0]
+
+        # Check seller status - skip if incomplete
+        seller_status = seller_data.get("status", SellerStatusEnum.active)
+        if seller_status == SellerStatusEnum.incomplete:
+            return {
+                "skipped": True,
+                "reason": f"Seller status is '{seller_status}' - not publishing listing to backend",
+                "name": data.get("name", "unknown"),
+            }
+
+        seller_name = seller_data.get("name")
+        if not seller_name:
+            raise ValueError("Seller data missing 'name' field")
+
+        data_with_content["seller_name"] = seller_name
+
+        # Map listing_status to status if present
+        if "listing_status" in data_with_content:
+            data_with_content["status"] = data_with_content.pop("listing_status")
+
+        # Post to the endpoint using retry helper
+        context_info = (
+            f"service: {data_with_content.get('service_name')}, "
+            f"provider: {data_with_content.get('provider_name')}, "
+            f"seller: {data_with_content.get('seller_name')}"
+        )
+        return await self._post_with_retry(
+            endpoint="/publish/listing",
+            data=data_with_content,
+            entity_type="listing",
+            entity_name=data.get("name", "unknown"),
+            context_info=context_info,
+            max_retries=max_retries,
+        )
+
+    async def post_service_offering_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
+        """Async version of post_service_offering for concurrent publishing with retry logic."""
         # Load the data file
         data = self.load_data_file(data_file)
 
         # Resolve file references and include content
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(
+            data, base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
         # Extract provider_name from directory structure
@@ -189,364 +374,168 @@ class ServiceDataPublisher:
             services_idx = parts.index("services")
             provider_name = parts[services_idx - 1]
             data_with_content["provider_name"] = provider_name
+
+            # Find provider directory to check status
+            provider_dir = Path(*parts[:services_idx])
         except (ValueError, IndexError):
             raise ValueError(
                 f"Cannot extract provider_name from path: {data_file}. "
                 f"Expected path to contain .../{{provider_name}}/services/..."
             )
 
-        # Post to the endpoint
-        response = self.client.post(
-            f"{self.base_url}/publish/service_offering",
-            json=data_with_content,
+        # Check provider status - skip if incomplete
+        provider_files = find_files_by_schema(provider_dir, "provider_v1")
+        if provider_files:
+            # Should only be one provider file in the directory
+            _provider_file, _format, provider_data = provider_files[0]
+            provider_status = provider_data.get("status", ProviderStatusEnum.active)
+            if provider_status == ProviderStatusEnum.incomplete:
+                return {
+                    "skipped": True,
+                    "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
+                    "name": data.get("name", "unknown"),
+                }
+
+        # Post to the endpoint using retry helper
+        context_info = f"provider: {data_with_content.get('provider_name')}"
+        return await self._post_with_retry(
+            endpoint="/publish/offering",
+            data=data_with_content,
+            entity_type="offering",
+            entity_name=data.get("name", "unknown"),
+            context_info=context_info,
+            max_retries=max_retries,
         )
-        response.raise_for_status()
-        return response.json()
 
-    def post_service_listing(self, data_file: Path) -> dict[str, Any]:
-        """Post service listing data to the backend.
-
-        Extracts provider_name from directory structure and service info from service.json.
-        Expected path: .../{provider_name}/services/{service_name}/svcreseller.json
-        """
-        # Load the listing data file
-        data = self.load_data_file(data_file)
-
-        # Resolve file references and include content
-        base_path = data_file.parent
-        data_with_content = self.resolve_file_references(data, base_path)
-
-        # Extract provider_name from directory structure
-        parts = data_file.parts
-        try:
-            services_idx = parts.index("services")
-            provider_name = parts[services_idx - 1]
-            data_with_content["provider_name"] = provider_name
-        except (ValueError, IndexError):
-            raise ValueError(
-                f"Cannot extract provider_name from path: {data_file}. "
-                f"Expected path to contain .../{{provider_name}}/services/..."
-            )
-
-        # If service_name is not in listing data, find it from service files in the same directory
-        if "service_name" not in data_with_content or not data_with_content["service_name"]:
-            # Find all service files in the same directory
-            service_files = []
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if file_data.get("schema") == "service_v1":
-                            service_files.append((file_path, file_data))
-                    except Exception:
-                        continue
-
-            if len(service_files) == 0:
-                raise ValueError(
-                    f"Cannot find any service_v1 files in {data_file.parent}. "
-                    f"Listing files must be in the same directory as a service definition."
-                )
-            elif len(service_files) > 1:
-                service_names = [data.get("name", "unknown") for _, data in service_files]
-                raise ValueError(
-                    f"Multiple services found in {data_file.parent}: {', '.join(service_names)}. "
-                    f"Please add 'service_name' field to {data_file.name} to specify which "
-                    f"service this listing belongs to."
-                )
-            else:
-                # Exactly one service found - use it
-                service_file, service_data = service_files[0]
-                data_with_content["service_name"] = service_data.get("name")
-                data_with_content["service_version"] = service_data.get("version")
-        else:
-            # service_name is provided in listing data, find the matching service to get version
-            service_name = data_with_content["service_name"]
-            service_found = False
-
-            for pattern in ["*.json", "*.toml"]:
-                for file_path in data_file.parent.glob(pattern):
-                    try:
-                        file_data = self.load_data_file(file_path)
-                        if file_data.get("schema") == "service_v1" and file_data.get("name") == service_name:
-                            data_with_content["service_version"] = file_data.get("version")
-                            service_found = True
-                            break
-                    except Exception:
-                        continue
-                if service_found:
-                    break
-
-            if not service_found:
-                raise ValueError(
-                    f"Service '{service_name}' specified in {data_file.name} not found in {data_file.parent}."
-                )
-
-        # Find seller_name from seller definition in the data directory
-        # Navigate up to find the data directory and look for seller file
-        data_dir = data_file.parent
-        while data_dir.name != "data" and data_dir.parent != data_dir:
-            data_dir = data_dir.parent
-
-        if data_dir.name != "data":
-            raise ValueError(
-                f"Cannot find 'data' directory in path: {data_file}. "
-                f"Expected path structure includes a 'data' directory."
-            )
-
-        # Look for seller file in the data directory
-        seller_file = None
-        for pattern in ["seller.json", "seller.toml"]:
-            potential_seller = data_dir / pattern
-            if potential_seller.exists():
-                seller_file = potential_seller
-                break
-
-        if not seller_file:
-            raise ValueError(
-                f"Cannot find seller.json or seller.toml in {data_dir}. "
-                f"A seller definition is required in the data directory."
-            )
-
-        # Load seller data and extract name
-        seller_data = self.load_data_file(seller_file)
-        if seller_data.get("schema") != "seller_v1":
-            raise ValueError(f"Seller file {seller_file} does not have schema='seller_v1'")
-
-        seller_name = seller_data.get("name")
-        if not seller_name:
-            raise ValueError(f"Seller file {seller_file} missing 'name' field")
-
-        data_with_content["seller_name"] = seller_name
-
-        # Map listing_status to status if present
-        if "listing_status" in data_with_content:
-            data_with_content["status"] = data_with_content.pop("listing_status")
-
-        # Post to the endpoint
-        response = self.client.post(
-            f"{self.base_url}/publish/service_listing",
-            json=data_with_content,
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def post_provider(self, data_file: Path) -> dict[str, Any]:
-        """Post provider data to the backend."""
+    async def post_provider_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
+        """Async version of post_provider for concurrent publishing with retry logic."""
         # Load the data file
         data = self.load_data_file(data_file)
 
-        # Resolve file references and include content
+        # Check provider status - skip if incomplete
+        provider_status = data.get("status", ProviderStatusEnum.active)
+        if provider_status == ProviderStatusEnum.incomplete:
+            # Return success without publishing - provider is incomplete
+            return {
+                "skipped": True,
+                "reason": f"Provider status is '{provider_status}' - not publishing to backend",
+                "name": data.get("name", "unknown"),
+            }
+
+        # Convert convenience fields (logo, terms_of_service) to documents
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(
+            data, base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Post to the endpoint
-        response = self.client.post(
-            f"{self.base_url}/providers/",
-            json=data_with_content,
+        # Post to the endpoint using retry helper
+        return await self._post_with_retry(
+            endpoint="/publish/provider",
+            data=data_with_content,
+            entity_type="provider",
+            entity_name=data.get("name", "unknown"),
+            max_retries=max_retries,
         )
-        response.raise_for_status()
-        return response.json()
 
-    def post_seller(self, data_file: Path) -> dict[str, Any]:
-        """Post seller data to the backend."""
+    async def post_seller_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
+        """Async version of post_seller for concurrent publishing with retry logic."""
         # Load the data file
         data = self.load_data_file(data_file)
 
-        # Resolve file references and include content
+        # Check seller status - skip if incomplete
+        seller_status = data.get("status", SellerStatusEnum.active)
+        if seller_status == SellerStatusEnum.incomplete:
+            # Return success without publishing - seller is incomplete
+            return {
+                "skipped": True,
+                "reason": f"Seller status is '{seller_status}' - not publishing to backend",
+                "name": data.get("name", "unknown"),
+            }
+
+        # Convert convenience fields (logo only for sellers, no terms_of_service)
         base_path = data_file.parent
+        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
+
+        # Resolve file references and include content
         data_with_content = self.resolve_file_references(data, base_path)
 
-        # Post to the endpoint
-        response = self.client.post(
-            f"{self.base_url}/sellers/",
-            json=data_with_content,
+        # Post to the endpoint using retry helper
+        return await self._post_with_retry(
+            endpoint="/publish/seller",
+            data=data_with_content,
+            entity_type="seller",
+            entity_name=data.get("name", "unknown"),
+            max_retries=max_retries,
         )
-        response.raise_for_status()
-        return response.json()
-
-    def list_service_offerings(self) -> list[dict[str, Any]]:
-        """List all service offerings from the backend.
-
-        Note: This endpoint doesn't exist yet in the backend.
-        TODO: Add GET /publish/service_offering endpoint.
-        """
-        response = self.client.get(f"{self.base_url}/publish/service_offering")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_service_listings(self) -> list[dict[str, Any]]:
-        """List all service listings from the backend."""
-        response = self.client.get(f"{self.base_url}/services/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_providers(self) -> list[dict[str, Any]]:
-        """List all providers from the backend."""
-        response = self.client.get(f"{self.base_url}/providers/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_sellers(self) -> list[dict[str, Any]]:
-        """List all sellers from the backend."""
-        response = self.client.get(f"{self.base_url}/sellers/")
-        response.raise_for_status()
-        result = response.json()
-        # Backend returns {"data": [...], "count": N}
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def update_service_offering_status(self, offering_id: int | str, status: str) -> dict[str, Any]:
-        """
-        Update the status of a service offering.
-
-        Allowed statuses (UpstreamStatusEnum):
-        - uploading: Service is being uploaded (not ready)
-        - ready: Service is ready to be used
-        - deprecated: Service is deprecated from upstream
-        """
-        response = self.client.patch(
-            f"{self.base_url}/service_offering/{offering_id}/",
-            json={"upstream_status": status},
-        )
-        response.raise_for_status()
-        return response.json()
-
-    def update_service_listing_status(self, listing_id: int | str, status: str) -> dict[str, Any]:
-        """
-        Update the status of a service listing.
-
-        Allowed statuses (ListingStatusEnum):
-        - unknown: Not yet determined
-        - upstream_ready: Upstream is ready to be used
-        - downstream_ready: Downstream is ready with proper routing, logging, and billing
-        - ready: Operationally ready (with docs, metrics, and pricing)
-        - in_service: Service is in service
-        - upstream_deprecated: Service is deprecated from upstream
-        - deprecated: Service is no longer offered to users
-        """
-        response = self.client.patch(
-            f"{self.base_url}/service_listing/{listing_id}/",
-            json={"listing_status": status},
-        )
-        response.raise_for_status()
-        return response.json()
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service offering files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="service_v1".
-        """
-        offerings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "service_v1":
-                        offerings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(offerings)
+        """Find all service offering files in a directory tree."""
+        files = find_files_by_schema(data_dir, "service_v1")
+        return sorted([f[0] for f in files])
 
     def find_listing_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all service listing files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="listing_v1".
-        """
-        listings = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "listing_v1":
-                        listings.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(listings)
+        """Find all service listing files in a directory tree."""
+        files = find_files_by_schema(data_dir, "listing_v1")
+        return sorted([f[0] for f in files])
 
     def find_provider_files(self, data_dir: Path) -> list[Path]:
-        """
-        Find all provider files in a directory tree.
-
-        Searches all JSON and TOML files and checks for schema="provider_v1".
-        """
-        providers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "provider_v1":
-                        providers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(providers)
+        """Find all provider files in a directory tree."""
+        files = find_files_by_schema(data_dir, "provider_v1")
+        return sorted([f[0] for f in files])
 
     def find_seller_files(self, data_dir: Path) -> list[Path]:
+        """Find all seller files in a directory tree."""
+        files = find_files_by_schema(data_dir, "seller_v1")
+        return sorted([f[0] for f in files])
+
+    async def _publish_offering_task(
+        self, offering_file: Path, console: Console, semaphore: asyncio.Semaphore
+    ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Find all seller files in a directory tree.
+        Async task to publish a single offering with concurrency control.
 
-        Searches all JSON and TOML files and checks for schema="seller_v1".
+        Returns tuple of (offering_file, result_or_exception).
         """
-        sellers = []
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    if data.get("schema") == "seller_v1":
-                        sellers.append(file_path)
-                except Exception:
-                    # Skip files that can't be loaded or don't have schema field
-                    pass
-        return sorted(sellers)
-
-    def validate_all_service_directories(self, data_dir: Path) -> list[str]:
-        """
-        Validate all service directories in a directory tree.
-
-        Returns a list of validation error messages (empty if all valid).
-        """
-        errors = []
-
-        # Find all directories containing service or listing files
-        directories_to_validate = set()
-
-        for pattern in ["*.json", "*.toml"]:
-            for file_path in data_dir.rglob(pattern):
-                try:
-                    data = self.load_data_file(file_path)
-                    schema = data.get("schema")
-                    if schema in ["service_v1", "listing_v1"]:
-                        directories_to_validate.add(file_path.parent)
-                except Exception:
-                    continue
-
-        # Validate each directory
-        for directory in sorted(directories_to_validate):
+        async with semaphore:  # Limit concurrent requests
             try:
-                self.validate_directory_data(directory)
-            except DataValidationError as e:
-                errors.append(str(e))
+                # Load offering data to get the name
+                data = self.load_data_file(offering_file)
+                offering_name = data.get("name", offering_file.stem)
 
-        return errors
+                # Publish the offering
+                result = await self.post_service_offering_async(offering_file)
 
-    def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
+                # Print complete statement after publication
+                if result.get("skipped"):
+                    reason = result.get("reason", "unknown")
+                    console.print(f"  [yellow]⊘[/yellow] Skipped offering: [cyan]{offering_name}[/cyan] - {reason}")
+                else:
+                    provider_name = result.get("provider_name")
+                    console.print(
+                        f"  [green]✓[/green] Published offering: [cyan]{offering_name}[/cyan] "
+                        f"(provider: {provider_name})"
+                    )
+
+                return (offering_file, result)
+            except Exception as e:
+                data = self.load_data_file(offering_file)
+                offering_name = data.get("name", offering_file.stem)
+                console.print(f"  [red]✗[/red] Failed to publish offering: [cyan]{offering_name}[/cyan] - {str(e)}")
+                return (offering_file, e)
+
+    async def publish_all_offerings(self, data_dir: Path) -> dict[str, Any]:
         """
-        Publish all service offerings found in a directory tree.
+        Publish all service offerings found in a directory tree concurrently.
 
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
         # Validate all service directories first
-        validation_errors = self.validate_all_service_directories(data_dir)
+        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
                 "total": 0,
@@ -563,25 +552,73 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
-        for offering_file in offering_files:
-            try:
-                self.post_service_offering(offering_file)
-                results["success"] += 1
-            except Exception as e:
+        if not offering_files:
+            return results
+
+        console = Console()
+
+        # Run all offering publications concurrently with rate limiting
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_offering_task(offering_file, console, semaphore) for offering_file in offering_files]
+        task_results = await asyncio.gather(*tasks)
+
+        # Process results
+        for offering_file, result in task_results:
+            if isinstance(result, Exception):
                 results["failed"] += 1
-                results["errors"].append({"file": str(offering_file), "error": str(e)})
+                results["errors"].append({"file": str(offering_file), "error": str(result)})
+            else:
+                results["success"] += 1
 
         return results
 
-    def publish_all_listings(self, data_dir: Path) -> dict[str, Any]:
+    async def _publish_listing_task(
+        self, listing_file: Path, console: Console, semaphore: asyncio.Semaphore
+    ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Publish all service listings found in a directory tree.
+        Async task to publish a single listing with concurrency control.
+
+        Returns tuple of (listing_file, result_or_exception).
+        """
+        async with semaphore:  # Limit concurrent requests
+            try:
+                # Load listing data to get the name
+                data = self.load_data_file(listing_file)
+                listing_name = data.get("name", listing_file.stem)
+
+                # Publish the listing
+                result = await self.post_service_listing_async(listing_file)
+
+                # Print complete statement after publication
+                if result.get("skipped"):
+                    reason = result.get("reason", "unknown")
+                    console.print(f"  [yellow]⊘[/yellow] Skipped listing: [cyan]{listing_name}[/cyan] - {reason}")
+                else:
+                    service_name = result.get("service_name")
+                    provider_name = result.get("provider_name")
+                    console.print(
+                        f"  [green]✓[/green] Published listing: [cyan]{listing_name}[/cyan] "
+                        f"(service: {service_name}, provider: {provider_name})"
+                    )
+
+                return (listing_file, result)
+            except Exception as e:
+                data = self.load_data_file(listing_file)
+                listing_name = data.get("name", listing_file.stem)
+                console.print(f"  [red]✗[/red] Failed to publish listing: [cyan]{listing_file}[/cyan] - {str(e)}")
+                return (listing_file, e)
+
+    async def publish_all_listings(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all service listings found in a directory tree concurrently.
 
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
         """
         # Validate all service directories first
-        validation_errors = self.validate_all_service_directories(data_dir)
+        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
                 "total": 0,
@@ -591,21 +628,68 @@ class ServiceDataPublisher:
             }
 
         listing_files = self.find_listing_files(data_dir)
-        results: dict[str, Any] = {"total": len(listing_files), "success": 0, "failed": 0, "errors": []}
+        results: dict[str, Any] = {
+            "total": len(listing_files),
+            "success": 0,
+            "failed": 0,
+            "errors": [],
+        }
 
-        for listing_file in listing_files:
-            try:
-                self.post_service_listing(listing_file)
-                results["success"] += 1
-            except Exception as e:
+        if not listing_files:
+            return results
+
+        console = Console()
+
+        # Run all listing publications concurrently with rate limiting
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_listing_task(listing_file, console, semaphore) for listing_file in listing_files]
+        task_results = await asyncio.gather(*tasks)
+
+        # Process results
+        for listing_file, result in task_results:
+            if isinstance(result, Exception):
                 results["failed"] += 1
-                results["errors"].append({"file": str(listing_file), "error": str(e)})
+                results["errors"].append({"file": str(listing_file), "error": str(result)})
+            else:
+                results["success"] += 1
 
         return results
 
-    def publish_all_providers(self, data_dir: Path) -> dict[str, Any]:
+    async def _publish_provider_task(
+        self, provider_file: Path, console: Console, semaphore: asyncio.Semaphore
+    ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Publish all providers found in a directory tree.
+        Async task to publish a single provider with concurrency control.
+
+        Returns tuple of (provider_file, result_or_exception).
+        """
+        async with semaphore:  # Limit concurrent requests
+            try:
+                # Load provider data to get the name
+                data = self.load_data_file(provider_file)
+                provider_name = data.get("name", provider_file.stem)
+
+                # Publish the provider
+                result = await self.post_provider_async(provider_file)
+
+                # Print complete statement after publication
+                if result.get("skipped"):
+                    reason = result.get("reason", "unknown")
+                    console.print(f"  [yellow]⊘[/yellow] Skipped provider: [cyan]{provider_name}[/cyan] - {reason}")
+                else:
+                    console.print(f"  [green]✓[/green] Published provider: [cyan]{provider_name}[/cyan]")
+
+                return (provider_file, result)
+            except Exception as e:
+                data = self.load_data_file(provider_file)
+                provider_name = data.get("name", provider_file.stem)
+                console.print(f"  [red]✗[/red] Failed to publish provider: [cyan]{provider_name}[/cyan] - {str(e)}")
+                return (provider_file, e)
+
+    async def publish_all_providers(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all providers found in a directory tree concurrently.
 
         Returns a summary of successes and failures.
         """
@@ -617,19 +701,61 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
-        for provider_file in provider_files:
-            try:
-                self.post_provider(provider_file)
-                results["success"] += 1
-            except Exception as e:
+        if not provider_files:
+            return results
+
+        console = Console()
+
+        # Run all provider publications concurrently with rate limiting
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_provider_task(provider_file, console, semaphore) for provider_file in provider_files]
+        task_results = await asyncio.gather(*tasks)
+
+        # Process results
+        for provider_file, result in task_results:
+            if isinstance(result, Exception):
                 results["failed"] += 1
-                results["errors"].append({"file": str(provider_file), "error": str(e)})
+                results["errors"].append({"file": str(provider_file), "error": str(result)})
+            else:
+                results["success"] += 1
 
         return results
 
-    def publish_all_sellers(self, data_dir: Path) -> dict[str, Any]:
+    async def _publish_seller_task(
+        self, seller_file: Path, console: Console, semaphore: asyncio.Semaphore
+    ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Publish all sellers found in a directory tree.
+        Async task to publish a single seller with concurrency control.
+
+        Returns tuple of (seller_file, result_or_exception).
+        """
+        async with semaphore:  # Limit concurrent requests
+            try:
+                # Load seller data to get the name
+                data = self.load_data_file(seller_file)
+                seller_name = data.get("name", seller_file.stem)
+
+                # Publish the seller
+                result = await self.post_seller_async(seller_file)
+
+                # Print complete statement after publication
+                if result.get("skipped"):
+                    reason = result.get("reason", "unknown")
+                    console.print(f"  [yellow]⊘[/yellow] Skipped seller: [cyan]{seller_name}[/cyan] - {reason}")
+                else:
+                    console.print(f"  [green]✓[/green] Published seller: [cyan]{seller_name}[/cyan]")
+
+                return (seller_file, result)
+            except Exception as e:
+                data = self.load_data_file(seller_file)
+                seller_name = data.get("name", seller_file.stem)
+                console.print(f"  [red]✗[/red] Failed to publish seller: [cyan]{seller_name}[/cyan] - {str(e)}")
+                return (seller_file, e)
+
+    async def publish_all_sellers(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all sellers found in a directory tree concurrently.
 
         Returns a summary of successes and failures.
         """
@@ -641,27 +767,83 @@ class ServiceDataPublisher:
             "errors": [],
         }
 
-        for seller_file in seller_files:
-            try:
-                self.post_seller(seller_file)
-                results["success"] += 1
-            except Exception as e:
+        if not seller_files:
+            return results
+
+        console = Console()
+
+        # Run all seller publications concurrently with rate limiting
+        # Create semaphore to limit concurrent requests
+        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
+        tasks = [self._publish_seller_task(seller_file, console, semaphore) for seller_file in seller_files]
+        task_results = await asyncio.gather(*tasks)
+
+        # Process results
+        for seller_file, result in task_results:
+            if isinstance(result, Exception):
                 results["failed"] += 1
-                results["errors"].append({"file": str(seller_file), "error": str(e)})
+                results["errors"].append({"file": str(seller_file), "error": str(result)})
+            else:
+                results["success"] += 1
 
         return results
 
-    def close(self):
-        """Close the HTTP client."""
-        self.client.close()
+    async def publish_all_models(self, data_dir: Path) -> dict[str, Any]:
+        """
+        Publish all data types in the correct order.
+
+        Publishing order:
+        1. Sellers - Must exist before listings
+        2. Providers - Must exist before offerings
+        3. Service Offerings - Must exist before listings
+        4. Service Listings - Depends on sellers, providers, and offerings
+
+        Returns a dict with results for each data type and overall summary.
+        """
+        all_results: dict[str, Any] = {
+            "sellers": {},
+            "providers": {},
+            "offerings": {},
+            "listings": {},
+            "total_success": 0,
+            "total_failed": 0,
+            "total_found": 0,
+        }
+
+        # Publish in order: sellers -> providers -> offerings -> listings
+        publish_order = [
+            ("sellers", self.publish_all_sellers),
+            ("providers", self.publish_all_providers),
+            ("offerings", self.publish_all_offerings),
+            ("listings", self.publish_all_listings),
+        ]
+
+        for data_type, publish_method in publish_order:
+            try:
+                results = await publish_method(data_dir)
+                all_results[data_type] = results
+                all_results["total_success"] += results["success"]
+                all_results["total_failed"] += results["failed"]
+                all_results["total_found"] += results["total"]
+            except Exception as e:
+                # If a publish method fails catastrophically, record the error
+                all_results[data_type] = {
+                    "total": 0,
+                    "success": 0,
+                    "failed": 1,
+                    "errors": [{"file": "N/A", "error": str(e)}],
+                }
+                all_results["total_failed"] += 1
+
+        return all_results
 
     def __enter__(self):
-        """Context manager entry."""
+        """Sync context manager entry for CLI usage."""
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """Context manager exit."""
-        self.close()
+        """Sync context manager exit for CLI usage."""
+        asyncio.run(self.aclose())
 
 
 # CLI commands for publishing
@@ -669,35 +851,40 @@ app = typer.Typer(help="Publish data to backend")
 console = Console()
 
 
-@app.command("providers")
-def publish_providers(
-    data_path: Path | None = typer.Argument(
+@app.callback(invoke_without_command=True)
+def publish_callback(
+    ctx: typer.Context,
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to provider file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to data directory (default: current directory)",
     ),
 ):
-    """Publish provider(s) from a file or directory."""
-    import os
+    """
+    Publish data to backend.
 
+    When called without a subcommand, publishes all data types in order:
+    sellers → providers → offerings → listings.
+
+    Use subcommands to publish specific data types:
+    - providers: Publish only providers
+    - sellers: Publish only sellers
+    - offerings: Publish only service offerings
+    - listings: Publish only service listings
+
+    Required environment variables:
+    - UNITYSVC_BASE_URL: Backend API URL
+    - UNITYSVC_API_KEY: API key for authentication
+    """
+    # If a subcommand was invoked, skip this callback logic
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand - publish all
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -706,38 +893,107 @@ def publish_providers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
+    console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
+    console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+
+    try:
+        with ServiceDataPublisher() as publisher:
+            # Call the publish_all_models method (now async)
+            all_results = asyncio.run(publisher.publish_all_models(data_path))
+
+            # Display results for each data type
+            data_type_display_names = {
+                "sellers": "Sellers",
+                "providers": "Providers",
+                "offerings": "Service Offerings",
+                "listings": "Service Listings",
+            }
+
+            for data_type in ["sellers", "providers", "offerings", "listings"]:
+                display_name = data_type_display_names[data_type]
+                results = all_results[data_type]
+
+                console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+                console.print(f"[bold cyan]{display_name}[/bold cyan]")
+                console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+
+                console.print(f"  Total found: {results['total']}")
+                console.print(f"  [green]✓ Success:[/green] {results['success']}")
+                console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+
+                # Display errors if any
+                if results.get("errors"):
+                    console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
+                    for error in results["errors"]:
+                        # Check if this is a skipped item
+                        if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
+                            continue
+                        console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
+                        console.print(f"    {error.get('error', 'unknown error')}")
+
+            # Final summary
+            console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+            console.print("[bold]Final Publishing Summary[/bold]")
+            console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+            console.print(f"  Total found: {all_results['total_found']}")
+            console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
+            console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
+
+            if all_results["total_failed"] > 0:
+                console.print(
+                    f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
+                    style="bold yellow",
+                )
+                raise typer.Exit(code=1)
+            else:
+                console.print(
+                    "\n[green]✓[/green] All data published successfully!",
+                    style="bold green",
+                )
+
+    except typer.Exit:
+        raise
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to publish all data: {e}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
+
+@app.command("providers")
+def publish_providers(
+    data_path: Path | None = typer.Option(
+        None,
+        "--data-path",
+        "-d",
+        help="Path to provider file or directory (default: current directory)",
+    ),
+):
+    """Publish provider(s) from a file or directory."""
+
+    # Set data path
+    if data_path is None:
+        data_path = Path.cwd()
+
+    if not data_path.is_absolute():
+        data_path = Path.cwd() / data_path
+
+    if not data_path.exists():
+        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing provider:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                result = publisher.post_provider(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                result = asyncio.run(publisher.post_provider_async(data_path))
                 console.print("[green]✓[/green] Provider published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                results = publisher.publish_all_providers(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                results = asyncio.run(publisher.publish_all_providers(data_path))
 
                 # Display summary
                 console.print("\n[bold]Publishing Summary:[/bold]")
@@ -764,33 +1020,17 @@ def publish_providers(
 
 @app.command("sellers")
 def publish_sellers(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to seller file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to seller file or directory (default: current directory)",
     ),
 ):
     """Publish seller(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -799,38 +1039,20 @@ def publish_sellers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing seller:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                result = publisher.post_seller(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                result = asyncio.run(publisher.post_seller_async(data_path))
                 console.print("[green]✓[/green] Seller published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                results = publisher.publish_all_sellers(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                results = asyncio.run(publisher.publish_all_sellers(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")
@@ -855,33 +1077,17 @@ def publish_sellers(
 
 @app.command("offerings")
 def publish_offerings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service offering file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to service offering file or directory (default: current directory)",
     ),
 ):
     """Publish service offering(s) from a file or directory."""
-    import os
-
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -890,38 +1096,20 @@ def publish_offerings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                result = publisher.post_service_offering(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                result = asyncio.run(publisher.post_service_offering_async(data_path))
                 console.print("[green]✓[/green] Service offering published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                results = publisher.publish_all_offerings(data_path)
+                console.print(f"[blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                results = asyncio.run(publisher.publish_all_offerings(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")
@@ -946,33 +1134,18 @@ def publish_offerings(
 
 @app.command("listings")
 def publish_listings(
-    data_path: Path | None = typer.Argument(
+    data_path: Path | None = typer.Option(
         None,
-        help="Path to service listing file or directory (default: ./data or UNITYSVC_DATA_DIR env var)",
-    ),
-    backend_url: str | None = typer.Option(
-        None,
-        "--backend-url",
-        "-u",
-        help="UnitySVC backend URL (default: from UNITYSVC_BACKEND_URL env var)",
-    ),
-    api_key: str | None = typer.Option(
-        None,
-        "--api-key",
-        "-k",
-        help="API key for authentication (default: from UNITYSVC_API_KEY env var)",
+        "--data-path",
+        "-d",
+        help="Path to service listing file or directory (default: current directory)",
     ),
 ):
     """Publish service listing(s) from a file or directory."""
-    import os
 
     # Set data path
     if data_path is None:
-        data_path_str = os.getenv("UNITYSVC_DATA_DIR")
-        if data_path_str:
-            data_path = Path(data_path_str)
-        else:
-            data_path = Path.cwd() / "data"
+        data_path = Path.cwd()
 
     if not data_path.is_absolute():
         data_path = Path.cwd() / data_path
@@ -981,38 +1154,20 @@ def publish_listings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    # Get backend URL from argument or environment
-    backend_url = backend_url or os.getenv("UNITYSVC_BACKEND_URL")
-    if not backend_url:
-        console.print(
-            "[red]✗[/red] Backend URL not provided. Use --backend-url or set UNITYSVC_BACKEND_URL env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
-    # Get API key from argument or environment
-    api_key = api_key or os.getenv("UNITYSVC_API_KEY")
-    if not api_key:
-        console.print(
-            "[red]✗[/red] API key not provided. Use --api-key or set UNITYSVC_API_KEY env var.",
-            style="bold red",
-        )
-        raise typer.Exit(code=1)
-
     try:
-        with ServiceDataPublisher(backend_url, api_key) as publisher:
+        with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
                 console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                result = publisher.post_service_listing(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                result = asyncio.run(publisher.post_service_listing_async(data_path))
                 console.print("[green]✓[/green] Service listing published successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
             # Handle directory
             else:
                 console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {backend_url}\n")
-                results = publisher.publish_all_listings(data_path)
+                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+                results = asyncio.run(publisher.publish_all_listings(data_path))
 
                 console.print("\n[bold]Publishing Summary:[/bold]")
                 console.print(f"  Total found: {results['total']}")

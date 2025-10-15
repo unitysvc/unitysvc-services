@@ -6,8 +6,8 @@ This guide will help you get started with the UnitySVC Provider SDK.
 
 ### Requirements
 
-- Python 3.11 or later
-- pip or uv package manager
+-   Python 3.11 or later
+-   pip or uv package manager
 
 ### Install from PyPI
 
@@ -34,6 +34,7 @@ unitysvc_services init provider my-provider
 ```
 
 This creates:
+
 ```
 data/
 └── my-provider/
@@ -48,6 +49,7 @@ unitysvc_services init offering my-first-service
 ```
 
 This creates:
+
 ```
 data/
 └── my-provider/
@@ -63,6 +65,7 @@ unitysvc_services init listing my-first-listing
 ```
 
 This creates:
+
 ```
 data/
 └── my-provider/
@@ -81,6 +84,7 @@ unitysvc_services init seller my-marketplace
 ```
 
 This creates:
+
 ```
 data/
 ├── seller.toml
@@ -95,10 +99,10 @@ data/
 
 Open the generated files and fill in your service details:
 
-- **provider.toml** - Provider information (name, display name, contact)
-- **seller.toml** - Seller business information
-- **service.toml** - Service offering details (pricing, API endpoints)
-- **listing-svcreseller.toml** - User-facing service information
+-   **provider.toml** - Provider information (name, display name, contact)
+-   **seller.toml** - Seller business information
+-   **service.toml** - Service offering details (pricing, API endpoints)
+-   **listing-svcreseller.toml** - User-facing service information
 
 ### Step 6: Validate Your Data
 
@@ -121,33 +125,46 @@ This ensures consistent formatting (2-space JSON indentation, proper line ending
 Set your credentials:
 
 ```bash
-export UNITYSVC_BACKEND_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
 ```
 
-Publish your data:
+Publish your data (publishes all types in correct order: sellers → providers → offerings → listings):
 
 ```bash
-# Publish in order
+# From data directory
+cd data
+unitysvc_services publish
+
+# Or specify path
+unitysvc_services publish --data-path ./data
+
+# Or publish specific types
 unitysvc_services publish providers
 unitysvc_services publish sellers
-unitysvc_services publish offerings
-unitysvc_services publish listings
 ```
 
 ### Step 9: Verify Your Published Data
 
 ```bash
+# Query with default fields
 unitysvc_services query providers
 unitysvc_services query offerings
 unitysvc_services query listings
+
+# Query with custom fields - show only specific columns
+unitysvc_services query providers --fields id,name,contact_email
+unitysvc_services query listings --fields id,service_name,listing_type,status
+
+# Query as JSON for programmatic use
+unitysvc_services query offerings --format json
 ```
 
 ## Next Steps
 
-- **[Data Structure](data-structure.md)** - Learn about file organization and naming rules
-- **[Workflows](workflows.md)** - Explore manual and automated workflows
-- **[CLI Reference](cli-reference.md)** - Browse all available commands
+-   **[Data Structure](data-structure.md)** - Learn about file organization and naming rules
+-   **[Workflows](workflows.md)** - Explore manual and automated workflows
+-   **[CLI Reference](cli-reference.md)** - Browse all available commands
 
 ## Common Operations
 
@@ -183,23 +200,24 @@ See [Workflows](workflows.md#automated-workflow) for details.
 
 ### Validation Errors
 
-- Check that directory names match normalized field values
-- Ensure all required fields are present
-- Verify file paths are correct (relative paths)
+-   Check that directory names match normalized field values
+-   Ensure all required fields are present
+-   Verify file paths are correct (relative paths)
 
 ### Publishing Errors
 
-- Verify API credentials are set correctly
-- Check that you're publishing in the correct order (providers → sellers → offerings → listings)
-- Ensure backend URL is accessible
+-   Verify API credentials are set correctly
+-   Use `unitysvc_services publish` (without subcommand) to publish all types in the correct order automatically
+-   Ensure backend URL is accessible
+-   Check that you're running from the correct directory or using `--data-path`
 
 ### Format Issues
 
-- Run `unitysvc_services format --check` to see what would change
-- Use `unitysvc_services format` to auto-fix formatting
+-   Run `unitysvc_services format --check` to see what would change
+-   Use `unitysvc_services format` to auto-fix formatting
 
 ## Getting Help
 
-- Check the [CLI Reference](cli-reference.md) for command details
-- Review [Data Structure](data-structure.md) for file organization rules
-- Open an issue on [GitHub](https://github.com/unitysvc/unitysvc-services/issues)
+-   Check the [CLI Reference](cli-reference.md) for command details
+-   Review [Data Structure](data-structure.md) for file organization rules
+-   Open an issue on [GitHub](https://github.com/unitysvc/unitysvc-services/issues)

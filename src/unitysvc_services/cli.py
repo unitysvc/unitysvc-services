@@ -2,8 +2,8 @@
 
 import typer
 
+from . import format_data, populate, publisher, query, scaffold, update, validator
 from . import list as list_cmd
-from . import publisher, query, scaffold, standalone, update
 
 app = typer.Typer()
 
@@ -16,6 +16,6 @@ app.add_typer(publisher.app, name="publish")
 app.add_typer(update.app, name="update")
 
 # Register standalone commands at root level
-app.command("format")(standalone.format_data)
-app.command("validate")(standalone.validate)
-app.command("populate")(standalone.populate)
+app.command("format")(format_data.format_data)
+app.command("validate")(validator.validate)
+app.command("populate")(populate.populate)

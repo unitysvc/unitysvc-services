@@ -1,13 +1,14 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from unitysvc_services.models.base import (
     AccessInterface,
     Document,
     ListingStatusEnum,
     Pricing,
+    validate_name,
 )
 
 
@@ -30,8 +31,19 @@ class ListingV1(BaseModel):
         ),
     )
 
-    seller_name: str = Field(
-        description="Name of the seller offering this service listing"
+    seller_name: str | None = Field(default=None, description="Name of the seller offering this service listing")
+
+    name: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Name identifier for the service listing, default to filename",
+    )
+
+    # Display name for UI (human-readable listing name)
+    display_name: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
     )
 
     # unique name for each provider, usually following upstream naming convention
@@ -70,3 +82,11 @@ class ListingV1(BaseModel):
     user_parameters_ui_schema: dict[str, Any] | None = Field(
         default=None, description="Dictionary of user parameters UI schema"
     )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_format(cls, v: str | None) -> str | None:
+        """Validate that listing name uses valid identifiers (allows slashes for hierarchical names)."""
+        if v is None:
+            return v
+        return validate_name(v, "listing", allow_slash=True)

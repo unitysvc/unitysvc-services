@@ -859,6 +859,20 @@
   },
   "additionalProperties": false,
   "properties": {
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
+      "title": "Display Name"
+    },
     "documents": {
       "anyOf": [
         {
@@ -880,6 +894,20 @@
       "default": "unknown",
       "description": "Operation status of the service"
     },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Name identifier for the service listing, default to filename",
+      "title": "Name"
+    },
     "schema": {
       "default": "listing_v1",
       "description": "Schema identifier",
@@ -887,9 +915,17 @@
       "type": "string"
     },
     "seller_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "Name of the seller offering this service listing",
-      "title": "Seller Name",
-      "type": "string"
+      "title": "Seller Name"
     },
     "service_name": {
       "anyOf": [
@@ -959,7 +995,6 @@
   },
   "required": [
     "time_created",
-    "seller_name",
     "user_access_interfaces",
     "user_price"
   ],

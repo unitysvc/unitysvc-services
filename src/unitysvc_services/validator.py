@@ -7,8 +7,18 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+import typer
 from jinja2 import Environment, TemplateSyntaxError
 from jsonschema.validators import Draft7Validator
+from rich.console import Console
+
+import unitysvc_services
+
+
+class DataValidationError(Exception):
+    """Exception raised when data validation fails."""
+
+    pass
 
 
 class DataValidator:
@@ -130,6 +140,14 @@ class DataValidator:
                                 f"File path '{value}' in field '{new_path}' "
                                 f"must be a relative path, not an absolute path"
                             )
+                        # Check that the file exists
+                        else:
+                            referenced_file = file_path.parent / value
+                            if not referenced_file.exists():
+                                errors.append(
+                                    f"File reference '{value}' in field '{new_path}' "
+                                    f"does not exist at {referenced_file}"
+                                )
 
                     # Recurse into nested objects
                     if isinstance(value, dict | list):
@@ -187,6 +205,54 @@ class DataValidator:
         normalized = normalized.strip("-")
         return normalized
 
+    def validate_with_pydantic_model(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """
+        Validate data using Pydantic models for additional validation rules.
+
+        This complements JSON schema validation with Pydantic field validators
+        like name format validation.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'provider_v1', 'seller_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        from pydantic import BaseModel
+
+        from unitysvc_services.models import ListingV1, ProviderV1, SellerV1, ServiceV1
+
+        errors: list[str] = []
+
+        # Map schema names to Pydantic model classes
+        model_map: dict[str, type[BaseModel]] = {
+            "provider_v1": ProviderV1,
+            "seller_v1": SellerV1,
+            "service_v1": ServiceV1,
+            "listing_v1": ListingV1,
+        }
+
+        if schema_name not in model_map:
+            return errors  # No Pydantic model for this schema
+
+        model_class = model_map[schema_name]
+
+        try:
+            # Validate using the Pydantic model
+            model_class.model_validate(data)
+
+        except Exception as e:
+            # Extract meaningful error message from Pydantic ValidationError
+            error_msg = str(e)
+            # Pydantic errors can be verbose, try to extract just the relevant part
+            if "validation error" in error_msg.lower():
+                errors.append(f"Pydantic validation error: {error_msg}")
+            else:
+                errors.append(error_msg)
+
+        return errors
+
     def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
         """Load data from JSON or TOML file."""
         errors: list[str] = []
@@ -241,6 +307,10 @@ class DataValidator:
         except Exception as e:
             errors.append(f"Validation error: {e}")
 
+        # Also validate using Pydantic models for additional validation rules
+        pydantic_errors = self.validate_with_pydantic_model(data, schema_name)
+        errors.extend(pydantic_errors)
+
         # Find Union[str, HttpUrl] fields and validate file references
         union_fields = self.find_union_fields(schema)
         file_ref_errors = self.validate_file_references(data, file_path, union_fields)
@@ -290,6 +360,10 @@ class DataValidator:
 
         # Find all data files with seller_v1 schema
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml"]:
                 try:
                     data, load_errors = self.load_data_file(file_path)
@@ -311,6 +385,92 @@ class DataValidator:
 
         return len(errors) == 0, errors
 
+    def validate_provider_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate provider status and warn about services under disabled/incomplete providers.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate services
+        that will be affected by provider status.
+        """
+        from unitysvc_services.models.base import ProviderStatusEnum
+        from unitysvc_services.models.provider_v1 import ProviderV1
+
+        warnings: list[str] = []
+
+        # Find all provider files (skip hidden directories)
+        provider_files = [
+            f for f in self.data_dir.glob("*/provider.*") if not any(part.startswith(".") for part in f.parts)
+        ]
+
+        for provider_file in provider_files:
+            try:
+                # Load provider data using existing helper method
+                data, load_errors = self.load_data_file(provider_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load provider file {provider_file}: {load_errors}")
+                    continue
+
+                # Parse as ProviderV1
+                provider = ProviderV1.model_validate(data)
+                provider_dir = provider_file.parent
+                provider_name = provider.name
+
+                # Check if provider is not active
+                if provider.status != ProviderStatusEnum.active:
+                    # Find all services under this provider
+                    services_dir = provider_dir / "services"
+                    if services_dir.exists():
+                        service_count = len(list(services_dir.iterdir()))
+                        if service_count > 0:
+                            warnings.append(
+                                f"Provider '{provider_name}' has status '{provider.status}' but has {service_count} "
+                                f"service(s). All services under this provider will be affected."
+                            )
+
+            except Exception as e:
+                warnings.append(f"Error checking provider status in {provider_file}: {e}")
+
+        # Return True (valid) but with warnings
+        return True, warnings
+
+    def validate_seller_status(self) -> tuple[bool, list[str]]:
+        """
+        Validate seller status and warn if seller is disabled/incomplete.
+
+        Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
+        """
+        from unitysvc_services.models.base import SellerStatusEnum
+        from unitysvc_services.models.seller_v1 import SellerV1
+
+        warnings: list[str] = []
+
+        # Find all seller files (skip hidden files)
+        seller_files = [f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")]
+
+        for seller_file in seller_files:
+            try:
+                # Load seller data using existing helper method
+                data, load_errors = self.load_data_file(seller_file)
+                if load_errors or data is None:
+                    warnings.append(f"Failed to load seller file {seller_file}: {load_errors}")
+                    continue
+
+                # Parse as SellerV1
+                seller = SellerV1.model_validate(data)
+                seller_name = seller.name
+
+                # Check if seller is not active
+                if seller.status != SellerStatusEnum.active:
+                    warnings.append(
+                        f"Seller '{seller_name}' has status '{seller.status}'. Seller will not be published to backend."
+                    )
+
+            except Exception as e:
+                warnings.append(f"Error checking seller status in {seller_file}: {e}")
+
+        # Return True (valid) but with warnings
+        return True, warnings
+
     def validate_all(self) -> dict[str, tuple[bool, list[str]]]:
         """Validate all files in the data directory."""
         results: dict[str, tuple[bool, list[str]]] = {}
@@ -323,8 +483,25 @@ class DataValidator:
         if not seller_valid:
             results["_seller_uniqueness"] = (False, seller_errors)
 
-        # Find all data and MD files recursively
+        # Validate seller status
+        seller_status_valid, seller_warnings = self.validate_seller_status()
+        if seller_warnings:
+            results["_seller_status"] = (True, seller_warnings)  # Warnings, not errors
+
+        # Validate provider status and check for affected services
+        provider_status_valid, provider_warnings = self.validate_provider_status()
+        if provider_warnings:
+            results["_provider_status"] = (
+                True,
+                provider_warnings,
+            )  # Warnings, not errors
+
+        # Find all data and MD files recursively, skipping hidden directories
         for file_path in self.data_dir.rglob("*"):
+            # Skip hidden directories (those starting with .)
+            if any(part.startswith(".") for part in file_path.parts):
+                continue
+
             if file_path.is_file() and file_path.suffix in [".json", ".toml", ".md"]:
                 relative_path = file_path.relative_to(self.data_dir)
 
@@ -338,3 +515,185 @@ class DataValidator:
                 results[str(relative_path)] = (is_valid, errors)
 
         return results
+
+    def validate_directory_data(self, directory: Path) -> None:
+        """Validate data files in a directory for consistency.
+
+        Validation rules:
+        1. All service_v1 files in same directory must have unique names
+        2. All listing_v1 files must reference a service name that exists in the same directory
+        3. If service_name is defined in listing_v1, it must match a service in the directory
+
+        Args:
+            directory: Directory containing data files to validate
+
+        Raises:
+            DataValidationError: If validation fails
+        """
+        # Find all JSON and TOML files in the directory (not recursive)
+        data_files: list[Path] = []
+        for pattern in ["*.json", "*.toml"]:
+            data_files.extend(directory.glob(pattern))
+
+        # Load all files and categorize by schema
+        services: dict[str, Path] = {}  # name -> file_path
+        listings: list[tuple[Path, dict[str, Any]]] = []  # list of (file_path, data)
+
+        for file_path in data_files:
+            try:
+                data, load_errors = self.load_data_file(file_path)
+                if load_errors or data is None:
+                    continue
+
+                schema = data.get("schema")
+
+                if schema == "service_v1":
+                    service_name = data.get("name")
+                    if not service_name:
+                        raise DataValidationError(f"Service file {file_path} missing 'name' field")
+
+                    # Check for duplicate service names in same directory
+                    if service_name in services:
+                        raise DataValidationError(
+                            f"Duplicate service name '{service_name}' found in directory {directory}:\n"
+                            f"  - {services[service_name]}\n"
+                            f"  - {file_path}"
+                        )
+
+                    services[service_name] = file_path
+
+                elif schema == "listing_v1":
+                    listings.append((file_path, data))
+
+            except Exception as e:
+                # Skip files that can't be loaded or don't have schema
+                if isinstance(e, DataValidationError):
+                    raise
+                continue
+
+        # Validate listings reference valid services
+        for listing_file, listing_data in listings:
+            service_name = listing_data.get("service_name")
+
+            if service_name:
+                # If service_name is explicitly defined, it must match a service in the directory
+                if service_name not in services:
+                    available_services = ", ".join(services.keys()) if services else "none"
+                    raise DataValidationError(
+                        f"Listing file {listing_file} references service_name '{service_name}' "
+                        f"which does not exist in the same directory.\n"
+                        f"Available services: {available_services}"
+                    )
+            else:
+                # If service_name not defined, there should be exactly one service in the directory
+                if len(services) == 0:
+                    raise DataValidationError(
+                        f"Listing file {listing_file} does not specify 'service_name' "
+                        f"and no service files found in the same directory."
+                    )
+                elif len(services) > 1:
+                    available_services = ", ".join(services.keys())
+                    raise DataValidationError(
+                        f"Listing file {listing_file} does not specify 'service_name' "
+                        f"but multiple services exist in the same directory: {available_services}. "
+                        f"Please add 'service_name' field to the listing to specify which service it belongs to."
+                    )
+
+    def validate_all_service_directories(self, data_dir: Path) -> list[str]:
+        """
+        Validate all service directories in a directory tree.
+
+        Returns a list of validation error messages (empty if all valid).
+        """
+        errors = []
+
+        # Find all directories containing service or listing files
+        directories_to_validate = set()
+
+        for pattern in ["*.json", "*.toml"]:
+            for file_path in data_dir.rglob(pattern):
+                # Skip hidden directories (those starting with .)
+                if any(part.startswith(".") for part in file_path.parts):
+                    continue
+
+                try:
+                    data, load_errors = self.load_data_file(file_path)
+                    if load_errors or data is None:
+                        continue
+
+                    schema = data.get("schema")
+                    if schema in ["service_v1", "listing_v1"]:
+                        directories_to_validate.add(file_path.parent)
+                except Exception:
+                    continue
+
+        # Validate each directory
+        for directory in sorted(directories_to_validate):
+            try:
+                self.validate_directory_data(directory)
+            except DataValidationError as e:
+                errors.append(str(e))
+
+        return errors
+
+
+# CLI command
+app = typer.Typer(help="Validate data files")
+console = Console()
+
+
+@app.command()
+def validate(
+    data_dir: Path | None = typer.Argument(
+        None,
+        help="Directory containing data files to validate (default: current directory)",
+    ),
+):
+    """
+    Validate data consistency in service and listing files.
+
+    Checks:
+    1. Service names are unique within each directory
+    2. Listing files reference valid service names
+    3. Multiple services in a directory require explicit service_name in listings
+    """
+    # Determine data directory
+    if data_dir is None:
+        data_dir = Path.cwd()
+
+    if not data_dir.exists():
+        console.print(f"[red]✗[/red] Data directory not found: {data_dir}")
+        raise typer.Exit(1)
+
+    console.print(f"[cyan]Validating data files in:[/cyan] {data_dir}")
+    console.print()
+
+    # Get schema directory from installed package
+    schema_dir = Path(unitysvc_services.__file__).parent / "schema"
+
+    # Create validator and run validation
+    validator = DataValidator(data_dir, schema_dir)
+
+    # Run comprehensive validation (schema, file references, etc.)
+    all_results = validator.validate_all()
+    validation_errors = []
+
+    # Collect all errors from validate_all()
+    for file_path, (is_valid, errors) in all_results.items():
+        if not is_valid and errors:
+            for error in errors:
+                validation_errors.append(f"{file_path}: {error}")
+
+    # Also run service directory validation (service/listing relationships)
+    directory_errors = validator.validate_all_service_directories(data_dir)
+    validation_errors.extend(directory_errors)
+
+    if validation_errors:
+        console.print(f"[red]✗ Validation failed with {len(validation_errors)} error(s):[/red]")
+        console.print()
+        for i, error in enumerate(validation_errors, 1):
+            console.print(f"[red]{i}.[/red] {error}")
+            console.print()
+        raise typer.Exit(1)
+    else:
+        console.print("[green]✓ All data files are valid![/green]")

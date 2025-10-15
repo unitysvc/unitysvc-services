@@ -1,9 +1,9 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import AccessInterface, Document
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum, validate_name
 
 
 class ProviderV1(BaseModel):
@@ -25,6 +25,13 @@ class ProviderV1(BaseModel):
 
     # name of the provider should be the same as directory name
     name: str
+
+    # Display name for UI (human-readable brand name)
+    display_name: str | None = Field(
+        default=None,
+        max_length=200,
+        description="Human-readable provider name (e.g., 'Amazon Bedrock', 'Fireworks.ai')",
+    )
 
     # this field is added for convenience. It will be converted to
     # documents during importing.
@@ -51,3 +58,17 @@ class ProviderV1(BaseModel):
     homepage: HttpUrl
     contact_email: EmailStr
     secondary_contact_email: EmailStr | None = None
+
+    # Status field to track provider state
+    status: ProviderStatusEnum = Field(
+        default=ProviderStatusEnum.active,
+        description="Provider status: active, disabled, or incomplete",
+    )
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_format(cls, v: str) -> str:
+        """Validate that provider name uses URL-safe identifiers."""
+        # Note: display_name is not available in the validator context for suggesting
+        # Display name will be shown in error if user provides it
+        return validate_name(v, "provider", allow_slash=False)

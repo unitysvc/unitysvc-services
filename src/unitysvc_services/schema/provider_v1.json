@@ -339,6 +339,17 @@
       "title": "OveragePolicyEnum",
       "type": "string"
     },
+    "ProviderStatusEnum": {
+      "description": "Provider status enum.",
+      "enum": [
+        "active",
+        "pending",
+        "disabled",
+        "incomplete"
+      ],
+      "title": "ProviderStatusEnum",
+      "type": "string"
+    },
     "QuotaResetCycleEnum": {
       "enum": [
         "daily",
@@ -780,6 +791,20 @@
       "default": null,
       "title": "Description"
     },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable provider name (e.g., 'Amazon Bedrock', 'Fireworks.ai')",
+      "title": "Display Name"
+    },
     "documents": {
       "anyOf": [
         {
@@ -860,6 +885,11 @@
       ],
       "default": null,
       "title": "Services Populator"
+    },
+    "status": {
+      "$ref": "#/$defs/ProviderStatusEnum",
+      "default": "active",
+      "description": "Provider status: active, disabled, or incomplete"
     },
     "terms_of_service": {
       "anyOf": [

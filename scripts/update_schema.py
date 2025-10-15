@@ -34,11 +34,7 @@ def find_pydantic_models(module: Any) -> dict[str, type[BaseModel]]:
     """Find all Pydantic BaseModel classes in a module."""
     models = {}
     for name, obj in inspect.getmembers(module, inspect.isclass):
-        if (
-            issubclass(obj, BaseModel)
-            and obj is not BaseModel
-            and obj.__module__ == module.__name__
-        ):
+        if issubclass(obj, BaseModel) and obj is not BaseModel and obj.__module__ == module.__name__:
             models[name] = obj
     return models
 
@@ -72,17 +68,17 @@ def main():
     # Set up module aliasing for scripts.models.base
     # Models import from scripts.models.base which is the pattern used in business-data repos
     # Create fake module hierarchy
-    scripts_module = types.ModuleType('scripts')
-    scripts_models_module = types.ModuleType('scripts.models')
-    sys.modules['scripts'] = scripts_module
-    sys.modules['scripts.models'] = scripts_models_module
+    scripts_module = types.ModuleType("scripts")
+    scripts_models_module = types.ModuleType("scripts.models")
+    sys.modules["scripts"] = scripts_module
+    sys.modules["scripts.models"] = scripts_models_module
 
     # Load base module directly
     base_path = models_dir / "base.py"
     spec = importlib.util.spec_from_file_location("scripts.models.base", base_path)
     if spec and spec.loader:
         base_module = importlib.util.module_from_spec(spec)
-        sys.modules['scripts.models.base'] = base_module
+        sys.modules["scripts.models.base"] = base_module
         spec.loader.exec_module(base_module)
         scripts_models_module.base = base_module
 
@@ -112,7 +108,7 @@ def main():
             models = find_pydantic_models(module)
 
             if not models:
-                print(f"  No Pydantic models found")
+                print("  No Pydantic models found")
                 continue
 
             # Generate schema for each model (one file per model)

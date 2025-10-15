@@ -80,6 +80,13 @@ data/
 - Location: `${provider_name}/services/${service_name}/listing-*.json`
 - Both offerings and listings are defined in the same service directory under the provider
 
+#### Multiple Listings Per Service
+When a single service offering has multiple listings (e.g., different pricing tiers, different marketplaces), the filename becomes significant:
+
+- **Filename as identifier**: If the `name` field is not provided in the listing file, the filename (without extension) is automatically used as the listing name
+- **Example**: `listing-premium.json`, `listing-basic.json`, `listing-enterprise.json` for different tiers
+- **Best practice**: Use descriptive filenames that indicate the listing variant, or explicitly set the `name` field in each file
+
 ### 7. External Files (Documentation, Code Examples, etc.)
 - External files like code examples, documentation, images can be placed anywhere in the directory structure
 - They are referenced by **relative paths** from the referencing file
@@ -181,10 +188,11 @@ data/
 │   └── services/
 │       ├── gpt-4/                       # Service: "gpt-4"
 │       │   ├── service.json             # name = "gpt-4"
-│       │   └── listing-svcreseller.json # seller_name = "svcreseller"
+│       │   ├── listing-premium.json     # name = "listing-premium" (or defaults to filename)
+│       │   └── listing-basic.json       # name = "listing-basic" (multiple listings for one service)
 │       └── gpt-3.5-turbo/              # Service: "gpt-3.5-turbo"
 │           ├── service.json             # name = "gpt-3.5-turbo"
-│           └── listing-svcreseller.json
+│           └── listing-svcreseller.json # Single listing
 └── anthropic/                           # Provider: "anthropic"
     ├── provider.json                    # name = "anthropic"
     └── services/
