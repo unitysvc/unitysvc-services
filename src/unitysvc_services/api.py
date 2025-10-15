@@ -62,7 +62,8 @@ class UnitySvcAPI:
             JSON response as dictionary
 
         Raises:
-            RuntimeError: If curl command fails or returns non-200 status
+            httpx.HTTPStatusError: If HTTP status code indicates error (with response details)
+            RuntimeError: If curl command fails or times out
         """
         url = f"{self.base_url}{endpoint}"
         if params:
@@ -71,7 +72,8 @@ class UnitySvcAPI:
         cmd = [
             "curl",
             "-s",  # Silent mode
-            "-f",  # Fail on HTTP errors
+            "-w",
+            "\n%{http_code}",  # Write status code on new line
             "-H",
             f"X-API-Key: {self.api_key}",
             "-H",
@@ -86,15 +88,34 @@ class UnitySvcAPI:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
 
             if proc.returncode != 0:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                raise RuntimeError(f"HTTP request failed: {error_msg}")
+                error_msg = stderr.decode().strip() if stderr else "Curl command failed"
+                raise RuntimeError(f"Curl error: {error_msg}")
 
+            # Parse response: last line is status code, rest is body
             output = stdout.decode().strip()
-            return json.loads(output)
+            lines = output.split("\n")
+            status_code = int(lines[-1])
+            body = "\n".join(lines[:-1])
+
+            # Parse JSON response
+            try:
+                response_data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                response_data = {"error": body}
+
+            # Raise exception for non-2xx status codes (mimics httpx behavior)
+            if status_code < 200 or status_code >= 300:
+                # Create a mock response object to raise HTTPStatusError
+                mock_request = httpx.Request("GET", url)
+                mock_response = httpx.Response(status_code=status_code, content=body.encode(), request=mock_request)
+                raise httpx.HTTPStatusError(f"HTTP {status_code}", request=mock_request, response=mock_response)
+
+            return response_data
         except TimeoutError:
             raise RuntimeError("Request timed out after 30 seconds")
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid JSON response: {e}")
+        except httpx.HTTPStatusError:
+            # Re-raise HTTP errors as-is
+            raise
 
     async def _make_post_request_curl(
         self, endpoint: str, json_data: dict[str, Any] | None = None, params: dict[str, Any] | None = None
@@ -110,7 +131,8 @@ class UnitySvcAPI:
             JSON response as dictionary
 
         Raises:
-            RuntimeError: If curl command fails or returns non-200 status
+            httpx.HTTPStatusError: If HTTP status code indicates error (with response details)
+            RuntimeError: If curl command fails or times out
         """
         url = f"{self.base_url}{endpoint}"
         if params:
@@ -119,7 +141,8 @@ class UnitySvcAPI:
         cmd = [
             "curl",
             "-s",  # Silent mode
-            "-f",  # Fail on HTTP errors
+            "-w",
+            "\n%{http_code}",  # Write status code on new line
             "-X",
             "POST",
             "-H",
@@ -142,15 +165,34 @@ class UnitySvcAPI:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
 
             if proc.returncode != 0:
-                error_msg = stderr.decode().strip() if stderr else "Unknown error"
-                raise RuntimeError(f"HTTP request failed: {error_msg}")
+                error_msg = stderr.decode().strip() if stderr else "Curl command failed"
+                raise RuntimeError(f"Curl error: {error_msg}")
 
+            # Parse response: last line is status code, rest is body
             output = stdout.decode().strip()
-            return json.loads(output)
+            lines = output.split("\n")
+            status_code = int(lines[-1])
+            body = "\n".join(lines[:-1])
+
+            # Parse JSON response
+            try:
+                response_data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                response_data = {"error": body}
+
+            # Raise exception for non-2xx status codes (mimics httpx behavior)
+            if status_code < 200 or status_code >= 300:
+                # Create a mock response object to raise HTTPStatusError
+                mock_request = httpx.Request("POST", url)
+                mock_response = httpx.Response(status_code=status_code, content=body.encode(), request=mock_request)
+                raise httpx.HTTPStatusError(f"HTTP {status_code}", request=mock_request, response=mock_response)
+
+            return response_data
         except TimeoutError:
             raise RuntimeError("Request timed out after 30 seconds")
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid JSON response: {e}")
+        except httpx.HTTPStatusError:
+            # Re-raise HTTP errors as-is
+            raise
 
     async def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a GET request to the backend API with automatic curl fallback.
@@ -246,8 +288,9 @@ class UnitySvcAPI:
                 raise ValueError(f"Task {task_id} timed out after {timeout}s")
 
             # Check task status using get() with automatic curl fallback
+            # Use UnitySvcAPI.get to ensure we call the async version, not sync wrapper
             try:
-                status = await self.get(f"/tasks/{task_id}")
+                status = await UnitySvcAPI.get(self, f"/tasks/{task_id}")
             except Exception:
                 # Network error while checking status - retry
                 await asyncio.sleep(poll_interval)

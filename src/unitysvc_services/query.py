@@ -23,24 +23,68 @@ class ServiceDataQuery(UnitySvcAPI):
     Provides sync wrapper methods for CLI usage that wrap async base class methods.
     """
 
-    def list_service_offerings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+    def list_service_offerings(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        provider_name: str | None = None,
+        service_type: str | None = None,
+        name: str | None = None,
+    ) -> list[dict[str, Any]]:
         """List all service offerings from the backend (sync wrapper).
 
         Args:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
+            provider_name: Filter by provider name (case-insensitive partial match)
+            service_type: Filter by service type (exact match)
+            name: Filter by service name (case-insensitive partial match)
         """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/offerings", {"skip": skip, "limit": limit}))
+        params: dict[str, Any] = {"skip": skip, "limit": limit}
+        if provider_name:
+            params["provider_name"] = provider_name
+        if service_type:
+            params["service_type"] = service_type
+        if name:
+            params["name"] = name
+
+        result: dict[str, Any] = asyncio.run(super().get("/publish/offerings", params))
         return result.get("data", result) if isinstance(result, dict) else result
 
-    def list_service_listings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
+    def list_service_listings(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        seller_name: str | None = None,
+        provider_name: str | None = None,
+        service_name: str | None = None,
+        service_type: str | None = None,
+        listing_type: str | None = None,
+    ) -> list[dict[str, Any]]:
         """List all service listings from the backend (sync wrapper).
 
         Args:
             skip: Number of records to skip (for pagination)
             limit: Maximum number of records to return
+            seller_name: Filter by seller name (case-insensitive partial match)
+            provider_name: Filter by provider name (case-insensitive partial match)
+            service_name: Filter by service name (case-insensitive partial match)
+            service_type: Filter by service type (exact match)
+            listing_type: Filter by listing type (exact match)
         """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/listings", {"skip": skip, "limit": limit}))
+        params: dict[str, Any] = {"skip": skip, "limit": limit}
+        if seller_name:
+            params["seller_name"] = seller_name
+        if provider_name:
+            params["provider_name"] = provider_name
+        if service_name:
+            params["service_name"] = service_name
+        if service_type:
+            params["service_type"] = service_type
+        if listing_type:
+            params["listing_type"] = listing_type
+
+        result: dict[str, Any] = asyncio.run(super().get("/publish/listings", params))
         return result.get("data", result) if isinstance(result, dict) else result
 
     def list_providers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
@@ -454,6 +498,21 @@ def query_offerings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
+    provider_name: str | None = typer.Option(
+        None,
+        "--provider-name",
+        help="Filter by provider name (case-insensitive partial match)",
+    ),
+    service_type: str | None = typer.Option(
+        None,
+        "--service-type",
+        help="Filter by service type (exact match, e.g., llm, vectordb, embedding)",
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Filter by service name (case-insensitive partial match)",
+    ),
 ):
     """Query all service offerings from UnitySVC backend.
 
@@ -463,6 +522,18 @@ def query_offerings(
 
         # Show only specific fields
         unitysvc_services query offerings --fields id,name,status
+
+        # Filter by provider name
+        unitysvc_services query offerings --provider-name openai
+
+        # Filter by service type
+        unitysvc_services query offerings --service-type llm
+
+        # Filter by service name
+        unitysvc_services query offerings --name llama
+
+        # Combine multiple filters
+        unitysvc_services query offerings --service-type llm --provider-name openai
 
         # Retrieve more than 100 records
         unitysvc_services query offerings --limit 500
@@ -501,7 +572,13 @@ def query_offerings(
 
     try:
         with ServiceDataQuery() as query:
-            offerings = query.list_service_offerings(skip=skip, limit=limit)
+            offerings = query.list_service_offerings(
+                skip=skip,
+                limit=limit,
+                provider_name=provider_name,
+                service_type=service_type,
+                name=name,
+            )
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
@@ -575,6 +652,31 @@ def query_listings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
+    seller_name: str | None = typer.Option(
+        None,
+        "--seller-name",
+        help="Filter by seller name (case-insensitive partial match)",
+    ),
+    provider_name: str | None = typer.Option(
+        None,
+        "--provider-name",
+        help="Filter by provider name (case-insensitive partial match)",
+    ),
+    service_name: str | None = typer.Option(
+        None,
+        "--service-name",
+        help="Filter by service name (case-insensitive partial match)",
+    ),
+    service_type: str | None = typer.Option(
+        None,
+        "--service-type",
+        help="Filter by service type (exact match, e.g., llm, vectordb, embedding)",
+    ),
+    listing_type: str | None = typer.Option(
+        None,
+        "--listing-type",
+        help="Filter by listing type (exact match: regular, byop, self_hosted)",
+    ),
 ):
     """Query all service listings from UnitySVC backend.
 
@@ -584,6 +686,21 @@ def query_listings(
 
         # Show only specific fields
         unitysvc_services query listings --fields id,service_name,status
+
+        # Filter by seller name
+        unitysvc_services query listings --seller-name chutes
+
+        # Filter by provider name
+        unitysvc_services query listings --provider-name openai
+
+        # Filter by service type
+        unitysvc_services query listings --service-type llm
+
+        # Filter by listing type
+        unitysvc_services query listings --listing-type byop
+
+        # Combine multiple filters
+        unitysvc_services query listings --service-type llm --listing-type regular
 
         # Retrieve more than 100 records
         unitysvc_services query listings --limit 500
@@ -630,7 +747,15 @@ def query_listings(
 
     try:
         with ServiceDataQuery() as query:
-            listings = query.list_service_listings(skip=skip, limit=limit)
+            listings = query.list_service_listings(
+                skip=skip,
+                limit=limit,
+                seller_name=seller_name,
+                provider_name=provider_name,
+                service_name=service_name,
+                service_type=service_type,
+                listing_type=listing_type,
+            )
 
             if format == "json":
                 # For JSON, filter fields if not all are requested
