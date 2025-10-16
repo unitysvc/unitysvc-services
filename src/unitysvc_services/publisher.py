@@ -837,14 +837,6 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         return all_results
 
-    def __enter__(self):
-        """Sync context manager entry for CLI usage."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Sync context manager exit for CLI usage."""
-        asyncio.run(self.aclose())
-
 
 # CLI commands for publishing
 app = typer.Typer(help="Publish data to backend")
@@ -896,60 +888,62 @@ def publish_callback(
     console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
     console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
 
+    async def _publish_all_async():
+        async with ServiceDataPublisher() as publisher:
+            return await publisher.publish_all_models(data_path)
+
     try:
-        with ServiceDataPublisher() as publisher:
-            # Call the publish_all_models method (now async)
-            all_results = asyncio.run(publisher.publish_all_models(data_path))
+        all_results = asyncio.run(_publish_all_async())
 
-            # Display results for each data type
-            data_type_display_names = {
-                "sellers": "Sellers",
-                "providers": "Providers",
-                "offerings": "Service Offerings",
-                "listings": "Service Listings",
-            }
+        # Display results for each data type
+        data_type_display_names = {
+            "sellers": "Sellers",
+            "providers": "Providers",
+            "offerings": "Service Offerings",
+            "listings": "Service Listings",
+        }
 
-            for data_type in ["sellers", "providers", "offerings", "listings"]:
-                display_name = data_type_display_names[data_type]
-                results = all_results[data_type]
+        for data_type in ["sellers", "providers", "offerings", "listings"]:
+            display_name = data_type_display_names[data_type]
+            results = all_results[data_type]
 
-                console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
-                console.print(f"[bold cyan]{display_name}[/bold cyan]")
-                console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
-
-                console.print(f"  Total found: {results['total']}")
-                console.print(f"  [green]✓ Success:[/green] {results['success']}")
-                console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
-
-                # Display errors if any
-                if results.get("errors"):
-                    console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
-                    for error in results["errors"]:
-                        # Check if this is a skipped item
-                        if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
-                            continue
-                        console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
-                        console.print(f"    {error.get('error', 'unknown error')}")
-
-            # Final summary
             console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
-            console.print("[bold]Final Publishing Summary[/bold]")
+            console.print(f"[bold cyan]{display_name}[/bold cyan]")
             console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
-            console.print(f"  Total found: {all_results['total_found']}")
-            console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
-            console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
 
-            if all_results["total_failed"] > 0:
-                console.print(
-                    f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
-                    style="bold yellow",
-                )
-                raise typer.Exit(code=1)
-            else:
-                console.print(
-                    "\n[green]✓[/green] All data published successfully!",
-                    style="bold green",
-                )
+            console.print(f"  Total found: {results['total']}")
+            console.print(f"  [green]✓ Success:[/green] {results['success']}")
+            console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+
+            # Display errors if any
+            if results.get("errors"):
+                console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
+                for error in results["errors"]:
+                    # Check if this is a skipped item
+                    if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
+                        continue
+                    console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
+                    console.print(f"    {error.get('error', 'unknown error')}")
+
+        # Final summary
+        console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
+        console.print("[bold]Final Publishing Summary[/bold]")
+        console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+        console.print(f"  Total found: {all_results['total_found']}")
+        console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
+        console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
+
+        if all_results["total_failed"] > 0:
+            console.print(
+                f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
+                style="bold yellow",
+            )
+            raise typer.Exit(code=1)
+        else:
+            console.print(
+                "\n[green]✓[/green] All data published successfully!",
+                style="bold green",
+            )
 
     except typer.Exit:
         raise
@@ -980,36 +974,45 @@ def publish_providers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    try:
-        with ServiceDataPublisher() as publisher:
+    # Handle single file
+    if data_path.is_file():
+        console.print(f"[blue]Publishing provider:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+    else:
+        console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+
+    async def _publish_providers_async():
+        async with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
-                console.print(f"[blue]Publishing provider:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                result = asyncio.run(publisher.post_provider_async(data_path))
-                console.print("[green]✓[/green] Provider published successfully!")
-                console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+                return await publisher.post_provider_async(data_path), True
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = asyncio.run(publisher.publish_all_providers(data_path))
+                return await publisher.publish_all_providers(data_path), False
 
-                # Display summary
-                console.print("\n[bold]Publishing Summary:[/bold]")
-                console.print(f"  Total found: {results['total']}")
-                console.print(f"  [green]✓ Success:[/green] {results['success']}")
-                console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+    try:
+        result, is_single = asyncio.run(_publish_providers_async())
 
-                # Display errors if any
-                if results["errors"]:
-                    console.print("\n[bold red]Errors:[/bold red]")
-                    for error in results["errors"]:
-                        console.print(f"  [red]✗[/red] {error['file']}")
-                        console.print(f"    {error['error']}")
+        if is_single:
+            console.print("[green]✓[/green] Provider published successfully!")
+            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+        else:
+            # Display summary
+            console.print("\n[bold]Publishing Summary:[/bold]")
+            console.print(f"  Total found: {result['total']}")
+            console.print(f"  [green]✓ Success:[/green] {result['success']}")
+            console.print(f"  [red]✗ Failed:[/red] {result['failed']}")
 
-                if results["failed"] > 0:
-                    raise typer.Exit(code=1)
+            # Display errors if any
+            if result["errors"]:
+                console.print("\n[bold red]Errors:[/bold red]")
+                for error in result["errors"]:
+                    console.print(f"  [red]✗[/red] {error['file']}")
+                    console.print(f"    {error['error']}")
+
+            if result["failed"] > 0:
+                raise typer.Exit(code=1)
 
     except typer.Exit:
         raise
@@ -1039,34 +1042,43 @@ def publish_sellers(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    try:
-        with ServiceDataPublisher() as publisher:
+    # Handle single file
+    if data_path.is_file():
+        console.print(f"[blue]Publishing seller:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+    else:
+        console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+
+    async def _publish_sellers_async():
+        async with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
-                console.print(f"[blue]Publishing seller:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                result = asyncio.run(publisher.post_seller_async(data_path))
-                console.print("[green]✓[/green] Seller published successfully!")
-                console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+                return await publisher.post_seller_async(data_path), True
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = asyncio.run(publisher.publish_all_sellers(data_path))
+                return await publisher.publish_all_sellers(data_path), False
 
-                console.print("\n[bold]Publishing Summary:[/bold]")
-                console.print(f"  Total found: {results['total']}")
-                console.print(f"  [green]✓ Success: {results['success']}[/green]")
-                console.print(f"  [red]✗ Failed: {results['failed']}[/red]")
+    try:
+        result, is_single = asyncio.run(_publish_sellers_async())
 
-                if results["errors"]:
-                    console.print("\n[bold red]Errors:[/bold red]")
-                    for error in results["errors"]:
-                        console.print(f"  [red]✗[/red] {error['file']}")
-                        console.print(f"    {error['error']}")
-                    raise typer.Exit(code=1)
-                else:
-                    console.print("\n[green]✓[/green] All sellers published successfully!")
+        if is_single:
+            console.print("[green]✓[/green] Seller published successfully!")
+            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+        else:
+            console.print("\n[bold]Publishing Summary:[/bold]")
+            console.print(f"  Total found: {result['total']}")
+            console.print(f"  [green]✓ Success: {result['success']}[/green]")
+            console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+
+            if result["errors"]:
+                console.print("\n[bold red]Errors:[/bold red]")
+                for error in result["errors"]:
+                    console.print(f"  [red]✗[/red] {error['file']}")
+                    console.print(f"    {error['error']}")
+                raise typer.Exit(code=1)
+            else:
+                console.print("\n[green]✓[/green] All sellers published successfully!")
 
     except typer.Exit:
         raise
@@ -1096,34 +1108,43 @@ def publish_offerings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    try:
-        with ServiceDataPublisher() as publisher:
+    # Handle single file
+    if data_path.is_file():
+        console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+    else:
+        console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+
+    async def _publish_offerings_async():
+        async with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
-                console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                result = asyncio.run(publisher.post_service_offering_async(data_path))
-                console.print("[green]✓[/green] Service offering published successfully!")
-                console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+                return await publisher.post_service_offering_async(data_path), True
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = asyncio.run(publisher.publish_all_offerings(data_path))
+                return await publisher.publish_all_offerings(data_path), False
 
-                console.print("\n[bold]Publishing Summary:[/bold]")
-                console.print(f"  Total found: {results['total']}")
-                console.print(f"  [green]✓ Success: {results['success']}[/green]")
-                console.print(f"  [red]✗ Failed: {results['failed']}[/red]")
+    try:
+        result, is_single = asyncio.run(_publish_offerings_async())
 
-                if results["errors"]:
-                    console.print("\n[bold red]Errors:[/bold red]")
-                    for error in results["errors"]:
-                        console.print(f"  [red]✗[/red] {error['file']}")
-                        console.print(f"    {error['error']}")
-                    raise typer.Exit(code=1)
-                else:
-                    console.print("\n[green]✓[/green] All service offerings published successfully!")
+        if is_single:
+            console.print("[green]✓[/green] Service offering published successfully!")
+            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+        else:
+            console.print("\n[bold]Publishing Summary:[/bold]")
+            console.print(f"  Total found: {result['total']}")
+            console.print(f"  [green]✓ Success: {result['success']}[/green]")
+            console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+
+            if result["errors"]:
+                console.print("\n[bold red]Errors:[/bold red]")
+                for error in result["errors"]:
+                    console.print(f"  [red]✗[/red] {error['file']}")
+                    console.print(f"    {error['error']}")
+                raise typer.Exit(code=1)
+            else:
+                console.print("\n[green]✓[/green] All service offerings published successfully!")
 
     except typer.Exit:
         raise
@@ -1154,34 +1175,43 @@ def publish_listings(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    try:
-        with ServiceDataPublisher() as publisher:
+    # Handle single file
+    if data_path.is_file():
+        console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+    else:
+        console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+
+    async def _publish_listings_async():
+        async with ServiceDataPublisher() as publisher:
             # Handle single file
             if data_path.is_file():
-                console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                result = asyncio.run(publisher.post_service_listing_async(data_path))
-                console.print("[green]✓[/green] Service listing published successfully!")
-                console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+                return await publisher.post_service_listing_async(data_path), True
             # Handle directory
             else:
-                console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
-                console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-                results = asyncio.run(publisher.publish_all_listings(data_path))
+                return await publisher.publish_all_listings(data_path), False
 
-                console.print("\n[bold]Publishing Summary:[/bold]")
-                console.print(f"  Total found: {results['total']}")
-                console.print(f"  [green]✓ Success: {results['success']}[/green]")
-                console.print(f"  [red]✗ Failed: {results['failed']}[/red]")
+    try:
+        result, is_single = asyncio.run(_publish_listings_async())
 
-                if results["errors"]:
-                    console.print("\n[bold red]Errors:[/bold red]")
-                    for error in results["errors"]:
-                        console.print(f"  [red]✗[/red] {error['file']}")
-                        console.print(f"    {error['error']}")
-                    raise typer.Exit(code=1)
-                else:
-                    console.print("\n[green]✓[/green] All service listings published successfully!")
+        if is_single:
+            console.print("[green]✓[/green] Service listing published successfully!")
+            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+        else:
+            console.print("\n[bold]Publishing Summary:[/bold]")
+            console.print(f"  Total found: {result['total']}")
+            console.print(f"  [green]✓ Success: {result['success']}[/green]")
+            console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+
+            if result["errors"]:
+                console.print("\n[bold red]Errors:[/bold red]")
+                for error in result["errors"]:
+                    console.print(f"  [red]✗[/red] {error['file']}")
+                    console.print(f"    {error['error']}")
+                raise typer.Exit(code=1)
+            else:
+                console.print("\n[green]✓[/green] All service listings published successfully!")
 
     except typer.Exit:
         raise

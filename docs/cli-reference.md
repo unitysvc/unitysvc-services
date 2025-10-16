@@ -208,7 +208,7 @@ unitysvc_services query offerings [OPTIONS]
 
 **Available Fields:**
 
-id, definition_id, provider_id, status, price, service_name, service_type, provider_name
+id, provider_id, status, price, service_name, service_type, provider_name
 
 ### query listings
 
