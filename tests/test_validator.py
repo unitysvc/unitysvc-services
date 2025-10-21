@@ -122,25 +122,26 @@ def test_validate_listing_json(schema_dir, example_data_dir):
     assert is_valid, f"Listing JSON validation failed: {errors}"
 
 
-def test_validate_markdown_files(schema_dir, example_data_dir):
-    """Test validation of markdown files."""
+def test_validate_jinja2_files(schema_dir, example_data_dir, tmp_path):
+    """Test validation of Jinja2 template files."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    md_files = [
-        example_data_dir / "provider1" / "README.md",
-        example_data_dir / "provider1" / "terms-of-service.md",
-        example_data_dir / "provider1" / "services" / "service1" / "code-example.md",
-    ]
+    # Create valid Jinja2 template files for testing
+    valid_template = tmp_path / "valid.md.j2"
+    valid_template.write_text("# {{ listing.service_name }}\n\nProvider: {{ provider.provider_name }}")
 
-    for md_file in md_files:
-        is_valid, errors = validator.validate_md_file(md_file)
+    invalid_template = tmp_path / "invalid.py.j2"
+    invalid_template.write_text("# {{ listing.service_name\n")  # Missing closing braces
 
-        if not is_valid:
-            print(f"Validation errors for {md_file}:")
-            for error in errors:
-                print(f"  - {error}")
+    # Test valid template
+    is_valid, errors = validator.validate_jinja2_file(valid_template)
+    assert is_valid, f"Valid Jinja2 template failed validation: {errors}"
 
-        assert is_valid, f"Markdown validation failed for {md_file}: {errors}"
+    # Test invalid template
+    is_valid, errors = validator.validate_jinja2_file(invalid_template)
+    assert not is_valid, "Invalid Jinja2 template should fail validation"
+    assert len(errors) > 0, "Should have validation errors for invalid template"
+    assert "Jinja2 syntax error" in errors[0], f"Error should mention Jinja2 syntax: {errors}"
 
 
 def test_validate_all_files(schema_dir, example_data_dir):
