@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import tomli_w
+from jinja2 import Template
 
 
 def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
@@ -336,3 +337,55 @@ def convert_convenience_fields_to_documents(
         del data[terms_field]
 
     return data
+
+
+def render_template_file(
+    file_path: Path,
+    listing: dict[str, Any] | None = None,
+    offering: dict[str, Any] | None = None,
+    provider: dict[str, Any] | None = None,
+    seller: dict[str, Any] | None = None,
+) -> tuple[str, str]:
+    """Render a Jinja2 template file and return content and new filename.
+
+    If the file is not a template (.j2 extension), returns the file content as-is
+    and the original filename.
+
+    Args:
+        file_path: Path to the file (may or may not be a .j2 template)
+        listing: Listing data for template rendering (optional)
+        offering: Offering data for template rendering (optional)
+        provider: Provider data for template rendering (optional)
+        seller: Seller data for template rendering (optional)
+
+    Returns:
+        Tuple of (rendered_content, new_filename_without_j2)
+
+    Raises:
+        Exception: If template rendering fails
+    """
+    # Read file content
+    with open(file_path, encoding="utf-8") as f:
+        file_content = f.read()
+
+    # Check if this is a Jinja2 template
+    is_template = file_path.name.endswith(".j2")
+
+    if is_template:
+        # Render the template
+        template = Template(file_content)
+        rendered_content = template.render(
+            listing=listing or {},
+            offering=offering or {},
+            provider=provider or {},
+            seller=seller or {},
+        )
+
+        # Strip .j2 from filename
+        # Example: test.py.j2 -> test.py
+        new_filename = file_path.name[:-3]  # Remove last 3 characters (.j2)
+
+        return rendered_content, new_filename
+    else:
+        # Not a template - return as-is
+        return file_content, file_path.name

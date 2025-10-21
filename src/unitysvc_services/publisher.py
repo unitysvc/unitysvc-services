@@ -14,7 +14,7 @@ from rich.console import Console
 
 from .api import UnitySvcAPI
 from .models.base import ProviderStatusEnum, SellerStatusEnum
-from .utils import convert_convenience_fields_to_documents, find_files_by_schema
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema, render_template_file
 from .validator import DataValidator
 
 
@@ -59,31 +59,79 @@ class ServiceDataPublisher(UnitySvcAPI):
             with open(full_path, "rb") as f:
                 return base64.b64encode(f.read()).decode("ascii")
 
-    def resolve_file_references(self, data: dict[str, Any], base_path: Path) -> dict[str, Any]:
-        """Recursively resolve file references and include content in data."""
+    def resolve_file_references(
+        self,
+        data: dict[str, Any],
+        base_path: Path,
+        listing: dict[str, Any] | None = None,
+        offering: dict[str, Any] | None = None,
+        provider: dict[str, Any] | None = None,
+        seller: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Recursively resolve file references and include content in data.
+
+        For Jinja2 template files (.j2), renders the template with provided context
+        and strips the .j2 extension from file_path.
+
+        Args:
+            data: Data dictionary potentially containing file_path references
+            base_path: Base path for resolving relative file paths
+            listing: Listing data for template rendering (optional)
+            offering: Offering data for template rendering (optional)
+            provider: Provider data for template rendering (optional)
+            seller: Seller data for template rendering (optional)
+
+        Returns:
+            Data with file references resolved and content loaded
+        """
         result: dict[str, Any] = {}
 
         for key, value in data.items():
             if isinstance(value, dict):
                 # Recursively process nested dictionaries
-                result[key] = self.resolve_file_references(value, base_path)
+                result[key] = self.resolve_file_references(
+                    value, base_path, listing=listing, offering=offering, provider=provider, seller=seller
+                )
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
-                    (self.resolve_file_references(item, base_path) if isinstance(item, dict) else item)
+                    (
+                        self.resolve_file_references(
+                            item, base_path, listing=listing, offering=offering, provider=provider, seller=seller
+                        )
+                        if isinstance(item, dict)
+                        else item
+                    )
                     for item in value
                 ]
             elif key == "file_path" and isinstance(value, str):
-                # This is a file reference - load the content
-                # Store both the original path and the content
-                result[key] = value
-                # Add file_content field if not already present (for DocumentCreate compatibility)
-                if "file_content" not in data:
-                    try:
-                        content = self.load_file_content(Path(value), base_path)
-                        result["file_content"] = content
-                    except Exception as e:
-                        raise ValueError(f"Failed to load file content from '{value}': {e}")
+                # This is a file reference - load the content and render if template
+                full_path = base_path / value if not Path(value).is_absolute() else Path(value)
+
+                if not full_path.exists():
+                    raise FileNotFoundError(f"File not found: {full_path}")
+
+                # Render template if applicable
+                try:
+                    content, actual_filename = render_template_file(
+                        full_path,
+                        listing=listing,
+                        offering=offering,
+                        provider=provider,
+                        seller=seller,
+                    )
+                    result["file_content"] = content
+
+                    # Update file_path to remove .j2 extension if it was a template
+                    if full_path.name.endswith(".j2"):
+                        # Strip .j2 from the path
+                        new_path = str(value)[:-3]  # Remove last 3 characters (.j2)
+                        result[key] = new_path
+                    else:
+                        result[key] = value
+
+                except Exception as e:
+                    raise ValueError(f"Failed to load/render file content from '{value}': {e}")
             else:
                 result[key] = value
 
@@ -242,16 +290,15 @@ class ServiceDataPublisher(UnitySvcAPI):
         if "name" not in data or not data.get("name"):
             data["name"] = listing_file.stem
 
-        # Resolve file references and include content
-        base_path = listing_file.parent
-        data_with_content = self.resolve_file_references(data, base_path)
-
-        # Extract provider_name from directory structure
+        # Extract provider_name from directory structure (needed before loading provider data)
         parts = listing_file.parts
         try:
             services_idx = parts.index("services")
             provider_name = parts[services_idx - 1]
-            data_with_content["provider_name"] = provider_name
+            data["provider_name"] = provider_name
+
+            # Find provider directory to load provider data
+            provider_dir = Path(*parts[:services_idx])
         except (ValueError, IndexError):
             raise ValueError(
                 f"Cannot extract provider_name from path: {listing_file}. "
@@ -259,7 +306,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             )
 
         # If service_name is not in listing data, find it from service files in the same directory
-        if "service_name" not in data_with_content or not data_with_content["service_name"]:
+        if "service_name" not in data or not data["service_name"]:
             # Find all service files in the same directory
             service_files = find_files_by_schema(listing_file.parent, "service_v1")
 
@@ -269,7 +316,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
-                service_names = [data.get("name", "unknown") for _, _, data in service_files]
+                service_names = [svc_data.get("name", "unknown") for _, _, svc_data in service_files]
                 raise ValueError(
                     f"Multiple services found in {listing_file.parent}: {', '.join(service_names)}. "
                     f"Please add 'service_name' field to {listing_file.name} to specify which "
@@ -278,11 +325,11 @@ class ServiceDataPublisher(UnitySvcAPI):
             else:
                 # Exactly one service found - use it
                 _service_file, _format, service_data = service_files[0]
-                data_with_content["service_name"] = service_data.get("name")
-                data_with_content["service_version"] = service_data.get("version")
+                data["service_name"] = service_data.get("name")
+                data["service_version"] = service_data.get("version")
         else:
             # service_name is provided in listing data, find the matching service to get version
-            service_name = data_with_content["service_name"]
+            service_name = data["service_name"]
             service_files = find_files_by_schema(
                 listing_file.parent, "service_v1", field_filter=(("name", service_name),)
             )
@@ -294,7 +341,14 @@ class ServiceDataPublisher(UnitySvcAPI):
 
             # Get version from the found service
             _service_file, _format, service_data = service_files[0]
-            data_with_content["service_version"] = service_data.get("version")
+            data["service_version"] = service_data.get("version")
+
+        # Load provider data for template rendering
+        provider_files = find_files_by_schema(provider_dir, "provider_v1")
+        if provider_files:
+            _provider_file, _format, provider_data = provider_files[0]
+        else:
+            provider_data = {}
 
         # Find seller_name from seller definition in the data directory
         # Navigate up to find the data directory and look for seller file
@@ -332,11 +386,22 @@ class ServiceDataPublisher(UnitySvcAPI):
         if not seller_name:
             raise ValueError("Seller data missing 'name' field")
 
-        data_with_content["seller_name"] = seller_name
+        data["seller_name"] = seller_name
 
         # Map listing_status to status if present
-        if "listing_status" in data_with_content:
-            data_with_content["status"] = data_with_content.pop("listing_status")
+        if "listing_status" in data:
+            data["status"] = data.pop("listing_status")
+
+        # NOW resolve file references with all context (listing, offering, provider, seller)
+        base_path = listing_file.parent
+        data_with_content = self.resolve_file_references(
+            data,
+            base_path,
+            listing=data,
+            offering=service_data,
+            provider=provider_data,
+            seller=seller_data,
+        )
 
         # Post to the endpoint using retry helper
         context_info = (
@@ -365,14 +430,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Load the data file
         data = self.load_data_file(data_file)
 
-        # Resolve file references and include content
+        # Convert convenience fields first
         base_path = data_file.parent
         data = convert_convenience_fields_to_documents(
             data, base_path, logo_field="logo", terms_field="terms_of_service"
         )
-
-        # Resolve file references and include content
-        data_with_content = self.resolve_file_references(data, base_path)
 
         # Extract provider_name from directory structure
         # Find the 'services' directory and use its parent as provider_name
@@ -380,9 +442,9 @@ class ServiceDataPublisher(UnitySvcAPI):
         try:
             services_idx = parts.index("services")
             provider_name = parts[services_idx - 1]
-            data_with_content["provider_name"] = provider_name
+            data["provider_name"] = provider_name
 
-            # Find provider directory to check status
+            # Find provider directory to check status and load data
             provider_dir = Path(*parts[:services_idx])
         except (ValueError, IndexError):
             raise ValueError(
@@ -390,7 +452,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                 f"Expected path to contain .../{{provider_name}}/services/..."
             )
 
-        # Check provider status - skip if incomplete
+        # Load provider data for status check and template rendering
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
         if provider_files:
             # Should only be one provider file in the directory
@@ -402,6 +464,18 @@ class ServiceDataPublisher(UnitySvcAPI):
                     "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
                     "name": data.get("name", "unknown"),
                 }
+        else:
+            provider_data = {}
+
+        # NOW resolve file references with all context (offering, provider)
+        data_with_content = self.resolve_file_references(
+            data,
+            base_path,
+            listing=None,
+            offering=data,
+            provider=provider_data,
+            seller=None,
+        )
 
         # Post to the endpoint using retry helper
         context_info = f"provider: {data_with_content.get('provider_name')}"
@@ -440,8 +514,15 @@ class ServiceDataPublisher(UnitySvcAPI):
             data, base_path, logo_field="logo", terms_field="terms_of_service"
         )
 
-        # Resolve file references and include content
-        data_with_content = self.resolve_file_references(data, base_path)
+        # Resolve file references and include content with provider context
+        data_with_content = self.resolve_file_references(
+            data,
+            base_path,
+            listing=None,
+            offering=None,
+            provider=data,
+            seller=None,
+        )
 
         # Post to the endpoint using retry helper
         return await self._post_with_retry(
@@ -471,8 +552,15 @@ class ServiceDataPublisher(UnitySvcAPI):
         base_path = data_file.parent
         data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
 
-        # Resolve file references and include content
-        data_with_content = self.resolve_file_references(data, base_path)
+        # Resolve file references and include content with seller context
+        data_with_content = self.resolve_file_references(
+            data,
+            base_path,
+            listing=None,
+            offering=None,
+            provider=None,
+            seller=data,
+        )
 
         # Post to the endpoint using retry helper
         return await self._post_with_retry(
