@@ -48,6 +48,7 @@ homepage = "https://github.com/unitysvc/unitysvc-services"
 
 [project.scripts]
 unitysvc_services = "unitysvc_services.cli:app"
+usvc = "unitysvc_services.cli:app"
 
 [tool.ty]
 # All rules are enabled as "error" by default; no need to specify unless overriding.

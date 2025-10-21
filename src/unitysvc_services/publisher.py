@@ -344,7 +344,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             f"provider: {data_with_content.get('provider_name')}, "
             f"seller: {data_with_content.get('seller_name')}"
         )
-        return await self._post_with_retry(
+        result = await self._post_with_retry(
             endpoint="/publish/listing",
             data=data_with_content,
             entity_type="listing",
@@ -352,6 +352,13 @@ class ServiceDataPublisher(UnitySvcAPI):
             context_info=context_info,
             max_retries=max_retries,
         )
+
+        # Add local metadata to result for display purposes
+        result["service_name"] = data_with_content.get("service_name")
+        result["provider_name"] = data_with_content.get("provider_name")
+        result["seller_name"] = data_with_content.get("seller_name")
+
+        return result
 
     async def post_service_offering_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_service_offering for concurrent publishing with retry logic."""
@@ -398,7 +405,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Post to the endpoint using retry helper
         context_info = f"provider: {data_with_content.get('provider_name')}"
-        return await self._post_with_retry(
+        result = await self._post_with_retry(
             endpoint="/publish/offering",
             data=data_with_content,
             entity_type="offering",
@@ -406,6 +413,11 @@ class ServiceDataPublisher(UnitySvcAPI):
             context_info=context_info,
             max_retries=max_retries,
         )
+
+        # Add local metadata to result for display purposes
+        result["provider_name"] = data_with_content.get("provider_name")
+
+        return result
 
     async def post_provider_async(self, data_file: Path, max_retries: int = 3) -> dict[str, Any]:
         """Async version of post_provider for concurrent publishing with retry logic."""
