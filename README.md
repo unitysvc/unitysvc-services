@@ -135,6 +135,52 @@ usvc test run --verbose
 
 Code examples are discovered from listing files and executed with upstream credentials from `provider.toml`.
 
+## Document Format
+
+Documents in UnitySVC can be in any format (`.md`, `.py`, `.js`, `.sh`, etc.). Files with an additional `.j2` extension are treated as **Jinja2 templates** and expanded before use.
+
+### Standard Documents
+Regular files are used as-is:
+- `description.md` - Markdown documentation (used as-is)
+- `example.py` - Python code example (used as-is)
+- `example.js` - JavaScript code example (used as-is)
+- `example.sh` - Shell script (used as-is)
+
+### Jinja2 Template Documents
+Files ending with `.j2` are rendered before use:
+- `description.md.j2` - Markdown template (rendered → `.md`)
+- `example.py.j2` - Python template (rendered → `.py`)
+- `example.js.j2` - JavaScript template (rendered → `.js`)
+- `example.sh.j2` - Shell script template (rendered → `.sh`)
+
+**Template Variables:**
+Templates have access to:
+- `listing`: The listing data structure (Listing_v1 schema)
+  - `listing.service_name`, `listing.listing_type`, etc.
+- `offering`: Service offering data (Offering_v1 schema)
+  - `offering.offering_id`, `offering.service_type`, etc.
+- `provider`: Provider metadata (Provider_v1 schema)
+  - `provider.provider_name`, `provider.provider_access_info`, etc.
+- `seller`: Seller metadata (Seller_v1 schema)
+  - `seller.seller_name`, `seller.contact_email`, etc.
+
+**Example Template** (`test.py.j2`):
+```python
+#!/usr/bin/env python
+"""Test for {{ listing.service_name }} from {{ provider.provider_name }}"""
+
+API_ENDPOINT = "{{ provider.provider_access_info.api_endpoint }}"
+MODEL = "{{ listing.service_name }}"
+PROVIDER = "{{ provider.provider_name }}"
+
+print(f"Testing {MODEL} from {PROVIDER} at {API_ENDPOINT}")
+```
+
+**Validation:**
+- Data files (`.json`, `.toml`) are validated against schemas
+- Template files (`.j2`) are validated for Jinja2 syntax errors
+- Regular documents are not validated
+
 ## Documentation
 
 -   **[Getting Started](https://unitysvc-services.readthedocs.io/en/latest/getting-started/)** - Installation and first steps
