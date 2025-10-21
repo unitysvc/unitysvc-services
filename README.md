@@ -25,31 +25,37 @@ pip install unitysvc-services
 
 Requires Python 3.11+
 
+**CLI Alias:** The command `unitysvc_services` can also be invoked using the shorter alias `usvc`.
+
 ## Quick Example
 
 ```bash
-# Initialize provider and service
-unitysvc_services init provider my-provider
-unitysvc_services init offering my-service
-unitysvc_services init seller my-marketplace
+# Initialize provider and service (using short alias 'usvc')
+usvc init provider my-provider
+usvc init offering my-service
+usvc init seller my-marketplace
 
 # Validate and format
-unitysvc_services validate
-unitysvc_services format
+usvc validate
+usvc format
 
 # Publish to platform (publishes all: sellers, providers, offerings, listings)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
-unitysvc_services publish
+usvc publish
 
 # Or publish specific types only
-unitysvc_services publish providers
+usvc publish providers
 
 # Verify with default fields
-unitysvc_services query offerings
+usvc query offerings
 
 # Query with custom fields
-unitysvc_services query providers --fields id,name,contact_email
+usvc query providers --fields id,name,contact_email
+
+# Test code examples with upstream credentials
+usvc test list --provider fireworks
+usvc test run --provider fireworks --services "llama*"
 ```
 
 ## Key Features
@@ -95,18 +101,39 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## CLI Commands
 
-| Command    | Description                            |
-| ---------- | -------------------------------------- |
-| `init`     | Initialize new data files from schemas |
-| `list`     | List local data files                  |
-| `query`    | Query backend API for published data   |
-| `publish`  | Publish data to backend                |
-| `update`   | Update local file fields               |
-| `validate` | Validate data consistency              |
-| `format`   | Format data files                      |
-| `populate` | Execute provider populate scripts      |
+| Command    | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `init`     | Initialize new data files from schemas              |
+| `list`     | List local data files                               |
+| `query`    | Query backend API for published data                |
+| `publish`  | Publish data to backend                             |
+| `update`   | Update local file fields                            |
+| `validate` | Validate data consistency                           |
+| `format`   | Format data files                                   |
+| `populate` | Execute provider populate scripts                   |
+| `test`     | Test code examples with upstream API credentials    |
 
-Run `unitysvc_services --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
+Run `usvc --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
+
+### Test Command
+
+The `test` command helps validate code examples against upstream APIs:
+
+```bash
+# List available code examples
+usvc test list
+usvc test list --provider fireworks
+usvc test list --services "llama*,gpt-4*"
+usvc test list --show-paths
+
+# Run code examples
+usvc test run
+usvc test run --provider fireworks
+usvc test run --services "code-llama-*"
+usvc test run --verbose
+```
+
+Code examples are discovered from listing files and executed with upstream credentials from `provider.toml`.
 
 ## Documentation
 

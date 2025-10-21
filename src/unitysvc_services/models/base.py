@@ -255,6 +255,10 @@ class Document(BaseModel):
         default=False,
         description="Whether document is publicly accessible without authentication",
     )
+    requirements: list[str] | None = Field(
+        default=None,
+        description="Required packages/modules for running this code example (e.g., ['openai', 'httpx'])",
+    )
 
 
 class RateLimit(BaseModel):
