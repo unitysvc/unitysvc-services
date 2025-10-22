@@ -1,19 +1,20 @@
-# UnitySVC Provider SDK
+# UnitySVC Services SDK
 
 ![PyPI version](https://img.shields.io/pypi/v/unitysvc-services.svg)
 [![Documentation Status](https://readthedocs.org/projects/unitysvc-services/badge/?version=latest)](https://unitysvc-services.readthedocs.io/en/latest/?version=latest)
 
-Client library and CLI tools for digital service providers to interact with the UnitySVC platform.
+Client library and CLI tools for sellers and providers of digital service to interact with the UnitySVC platform.
 
 **📚 [Full Documentation](https://unitysvc-services.readthedocs.io)** | **🚀 [Getting Started](https://unitysvc-services.readthedocs.io/en/latest/getting-started/)** | **📖 [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/)**
 
 ## Overview
 
-UnitySVC Provider SDK enables digital service providers to manage their service offerings through a **local-first, version-controlled workflow**:
+UnitySVC Services SDK enables digital service sellers and providers to manage their service offerings through a **local-first, version-controlled workflow**:
 
 -   **Define** service data using schema-validated files (JSON/TOML)
 -   **Manage** everything locally in git-controlled directories
--   **Validate** data against schemas before publishing
+-   **Validate** data against schemas
+-   **Test** code examples using provider credentials
 -   **Publish** to UnitySVC platform when ready
 -   **Automate** with populate scripts for dynamic catalogs
 
@@ -39,23 +40,20 @@ usvc init seller my-marketplace
 usvc validate
 usvc format
 
+# Test code examples with upstream credentials
+usvc test list --provider fireworks
+usvc test run --provider fireworks --services "llama*"
+
+# if you write a script to manage services
+usvc populate
+
 # Publish to platform (publishes all: sellers, providers, offerings, listings)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
 usvc publish
 
-# Or publish specific types only
-usvc publish providers
-
-# Verify with default fields
-usvc query offerings
-
-# Query with custom fields
+# Query unitysvc backend to verify data
 usvc query providers --fields id,name,contact_email
-
-# Test code examples with upstream credentials
-usvc test list --provider fireworks
-usvc test run --provider fireworks --services "llama*"
 ```
 
 ## Key Features
@@ -72,13 +70,13 @@ usvc test run --provider fireworks --services "llama*"
 ### Manual Workflow (small catalogs)
 
 ```bash
-init → edit files → validate → format → publish → verify
+init → edit files → validate → test → format → publish → verify
 ```
 
 ### Automated Workflow (large/dynamic catalogs)
 
 ```bash
-init provider → configure populate script → populate → validate → publish
+init → configure populate script → populate → validate → publish
 ```
 
 See [Workflows Documentation](https://unitysvc-services.readthedocs.io/en/latest/workflows/) for details.
@@ -101,17 +99,17 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## CLI Commands
 
-| Command    | Description                                         |
-| ---------- | --------------------------------------------------- |
-| `init`     | Initialize new data files from schemas              |
-| `list`     | List local data files                               |
-| `query`    | Query backend API for published data                |
-| `publish`  | Publish data to backend                             |
-| `update`   | Update local file fields                            |
-| `validate` | Validate data consistency                           |
-| `format`   | Format data files                                   |
-| `populate` | Execute provider populate scripts                   |
-| `test`     | Test code examples with upstream API credentials    |
+| Command    | Description                                      |
+| ---------- | ------------------------------------------------ |
+| `init`     | Initialize new data files from schemas           |
+| `list`     | List local data files                            |
+| `query`    | Query backend API for published data             |
+| `publish`  | Publish data to backend                          |
+| `update`   | Update local file fields                         |
+| `validate` | Validate data consistency                        |
+| `format`   | Format data files                                |
+| `populate` | Execute provider populate scripts                |
+| `test`     | Test code examples with upstream API credentials |
 
 Run `usvc --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
 
@@ -140,31 +138,37 @@ Code examples are discovered from listing files and executed with upstream crede
 Documents in UnitySVC can be in any format (`.md`, `.py`, `.js`, `.sh`, etc.). Files with an additional `.j2` extension are treated as **Jinja2 templates** and expanded before use.
 
 ### Standard Documents
+
 Regular files are used as-is:
-- `description.md` - Markdown documentation (used as-is)
-- `example.py` - Python code example (used as-is)
-- `example.js` - JavaScript code example (used as-is)
-- `example.sh` - Shell script (used as-is)
+
+-   `description.md` - Markdown documentation (used as-is)
+-   `example.py` - Python code example (used as-is)
+-   `example.js` - JavaScript code example (used as-is)
+-   `example.sh` - Shell script (used as-is)
 
 ### Jinja2 Template Documents
+
 Files ending with `.j2` are rendered before use:
-- `description.md.j2` - Markdown template (rendered → `.md`)
-- `example.py.j2` - Python template (rendered → `.py`)
-- `example.js.j2` - JavaScript template (rendered → `.js`)
-- `example.sh.j2` - Shell script template (rendered → `.sh`)
+
+-   `description.md.j2` - Markdown template (rendered → `.md`)
+-   `example.py.j2` - Python template (rendered → `.py`)
+-   `example.js.j2` - JavaScript template (rendered → `.js`)
+-   `example.sh.j2` - Shell script template (rendered → `.sh`)
 
 **Template Variables:**
 Templates have access to:
-- `listing`: The listing data structure (Listing_v1 schema)
-  - `listing.service_name`, `listing.listing_type`, etc.
-- `offering`: Service offering data (Offering_v1 schema)
-  - `offering.offering_id`, `offering.service_type`, etc.
-- `provider`: Provider metadata (Provider_v1 schema)
-  - `provider.provider_name`, `provider.provider_access_info`, etc.
-- `seller`: Seller metadata (Seller_v1 schema)
-  - `seller.seller_name`, `seller.contact_email`, etc.
+
+-   `listing`: The listing data structure (Listing_v1 schema)
+    -   `listing.service_name`, `listing.listing_type`, etc.
+-   `offering`: Service offering data (Offering_v1 schema)
+    -   `offering.offering_id`, `offering.service_type`, etc.
+-   `provider`: Provider metadata (Provider_v1 schema)
+    -   `provider.provider_name`, `provider.provider_access_info`, etc.
+-   `seller`: Seller metadata (Seller_v1 schema)
+    -   `seller.seller_name`, `seller.contact_email`, etc.
 
 **Example Template** (`test.py.j2`):
+
 ```python
 #!/usr/bin/env python
 """Test for {{ listing.service_name }} from {{ provider.provider_name }}"""
@@ -177,9 +181,10 @@ print(f"Testing {MODEL} from {PROVIDER} at {API_ENDPOINT}")
 ```
 
 **Validation:**
-- Data files (`.json`, `.toml`) are validated against schemas
-- Template files (`.j2`) are validated for Jinja2 syntax errors
-- Regular documents are not validated
+
+-   Data files (`.json`, `.toml`) are validated against schemas
+-   Template files (`.j2`) are validated for Jinja2 syntax errors
+-   Regular documents are not validated
 
 ## Documentation
 
