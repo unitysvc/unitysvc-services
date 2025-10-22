@@ -259,6 +259,14 @@ class Document(BaseModel):
         default=None,
         description="Required packages/modules for running this code example (e.g., ['openai', 'httpx'])",
     )
+    expect: str | None = Field(
+        default=None,
+        max_length=500,
+        description=(
+            "Expected output substring for code example validation. "
+            "If specified, test passes only if stdout contains this string."
+        ),
+    )
 
 
 class RateLimit(BaseModel):

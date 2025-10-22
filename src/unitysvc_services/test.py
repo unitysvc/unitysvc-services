@@ -3,6 +3,7 @@
 import fnmatch
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import tomllib
@@ -85,6 +86,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                         "file_path": str(absolute_path),
                         "listing_data": listing_data,  # Full listing data for templates
                         "listing_file": listing_file,  # Path to listing file for loading related data
+                        "expect": doc.get("expect"),  # Expected output substring for validation
                     }
                     code_examples.append(code_example)
 
@@ -236,19 +238,61 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["rendered_content"] = file_content
         result["file_suffix"] = file_suffix
 
-        # Parse shebang to get interpreter
+        # Determine interpreter to use
         lines = file_content.split("\n")
         interpreter_cmd = None
 
+        # First, try to parse shebang
         if lines and lines[0].startswith("#!"):
             shebang = lines[0][2:].strip()
             if "/env " in shebang:
+                # e.g., #!/usr/bin/env python3
                 interpreter_cmd = shebang.split("/env ", 1)[1].strip().split()[0]
             else:
+                # e.g., #!/usr/bin/python3
                 interpreter_cmd = shebang.split("/")[-1].split()[0]
 
+        # If no shebang found, determine interpreter based on file extension
         if not interpreter_cmd:
-            interpreter_cmd = "python"
+            if file_suffix == ".py":
+                # Try python3 first, fallback to python
+                if shutil.which("python3"):
+                    interpreter_cmd = "python3"
+                elif shutil.which("python"):
+                    interpreter_cmd = "python"
+                else:
+                    result["error"] = "Neither 'python3' nor 'python' found. Please install Python to run this test."
+                    return result
+            elif file_suffix == ".js":
+                # JavaScript files need Node.js
+                if shutil.which("node"):
+                    interpreter_cmd = "node"
+                else:
+                    result["error"] = "'node' not found. Please install Node.js to run JavaScript tests."
+                    return result
+            elif file_suffix == ".sh":
+                # Shell scripts use bash
+                if shutil.which("bash"):
+                    interpreter_cmd = "bash"
+                else:
+                    result["error"] = "'bash' not found. Please install bash to run shell script tests."
+                    return result
+            else:
+                # Unknown file type - try python3/python as fallback
+                if shutil.which("python3"):
+                    interpreter_cmd = "python3"
+                elif shutil.which("python"):
+                    interpreter_cmd = "python"
+                else:
+                    result["error"] = f"Unknown file type '{file_suffix}' and no Python interpreter found."
+                    return result
+        else:
+            # Shebang was found - verify the interpreter exists
+            if not shutil.which(interpreter_cmd):
+                result["error"] = (
+                    f"Interpreter '{interpreter_cmd}' from shebang not found. Please install it to run this test."
+                )
+                return result
 
         # Prepare environment variables
         env = os.environ.copy()
@@ -261,7 +305,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             temp_file_path = temp_file.name
 
         try:
-            # Execute the script
+            # Execute the script (interpreter availability already verified)
             process = subprocess.run(
                 [interpreter_cmd, temp_file_path],
                 env=env,
@@ -274,10 +318,24 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             result["stdout"] = process.stdout
             result["stderr"] = process.stderr
 
-            if process.returncode == 0:
-                result["success"] = True
-            else:
+            # Determine if test passed
+            # Test passes if: exit_code == 0 AND (expect is None OR expect in stdout)
+            expected_output = code_example.get("expect")
+
+            if process.returncode != 0:
+                # Failed: non-zero exit code
+                result["success"] = False
                 result["error"] = f"Script exited with code {process.returncode}. stderr: {process.stderr[:200]}"
+            elif expected_output and expected_output not in process.stdout:
+                # Failed: exit code is 0 but expected string not found in output
+                result["success"] = False
+                result["error"] = (
+                    f"Output validation failed: expected substring '{expected_output}' "
+                    f"not found in stdout. stdout: {process.stdout[:200]}"
+                )
+            else:
+                # Passed: exit code is 0 AND (no expect field OR expected string found)
+                result["success"] = True
 
         finally:
             try:
@@ -287,8 +345,6 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
 
     except subprocess.TimeoutExpired:
         result["error"] = "Script execution timeout (30 seconds)"
-    except FileNotFoundError:
-        result["error"] = f"Interpreter '{interpreter_cmd}' not found"
     except Exception as e:
         result["error"] = f"Error executing script: {str(e)}"
 
@@ -694,7 +750,8 @@ def run(
 
     for test in results:
         status = "[green]✓ Pass[/green]" if test["result"]["success"] else "[red]✗ Fail[/red]"
-        exit_code = str(test["result"]["exit_code"] or "N/A")
+        # Use 'is not None' to properly handle exit_code of 0 (success)
+        exit_code = str(test["result"]["exit_code"]) if test["result"]["exit_code"] is not None else "N/A"
 
         table.add_row(
             test["service_name"],
