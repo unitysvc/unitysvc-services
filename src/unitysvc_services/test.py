@@ -107,11 +107,15 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
     }
 
     try:
-        # Find offering file (service.json in same directory as listing)
-        offering_file = listing_file.parent / "service.json"
-        if offering_file.exists():
-            with open(offering_file) as f:
-                result["offering"] = json.load(f)
+        # Find offering file (service.json in same directory as listing) using find_files_by_schema
+        offering_results = find_files_by_schema(listing_file.parent, "service_v1")
+        if offering_results:
+            # Unpack tuple: (file_path, format, data)
+            # Data is already loaded by find_files_by_schema
+            _file_path, _format, offering_data = offering_results[0]
+            result["offering"] = offering_data
+        else:
+            console.print(f"[yellow]Warning: No service_v1 file found in {listing_file.parent}[/yellow]")
 
         # Find provider file using find_files_by_schema
         # Structure: data/{provider}/services/{service}/listing.json
@@ -123,6 +127,8 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
             # Data is already loaded by find_files_by_schema
             _file_path, _format, provider_data = provider_results[0]
             result["provider"] = provider_data
+        else:
+            console.print(f"[yellow]Warning: No provider_v1 file found in {provider_dir}[/yellow]")
 
         # Find seller file using find_files_by_schema
         # Go up to data directory (3 levels up from listing)
@@ -133,9 +139,11 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
             # Data is already loaded by find_files_by_schema
             _file_path, _format, seller_data = seller_results[0]
             result["seller"] = seller_data
+        else:
+            console.print(f"[yellow]Warning: No seller_v1 file found in {data_dir}[/yellow]")
 
     except Exception as e:
-        console.print(f"[yellow]Warning: Failed to load some related data: {e}[/yellow]")
+        console.print(f"[yellow]Warning: Failed to load related data: {e}[/yellow]")
 
     return result
 
@@ -180,7 +188,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         credentials: Dictionary with api_key and api_endpoint
 
     Returns:
-        Result dictionary with success, exit_code, stdout, stderr
+        Result dictionary with success, exit_code, stdout, stderr, rendered_content, file_suffix
     """
     result: dict[str, Any] = {
         "success": False,
@@ -188,6 +196,8 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         "error": None,
         "stdout": None,
         "stderr": None,
+        "rendered_content": None,
+        "file_suffix": None,
     }
 
     file_path = code_example.get("file_path")
@@ -221,6 +231,10 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
 
         # Get file suffix from the actual filename (after .j2 stripping if applicable)
         file_suffix = Path(actual_filename).suffix or ".txt"
+
+        # Store rendered content and file suffix for later use (e.g., writing failed tests)
+        result["rendered_content"] = file_content
+        result["file_suffix"] = file_suffix
 
         # Parse shebang to get interpreter
         lines = file_content.split("\n")
@@ -299,15 +313,12 @@ def list_code_examples(
         "-s",
         help="Comma-separated list of service patterns (supports wildcards, e.g., 'llama*,gpt-4*')",
     ),
-    show_paths: bool = typer.Option(
-        False,
-        "--show-paths",
-        help="Show full file paths",
-    ),
 ):
     """List available code examples without running them.
 
-    This command scans for code examples in listing files and displays them in a table.
+    This command scans for code examples in listing files and displays them in a table
+    with file paths shown relative to the data directory.
+
     Useful for exploring available examples before running tests.
 
     Examples:
@@ -319,9 +330,6 @@ def list_code_examples(
 
         # List for specific services
         usvc test list --services "llama*,gpt-4*"
-
-        # Show full file paths
-        usvc test list --show-paths
     """
     # Set data directory
     if data_dir is None:
@@ -416,20 +424,28 @@ def list_code_examples(
     table.add_column("Provider", style="blue")
     table.add_column("Title", style="white")
     table.add_column("Type", style="magenta")
-
-    if show_paths:
-        table.add_column("File Path", style="dim")
+    table.add_column("File Path", style="dim")
 
     for example, prov_name, file_ext in all_code_examples:
+        file_path = example.get("file_path", "N/A")
+
+        # Show path relative to data directory
+        if file_path != "N/A":
+            try:
+                abs_path = Path(file_path).resolve()
+                rel_path = abs_path.relative_to(data_dir.resolve())
+                file_path = str(rel_path)
+            except ValueError:
+                # If relative_to fails, just show the path as-is
+                file_path = str(file_path)
+
         row = [
             example["service_name"],
             prov_name,
             example["title"],
             file_ext,
+            file_path,
         ]
-
-        if show_paths:
-            row.append(example.get("file_path", "N/A"))
 
         table.add_row(*row)
 
@@ -621,6 +637,43 @@ def run(
                     console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
+
+            # Write failed test content to current directory
+            if result.get("rendered_content"):
+                # Create safe filename: failed_<service_name>_<title><ext>
+                # Sanitize service name and title for filename
+                safe_service = service_name.replace("/", "_").replace(" ", "_")
+                safe_title = title.replace("/", "_").replace(" ", "_")
+                file_suffix = result.get("file_suffix", ".txt")
+
+                # Create filename
+                failed_filename = f"failed_{safe_service}_{safe_title}{file_suffix}"
+
+                # Prepare content with environment variables as header comments
+                content_with_env = result["rendered_content"]
+
+                # Add environment variables as comments at the top
+                env_header = (
+                    "# Environment variables used for this test:\n"
+                    f"# API_KEY={credentials['api_key']}\n"
+                    f"# API_ENDPOINT={credentials['api_endpoint']}\n"
+                    "#\n"
+                    "# To reproduce this test, export these variables:\n"
+                    f"# export API_KEY='{credentials['api_key']}'\n"
+                    f"# export API_ENDPOINT='{credentials['api_endpoint']}'\n"
+                    "#\n\n"
+                )
+
+                content_with_env = env_header + content_with_env
+
+                # Write to current directory
+                try:
+                    with open(failed_filename, "w", encoding="utf-8") as f:
+                        f.write(content_with_env)
+                    console.print(f"  [yellow]→ Test content saved to:[/yellow] {failed_filename}")
+                    console.print("  [dim]  (includes environment variables for reproduction)[/dim]")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save test content: {e}[/yellow]")
 
         console.print()
 
