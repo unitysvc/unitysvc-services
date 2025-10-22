@@ -70,9 +70,9 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
         documents = interface.get("documents", [])
 
         for doc in documents:
-            # Match both "code_example" and "code_examples"
+            # Check if this is a code example document
             category = doc.get("category", "")
-            if category == DocumentCategoryEnum.code_examples:
+            if category == DocumentCategoryEnum.code_example:
                 # Resolve file path relative to listing file
                 file_path = doc.get("file_path")
                 if file_path:
