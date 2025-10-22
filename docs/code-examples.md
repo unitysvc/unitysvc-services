@@ -77,8 +77,10 @@ Code examples are referenced in your `listing.json` or `listing.toml` file under
                     "file_path": "../../docs/example.py.j2",
                     "mime_type": "python",
                     "is_public": true,
-                    "requirements": ["httpx"],
-                    "expect": "✓ Test passed"
+                    "meta": {
+                        "requirements": ["httpx"],
+                        "expect": "✓ Test passed"
+                    }
                 }
             ]
         }
@@ -94,10 +96,25 @@ Code examples are referenced in your `listing.json` or `listing.toml` file under
 -   **`mime_type`**: File type (`python`, `javascript`, `shell`, etc.)
 -   **`is_public`**: Should be `true` for code examples
 
-**Optional but Recommended Fields:**
+**Optional but Recommended Fields (in `meta` object):**
 
--   **`requirements`**: Package dependencies (e.g., `["httpx", "openai"]`)
--   **`expect`**: Expected substring in stdout for validation (e.g., `"✓ Test passed"`)
+-   **`meta.requirements`**: _(User-maintained)_ Package dependencies needed to run the code example
+    -   For Python: PyPI packages (e.g., `["httpx", "openai"]`)
+    -   For JavaScript: npm packages (e.g., `["node-fetch"]`)
+    -   For Shell scripts: commands (e.g., `["curl"]`)
+    -   Helps users understand what to install before running the example
+-   **`meta.expect`**: _(User-maintained)_ Expected substring in stdout for validation
+    -   Examples: `"✓ Test passed"`, `"\"choices\""`, `"Status: 200"`
+    -   If specified, test passes only if stdout contains this string
+    -   Without this field, tests only check exit code (0 = pass, non-zero = fail)
+
+**System-Maintained Fields (in `meta` object):**
+
+-   **`meta.output`**: _(System-maintained)_ Actual output from successful test execution
+    -   Automatically populated by `usvc test run` when a test passes
+    -   Contains the stdout from the last successful test run
+    -   Included in your service listing during `usvc publish`
+    -   Displayed alongside code examples for documentation
 
 ### 4. Use Relative Paths
 
@@ -220,8 +237,11 @@ usvc test run --verbose
 3. Sets environment variables (`API_KEY`, `API_ENDPOINT`) from provider credentials
 4. Executes the code example using appropriate interpreter (python3, node, bash)
 5. Validates results:
-    - Test passes if exit code is 0 AND (no `expect` field OR expected string found in stdout)
+    - Test passes if exit code is 0 AND (no `meta.expect` field OR expected string found in stdout)
     - Test fails if exit code is non-zero OR expected string not found
+6. **Saves output**: When a test passes, stdout is saved to listing directory as `{listing_stem}_{code_filename}.out`
+    - Example: For `svclisting.json` with code file `test.py`, output is saved as `svclisting_test.py.out`
+    - Saved in the same directory as the listing file for easy version control
 
 **Failed test debugging:**
 
@@ -382,8 +402,10 @@ Reference the code example in your `listing.json` file.
                     "file_path": "../../docs/test.py.j2",
                     "mime_type": "python",
                     "is_public": true,
-                    "requirements": ["httpx"],
-                    "expect": "✓ Test passed"
+                    "meta": {
+                        "requirements": ["httpx"],
+                        "expect": "✓ Test passed"
+                    }
                 }
             ]
         }
@@ -398,17 +420,23 @@ Reference the code example in your `listing.json` file.
 -   `file_path`: Relative path from listing file to your `.j2` template
 -   `mime_type`: File type (`python`, `javascript`, `shell`, etc.)
 -   `is_public`: Should be `true` for code examples
--   `requirements`: **[Optional]** List of package dependencies needed to run the code example
-    -   For Python: PyPI packages (e.g., `["httpx", "openai"]`)
-    -   For JavaScript: npm packages (e.g., `["node-fetch"]`)
-    -   For Shell scripts: commands (e.g., `["curl"]`)
-    -   Helps users understand what to install before running the example
--   `expect`: **[Optional but strongly recommended]** Expected substring that should appear in stdout when the test passes
-    -   Examples:
-        -   `"✓ Test passed"` - Explicit success message
-        -   `"\"choices\""` - Check for JSON field in API response
-        -   `"Status: 200"` - Check for HTTP status
-    -   Without this field, tests only check exit code (0 = pass, non-zero = fail), which is unreliable.
+-   `meta`: **[Optional]** Metadata object containing:
+    -   `requirements`: _(User-maintained)_ List of package dependencies needed to run the code example
+        -   For Python: PyPI packages (e.g., `["httpx", "openai"]`)
+        -   For JavaScript: npm packages (e.g., `["node-fetch"]`)
+        -   For Shell scripts: commands (e.g., `["curl"]`)
+        -   Helps users understand what to install before running the example
+    -   `expect`: _(User-maintained, strongly recommended)_ Expected substring that should appear in stdout when the test passes
+        -   Examples:
+            -   `"✓ Test passed"` - Explicit success message
+            -   `"\"choices\""` - Check for JSON field in API response
+            -   `"Status: 200"` - Check for HTTP status
+        -   Without this field, tests only check exit code (0 = pass, non-zero = fail), which is unreliable
+    -   `output`: _(System-maintained)_ Automatically populated by `usvc test run`
+        -   Contains stdout from the last successful test execution
+        -   Saved to `{listing_stem}_{code_filename}.out` file during test run
+        -   Embedded into `meta.output` during `usvc publish`
+        -   Displayed alongside code examples in your service listing
 
 ### Step 5: Validate and Test Before Publishing
 
@@ -500,8 +528,14 @@ curl ${API_ENDPOINT}/chat/completions \
 
 ```json
 {
+    "category": "code_examples",
+    "title": "Shell Example",
     "file_path": "test.sh.j2",
-    "expect": "\"choices\""
+    "mime_type": "bash",
+    "is_public": true,
+    "meta": {
+        "expect": "\"choices\""
+    }
 }
 ```
 
@@ -532,9 +566,15 @@ if "choices" in data:
 
 ```json
 {
+    "category": "code_examples",
+    "title": "Python Example",
     "file_path": "test.py.j2",
-    "expect": "✓ Validation passed",
-    "requirements": ["httpx"]
+    "mime_type": "python",
+    "is_public": true,
+    "meta": {
+        "requirements": ["httpx"],
+        "expect": "✓ Validation passed"
+    }
 }
 ```
 
@@ -568,8 +608,14 @@ if (data.choices) {
 
 ```json
 {
+    "category": "code_examples",
+    "title": "JavaScript Example",
     "file_path": "test.js.j2",
-    "expect": "✓ Success"
+    "mime_type": "javascript",
+    "is_public": true,
+    "meta": {
+        "expect": "✓ Success"
+    }
 }
 ```
 
@@ -625,12 +671,12 @@ If a field might not exist, use Jinja2 defaults:
 ## Tips for Effective Code Examples
 
 1. **Keep examples short and focused** - Test one thing at a time
-2. **Use `expect` field** - Makes validation automatic and reliable
+2. **Use `meta.expect` field** - Makes validation automatic and reliable
 3. **Print clear success messages** - Makes debugging easier
 4. **Handle errors gracefully** - Exit with non-zero code on failure
 5. **Test locally first** - Always verify with hardcoded values before templating
 6. **Use meaningful output** - Print enough info to understand what happened
-7. **Add requirements** - List all dependencies in the `requirements` field
+7. **Add requirements** - List all dependencies in `meta.requirements` field
 
 ## Workflow Summary
 
@@ -648,20 +694,88 @@ python3 test.py
 mv test.py test.py.j2
 vim test.py.j2  # Replace with {{ offering.name }}, etc.
 
-# 4. Add to listing.json
-vim listing.json  # Add document entry
+# 4. Add to listing.json with meta fields
+vim listing.json  # Add document entry with meta.requirements and meta.expect
 
 # 5. Validate and test
 usvc validate
 usvc test list
 usvc test run --provider your-provider
+# ✓ Successful tests create .out files (e.g., listing_test.py.out in listing directory)
 
 # 6. Debug if needed
-cat failed_*  # Check saved test files
+cat failed_*  # Check saved test files (in current directory)
+cat services/*/listing_*.out  # Review successful test outputs (in listing directories)
 
-# 7. Publish when tests pass
+# 7. Publish - embeds .out files into meta.output
 usvc publish
+# ✓ Reads .out files from listing directories and adds content to meta.output
+# ✓ Output will appear alongside code examples in your service listing
 ```
+
+## Understanding meta.output Workflow
+
+The `meta.output` field follows an automated workflow from test execution to publication:
+
+### 1. Testing Phase: `usvc test run`
+
+When you run tests, successful executions generate `.out` files:
+
+```bash
+$ usvc test run --provider fireworks
+
+Testing: llama-3-1-405b - Python code example
+  ✓ Success (exit code: 0)
+  → Output saved to: /path/to/fireworks/services/llama-3-1-405b/listing_test.py.out
+```
+
+**Output file naming:** `{listing_stem}_{code_filename}.out`
+
+-   `listing_stem`: The listing filename without extension (e.g., "listing" from "listing.json")
+-   `code_filename`: The code filename after template expansion (e.g., "test.py" from "test.py.j2")
+-   Example: `listing_test.py.out`, `svclisting_example.sh.out`
+
+**File location:** Same directory as the listing file that references the code example
+
+### 2. Publishing Phase: `usvc publish`
+
+During publish, the SDK automatically:
+
+1. Expands `.j2` templates for each model if a template is used
+2. Looks for matching `.out` files in the listing's base directory
+3. Reads the output content and embeds it into `meta.output`
+
+**Example published document:**
+
+```json
+{
+    "category": "code_examples",
+    "title": "Python code example",
+    "file_path": "chat-completion.py",
+    "file_content": "#!/usr/bin/env python3\nimport httpx...",
+    "mime_type": "python",
+    "meta": {
+        "requirements": ["httpx"],
+        "expect": "✓ Test passed",
+        "output": "{'id': 'chatcmpl-...', 'choices': [{'message': {'content': 'Hello!'}}]}\n✓ Test passed"
+    }
+}
+```
+
+### 3. Display in Service Listing
+
+After publishing, the output will automatically appear alongside the code example in your service listing documentation, allowing users to see both the code and its expected output together.
+
+### 4. Key Points
+
+-   **`.out` files are model-specific**: Since templates expand per model, each model gets its own output file
+-   **`.out` files location**: Saved in the **same directory as the listing file**, making them easy to find and version control
+-   **`.out` file naming**: Format is `{listing_stem}_{code_filename}.out` to clearly associate output with both listing and code
+-   **Version control**: You **can** commit `.out` files to version control since they're co-located with listings
+-   **Publishing is flexible**: `usvc publish` works even if `.out` files are missing (gracefully skips)
+-   **User vs System fields**:
+    -   `meta.requirements` and `meta.expect` are **user-maintained** (you write these)
+    -   `meta.output` is **system-maintained** (auto-generated by `usvc test run` and `usvc publish`)
 
 ## Interpreter Detection
 
@@ -710,7 +824,7 @@ If the required interpreter is not found, the test will fail with a clear error 
 
 **Problem:** Exit code is 0 but test still fails
 
-**Solution:** Check the `expect` field - test requires the expected string to appear in stdout
+**Solution:** Check the `meta.expect` field - test requires the expected string to appear in stdout
 
 ### Validation Errors
 

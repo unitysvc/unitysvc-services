@@ -67,6 +67,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         offering: dict[str, Any] | None = None,
         provider: dict[str, Any] | None = None,
         seller: dict[str, Any] | None = None,
+        listing_filename: str | None = None,
     ) -> dict[str, Any]:
         """Recursively resolve file references and include content in data.
 
@@ -80,6 +81,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             offering: Offering data for template rendering (optional)
             provider: Provider data for template rendering (optional)
             seller: Seller data for template rendering (optional)
+            listing_filename: Listing filename for constructing output filenames (optional)
 
         Returns:
             Data with file references resolved and content loaded
@@ -90,14 +92,26 @@ class ServiceDataPublisher(UnitySvcAPI):
             if isinstance(value, dict):
                 # Recursively process nested dictionaries
                 result[key] = self.resolve_file_references(
-                    value, base_path, listing=listing, offering=offering, provider=provider, seller=seller
+                    value,
+                    base_path,
+                    listing=listing,
+                    offering=offering,
+                    provider=provider,
+                    seller=seller,
+                    listing_filename=listing_filename,
                 )
             elif isinstance(value, list):
                 # Process lists
                 result[key] = [
                     (
                         self.resolve_file_references(
-                            item, base_path, listing=listing, offering=offering, provider=provider, seller=seller
+                            item,
+                            base_path,
+                            listing=listing,
+                            offering=offering,
+                            provider=provider,
+                            seller=seller,
+                            listing_filename=listing_filename,
                         )
                         if isinstance(item, dict)
                         else item
@@ -134,6 +148,41 @@ class ServiceDataPublisher(UnitySvcAPI):
                     raise ValueError(f"Failed to load/render file content from '{value}': {e}")
             else:
                 result[key] = value
+
+        # After processing all fields, check if this is a code_examples document
+        # If so, try to load corresponding .out file and add to meta.output
+        if result.get("category") == "code_examples" and result.get("file_content") and listing_filename:
+            # Get the actual filename (after .j2 stripping if applicable)
+            # If file_path was updated (e.g., from "test.py.j2" to "test.py"), use that
+            # Otherwise, extract basename from original file_path
+            output_base_filename: str | None = None
+
+            # Check if file_path was modified (original might have had .j2)
+            file_path_value = result.get("file_path", "")
+            if file_path_value:
+                output_base_filename = Path(file_path_value).name
+
+            if output_base_filename:
+                # Construct output filename: {listing_stem}_{output_base_filename}.out
+                # e.g., "svclisting_test.py.out" for svclisting.json and test.py
+                listing_stem = Path(listing_filename).stem
+                output_filename = f"{listing_stem}_{output_base_filename}.out"
+
+                # Try to find the .out file in base_path (listing directory)
+                output_path = base_path / output_filename
+
+                if output_path.exists():
+                    try:
+                        with open(output_path, encoding="utf-8") as f:
+                            output_content = f.read()
+
+                        # Add output to meta field
+                        if "meta" not in result or result["meta"] is None:
+                            result["meta"] = {}
+                        result["meta"]["output"] = output_content
+                    except Exception:
+                        # Don't fail if output file can't be read, just skip it
+                        pass
 
         return result
 
@@ -401,6 +450,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             offering=service_data,
             provider=provider_data,
             seller=seller_data,
+            listing_filename=listing_file.name,
         )
 
         # Post to the endpoint using retry helper

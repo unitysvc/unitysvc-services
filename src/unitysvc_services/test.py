@@ -79,6 +79,9 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                     # Resolve relative path
                     absolute_path = (listing_file.parent / file_path).resolve()
 
+                    # Extract meta fields for code examples (expect, requirements, etc.)
+                    meta = doc.get("meta", {}) or {}
+
                     code_example = {
                         "service_name": service_name,
                         "title": doc.get("title", "Untitled"),
@@ -86,7 +89,8 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                         "file_path": str(absolute_path),
                         "listing_data": listing_data,  # Full listing data for templates
                         "listing_file": listing_file,  # Path to listing file for loading related data
-                        "expect": doc.get("expect"),  # Expected output substring for validation
+                        "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
+                        "requirements": meta.get("requirements"),  # Required packages (from meta)
                     }
                     code_examples.append(code_example)
 
@@ -200,6 +204,8 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         "stderr": None,
         "rendered_content": None,
         "file_suffix": None,
+        "listing_file": None,
+        "actual_filename": None,
     }
 
     file_path = code_example.get("file_path")
@@ -237,6 +243,8 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         # Store rendered content and file suffix for later use (e.g., writing failed tests)
         result["rendered_content"] = file_content
         result["file_suffix"] = file_suffix
+        result["listing_file"] = listing_file
+        result["actual_filename"] = actual_filename
 
         # Determine interpreter to use
         lines = file_content.split("\n")
@@ -686,6 +694,27 @@ def run(
             console.print(f"  [green]✓ Success[/green] (exit code: {result['exit_code']})")
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
+
+            # Save successful test output to .out file
+            if result.get("stdout") and result.get("listing_file") and result.get("actual_filename"):
+                listing_file = Path(result["listing_file"])
+                actual_filename = result["actual_filename"]
+
+                # Create filename: {listing_stem}_{actual_filename}.out
+                # e.g., "svclisting_test.py.out" for svclisting.json and test.py
+                listing_stem = listing_file.stem
+                output_filename = f"{listing_stem}_{actual_filename}.out"
+
+                # Save to listing directory
+                output_path = listing_file.parent / output_filename
+
+                # Write stdout to .out file
+                try:
+                    with open(output_path, "w", encoding="utf-8") as f:
+                        f.write(result["stdout"])
+                    console.print(f"  [dim]→ Output saved to:[/dim] {output_path}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save output: {e}[/yellow]")
         else:
             console.print(f"  [red]✗ Failed[/red] - {result['error']}")
             if verbose:
@@ -695,15 +724,13 @@ def run(
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
             # Write failed test content to current directory
-            if result.get("rendered_content"):
-                # Create safe filename: failed_<service_name>_<title><ext>
-                # Sanitize service name and title for filename
-                safe_service = service_name.replace("/", "_").replace(" ", "_")
-                safe_title = title.replace("/", "_").replace(" ", "_")
-                file_suffix = result.get("file_suffix", ".txt")
+            if result.get("rendered_content") and result.get("listing_file") and result.get("actual_filename"):
+                listing_file = Path(result["listing_file"])
+                actual_filename = result["actual_filename"]
+                listing_stem = listing_file.stem
 
-                # Create filename
-                failed_filename = f"failed_{safe_service}_{safe_title}{file_suffix}"
+                # Create filename: failed_{listing_stem}_{actual_filename}
+                failed_filename = f"failed_{listing_stem}_{actual_filename}"
 
                 # Prepare content with environment variables as header comments
                 content_with_env = result["rendered_content"]
