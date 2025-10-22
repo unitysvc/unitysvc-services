@@ -1,11 +1,13 @@
 # CLI Reference
 
-Complete command-line interface reference for `unitysvc_services`.
+Complete command-line interface reference for `unitysvc_services` (alias: `usvc`).
 
 ## Global Options
 
 ```bash
 unitysvc_services [OPTIONS] COMMAND [ARGS]...
+# Or using the shorter alias:
+usvc [OPTIONS] COMMAND [ARGS]...
 ```
 
 ### Options
@@ -14,18 +16,21 @@ unitysvc_services [OPTIONS] COMMAND [ARGS]...
 -   `--show-completion` - Show completion script
 -   `--help` - Show help message
 
+**Note:** All examples below use the shorter `usvc` alias. You can always replace `usvc` with `unitysvc_services` if preferred.
+
 ## Commands Overview
 
-| Command    | Description                            |
-| ---------- | -------------------------------------- |
-| `init`     | Initialize new data files from schemas |
-| `list`     | List data files in directory           |
-| `query`    | Query backend API for data             |
-| `publish`  | Publish data to backend                |
-| `update`   | Update local data files                |
-| `validate` | Validate data consistency              |
-| `format`   | Format data files                      |
-| `populate` | Execute provider populate scripts      |
+| Command    | Description                                      |
+| ---------- | ------------------------------------------------ |
+| `init`     | Initialize new data files from schemas           |
+| `list`     | List data files in directory                     |
+| `query`    | Query backend API for data                       |
+| `publish`  | Publish data to backend                          |
+| `update`   | Update local data files                          |
+| `validate` | Validate data consistency                        |
+| `format`   | Format data files                                |
+| `populate` | Execute provider populate scripts                |
+| `test`     | Test code examples with upstream API credentials |
 
 ## init - Initialize Data Files
 
@@ -53,13 +58,13 @@ unitysvc_services init offering <name> [OPTIONS]
 
 ```bash
 # Create TOML offering
-unitysvc_services init offering my-service
+usvc init offering my-service
 
 # Create JSON offering
-unitysvc_services init offering my-service --format json
+usvc init offering my-service --format json
 
 # Copy from existing
-unitysvc_services init offering new-service --source ./data/old-service
+usvc init offering new-service --source ./data/old-service
 ```
 
 ### init listing
@@ -129,6 +134,16 @@ unitysvc_services list providers [DATA_DIR]
 **Arguments:**
 
 -   `[DATA_DIR]` - Data directory (default: current directory)
+
+**Examples:**
+
+```bash
+# List providers in current directory
+usvc list providers
+
+# List providers in specific directory
+usvc list providers ./data
+```
 
 ### list sellers
 
@@ -236,31 +251,31 @@ id, offering_id, seller_id, status, created_at, updated_at, parameters_schema, p
 
 ```bash
 # Table output with default fields
-unitysvc_services query providers
+usvc query providers
 
 # JSON output
-unitysvc_services query offerings --format json
+usvc query offerings --format json
 
 # Custom fields - show only specific columns
-unitysvc_services query providers --fields id,name,contact_email
+usvc query providers --fields id,name,contact_email
 
 # Show all available fields for sellers
-unitysvc_services query sellers --fields id,name,display_name,seller_type,contact_email,homepage,created_at,updated_at
+usvc query sellers --fields id,name,display_name,seller_type,contact_email,homepage,created_at,updated_at
 
 # Custom fields for listings
-unitysvc_services query listings --fields id,service_name,listing_type,status
+usvc query listings --fields id,service_name,listing_type,status
 
 # Retrieve more than 100 records
-unitysvc_services query providers --limit 500
+usvc query providers --limit 500
 
 # Pagination: get second page of 100 records
-unitysvc_services query offerings --skip 100 --limit 100
+usvc query offerings --skip 100 --limit 100
 
 # Large dataset retrieval
-unitysvc_services query listings --limit 1000
+usvc query listings --limit 1000
 
 # Combine pagination with custom fields
-unitysvc_services query sellers --skip 50 --limit 50 --fields id,name,contact_email
+usvc query sellers --skip 50 --limit 50 --fields id,name,contact_email
 ```
 
 ## publish - Publish to Backend
@@ -292,13 +307,13 @@ unitysvc_services publish COMMAND [OPTIONS]
 
 ```bash
 # Publish all data from current directory
-unitysvc_services publish
+usvc publish
 
 # Publish all data from custom directory
-unitysvc_services publish --data-path ./data
+usvc publish --data-path ./data
 
 # Publish only providers
-unitysvc_services publish providers
+usvc publish providers
 ```
 
 **Publishing Order (when publishing all):**
@@ -324,13 +339,13 @@ unitysvc_services publish providers [OPTIONS]
 
 ```bash
 # Publish all providers in current directory
-unitysvc_services publish providers
+usvc publish providers
 
 # Publish specific file
-unitysvc_services publish providers --data-path ./data/my-provider/provider.json
+usvc publish providers --data-path ./data/my-provider/provider.json
 
 # Publish from custom directory
-unitysvc_services publish providers --data-path ./custom-data
+usvc publish providers --data-path ./custom-data
 ```
 
 ### publish sellers
@@ -399,10 +414,10 @@ unitysvc_services update offering --name <name> [OPTIONS]
 
 ```bash
 # Update status
-unitysvc_services update offering --name my-service --status ready
+usvc update offering --name my-service --status ready
 
 # Update multiple fields
-unitysvc_services update offering --name my-service \
+usvc update offering --name my-service \
   --status ready \
   --display-name "My Updated Service" \
   --version "2.0"
@@ -435,10 +450,10 @@ unitysvc_services update listing --service-name <name> [OPTIONS]
 
 ```bash
 # Update listing status
-unitysvc_services update listing --service-name my-service --status ready
+usvc update listing --service-name my-service --status ready
 
 # Update for specific seller
-unitysvc_services update listing \
+usvc update listing \
   --service-name my-service \
   --status in_service \
   --seller svcreseller
@@ -469,10 +484,10 @@ unitysvc_services validate [DATA_DIR]
 
 ```bash
 # Validate current directory
-unitysvc_services validate
+usvc validate
 
 # Validate specific directory
-unitysvc_services validate ./data
+usvc validate ./data
 ```
 
 **Exit Codes:**
@@ -507,13 +522,13 @@ unitysvc_services format [DATA_DIR] [OPTIONS]
 
 ```bash
 # Format all files in current directory
-unitysvc_services format
+usvc format
 
 # Check formatting without changes
-unitysvc_services format --check
+usvc format --check
 
 # Format specific directory
-unitysvc_services format ./data
+usvc format ./data
 ```
 
 **Exit Codes:**
@@ -548,14 +563,134 @@ unitysvc_services populate [DATA_DIR] [OPTIONS]
 
 ```bash
 # Run all populate scripts
-unitysvc_services populate
+usvc populate
 
 # Run for specific provider
-unitysvc_services populate --provider openai
+usvc populate --provider openai
 
 # Dry run
-unitysvc_services populate --dry-run
+usvc populate --dry-run
 ```
+
+## test - Test Code Examples
+
+Test code examples with upstream API credentials. This command discovers code examples from listing files and executes them with provider credentials.
+
+**How it works:**
+
+1. Scans for all listing files (schema: listing_v1)
+2. Extracts code example documents (category = `code_examples`)
+3. Loads provider credentials from provider files
+4. Renders Jinja2 templates with listing, offering, provider, and seller data
+5. Sets environment variables (API_KEY, API_ENDPOINT) from provider credentials
+6. Executes code examples using appropriate interpreter (python3, node, bash)
+7. Validates results based on exit code and optional `expect` field
+
+### test list
+
+List available code examples without running them.
+
+```bash
+unitysvc_services test list [DATA_DIR] [OPTIONS]
+```
+
+**Arguments:**
+
+-   `[DATA_DIR]` - Data directory (default: current directory)
+
+**Options:**
+
+-   `--provider, -p NAME` - Only list code examples for a specific provider
+-   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+
+**Output:**
+
+-   Table showing: Service name, Provider, Title, File type, Relative file path
+
+**Examples:**
+
+```bash
+# List all code examples
+usvc test list
+
+# List for specific provider
+usvc test list --provider fireworks
+
+# List for specific services (with wildcards)
+usvc test list --services "llama*,gpt-4*"
+
+# List from custom directory
+usvc test list ./data
+```
+
+### test run
+
+Execute code examples and report results.
+
+```bash
+unitysvc_services test run [DATA_DIR] [OPTIONS]
+```
+
+**Arguments:**
+
+-   `[DATA_DIR]` - Data directory (default: current directory)
+
+**Options:**
+
+-   `--provider, -p NAME` - Only test code examples for a specific provider
+-   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+-   `--verbose, -v` - Show detailed output including stdout/stderr from scripts
+
+**Test Pass Criteria:**
+
+-   Exit code is 0 AND
+-   If `expect` field is defined in document: expected string found in stdout
+-   If `expect` field is NOT defined: only exit code matters
+
+**Failed Test Output:**
+
+When a test fails, the rendered content is saved to the current directory:
+
+-   Filename format: `failed_{service}_{title}{extension}`
+-   Contains environment variables used (API_KEY, API_ENDPOINT)
+-   Full rendered template content
+-   Can be run directly to reproduce the issue
+
+**Examples:**
+
+```bash
+# Test all code examples
+usvc test run
+
+# Test specific provider
+usvc test run --provider fireworks
+
+# Test specific services (with wildcards)
+usvc test run --services "llama*,gpt-4*"
+
+# Test single service
+usvc test run --services "llama-3-1-405b-instruct"
+
+# Combine filters
+usvc test run --provider fireworks --services "llama*"
+
+# Show detailed output
+usvc test run --verbose
+```
+
+**Interpreter Detection:**
+
+-   `.py` files: Uses `python3` (falls back to `python`)
+-   `.js` files: Uses `node` (Node.js required)
+-   `.sh` files: Uses `bash`
+-   Other files: Checks shebang line for interpreter
+
+**Exit Codes:**
+
+-   `0` - All tests passed
+-   `1` - One or more tests failed
+
+See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/code-examples/) for detailed guide on creating and debugging code examples.
 
 ## Environment Variables
 
@@ -570,8 +705,8 @@ unitysvc_services populate --dry-run
 export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
 export UNITYSVC_API_KEY=your-api-key
 
-unitysvc_services validate
-unitysvc_services publish providers
+usvc validate
+usvc publish providers
 ```
 
 ## Exit Codes
@@ -587,19 +722,19 @@ unitysvc_services publish providers
 
 ```bash
 # Bash
-unitysvc_services --install-completion bash
+usvc --install-completion bash
 
 # Zsh
-unitysvc_services --install-completion zsh
+usvc --install-completion zsh
 
 # Fish
-unitysvc_services --install-completion fish
+usvc --install-completion fish
 ```
 
 ### Show Completion Script
 
 ```bash
-unitysvc_services --show-completion
+usvc --show-completion
 ```
 
 ## Common Workflows
@@ -612,43 +747,43 @@ export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
 export UNITYSVC_API_KEY=your-key
 
 # Validate and format
-unitysvc_services validate
-unitysvc_services format
+usvc validate
+usvc format
 
 # Publish all (handles order automatically)
 cd data
-unitysvc_services publish
+usvc publish
 
 # Verify
-unitysvc_services query offerings
+usvc query offerings
 ```
 
 ### Update and Republish
 
 ```bash
 # Update local file
-unitysvc_services update offering --name my-service --status ready
+usvc update offering --name my-service --status ready
 
 # Validate
-unitysvc_services validate
+usvc validate
 
 # Publish changes
-unitysvc_services publish offerings
+usvc publish offerings
 ```
 
 ### Automated Generation
 
 ```bash
 # Generate services
-unitysvc_services populate
+usvc populate
 
 # Validate and format
-unitysvc_services validate
-unitysvc_services format
+usvc validate
+usvc format
 
 # Publish all
 cd data
-unitysvc_services publish
+usvc publish
 ```
 
 ## See Also
@@ -656,3 +791,6 @@ unitysvc_services publish
 -   [Getting Started](getting-started.md) - First steps tutorial
 -   [Workflows](workflows.md) - Common usage patterns
 -   [Data Structure](data-structure.md) - File organization rules
+-   [Documenting Service Listings](documenting-services.md) - Add documentation to services
+-   [Creating Code Examples](code-examples.md) - Develop and test code examples
+-   [API Reference](api-reference.md) - Python API documentation

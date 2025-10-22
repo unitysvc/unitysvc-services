@@ -18,10 +18,14 @@ pip install unitysvc-services
 ### Verify Installation
 
 ```bash
+usvc --help
+# Or using the full command name:
 unitysvc_services --help
 ```
 
 You should see the command-line interface help output.
+
+**Note:** The command `unitysvc_services` can be invoked using the shorter alias `usvc`. All examples below use the shorter `usvc` alias.
 
 ## Quick Start: Create Your First Service
 
@@ -30,7 +34,7 @@ You should see the command-line interface help output.
 Create a new provider:
 
 ```bash
-unitysvc_services init provider my-provider
+usvc init provider my-provider
 ```
 
 This creates:
@@ -45,7 +49,7 @@ data/
 ### Step 2: Create a Service Offering
 
 ```bash
-unitysvc_services init offering my-first-service
+usvc init offering my-first-service
 ```
 
 This creates:
@@ -61,7 +65,7 @@ data/
 ### Step 3: Create a Service Listing
 
 ```bash
-unitysvc_services init listing my-first-listing
+usvc init listing my-first-listing
 ```
 
 This creates:
@@ -80,7 +84,7 @@ data/
 Create a seller file at the root of your data directory:
 
 ```bash
-unitysvc_services init seller my-marketplace
+usvc init seller my-marketplace
 ```
 
 This creates:
@@ -107,7 +111,7 @@ Open the generated files and fill in your service details:
 ### Step 6: Validate Your Data
 
 ```bash
-unitysvc_services validate
+usvc validate
 ```
 
 Fix any validation errors reported.
@@ -115,7 +119,7 @@ Fix any validation errors reported.
 ### Step 7: Format Your Files
 
 ```bash
-unitysvc_services format
+usvc format
 ```
 
 This ensures consistent formatting (2-space JSON indentation, proper line endings, etc.).
@@ -134,30 +138,30 @@ Publish your data (publishes all types in correct order: sellers â†’ providers â
 ```bash
 # From data directory
 cd data
-unitysvc_services publish
+usvc publish
 
 # Or specify path
-unitysvc_services publish --data-path ./data
+usvc publish --data-path ./data
 
 # Or publish specific types
-unitysvc_services publish providers
-unitysvc_services publish sellers
+usvc publish providers
+usvc publish sellers
 ```
 
 ### Step 9: Verify Your Published Data
 
 ```bash
 # Query with default fields
-unitysvc_services query providers
-unitysvc_services query offerings
-unitysvc_services query listings
+usvc query providers
+usvc query offerings
+usvc query listings
 
 # Query with custom fields - show only specific columns
-unitysvc_services query providers --fields id,name,contact_email
-unitysvc_services query listings --fields id,service_name,listing_type,status
+usvc query providers --fields id,name,contact_email
+usvc query listings --fields id,service_name,listing_type,status
 
 # Query as JSON for programmatic use
-unitysvc_services query offerings --format json
+usvc query offerings --format json
 ```
 
 ## Next Steps
@@ -171,19 +175,19 @@ unitysvc_services query offerings --format json
 ### List Local Files
 
 ```bash
-unitysvc_services list providers
-unitysvc_services list offerings
-unitysvc_services list listings
+usvc list providers
+usvc list offerings
+usvc list listings
 ```
 
 ### Update Local Files
 
 ```bash
 # Update service status
-unitysvc_services update offering --name my-service --status ready
+usvc update offering --name my-service --status ready
 
 # Update listing status
-unitysvc_services update listing --service-name my-service --status in_service
+usvc update listing --service-name my-service --status in_service
 ```
 
 ### Automated Service Generation
@@ -192,7 +196,7 @@ For providers with large catalogs, set up automated generation:
 
 1. Add `services_populator` configuration to `provider.toml`
 2. Create a script to fetch and generate service files
-3. Run: `unitysvc_services populate`
+3. Run: `usvc populate`
 
 See [Workflows](workflows.md#automated-workflow) for details.
 
@@ -207,14 +211,14 @@ See [Workflows](workflows.md#automated-workflow) for details.
 ### Publishing Errors
 
 -   Verify API credentials are set correctly
--   Use `unitysvc_services publish` (without subcommand) to publish all types in the correct order automatically
+-   Use `usvc publish` (without subcommand) to publish all types in the correct order automatically
 -   Ensure backend URL is accessible
 -   Check that you're running from the correct directory or using `--data-path`
 
 ### Format Issues
 
--   Run `unitysvc_services format --check` to see what would change
--   Use `unitysvc_services format` to auto-fix formatting
+-   Run `usvc format --check` to see what would change
+-   Use `usvc format` to auto-fix formatting
 
 ## Getting Help
 
