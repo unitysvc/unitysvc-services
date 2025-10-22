@@ -110,22 +110,6 @@
           "$ref": "#/$defs/MimeTypeEnum",
           "description": "Document MIME type"
         },
-        "requirements": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Required packages/modules for running this code example (e.g., ['openai', 'httpx'])",
-          "title": "Requirements"
-        },
         "sort_order": {
           "default": 0,
           "description": "Sort order within category",
