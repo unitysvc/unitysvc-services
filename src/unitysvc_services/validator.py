@@ -322,8 +322,15 @@ class DataValidator:
 
         return len(errors) == 0, errors
 
-    def validate_md_file(self, file_path: Path) -> tuple[bool, list[str]]:
-        """Validate a markdown file (basic existence check and Jinja2 syntax)."""
+    def validate_jinja2_file(self, file_path: Path) -> tuple[bool, list[str]]:
+        """Validate a file with Jinja2 template syntax.
+
+        This validates any file ending with .j2 extension, including:
+        - .md.j2 (Jinja2 markdown templates)
+        - .py.j2 (Jinja2 Python code example templates)
+        - .js.j2 (Jinja2 JavaScript code example templates)
+        - .sh.j2 (Jinja2 shell script templates)
+        """
         errors: list[str] = []
 
         try:
@@ -344,7 +351,7 @@ class DataValidator:
 
             return len(errors) == 0, errors
         except Exception as e:
-            return False, [f"Failed to read markdown file: {e}"]
+            return False, [f"Failed to read template file: {e}"]
 
     def validate_seller_uniqueness(self) -> tuple[bool, list[str]]:
         """
@@ -502,13 +509,18 @@ class DataValidator:
             if any(part.startswith(".") for part in file_path.parts):
                 continue
 
-            if file_path.is_file() and file_path.suffix in [".json", ".toml", ".md"]:
+            # Check if file should be validated
+            # Only .j2 files (Jinja2 templates) are validated for Jinja2 syntax
+            is_template = file_path.name.endswith(".j2")
+            is_data_file = file_path.suffix in [".json", ".toml"]
+
+            if file_path.is_file() and (is_data_file or is_template):
                 relative_path = file_path.relative_to(self.data_dir)
 
-                if file_path.suffix in [".json", ".toml"]:
+                if is_data_file:
                     is_valid, errors = self.validate_data_file(file_path)
-                elif file_path.suffix == ".md":
-                    is_valid, errors = self.validate_md_file(file_path)
+                elif is_template:
+                    is_valid, errors = self.validate_jinja2_file(file_path)
                 else:
                     continue
 

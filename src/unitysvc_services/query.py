@@ -18,101 +18,11 @@ class ServiceDataQuery(UnitySvcAPI):
     """Query service data from UnitySVC backend endpoints.
 
     Inherits HTTP methods with automatic curl fallback from UnitySvcAPI.
-    Provides convenient methods for listing public service data.
-
-    Provides sync wrapper methods for CLI usage that wrap async base class methods.
+    Provides async methods for querying public service data.
+    Use with async context manager for proper resource cleanup.
     """
 
-    def list_service_offerings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
-        """List all service offerings from the backend (sync wrapper).
-
-        Args:
-            skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
-        """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/offerings", {"skip": skip, "limit": limit}))
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_service_listings(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
-        """List all service listings from the backend (sync wrapper).
-
-        Args:
-            skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
-        """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/listings", {"skip": skip, "limit": limit}))
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_providers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
-        """List all providers from the backend (sync wrapper).
-
-        Args:
-            skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
-        """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/providers", {"skip": skip, "limit": limit}))
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def list_sellers(self, skip: int = 0, limit: int = 100) -> list[dict[str, Any]]:
-        """List all sellers from the backend (sync wrapper).
-
-        Args:
-            skip: Number of records to skip (for pagination)
-            limit: Maximum number of records to return
-        """
-        result: dict[str, Any] = asyncio.run(super().get("/publish/sellers", {"skip": skip, "limit": limit}))
-        return result.get("data", result) if isinstance(result, dict) else result
-
-    def get(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:  # type: ignore[override]
-        """Sync wrapper for base class async get() method.
-
-        Args:
-            endpoint: API endpoint path
-            params: Query parameters
-
-        Returns:
-            JSON response as dictionary
-        """
-        return asyncio.run(super().get(endpoint, params))
-
-    def post(  # type: ignore[override]
-        self, endpoint: str, json_data: dict[str, Any] | None = None, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Sync wrapper for base class async post() method.
-
-        Args:
-            endpoint: API endpoint path
-            json_data: JSON body data
-            params: Query parameters
-
-        Returns:
-            JSON response as dictionary
-        """
-        return asyncio.run(super().post(endpoint, json_data, params))
-
-    def check_task(self, task_id: str, poll_interval: float = 2.0, timeout: float = 300.0) -> dict[str, Any]:  # type: ignore[override]
-        """Sync wrapper for base class async check_task() method.
-
-        Args:
-            task_id: Celery task ID to poll
-            poll_interval: Seconds between status checks
-            timeout: Maximum seconds to wait
-
-        Returns:
-            Task result dictionary
-
-        Raises:
-            ValueError: If task fails or times out
-        """
-        return asyncio.run(super().check_task(task_id, poll_interval, timeout))
-
-    def __enter__(self):
-        """Sync context manager entry for CLI usage."""
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """Sync context manager exit for CLI usage."""
-        asyncio.run(self.aclose())
+    pass
 
 
 @app.command("sellers")
@@ -195,80 +105,84 @@ def query_sellers(
         console.print(f"[yellow]Allowed fields:[/yellow] {', '.join(sorted(allowed_fields))}")
         raise typer.Exit(code=1)
 
+    async def _query_sellers_async():
+        async with ServiceDataQuery() as query:
+            sellers = await query.get("/publish/sellers", {"skip": skip, "limit": limit})
+            return sellers.get("data", sellers) if isinstance(sellers, dict) else sellers
+
     try:
-        with ServiceDataQuery() as query:
-            sellers = query.list_sellers(skip=skip, limit=limit)
+        sellers = asyncio.run(_query_sellers_async())
 
-            if format == "json":
-                # For JSON, filter fields if not all are requested
-                if set(field_list) != allowed_fields:
-                    filtered_sellers = [{k: v for k, v in seller.items() if k in field_list} for seller in sellers]
-                    console.print(json.dumps(filtered_sellers, indent=2))
-                else:
-                    console.print(json.dumps(sellers, indent=2))
+        if format == "json":
+            # For JSON, filter fields if not all are requested
+            if set(field_list) != allowed_fields:
+                filtered_sellers = [{k: v for k, v in seller.items() if k in field_list} for seller in sellers]
+                console.print(json.dumps(filtered_sellers, indent=2))
             else:
-                if not sellers:
-                    console.print("[yellow]No sellers found.[/yellow]")
-                else:
-                    table = Table(title="Sellers")
+                console.print(json.dumps(sellers, indent=2))
+        else:
+            if not sellers:
+                console.print("[yellow]No sellers found.[/yellow]")
+            else:
+                table = Table(title="Sellers")
 
-                    # Define column styles
-                    field_styles = {
-                        "id": "cyan",
-                        "name": "green",
-                        "display_name": "blue",
-                        "seller_type": "magenta",
-                        "contact_email": "yellow",
-                        "secondary_contact_email": "yellow",
-                        "homepage": "blue",
-                        "description": "white",
-                        "business_registration": "white",
-                        "tax_id": "white",
-                        "account_manager_id": "cyan",
-                        "created_at": "white",
-                        "updated_at": "white",
-                        "status": "green",
-                    }
+                # Define column styles
+                field_styles = {
+                    "id": "cyan",
+                    "name": "green",
+                    "display_name": "blue",
+                    "seller_type": "magenta",
+                    "contact_email": "yellow",
+                    "secondary_contact_email": "yellow",
+                    "homepage": "blue",
+                    "description": "white",
+                    "business_registration": "white",
+                    "tax_id": "white",
+                    "account_manager_id": "cyan",
+                    "created_at": "white",
+                    "updated_at": "white",
+                    "status": "green",
+                }
 
-                    # Define column headers
-                    field_headers = {
-                        "id": "ID",
-                        "name": "Name",
-                        "display_name": "Display Name",
-                        "seller_type": "Type",
-                        "contact_email": "Contact Email",
-                        "secondary_contact_email": "Secondary Email",
-                        "homepage": "Homepage",
-                        "description": "Description",
-                        "business_registration": "Business Reg",
-                        "tax_id": "Tax ID",
-                        "account_manager_id": "Account Manager ID",
-                        "created_at": "Created At",
-                        "updated_at": "Updated At",
-                        "status": "Status",
-                    }
+                # Define column headers
+                field_headers = {
+                    "id": "ID",
+                    "name": "Name",
+                    "display_name": "Display Name",
+                    "seller_type": "Type",
+                    "contact_email": "Contact Email",
+                    "secondary_contact_email": "Secondary Email",
+                    "homepage": "Homepage",
+                    "description": "Description",
+                    "business_registration": "Business Reg",
+                    "tax_id": "Tax ID",
+                    "account_manager_id": "Account Manager ID",
+                    "created_at": "Created At",
+                    "updated_at": "Updated At",
+                    "status": "Status",
+                }
 
-                    # Add columns based on requested fields
+                # Add columns based on requested fields
+                for field in field_list:
+                    header = field_headers.get(field, field.title())
+                    style = field_styles.get(field, "white")
+                    table.add_column(header, style=style)
+
+                # Add rows
+                for seller in sellers:
+                    row = []
                     for field in field_list:
-                        header = field_headers.get(field, field.title())
-                        style = field_styles.get(field, "white")
-                        table.add_column(header, style=style)
+                        value = seller.get(field)
+                        if value is None:
+                            row.append("N/A")
+                        elif isinstance(value, dict | list):
+                            row.append(str(value)[:50])  # Truncate complex types
+                        else:
+                            row.append(str(value))
+                    table.add_row(*row)
 
-                    # Add rows
-                    for seller in sellers:
-                        row = []
-                        for field in field_list:
-                            value = seller.get(field)
-                            if value is None:
-                                row.append("N/A")
-                            elif isinstance(value, dict | list):
-                                row.append(str(value)[:50])  # Truncate complex types
-                            else:
-                                row.append(str(value))
-                        table.add_row(*row)
-
-                    console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(sellers)} seller(s)")
+                console.print(table)
+                console.print(f"\n[green]Total:[/green] {len(sellers)} seller(s)")
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
@@ -351,74 +265,76 @@ def query_providers(
         console.print(f"[yellow]Allowed fields:[/yellow] {', '.join(sorted(allowed_fields))}")
         raise typer.Exit(code=1)
 
+    async def _query_providers_async():
+        async with ServiceDataQuery() as query:
+            providers = await query.get("/publish/providers", {"skip": skip, "limit": limit})
+            return providers.get("data", providers) if isinstance(providers, dict) else providers
+
     try:
-        with ServiceDataQuery() as query:
-            providers = query.list_providers(skip=skip, limit=limit)
+        providers = asyncio.run(_query_providers_async())
 
-            if format == "json":
-                # For JSON, filter fields if not all are requested
-                if set(field_list) != allowed_fields:
-                    filtered_providers = [
-                        {k: v for k, v in provider.items() if k in field_list} for provider in providers
-                    ]
-                    console.print(json.dumps(filtered_providers, indent=2))
-                else:
-                    console.print(json.dumps(providers, indent=2))
+        if format == "json":
+            # For JSON, filter fields if not all are requested
+            if set(field_list) != allowed_fields:
+                filtered_providers = [{k: v for k, v in provider.items() if k in field_list} for provider in providers]
+                console.print(json.dumps(filtered_providers, indent=2))
             else:
-                if not providers:
-                    console.print("[yellow]No providers found.[/yellow]")
-                else:
-                    table = Table(title="Providers")
+                console.print(json.dumps(providers, indent=2))
+        else:
+            if not providers:
+                console.print("[yellow]No providers found.[/yellow]")
+            else:
+                table = Table(title="Providers")
 
-                    # Define column styles
-                    field_styles = {
-                        "id": "cyan",
-                        "name": "green",
-                        "display_name": "blue",
-                        "contact_email": "yellow",
-                        "secondary_contact_email": "yellow",
-                        "homepage": "blue",
-                        "description": "white",
-                        "status": "green",
-                        "created_at": "magenta",
-                        "updated_at": "magenta",
-                    }
+                # Define column styles
+                field_styles = {
+                    "id": "cyan",
+                    "name": "green",
+                    "display_name": "blue",
+                    "contact_email": "yellow",
+                    "secondary_contact_email": "yellow",
+                    "homepage": "blue",
+                    "description": "white",
+                    "status": "green",
+                    "created_at": "magenta",
+                    "updated_at": "magenta",
+                }
 
-                    # Define column headers
-                    field_headers = {
-                        "id": "ID",
-                        "name": "Name",
-                        "display_name": "Display Name",
-                        "contact_email": "Contact Email",
-                        "secondary_contact_email": "Secondary Email",
-                        "homepage": "Homepage",
-                        "description": "Description",
-                        "status": "Status",
-                        "created_at": "Created At",
-                        "updated_at": "Updated At",
-                    }
+                # Define column headers
+                field_headers = {
+                    "id": "ID",
+                    "name": "Name",
+                    "display_name": "Display Name",
+                    "contact_email": "Contact Email",
+                    "secondary_contact_email": "Secondary Email",
+                    "homepage": "Homepage",
+                    "description": "Description",
+                    "status": "Status",
+                    "created_at": "Created At",
+                    "updated_at": "Updated At",
+                }
 
-                    # Add columns based on requested fields
+                # Add columns based on requested fields
+                for field in field_list:
+                    header = field_headers.get(field, field.title())
+                    style = field_styles.get(field, "white")
+                    table.add_column(header, style=style)
+
+                # Add rows
+                for provider in providers:
+                    row = []
                     for field in field_list:
-                        header = field_headers.get(field, field.title())
-                        style = field_styles.get(field, "white")
-                        table.add_column(header, style=style)
+                        value = provider.get(field)
+                        if value is None:
+                            row.append("N/A")
+                        elif isinstance(value, dict | list):
+                            row.append(str(value)[:50])  # Truncate complex types
+                        else:
+                            row.append(str(value))
+                    table.add_row(*row)
 
-                    # Add rows
-                    for provider in providers:
-                        row = []
-                        for field in field_list:
-                            value = provider.get(field)
-                            if value is None:
-                                row.append("N/A")
-                            elif isinstance(value, dict | list):
-                                row.append(str(value)[:50])  # Truncate complex types
-                            else:
-                                row.append(str(value))
-                        table.add_row(*row)
-
-                    console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(providers)} provider(s)")
+                console.print(table)
+                console.print(f"\n[green]Total:[/green] {len(providers)} provider(s)")
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
@@ -440,7 +356,7 @@ def query_offerings(
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
-            "id, definition_id, provider_id, status, price, service_name, "
+            "id, provider_id, status, price, service_name, "
             "service_type, provider_name"
         ),
     ),
@@ -454,6 +370,21 @@ def query_offerings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
+    provider_name: str | None = typer.Option(
+        None,
+        "--provider-name",
+        help="Filter by provider name (case-insensitive partial match)",
+    ),
+    service_type: str | None = typer.Option(
+        None,
+        "--service-type",
+        help="Filter by service type (exact match, e.g., llm, vectordb, embedding)",
+    ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        help="Filter by service name (case-insensitive partial match)",
+    ),
 ):
     """Query all service offerings from UnitySVC backend.
 
@@ -464,6 +395,18 @@ def query_offerings(
         # Show only specific fields
         unitysvc_services query offerings --fields id,name,status
 
+        # Filter by provider name
+        unitysvc_services query offerings --provider-name openai
+
+        # Filter by service type
+        unitysvc_services query offerings --service-type llm
+
+        # Filter by service name
+        unitysvc_services query offerings --name llama
+
+        # Combine multiple filters
+        unitysvc_services query offerings --service-type llm --provider-name openai
+
         # Retrieve more than 100 records
         unitysvc_services query offerings --limit 500
 
@@ -472,7 +415,7 @@ def query_offerings(
 
         # Show all available fields
         unitysvc_services query offerings --fields \\
-            id,service_name,service_type,provider_name,status,price,definition_id,provider_id
+            id,service_name,service_type,provider_name,status,price,provider_id
     """
     # Parse fields list
     field_list = [f.strip() for f in fields.split(",")]
@@ -480,7 +423,6 @@ def query_offerings(
     # Define allowed fields from ServiceOfferingPublic model
     allowed_fields = {
         "id",
-        "definition_id",
         "provider_id",
         "status",
         "price",
@@ -499,46 +441,56 @@ def query_offerings(
         console.print(f"[yellow]Available fields:[/yellow] {', '.join(sorted(allowed_fields))}")
         raise typer.Exit(code=1)
 
+    async def _query_offerings_async():
+        async with ServiceDataQuery() as query:
+            params: dict[str, Any] = {"skip": skip, "limit": limit}
+            if provider_name:
+                params["provider_name"] = provider_name
+            if service_type:
+                params["service_type"] = service_type
+            if name:
+                params["name"] = name
+
+            offerings = await query.get("/publish/offerings", params)
+            return offerings.get("data", offerings) if isinstance(offerings, dict) else offerings
+
     try:
-        with ServiceDataQuery() as query:
-            offerings = query.list_service_offerings(skip=skip, limit=limit)
+        offerings = asyncio.run(_query_offerings_async())
 
-            if format == "json":
-                # For JSON, filter fields if not all are requested
-                if set(field_list) != allowed_fields:
-                    filtered_offerings = [
-                        {k: v for k, v in offering.items() if k in field_list} for offering in offerings
-                    ]
-                    console.print(json.dumps(filtered_offerings, indent=2))
-                else:
-                    console.print(json.dumps(offerings, indent=2))
+        if format == "json":
+            # For JSON, filter fields if not all are requested
+            if set(field_list) != allowed_fields:
+                filtered_offerings = [{k: v for k, v in offering.items() if k in field_list} for offering in offerings]
+                console.print(json.dumps(filtered_offerings, indent=2))
             else:
-                if not offerings:
-                    console.print("[yellow]No service offerings found.[/yellow]")
-                else:
-                    table = Table(title="Service Offerings")
+                console.print(json.dumps(offerings, indent=2))
+        else:
+            if not offerings:
+                console.print("[yellow]No service offerings found.[/yellow]")
+            else:
+                table = Table(title="Service Offerings")
 
-                    # Add columns dynamically based on selected fields
+                # Add columns dynamically based on selected fields
+                for field in field_list:
+                    # Capitalize and format field names for display
+                    column_name = field.replace("_", " ").title()
+                    table.add_column(column_name)
+
+                # Add rows
+                for offering in offerings:
+                    row = []
                     for field in field_list:
-                        # Capitalize and format field names for display
-                        column_name = field.replace("_", " ").title()
-                        table.add_column(column_name)
+                        value = offering.get(field)
+                        if value is None:
+                            row.append("N/A")
+                        elif isinstance(value, dict | list):
+                            row.append(str(value)[:50])  # Truncate complex types
+                        else:
+                            row.append(str(value))
+                    table.add_row(*row)
 
-                    # Add rows
-                    for offering in offerings:
-                        row = []
-                        for field in field_list:
-                            value = offering.get(field)
-                            if value is None:
-                                row.append("N/A")
-                            elif isinstance(value, dict | list):
-                                row.append(str(value)[:50])  # Truncate complex types
-                            else:
-                                row.append(str(value))
-                        table.add_row(*row)
-
-                    console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
+                console.print(table)
+                console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
@@ -575,6 +527,31 @@ def query_listings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
+    seller_name: str | None = typer.Option(
+        None,
+        "--seller-name",
+        help="Filter by seller name (case-insensitive partial match)",
+    ),
+    provider_name: str | None = typer.Option(
+        None,
+        "--provider-name",
+        help="Filter by provider name (case-insensitive partial match)",
+    ),
+    service_name: str | None = typer.Option(
+        None,
+        "--service-name",
+        help="Filter by service name (case-insensitive partial match)",
+    ),
+    service_type: str | None = typer.Option(
+        None,
+        "--service-type",
+        help="Filter by service type (exact match, e.g., llm, vectordb, embedding)",
+    ),
+    listing_type: str | None = typer.Option(
+        None,
+        "--listing-type",
+        help="Filter by listing type (exact match: regular, byop, self_hosted)",
+    ),
 ):
     """Query all service listings from UnitySVC backend.
 
@@ -584,6 +561,21 @@ def query_listings(
 
         # Show only specific fields
         unitysvc_services query listings --fields id,service_name,status
+
+        # Filter by seller name
+        unitysvc_services query listings --seller-name chutes
+
+        # Filter by provider name
+        unitysvc_services query listings --provider-name openai
+
+        # Filter by service type
+        unitysvc_services query listings --service-type llm
+
+        # Filter by listing type
+        unitysvc_services query listings --listing-type byop
+
+        # Combine multiple filters
+        unitysvc_services query listings --service-type llm --listing-type regular
 
         # Retrieve more than 100 records
         unitysvc_services query listings --limit 500
@@ -628,44 +620,60 @@ def query_listings(
         console.print(f"[yellow]Available fields:[/yellow] {', '.join(sorted(allowed_fields))}")
         raise typer.Exit(code=1)
 
+    async def _query_listings_async():
+        async with ServiceDataQuery() as query:
+            params: dict[str, Any] = {"skip": skip, "limit": limit}
+            if seller_name:
+                params["seller_name"] = seller_name
+            if provider_name:
+                params["provider_name"] = provider_name
+            if service_name:
+                params["service_name"] = service_name
+            if service_type:
+                params["service_type"] = service_type
+            if listing_type:
+                params["listing_type"] = listing_type
+
+            listings = await query.get("/publish/listings", params)
+            return listings.get("data", listings) if isinstance(listings, dict) else listings
+
     try:
-        with ServiceDataQuery() as query:
-            listings = query.list_service_listings(skip=skip, limit=limit)
+        listings = asyncio.run(_query_listings_async())
 
-            if format == "json":
-                # For JSON, filter fields if not all are requested
-                if set(field_list) != allowed_fields:
-                    filtered_listings = [{k: v for k, v in listing.items() if k in field_list} for listing in listings]
-                    console.print(json.dumps(filtered_listings, indent=2))
-                else:
-                    console.print(json.dumps(listings, indent=2))
+        if format == "json":
+            # For JSON, filter fields if not all are requested
+            if set(field_list) != allowed_fields:
+                filtered_listings = [{k: v for k, v in listing.items() if k in field_list} for listing in listings]
+                console.print(json.dumps(filtered_listings, indent=2))
             else:
-                if not listings:
-                    console.print("[yellow]No service listings found.[/yellow]")
-                else:
-                    table = Table(title="Service Listings")
+                console.print(json.dumps(listings, indent=2))
+        else:
+            if not listings:
+                console.print("[yellow]No service listings found.[/yellow]")
+            else:
+                table = Table(title="Service Listings")
 
-                    # Add columns dynamically based on selected fields
+                # Add columns dynamically based on selected fields
+                for field in field_list:
+                    # Capitalize and format field names for display
+                    column_name = field.replace("_", " ").title()
+                    table.add_column(column_name)
+
+                # Add rows
+                for listing in listings:
+                    row = []
                     for field in field_list:
-                        # Capitalize and format field names for display
-                        column_name = field.replace("_", " ").title()
-                        table.add_column(column_name)
+                        value = listing.get(field)
+                        if value is None:
+                            row.append("N/A")
+                        elif isinstance(value, dict | list):
+                            row.append(str(value)[:50])  # Truncate complex types
+                        else:
+                            row.append(str(value))
+                    table.add_row(*row)
 
-                    # Add rows
-                    for listing in listings:
-                        row = []
-                        for field in field_list:
-                            value = listing.get(field)
-                            if value is None:
-                                row.append("N/A")
-                            elif isinstance(value, dict | list):
-                                row.append(str(value)[:50])  # Truncate complex types
-                            else:
-                                row.append(str(value))
-                        table.add_row(*row)
-
-                    console.print(table)
-                    console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
+                console.print(table)
+                console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)

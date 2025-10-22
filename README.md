@@ -25,31 +25,37 @@ pip install unitysvc-services
 
 Requires Python 3.11+
 
+**CLI Alias:** The command `unitysvc_services` can also be invoked using the shorter alias `usvc`.
+
 ## Quick Example
 
 ```bash
-# Initialize provider and service
-unitysvc_services init provider my-provider
-unitysvc_services init offering my-service
-unitysvc_services init seller my-marketplace
+# Initialize provider and service (using short alias 'usvc')
+usvc init provider my-provider
+usvc init offering my-service
+usvc init seller my-marketplace
 
 # Validate and format
-unitysvc_services validate
-unitysvc_services format
+usvc validate
+usvc format
 
 # Publish to platform (publishes all: sellers, providers, offerings, listings)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-api-key"
-unitysvc_services publish
+usvc publish
 
 # Or publish specific types only
-unitysvc_services publish providers
+usvc publish providers
 
 # Verify with default fields
-unitysvc_services query offerings
+usvc query offerings
 
 # Query with custom fields
-unitysvc_services query providers --fields id,name,contact_email
+usvc query providers --fields id,name,contact_email
+
+# Test code examples with upstream credentials
+usvc test list --provider fireworks
+usvc test run --provider fireworks --services "llama*"
 ```
 
 ## Key Features
@@ -95,18 +101,85 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## CLI Commands
 
-| Command    | Description                            |
-| ---------- | -------------------------------------- |
-| `init`     | Initialize new data files from schemas |
-| `list`     | List local data files                  |
-| `query`    | Query backend API for published data   |
-| `publish`  | Publish data to backend                |
-| `update`   | Update local file fields               |
-| `validate` | Validate data consistency              |
-| `format`   | Format data files                      |
-| `populate` | Execute provider populate scripts      |
+| Command    | Description                                         |
+| ---------- | --------------------------------------------------- |
+| `init`     | Initialize new data files from schemas              |
+| `list`     | List local data files                               |
+| `query`    | Query backend API for published data                |
+| `publish`  | Publish data to backend                             |
+| `update`   | Update local file fields                            |
+| `validate` | Validate data consistency                           |
+| `format`   | Format data files                                   |
+| `populate` | Execute provider populate scripts                   |
+| `test`     | Test code examples with upstream API credentials    |
 
-Run `unitysvc_services --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
+Run `usvc --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
+
+### Test Command
+
+The `test` command helps validate code examples against upstream APIs:
+
+```bash
+# List available code examples
+usvc test list
+usvc test list --provider fireworks
+usvc test list --services "llama*,gpt-4*"
+usvc test list --show-paths
+
+# Run code examples
+usvc test run
+usvc test run --provider fireworks
+usvc test run --services "code-llama-*"
+usvc test run --verbose
+```
+
+Code examples are discovered from listing files and executed with upstream credentials from `provider.toml`.
+
+## Document Format
+
+Documents in UnitySVC can be in any format (`.md`, `.py`, `.js`, `.sh`, etc.). Files with an additional `.j2` extension are treated as **Jinja2 templates** and expanded before use.
+
+### Standard Documents
+Regular files are used as-is:
+- `description.md` - Markdown documentation (used as-is)
+- `example.py` - Python code example (used as-is)
+- `example.js` - JavaScript code example (used as-is)
+- `example.sh` - Shell script (used as-is)
+
+### Jinja2 Template Documents
+Files ending with `.j2` are rendered before use:
+- `description.md.j2` - Markdown template (rendered → `.md`)
+- `example.py.j2` - Python template (rendered → `.py`)
+- `example.js.j2` - JavaScript template (rendered → `.js`)
+- `example.sh.j2` - Shell script template (rendered → `.sh`)
+
+**Template Variables:**
+Templates have access to:
+- `listing`: The listing data structure (Listing_v1 schema)
+  - `listing.service_name`, `listing.listing_type`, etc.
+- `offering`: Service offering data (Offering_v1 schema)
+  - `offering.offering_id`, `offering.service_type`, etc.
+- `provider`: Provider metadata (Provider_v1 schema)
+  - `provider.provider_name`, `provider.provider_access_info`, etc.
+- `seller`: Seller metadata (Seller_v1 schema)
+  - `seller.seller_name`, `seller.contact_email`, etc.
+
+**Example Template** (`test.py.j2`):
+```python
+#!/usr/bin/env python
+"""Test for {{ listing.service_name }} from {{ provider.provider_name }}"""
+
+API_ENDPOINT = "{{ provider.provider_access_info.api_endpoint }}"
+MODEL = "{{ listing.service_name }}"
+PROVIDER = "{{ provider.provider_name }}"
+
+print(f"Testing {MODEL} from {PROVIDER} at {API_ENDPOINT}")
+```
+
+**Validation:**
+- Data files (`.json`, `.toml`) are validated against schemas
+- Template files (`.j2`) are validated for Jinja2 syntax errors
+- Regular documents are not validated
 
 ## Documentation
 
