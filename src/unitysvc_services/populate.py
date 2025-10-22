@@ -9,6 +9,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from .format_data import format_data
 from .utils import find_files_by_schema
 
 app = typer.Typer(help="Populate services")
@@ -38,6 +39,9 @@ def populate(
 
     This command scans provider files for 'services_populator' configuration and executes
     the specified commands with environment variables from 'provider_access_info'.
+
+    After successful execution, automatically runs formatting on all generated files to
+    ensure they conform to the format specification (equivalent to running 'usvc format').
     """
     # Set data directory
     if data_dir is None:
@@ -177,6 +181,20 @@ def populate(
     console.print(f"  [green]✓ Successfully executed: {total_executed}[/green]")
     console.print(f"  [yellow]⏭️  Skipped: {total_skipped}[/yellow]")
     console.print(f"  [red]✗ Failed: {total_failed}[/red]")
+
+    # Format generated files if any populate scripts executed successfully
+    if total_executed > 0 and not dry_run:
+        console.print("\n" + "=" * 50)
+        console.print("[bold cyan]Formatting generated files...[/bold cyan]")
+        console.print("[dim]Running automatic formatting to ensure data conforms to format specification[/dim]\n")
+
+        try:
+            # Run format command on the data directory
+            format_data(data_dir)
+            console.print("\n[green]✓ Formatting completed successfully[/green]")
+        except Exception as e:
+            console.print(f"\n[yellow]⚠ Warning: Formatting failed: {e}[/yellow]")
+            console.print("[dim]You may want to run 'usvc format' manually to fix formatting issues[/dim]")
 
     if total_failed > 0:
         raise typer.Exit(code=1)
