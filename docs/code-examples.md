@@ -6,11 +6,171 @@ This guide explains how to create, test, and publish code examples for your serv
 
 Code examples help users understand how to interact with your services. The UnitySVC Services SDK provides a complete workflow for:
 
-- Creating executable code examples in multiple languages (Python, JavaScript, Shell)
-- Using Jinja2 templates for dynamic content
-- Testing examples against upstream APIs
-- Validating output automatically
-- Publishing examples with your service listings
+-   Creating executable code examples in multiple languages (Python, JavaScript, Shell)
+-   Using Jinja2 templates for dynamic content
+-   Testing examples against upstream APIs
+-   Validating output automatically
+-   Publishing examples with your service listings
+
+## Basic Concepts
+
+Before diving into creating code examples, understand these fundamental principles:
+
+### 1. Code Examples Should Be Complete
+
+Code examples must be **fully executable** and **self-contained**. Users should be able to run them directly without modifications:
+
+```python
+# ✓ GOOD: Complete, runnable example
+#!/usr/bin/env python3
+import httpx
+import os
+
+response = httpx.post(
+    f"{os.environ['API_ENDPOINT']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
+    json={"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}
+)
+print(response.json())
+
+# ✗ BAD: Incomplete snippet
+response = api.chat(...)  # What is 'api'? How to initialize it?
+```
+
+### 2. Never Include Sensitive Information
+
+**IMPORTANT:** Code examples are public. Never hardcode sensitive information:
+
+```python
+# ✗ BAD: Hardcoded credentials
+API_KEY = "sk-abc123xyz789"  # NEVER DO THIS!
+
+# ✓ GOOD: Use environment variables
+API_KEY = os.environ.get("API_KEY")
+API_ENDPOINT = os.environ.get("API_ENDPOINT")
+```
+
+**Standard Environment Variables:**
+
+The test framework automatically sets these environment variables when running code examples:
+
+-   `API_KEY` - Provider API key from `provider.provider_access_info.api_key`
+-   `API_ENDPOINT` - Provider API endpoint from `provider.provider_access_info.api_endpoint`
+
+Your code examples should **always** read credentials from these environment variables.
+
+### 3. Add to Service Listing Documents
+
+Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array:
+
+```json
+{
+    "schema": "listing_v1",
+    "service_name": "gpt-4",
+    "user_access_interfaces": [
+        {
+            "interface_type": "openai_chat_completions",
+            "documents": [
+                {
+                    "category": "code_examples",
+                    "title": "Python Example",
+                    "file_path": "../../docs/example.py.j2",
+                    "mime_type": "python",
+                    "is_public": true,
+                    "requirements": ["httpx"],
+                    "expect": "✓ Test passed"
+                }
+            ]
+        }
+    ]
+}
+```
+
+**Required Fields:**
+
+-   **`category`**: Must be `"code_examples"` for test framework to discover it
+-   **`title`**: Descriptive name (e.g., "Python Example", "cURL Example")
+-   **`file_path`**: Path to the code file (relative to the listing file)
+-   **`mime_type`**: File type (`python`, `javascript`, `shell`, etc.)
+-   **`is_public`**: Should be `true` for code examples
+
+**Optional but Recommended Fields:**
+
+-   **`requirements`**: Package dependencies (e.g., `["httpx", "openai"]`)
+-   **`expect`**: Expected substring in stdout for validation (e.g., `"✓ Test passed"`)
+
+### 4. Use Relative Paths
+
+The `file_path` must be **relative to the listing file**, not absolute:
+
+```
+data/
+└── fireworks/
+    ├── docs/
+    │   └── example.py.j2          # Shared code example
+    └── services/
+        └── llama-3-1-405b/
+            └── listing.json        # References: ../../docs/example.py.j2
+```
+
+```json
+{
+    "file_path": "../../docs/example.py.j2" // ✓ GOOD: Relative path
+}
+```
+
+```json
+{
+    "file_path": "/data/fireworks/docs/example.py.j2" // ✗ BAD: Absolute path
+}
+```
+
+### 5. Templates Work Across Multiple Services
+
+Code examples ending with `.j2` are **Jinja2 templates** that can be reused across multiple service listings:
+
+**Template File: `docs/example.py.j2`**
+
+```python
+#!/usr/bin/env python3
+"""Example for {{ offering.name }} from {{ provider.name }}"""
+import httpx
+import os
+
+response = httpx.post(
+    f"{os.environ['API_ENDPOINT']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
+    json={
+        "model": "{{ offering.name }}",  # Dynamic: changes per service
+        "messages": [{"role": "user", "content": "Hello"}]
+    }
+)
+print(response.json())
+```
+
+**Multiple Listings Reference the Same Template:**
+
+```
+data/fireworks/
+├── docs/
+│   └── example.py.j2              # One template
+└── services/
+    ├── llama-3-1-405b/
+    │   └── listing.json            # References: ../../docs/example.py.j2
+    ├── llama-3-1-70b/
+    │   └── listing.json            # References: ../../docs/example.py.j2
+    └── mixtral-8x7b/
+        └── listing.json            # References: ../../docs/example.py.j2
+```
+
+**Benefits of Templates:**
+
+-   **Write once, use many times** - One template serves all services
+-   **Automatic updates** - Fix the template once, all services benefit
+-   **Dynamic content** - Service-specific values inserted automatically
+-   **Type safety** - Variables validated during testing
+
+See [Template Variables Reference](#template-variables-reference) for complete list.
 
 ## Test Command
 
@@ -30,11 +190,12 @@ usvc test list --services "llama*,gpt-4*"
 ```
 
 The output shows:
-- Service name
-- Provider name
-- Example title
-- File type (.py, .js, .sh, etc.)
-- Relative file path from data directory
+
+-   Service name
+-   Provider name
+-   Example title
+-   File type (.py, .js, .sh, etc.)
+-   Relative file path from data directory
 
 ### Running Tests
 
@@ -55,12 +216,12 @@ usvc test run --verbose
 **How tests work:**
 
 1. Test framework discovers code examples from listing files (category = `code_examples`)
-2. Renders Jinja2 templates with listing, offering, provider, and seller data
-3. Sets environment variables (API_KEY, API_ENDPOINT) from provider credentials
+2. Renders Jinja2 templates with `listing`, `offering`, `provider`, and `seller` data
+3. Sets environment variables (`API_KEY`, `API_ENDPOINT`) from provider credentials
 4. Executes the code example using appropriate interpreter (python3, node, bash)
 5. Validates results:
-   - Test passes if exit code is 0 AND (no `expect` field OR expected string found in stdout)
-   - Test fails if exit code is non-zero OR expected string not found
+    - Test passes if exit code is 0 AND (no `expect` field OR expected string found in stdout)
+    - Test fails if exit code is non-zero OR expected string not found
 
 **Failed test debugging:**
 
@@ -85,6 +246,8 @@ This section provides a step-by-step guide for creating and testing code example
 ### Step 1: Develop and Test the Script Locally
 
 Start by writing a working script using actual values. This allows you to verify the API works correctly before templating.
+
+Note the expected output and find a suitable `expect` word.
 
 **Example: `test.py` (initial version)**
 
@@ -189,12 +352,12 @@ if response.status_code == 200 and "choices" in response.json():
 
 **Common template variables:**
 
-- `{{ offering.name }}` - Service/model name
-- `{{ provider.provider_name }}` - Provider name
-- `{{ listing.service_name }}` - Service name from listing
-- `{{ provider.provider_access_info.api_endpoint }}` - Provider API endpoint
-- `{{ listing.field_name }}` - Any field from the listing
-- `{{ seller.seller_name }}` - Seller name
+-   `{{ listing.name }}` - Service listing name
+-   `{{ offering.name }}` - Model/service name
+-   `{{ provider.name }}` - Provider name
+-   `{{ provider.display_name }}` - Provider name
+-   `{{ seller.name }}` - Seller name
+-   `{{ seller.display_name }}` - Seller name
 
 **File renamed:** `test.py` → `test.py.j2`
 
@@ -230,21 +393,22 @@ Reference the code example in your `listing.json` file.
 
 **Important fields:**
 
-- `category`: Must be `"code_examples"` for test framework to find it
-- `title`: Descriptive name for the example
-- `file_path`: Relative path from listing file to your `.j2` template
-- `mime_type`: File type (`python`, `javascript`, `shell`, etc.)
-- `is_public`: Should be `true` for code examples
-- `requirements`: **[Optional]** List of package dependencies needed to run the code example
-  - For Python: PyPI packages (e.g., `["httpx", "openai"]`)
-  - For JavaScript: npm packages (e.g., `["node-fetch"]`)
-  - Helps users understand what to install before running the example
-- `expect`: **[Optional but strongly recommended]** Expected substring that should appear in stdout when the test passes
-  - Examples:
-    - `"✓ Test passed"` - Explicit success message
-    - `"\"choices\""` - Check for JSON field in API response
-    - `"Status: 200"` - Check for HTTP status
-  - Without this field, tests only check exit code (0 = pass, non-zero = fail)
+-   `category`: Must be `"code_examples"` for test framework to find it
+-   `title`: Descriptive name for the example
+-   `file_path`: Relative path from listing file to your `.j2` template
+-   `mime_type`: File type (`python`, `javascript`, `shell`, etc.)
+-   `is_public`: Should be `true` for code examples
+-   `requirements`: **[Optional]** List of package dependencies needed to run the code example
+    -   For Python: PyPI packages (e.g., `["httpx", "openai"]`)
+    -   For JavaScript: npm packages (e.g., `["node-fetch"]`)
+    -   For Shell scripts: commands (e.g., `["curl"]`)
+    -   Helps users understand what to install before running the example
+-   `expect`: **[Optional but strongly recommended]** Expected substring that should appear in stdout when the test passes
+    -   Examples:
+        -   `"✓ Test passed"` - Explicit success message
+        -   `"\"choices\""` - Check for JSON field in API response
+        -   `"Status: 200"` - Check for HTTP status
+    -   Without this field, tests only check exit code (0 = pass, non-zero = fail), which is unreliable.
 
 ### Step 5: Validate and Test Before Publishing
 
@@ -273,6 +437,8 @@ usvc test list
 # Type: .py
 # File Path: fireworks/docs/test.py.j2
 ```
+
+pass option `--services` to limit to particular services.
 
 **Step 5.3: Run tests**
 
@@ -378,26 +544,23 @@ if "choices" in data:
 
 ```javascript
 #!/usr/bin/env node
-const response = await fetch(
-    `${process.env.API_ENDPOINT}/chat/completions`,
-    {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.API_KEY}`
-        },
-        body: JSON.stringify({
-            model: "{{ offering.name }}",
-            messages: [{role: "user", content: "test"}]
-        })
-    }
-);
+const response = await fetch(`${process.env.API_ENDPOINT}/chat/completions`, {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.API_KEY}`,
+    },
+    body: JSON.stringify({
+        model: "{{ offering.name }}",
+        messages: [{ role: "user", content: "test" }],
+    }),
+});
 
 const data = await response.json();
 
 console.log(data);
 if (data.choices) {
-    console.log("✓ Success");  // Will be checked by expect
+    console.log("✓ Success"); // Will be checked by expect
 }
 ```
 
@@ -415,32 +578,40 @@ if (data.choices) {
 Templates have access to four data structures:
 
 ### listing
+
 The listing data structure (Listing_v1 schema)
-- `listing.service_name` - Service name
-- `listing.listing_type` - Listing type (svcreseller, byop, etc.)
-- `listing.status` - Listing status
-- All other fields from the listing schema
+
+-   `listing.service_name` - Service name
+-   `listing.listing_type` - Listing type (svcreseller, byop, etc.)
+-   `listing.status` - Listing status
+-   All other fields from the listing schema
 
 ### offering
+
 Service offering data (Offering_v1 schema)
-- `offering.name` - Service/model name
-- `offering.offering_id` - Unique offering ID
-- `offering.service_type` - Service type (llm, embedding, etc.)
-- All other fields from the offering schema
+
+-   `offering.name` - Service/model name
+-   `offering.offering_id` - Unique offering ID
+-   `offering.service_type` - Service type (llm, embedding, etc.)
+-   All other fields from the offering schema
 
 ### provider
+
 Provider metadata (Provider_v1 schema)
-- `provider.provider_name` - Provider name
-- `provider.provider_access_info` - Access credentials and endpoints
-  - `provider.provider_access_info.api_endpoint` - API endpoint URL
-  - `provider.provider_access_info.api_key` - API key
-- All other fields from the provider schema
+
+-   `provider.provider_name` - Provider name
+-   `provider.provider_access_info` - Access credentials and endpoints
+    -   `provider.provider_access_info.api_endpoint` - API endpoint URL
+    -   `provider.provider_access_info.api_key` - API key
+-   All other fields from the provider schema
 
 ### seller
+
 Seller metadata (Seller_v1 schema)
-- `seller.seller_name` - Seller name
-- `seller.contact_email` - Contact email
-- All other fields from the seller schema
+
+-   `seller.seller_name` - Seller name
+-   `seller.contact_email` - Contact email
+-   All other fields from the seller schema
 
 **Using defaults:**
 
@@ -496,10 +667,10 @@ usvc publish
 
 The test framework automatically detects the appropriate interpreter based on file extension:
 
-- **`.py` files**: Uses `python3` (falls back to `python` if python3 not available)
-- **`.js` files**: Uses `node` (Node.js required)
-- **`.sh` files**: Uses `bash`
-- **Other files**: Checks shebang line (e.g., `#!/usr/bin/env python3`)
+-   **`.py` files**: Uses `python3` (falls back to `python` if python3 not available)
+-   **`.js` files**: Uses `node` (Node.js required)
+-   **`.sh` files**: Uses `bash`
+-   **Other files**: Checks shebang line (e.g., `#!/usr/bin/env python3`)
 
 If the required interpreter is not found, the test will fail with a clear error message.
 
@@ -514,6 +685,7 @@ If the required interpreter is not found, the test will fail with a clear error 
 **Problem:** `undefined variable: listing.field_name`
 
 **Solution:** Verify field exists in Listing_v1 schema or use default filter:
+
 ```jinja2
 {{ listing.field_name | default('fallback') }}
 ```
@@ -523,16 +695,18 @@ If the required interpreter is not found, the test will fail with a clear error 
 **Problem:** Test fails with "interpreter not found"
 
 **Solution:** Install the required interpreter:
-- Python: `brew install python3` or `apt-get install python3`
-- Node.js: `brew install node` or download from nodejs.org
-- Bash: Usually pre-installed on Unix systems
+
+-   Python: `brew install python3` or `apt-get install python3`
+-   Node.js: `brew install node` or download from nodejs.org
+-   Bash: Usually pre-installed on Unix systems
 
 **Problem:** Test passes locally but fails in test framework
 
 **Solution:**
-- Check that you're using environment variables (API_KEY, API_ENDPOINT)
-- Verify template variables are correct
-- Run `usvc test run --verbose` to see full output
+
+-   Check that you're using environment variables (API_KEY, API_ENDPOINT)
+-   Verify template variables are correct
+-   Run `usvc test run --verbose` to see full output
 
 **Problem:** Exit code is 0 but test still fails
 
@@ -543,13 +717,15 @@ If the required interpreter is not found, the test will fail with a clear error 
 **Problem:** `usvc validate` reports Jinja2 syntax errors
 
 **Solution:**
-- Validate template syntax in isolation
-- Common issues: missing `}`, incorrect variable names
-- Use a Jinja2 linter or IDE plugin
+
+-   Validate template syntax in isolation
+-   Common issues: missing `}`, incorrect variable names
+-   Use a Jinja2 linter or IDE plugin
 
 **Problem:** Code example not found by `usvc test list`
 
 **Solution:**
-- Verify `category` is set to `"code_examples"` in document object
-- Check that `file_path` is correct relative to listing file
-- Run `usvc validate` to check for schema errors
+
+-   Verify `category` is set to `"code_examples"` in document object
+-   Check that `file_path` is correct relative to listing file
+-   Run `usvc validate` to check for schema errors
