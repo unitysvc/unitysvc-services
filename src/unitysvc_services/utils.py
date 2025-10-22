@@ -10,9 +10,46 @@ import tomli_w
 from jinja2 import Template
 
 
+def deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """
+    Deep merge two dictionaries, with override values taking precedence.
+
+    For nested dictionaries, performs recursive merge. For all other types
+    (lists, primitives), the override value completely replaces the base value.
+
+    Args:
+        base: Base dictionary
+        override: Override dictionary (values take precedence)
+
+    Returns:
+        Merged dictionary
+    """
+    result = base.copy()
+
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            # Recursively merge nested dictionaries
+            result[key] = deep_merge_dicts(result[key], value)
+        else:
+            # For all other types (lists, primitives, etc.), override completely
+            result[key] = value
+
+    return result
+
+
 def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
     """
     Load a data file (JSON or TOML) and return (data, format).
+
+    Automatically checks for and merges override files with the pattern:
+    <base_name>.override.<extension>
+
+    For example:
+    - service.json -> service.override.json
+    - provider.toml -> provider.override.toml
+
+    If an override file exists, it will be deep-merged with the base file,
+    with override values taking precedence.
 
     Args:
         file_path: Path to the data file
@@ -23,14 +60,40 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
     Raises:
         ValueError: If file format is not supported
     """
+    # Load the base file
     if file_path.suffix == ".json":
         with open(file_path, encoding="utf-8") as f:
-            return json.load(f), "json"
+            data = json.load(f)
+        file_format = "json"
     elif file_path.suffix == ".toml":
         with open(file_path, "rb") as f:
-            return tomllib.load(f), "toml"
+            data = tomllib.load(f)
+        file_format = "toml"
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
+
+    # Check for override file
+    # Pattern: <stem>.override.<suffix>
+    # Example: service.json -> service.override.json
+    override_path = file_path.with_stem(f"{file_path.stem}.override")
+
+    if override_path.exists():
+        # Load the override file (same format as base file)
+        if override_path.suffix == ".json":
+            with open(override_path, encoding="utf-8") as f:
+                override_data = json.load(f)
+        elif override_path.suffix == ".toml":
+            with open(override_path, "rb") as f:
+                override_data = tomllib.load(f)
+        else:
+            # This shouldn't happen since we're using the same suffix as base
+            # But handle it gracefully
+            override_data = {}
+
+        # Deep merge the override data into the base data
+        data = deep_merge_dicts(data, override_data)
+
+    return data, file_format
 
 
 def write_data_file(file_path: Path, data: dict[str, Any], format: str) -> None:
