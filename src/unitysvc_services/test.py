@@ -473,9 +473,14 @@ def list_code_examples(
         code_examples = extract_code_examples_from_listing(listing_data, listing_file)
 
         for example in code_examples:
-            # Get file extension
+            # Get file extension (strip .j2 if present to show actual type)
             file_path = example.get("file_path", "")
-            file_ext = Path(file_path).suffix or "unknown"
+            path = Path(file_path)
+            # If it's a .j2 template, get the extension before .j2
+            if path.suffix == ".j2":
+                file_ext = Path(path.stem).suffix or "unknown"
+            else:
+                file_ext = path.suffix or "unknown"
             all_code_examples.append((example, prov_name, file_ext))
 
     if not all_code_examples:
@@ -535,6 +540,12 @@ def run(
         "-s",
         help="Comma-separated list of service patterns (supports wildcards, e.g., 'llama*,gpt-4*')",
     ),
+    test_file: str | None = typer.Option(
+        None,
+        "--test-file",
+        "-t",
+        help="Only run a specific test file by filename (e.g., 'code-example.py.j2')",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -564,6 +575,9 @@ def run(
         # Test single service
         unitysvc_services test run --services "llama-3-1-405b-instruct"
 
+        # Test specific file
+        unitysvc_services test run --test-file "code-example.py.j2"
+
         # Combine filters
         unitysvc_services test run --provider fireworks --services "llama*"
 
@@ -589,6 +603,10 @@ def run(
     if services:
         service_patterns = [s.strip() for s in services.split(",") if s.strip()]
         console.print(f"[blue]Service filter patterns:[/blue] {', '.join(service_patterns)}\n")
+
+    # Display test file filter if provided
+    if test_file:
+        console.print(f"[blue]Test file filter:[/blue] {test_file}\n")
 
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
@@ -661,6 +679,13 @@ def run(
         code_examples = extract_code_examples_from_listing(listing_data, listing_file)
 
         for example in code_examples:
+            # Filter by test file name if provided
+            if test_file:
+                file_path = example.get("file_path", "")
+                # Check if the file path ends with the test file name
+                if not file_path.endswith(test_file):
+                    continue
+
             all_code_examples.append((example, prov_name))
 
     if not all_code_examples:
@@ -729,8 +754,8 @@ def run(
                 actual_filename = result["actual_filename"]
                 listing_stem = listing_file.stem
 
-                # Create filename: failed_{listing_stem}_{actual_filename}
-                failed_filename = f"failed_{listing_stem}_{actual_filename}"
+                # Create filename: failed_{service_name}_{listing_stem}_{actual_filename}
+                failed_filename = f"failed_{service_name}_{listing_stem}_{actual_filename}"
 
                 # Prepare content with environment variables as header comments
                 content_with_env = result["rendered_content"]
