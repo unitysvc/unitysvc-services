@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "unitysvc-services"
 version = "0.1.7"
@@ -79,3 +83,9 @@ disable_error_code = ["import-untyped"]
 
 [tool.uv]
 package = true
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.package-data]
+unitysvc_services = ["schema/*.json", "py.typed"]

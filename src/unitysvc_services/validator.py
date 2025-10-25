@@ -32,7 +32,22 @@ class DataValidator:
 
     def load_schemas(self) -> None:
         """Load all JSON schemas from the schema directory."""
-        for schema_file in self.schema_dir.glob("*.json"):
+        if not self.schema_dir.exists():
+            raise DataValidationError(
+                f"Schema directory not found: {self.schema_dir}\n"
+                f"This may indicate the package was not installed correctly. "
+                f"Please reinstall with: pip install --force-reinstall unitysvc-services"
+            )
+
+        schema_files = list(self.schema_dir.glob("*.json"))
+        if not schema_files:
+            raise DataValidationError(
+                f"No schema files (*.json) found in schema directory: {self.schema_dir}\n"
+                f"This may indicate the package was not installed correctly. "
+                f"Please reinstall with: pip install --force-reinstall unitysvc-services"
+            )
+
+        for schema_file in schema_files:
             schema_name = schema_file.stem
             try:
                 with open(schema_file, encoding="utf-8") as f:
