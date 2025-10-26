@@ -32,7 +32,7 @@
     "api_key": "your_api_key_here",
     "documents": [
       {
-        "category": "code_examples",
+        "category": "code_example",
         "description": "Example code to use the model",
         "file_path": "code-example.md",
         "is_active": true,

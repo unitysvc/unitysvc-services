@@ -11,7 +11,7 @@
       "api_key": null,
       "documents": [
         {
-          "category": "code_examples",
+          "category": "code_example",
           "description": "Example code to use the model",
           "file_path": "code-example.md",
           "is_active": true,

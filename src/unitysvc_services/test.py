@@ -720,26 +720,38 @@ def run(
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
 
-            # Save successful test output to .out file
-            if result.get("stdout") and result.get("listing_file") and result.get("actual_filename"):
+            # Save successful test output to .out and .err files
+            if result.get("listing_file") and result.get("actual_filename"):
                 listing_file = Path(result["listing_file"])
                 actual_filename = result["actual_filename"]
-
-                # Create filename: {listing_stem}_{actual_filename}.out
-                # e.g., "svclisting_test.py.out" for svclisting.json and test.py
                 listing_stem = listing_file.stem
-                output_filename = f"{listing_stem}_{actual_filename}.out"
+
+                # Create filename pattern: {service_name}_{listing_stem}_{actual_filename}.out/.err
+                # e.g., "llama-3-1-405b-instruct_svclisting_test.py.out"
+                base_filename = f"{service_name}_{listing_stem}_{actual_filename}"
+                out_filename = f"{base_filename}.out"
+                err_filename = f"{base_filename}.err"
 
                 # Save to listing directory
-                output_path = listing_file.parent / output_filename
+                out_path = listing_file.parent / out_filename
+                err_path = listing_file.parent / err_filename
 
                 # Write stdout to .out file
                 try:
-                    with open(output_path, "w", encoding="utf-8") as f:
-                        f.write(result["stdout"])
-                    console.print(f"  [dim]→ Output saved to:[/dim] {output_path}")
+                    with open(out_path, "w", encoding="utf-8") as f:
+                        f.write(result["stdout"] or "")
+                    console.print(f"  [dim]→ Output saved to:[/dim] {out_path}")
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save output: {e}[/yellow]")
+
+                # Write stderr to .err file
+                try:
+                    with open(err_path, "w", encoding="utf-8") as f:
+                        f.write(result["stderr"] or "")
+                    if result["stderr"]:
+                        console.print(f"  [dim]→ Error output saved to:[/dim] {err_path}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save error output: {e}[/yellow]")
         else:
             console.print(f"  [red]✗ Failed[/red] - {result['error']}")
             if verbose:
@@ -748,16 +760,36 @@ def run(
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
-            # Write failed test content to current directory
-            if result.get("rendered_content") and result.get("listing_file") and result.get("actual_filename"):
+            # Write failed test outputs and script to current directory
+            if result.get("listing_file") and result.get("actual_filename"):
                 listing_file = Path(result["listing_file"])
                 actual_filename = result["actual_filename"]
                 listing_stem = listing_file.stem
 
                 # Create filename: failed_{service_name}_{listing_stem}_{actual_filename}
+                # This will be the base name for .out, .err, and the script file
                 failed_filename = f"failed_{service_name}_{listing_stem}_{actual_filename}"
 
-                # Prepare content with environment variables as header comments
+                # Write stdout to .out file in current directory
+                out_filename = f"{failed_filename}.out"
+                try:
+                    with open(out_filename, "w", encoding="utf-8") as f:
+                        f.write(result["stdout"] or "")
+                    console.print(f"  [yellow]→ Output saved to:[/yellow] {out_filename}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save output: {e}[/yellow]")
+
+                # Write stderr to .err file in current directory
+                err_filename = f"{failed_filename}.err"
+                try:
+                    with open(err_filename, "w", encoding="utf-8") as f:
+                        f.write(result["stderr"] or "")
+                    console.print(f"  [yellow]→ Error output saved to:[/yellow] {err_filename}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save error output: {e}[/yellow]")
+
+                # Write failed test script content to current directory (for debugging)
+                # rendered_content is always set if we got here (set during template rendering)
                 content_with_env = result["rendered_content"]
 
                 # Add environment variables as comments at the top
@@ -774,14 +806,13 @@ def run(
 
                 content_with_env = env_header + content_with_env
 
-                # Write to current directory
                 try:
                     with open(failed_filename, "w", encoding="utf-8") as f:
                         f.write(content_with_env)
-                    console.print(f"  [yellow]→ Test content saved to:[/yellow] {failed_filename}")
+                    console.print(f"  [yellow]→ Test script saved to:[/yellow] {failed_filename}")
                     console.print("  [dim]  (includes environment variables for reproduction)[/dim]")
                 except Exception as e:
-                    console.print(f"  [yellow]⚠ Failed to save test content: {e}[/yellow]")
+                    console.print(f"  [yellow]⚠ Failed to save test script: {e}[/yellow]")
 
         console.print()
 
