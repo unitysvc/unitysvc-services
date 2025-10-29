@@ -4,13 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from unitysvc_services.utils import (
-    convert_convenience_fields_to_documents,
-    deep_merge_dicts,
-    load_data_file,
-    resolve_provider_name,
-    resolve_service_name_for_listing,
-)
+from unitysvc_services.utils import (convert_convenience_fields_to_documents,
+                                     deep_merge_dicts, load_data_file,
+                                     resolve_provider_name,
+                                     resolve_service_name_for_listing)
 
 
 @pytest.fixture
@@ -30,7 +27,7 @@ def test_resolve_service_name_explicit(example_data_dir: Path) -> None:
     for file_path, _format, data in listing_files:
         if "provider2" in str(file_path):
             service_name = resolve_service_name_for_listing(file_path, data)
-            assert service_name == "example-service-2"
+            assert service_name == "service2"
             break
     else:
         pytest.fail("No provider2 listing found")

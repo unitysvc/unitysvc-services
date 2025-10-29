@@ -11,6 +11,9 @@ from typing import Any
 import httpx
 import typer
 from rich.console import Console
+from rich.table import Table
+
+import unitysvc_services
 
 from .api import UnitySvcAPI
 from .models.base import ProviderStatusEnum, SellerStatusEnum
@@ -641,6 +644,16 @@ class ServiceDataPublisher(UnitySvcAPI):
         files = find_files_by_schema(data_dir, "seller_v1")
         return sorted([f[0] for f in files])
 
+    @staticmethod
+    def _get_status_display(status: str) -> tuple[str, str]:
+        """Get color and symbol for status display."""
+        status_map = {
+            "created": ("[green]+[/green]", "green"),
+            "updated": ("[blue]~[/blue]", "blue"),
+            "unchanged": ("[dim]=[/dim]", "dim"),
+        }
+        return status_map.get(status, ("[green]✓[/green]", "green"))
+
     async def _publish_offering_task(
         self, offering_file: Path, console: Console, semaphore: asyncio.Semaphore
     ) -> tuple[Path, dict[str, Any] | Exception]:
@@ -664,8 +677,10 @@ class ServiceDataPublisher(UnitySvcAPI):
                     console.print(f"  [yellow]⊘[/yellow] Skipped offering: [cyan]{offering_name}[/cyan] - {reason}")
                 else:
                     provider_name = result.get("provider_name")
+                    status = result.get("status", "created")
+                    symbol, color = self._get_status_display(status)
                     console.print(
-                        f"  [green]✓[/green] Published offering: [cyan]{offering_name}[/cyan] "
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] offering: [cyan]{offering_name}[/cyan] "
                         f"(provider: {provider_name})"
                     )
 
@@ -684,7 +699,8 @@ class ServiceDataPublisher(UnitySvcAPI):
         Returns a summary of successes and failures.
         """
         # Validate all service directories first
-        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        schema_dir = Path(unitysvc_services.__file__).parent / "schema"
+        validator = DataValidator(data_dir, schema_dir)
         validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
@@ -699,6 +715,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total": len(offering_files),
             "success": 0,
             "failed": 0,
+            "created": 0,
+            "updated": 0,
+            "unchanged": 0,
             "errors": [],
         }
 
@@ -720,6 +739,14 @@ class ServiceDataPublisher(UnitySvcAPI):
                 results["errors"].append({"file": str(offering_file), "error": str(result)})
             else:
                 results["success"] += 1
+                # Track status counts
+                status = result.get("status", "created")
+                if status == "created":
+                    results["created"] += 1
+                elif status == "updated":
+                    results["updated"] += 1
+                elif status == "unchanged":
+                    results["unchanged"] += 1
 
         return results
 
@@ -747,8 +774,10 @@ class ServiceDataPublisher(UnitySvcAPI):
                 else:
                     service_name = result.get("service_name")
                     provider_name = result.get("provider_name")
+                    status = result.get("status", "created")
+                    symbol, color = self._get_status_display(status)
                     console.print(
-                        f"  [green]✓[/green] Published listing: [cyan]{listing_name}[/cyan] "
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] listing: [cyan]{listing_name}[/cyan] "
                         f"(service: {service_name}, provider: {provider_name})"
                     )
 
@@ -767,7 +796,8 @@ class ServiceDataPublisher(UnitySvcAPI):
         Returns a summary of successes and failures.
         """
         # Validate all service directories first
-        validator = DataValidator(data_dir, data_dir.parent / "schema")
+        schema_dir = Path(unitysvc_services.__file__).parent / "schema"
+        validator = DataValidator(data_dir, schema_dir)
         validation_errors = validator.validate_all_service_directories(data_dir)
         if validation_errors:
             return {
@@ -782,6 +812,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total": len(listing_files),
             "success": 0,
             "failed": 0,
+            "created": 0,
+            "updated": 0,
+            "unchanged": 0,
             "errors": [],
         }
 
@@ -803,6 +836,14 @@ class ServiceDataPublisher(UnitySvcAPI):
                 results["errors"].append({"file": str(listing_file), "error": str(result)})
             else:
                 results["success"] += 1
+                # Track status counts
+                status = result.get("status", "created")
+                if status == "created":
+                    results["created"] += 1
+                elif status == "updated":
+                    results["updated"] += 1
+                elif status == "unchanged":
+                    results["unchanged"] += 1
 
         return results
 
@@ -828,7 +869,11 @@ class ServiceDataPublisher(UnitySvcAPI):
                     reason = result.get("reason", "unknown")
                     console.print(f"  [yellow]⊘[/yellow] Skipped provider: [cyan]{provider_name}[/cyan] - {reason}")
                 else:
-                    console.print(f"  [green]✓[/green] Published provider: [cyan]{provider_name}[/cyan]")
+                    status = result.get("status", "created")
+                    symbol, color = self._get_status_display(status)
+                    console.print(
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] provider: [cyan]{provider_name}[/cyan]"
+                    )
 
                 return (provider_file, result)
             except Exception as e:
@@ -848,6 +893,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total": len(provider_files),
             "success": 0,
             "failed": 0,
+            "created": 0,
+            "updated": 0,
+            "unchanged": 0,
             "errors": [],
         }
 
@@ -869,6 +917,14 @@ class ServiceDataPublisher(UnitySvcAPI):
                 results["errors"].append({"file": str(provider_file), "error": str(result)})
             else:
                 results["success"] += 1
+                # Track status counts
+                status = result.get("status", "created")
+                if status == "created":
+                    results["created"] += 1
+                elif status == "updated":
+                    results["updated"] += 1
+                elif status == "unchanged":
+                    results["unchanged"] += 1
 
         return results
 
@@ -894,7 +950,11 @@ class ServiceDataPublisher(UnitySvcAPI):
                     reason = result.get("reason", "unknown")
                     console.print(f"  [yellow]⊘[/yellow] Skipped seller: [cyan]{seller_name}[/cyan] - {reason}")
                 else:
-                    console.print(f"  [green]✓[/green] Published seller: [cyan]{seller_name}[/cyan]")
+                    status = result.get("status", "created")
+                    symbol, color = self._get_status_display(status)
+                    console.print(
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] seller: [cyan]{seller_name}[/cyan]"
+                    )
 
                 return (seller_file, result)
             except Exception as e:
@@ -914,6 +974,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total": len(seller_files),
             "success": 0,
             "failed": 0,
+            "created": 0,
+            "updated": 0,
+            "unchanged": 0,
             "errors": [],
         }
 
@@ -935,6 +998,14 @@ class ServiceDataPublisher(UnitySvcAPI):
                 results["errors"].append({"file": str(seller_file), "error": str(result)})
             else:
                 results["success"] += 1
+                # Track status counts
+                status = result.get("status", "created")
+                if status == "created":
+                    results["created"] += 1
+                elif status == "updated":
+                    results["updated"] += 1
+                elif status == "unchanged":
+                    results["unchanged"] += 1
 
         return results
 
@@ -958,6 +1029,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total_success": 0,
             "total_failed": 0,
             "total_found": 0,
+            "total_created": 0,
+            "total_updated": 0,
+            "total_unchanged": 0,
         }
 
         # Publish in order: sellers -> providers -> offerings -> listings
@@ -975,6 +1049,9 @@ class ServiceDataPublisher(UnitySvcAPI):
                 all_results["total_success"] += results["success"]
                 all_results["total_failed"] += results["failed"]
                 all_results["total_found"] += results["total"]
+                all_results["total_created"] += results.get("created", 0)
+                all_results["total_updated"] += results.get("updated", 0)
+                all_results["total_unchanged"] += results.get("unchanged", 0)
             except Exception as e:
                 # If a publish method fails catastrophically, record the error
                 all_results[data_type] = {
@@ -1045,43 +1122,72 @@ def publish_callback(
     try:
         all_results = asyncio.run(_publish_all_async())
 
-        # Display results for each data type
+        # Create summary table
+        console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
+
+        table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
+        table.add_column("Type", style="cyan", no_wrap=True)
+        table.add_column("Found", justify="right")
+        table.add_column("Success", justify="right", style="green")
+        table.add_column("Failed", justify="right", style="red")
+        table.add_column("Created", justify="right", style="green")
+        table.add_column("Updated", justify="right", style="blue")
+        table.add_column("Unchanged", justify="right", style="dim")
+
         data_type_display_names = {
             "sellers": "Sellers",
             "providers": "Providers",
-            "offerings": "Service Offerings",
-            "listings": "Service Listings",
+            "offerings": "Offerings",
+            "listings": "Listings",
         }
 
+        # Add rows for each data type
         for data_type in ["sellers", "providers", "offerings", "listings"]:
             display_name = data_type_display_names[data_type]
             results = all_results[data_type]
 
-            console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
-            console.print(f"[bold cyan]{display_name}[/bold cyan]")
-            console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
+            table.add_row(
+                display_name,
+                str(results['total']),
+                str(results['success']),
+                str(results['failed']),
+                str(results.get('created', 0)),
+                str(results.get('updated', 0)),
+                str(results.get('unchanged', 0)),
+            )
 
-            console.print(f"  Total found: {results['total']}")
-            console.print(f"  [green]✓ Success:[/green] {results['success']}")
-            console.print(f"  [red]✗ Failed:[/red] {results['failed']}")
+        # Add separator and total row
+        table.add_section()
+        table.add_row(
+            "[bold]Total[/bold]",
+            f"[bold]{all_results['total_found']}[/bold]",
+            f"[bold green]{all_results['total_success']}[/bold green]",
+            f"[bold red]{all_results['total_failed']}[/bold red]",
+            f"[bold green]{all_results['total_created']}[/bold green]",
+            f"[bold blue]{all_results['total_updated']}[/bold blue]",
+            f"[bold]{all_results['total_unchanged']}[/bold]",
+        )
 
-            # Display errors if any
+        console.print(table)
+
+        # Display errors if any
+        has_errors = False
+        for data_type in ["sellers", "providers", "offerings", "listings"]:
+            display_name = data_type_display_names[data_type]
+            results = all_results[data_type]
+
             if results.get("errors"):
-                console.print(f"\n[bold red]Errors in {display_name}:[/bold red]")
+                if not has_errors:
+                    console.print("\n[bold red]Errors:[/bold red]")
+                    has_errors = True
+
+                console.print(f"\n  [bold red]{display_name}:[/bold red]")
                 for error in results["errors"]:
                     # Check if this is a skipped item
                     if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
                         continue
-                    console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
-                    console.print(f"    {error.get('error', 'unknown error')}")
-
-        # Final summary
-        console.print(f"\n[bold cyan]{'=' * 60}[/bold cyan]")
-        console.print("[bold]Final Publishing Summary[/bold]")
-        console.print(f"[bold cyan]{'=' * 60}[/bold cyan]\n")
-        console.print(f"  Total found: {all_results['total_found']}")
-        console.print(f"  [green]✓ Success:[/green] {all_results['total_success']}")
-        console.print(f"  [red]✗ Failed:[/red] {all_results['total_failed']}")
+                    console.print(f"    [red]✗[/red] {error.get('file', 'unknown')}")
+                    console.print(f"      {error.get('error', 'unknown error')}")
 
         if all_results["total_failed"] > 0:
             console.print(
@@ -1153,6 +1259,10 @@ def publish_providers(
             console.print(f"  Total found: {result['total']}")
             console.print(f"  [green]✓ Success:[/green] {result['success']}")
             console.print(f"  [red]✗ Failed:[/red] {result['failed']}")
+            if result["success"] > 0:
+                console.print(f"    [green]+ Created: {result['created']}[/green]")
+                console.print(f"    [blue]~ Updated: {result['updated']}[/blue]")
+                console.print(f"    [dim]= Unchanged: {result['unchanged']}[/dim]")
 
             # Display errors if any
             if result["errors"]:
@@ -1220,6 +1330,10 @@ def publish_sellers(
             console.print(f"  Total found: {result['total']}")
             console.print(f"  [green]✓ Success: {result['success']}[/green]")
             console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+            if result["success"] > 0:
+                console.print(f"    [green]+ Created: {result['created']}[/green]")
+                console.print(f"    [blue]~ Updated: {result['updated']}[/blue]")
+                console.print(f"    [dim]= Unchanged: {result['unchanged']}[/dim]")
 
             if result["errors"]:
                 console.print("\n[bold red]Errors:[/bold red]")
@@ -1264,7 +1378,7 @@ def publish_offerings(
         console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
     else:
         console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
 
     async def _publish_offerings_async():
         async with ServiceDataPublisher() as publisher:
@@ -1286,6 +1400,10 @@ def publish_offerings(
             console.print(f"  Total found: {result['total']}")
             console.print(f"  [green]✓ Success: {result['success']}[/green]")
             console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+            if result["success"] > 0:
+                console.print(f"    [green]+ Created: {result['created']}[/green]")
+                console.print(f"    [blue]~ Updated: {result['updated']}[/blue]")
+                console.print(f"    [dim]= Unchanged: {result['unchanged']}[/dim]")
 
             if result["errors"]:
                 console.print("\n[bold red]Errors:[/bold red]")
@@ -1353,6 +1471,10 @@ def publish_listings(
             console.print(f"  Total found: {result['total']}")
             console.print(f"  [green]✓ Success: {result['success']}[/green]")
             console.print(f"  [red]✗ Failed: {result['failed']}[/red]")
+            if result["success"] > 0:
+                console.print(f"    [green]+ Created: {result['created']}[/green]")
+                console.print(f"    [blue]~ Updated: {result['updated']}[/blue]")
+                console.print(f"    [dim]= Unchanged: {result['unchanged']}[/dim]")
 
             if result["errors"]:
                 console.print("\n[bold red]Errors:[/bold red]")
