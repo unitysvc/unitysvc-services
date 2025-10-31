@@ -1148,12 +1148,12 @@ def publish_callback(
 
             table.add_row(
                 display_name,
-                str(results['total']),
-                str(results['success']),
-                str(results['failed']),
-                str(results.get('created', 0)),
-                str(results.get('updated', 0)),
-                str(results.get('unchanged', 0)),
+                str(results["total"]),
+                str(results["success"]),
+                str(results["failed"]),
+                str(results.get("created", 0)),
+                str(results.get("updated", 0)),
+                str(results.get("unchanged", 0)),
             )
 
         # Add separator and total row
