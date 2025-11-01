@@ -1096,7 +1096,7 @@ def create_listing_data(user_input: dict[str, Any], listing_dir: Path | None = N
     Returns:
         Complete service listing data dictionary
     """
-    data = {
+    data: dict[str, Any] = {
         "schema": "listing_v1",
         "time_created": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "user_access_interfaces": [],  # Required field, user must add interfaces manually
