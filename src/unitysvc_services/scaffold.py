@@ -10,12 +10,23 @@ import json
 import shutil
 import sys
 import tomllib  # Built-in since Python 3.11
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import typer
 from rich.console import Console
+
+from .interactive_prompt import (
+    LISTING_GROUPS,
+    OFFERING_GROUPS,
+    PROVIDER_GROUPS,
+    SELLER_GROUPS,
+    PromptEngine,
+    create_listing_data,
+    create_offering_data,
+    create_provider_data,
+    create_seller_data,
+)
 
 try:
     import tomli_w
@@ -718,20 +729,46 @@ def init_offering(
             )
             raise typer.Exit(code=1)
     else:
-        # Generate from schema
-        console.print(f"[blue]Creating service offering:[/blue] {name}")
-        console.print(f"[blue]Output directory:[/blue] {output_dir}")
-        console.print(f"[blue]Format:[/blue] {format}\n")
+        # Interactive mode - prompt for values
+        console.print(f"[bold cyan]Creating service offering interactively[/bold cyan]")
+        console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
+        console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
-            create_schema_based_structure(
-                dest_dir=output_dir / name,
-                dir_name=name,
-                schema_name="service_v1",
-                format_type=format,
-                force=False,
-            )
-            console.print(f"[green]✓[/green] Service offering created: {output_dir / name}")
+            # Create prompt engine
+            engine = PromptEngine(OFFERING_GROUPS)
+
+            # Prompt for all fields (pass name if provided via CLI)
+            user_input = engine.prompt_all(context={"name": name})
+
+            # Create offering data structure
+            offering_data = create_offering_data(user_input)
+
+            # Create directory structure
+            offering_dir = output_dir / name
+            offering_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write service file
+            service_file = offering_dir / f"service.{format}"
+            if format == "json":
+                with open(service_file, "w") as f:
+                    json.dump(offering_data, f, indent=2)
+                    f.write("\n")
+            else:  # toml
+                if not TOML_WRITE_AVAILABLE:
+                    console.print(
+                        "[red]✗[/red] TOML write support not available. Install tomli_w.",
+                        style="bold red",
+                    )
+                    raise typer.Exit(code=1)
+                with open(service_file, "wb") as f:
+                    tomli_w.dump(offering_data, f)
+
+            console.print(f"\n[green]✓[/green] Service offering created: {offering_dir}")
+            console.print(f"  Added: {service_file.name}")
+        except typer.Abort:
+            console.print("[yellow]Service offering creation cancelled[/yellow]")
+            raise typer.Exit(code=1)
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service offering: {e}",
@@ -797,20 +834,46 @@ def init_listing(
             )
             raise typer.Exit(code=1)
     else:
-        # Generate from schema
-        console.print(f"[blue]Creating service listing:[/blue] {name}")
-        console.print(f"[blue]Output directory:[/blue] {output_dir}")
-        console.print(f"[blue]Format:[/blue] {format}\n")
+        # Interactive mode - prompt for values
+        console.print(f"[bold cyan]Creating service listing interactively[/bold cyan]")
+        console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
+        console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
-            create_schema_based_structure(
-                dest_dir=output_dir / name,
-                dir_name=name,
-                schema_name="listing_v1",
-                format_type=format,
-                force=False,
-            )
-            console.print(f"[green]✓[/green] Service listing created: {output_dir / name}")
+            # Create prompt engine
+            engine = PromptEngine(LISTING_GROUPS)
+
+            # Prompt for all fields (pass name if provided via CLI)
+            user_input = engine.prompt_all(context={"name": name})
+
+            # Create listing data structure
+            listing_data = create_listing_data(user_input)
+
+            # Create directory structure
+            listing_dir = output_dir / name
+            listing_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write listing file
+            listing_file = listing_dir / f"listing.{format}"
+            if format == "json":
+                with open(listing_file, "w") as f:
+                    json.dump(listing_data, f, indent=2)
+                    f.write("\n")
+            else:  # toml
+                if not TOML_WRITE_AVAILABLE:
+                    console.print(
+                        "[red]✗[/red] TOML write support not available. Install tomli_w.",
+                        style="bold red",
+                    )
+                    raise typer.Exit(code=1)
+                with open(listing_file, "wb") as f:
+                    tomli_w.dump(listing_data, f)
+
+            console.print(f"\n[green]✓[/green] Service listing created: {listing_dir}")
+            console.print(f"  Added: {listing_file.name}")
+        except typer.Abort:
+            console.print("[yellow]Service listing creation cancelled[/yellow]")
+            raise typer.Exit(code=1)
         except Exception as e:
             console.print(
                 f"[red]✗[/red] Failed to create service listing: {e}",
@@ -873,20 +936,46 @@ def init_provider(
             console.print(f"[red]✗[/red] Failed to create provider: {e}", style="bold red")
             raise typer.Exit(code=1)
     else:
-        # Generate from schema
-        console.print(f"[blue]Creating provider:[/blue] {name}")
-        console.print(f"[blue]Output directory:[/blue] {output_dir}")
-        console.print(f"[blue]Format:[/blue] {format}\n")
+        # Interactive mode - prompt for values
+        console.print(f"[bold cyan]Creating provider interactively[/bold cyan]")
+        console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
+        console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
-            create_schema_based_structure(
-                dest_dir=output_dir / name,
-                dir_name=name,
-                schema_name="provider_v1",
-                format_type=format,
-                force=False,
-            )
-            console.print(f"[green]✓[/green] Provider created: {output_dir / name}")
+            # Create prompt engine
+            engine = PromptEngine(PROVIDER_GROUPS)
+
+            # Prompt for all fields (pass name if provided via CLI)
+            user_input = engine.prompt_all(context={"name": name})
+
+            # Create provider data structure
+            provider_data = create_provider_data(user_input)
+
+            # Create directory structure
+            provider_dir = output_dir / name
+            provider_dir.mkdir(parents=True, exist_ok=True)
+
+            # Write provider file
+            provider_file = provider_dir / f"provider.{format}"
+            if format == "json":
+                with open(provider_file, "w") as f:
+                    json.dump(provider_data, f, indent=2)
+                    f.write("\n")
+            else:  # toml
+                if not TOML_WRITE_AVAILABLE:
+                    console.print(
+                        "[red]✗[/red] TOML write support not available. Install tomli_w.",
+                        style="bold red",
+                    )
+                    raise typer.Exit(code=1)
+                with open(provider_file, "wb") as f:
+                    tomli_w.dump(provider_data, f)
+
+            console.print(f"\n[green]✓[/green] Provider created: {provider_dir}")
+            console.print(f"  Added: {provider_file.name}")
+        except typer.Abort:
+            console.print("[yellow]Provider creation cancelled[/yellow]")
+            raise typer.Exit(code=1)
         except Exception as e:
             console.print(f"[red]✗[/red] Failed to create provider: {e}", style="bold red")
             raise typer.Exit(code=1)
@@ -983,39 +1072,23 @@ def init_seller(
             console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
             raise typer.Exit(code=1)
     else:
-        # Generate from schema
-        console.print(f"[blue]Creating seller:[/blue] {name}")
-        console.print(f"[blue]Output directory:[/blue] {output_dir}")
-        console.print(f"[blue]Format:[/blue] {format}\n")
+        # Interactive mode - prompt for values
+        console.print(f"[bold cyan]Creating seller interactively[/bold cyan]")
+        console.print(f"[dim]Output directory:[/dim] {output_dir}")
+        console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
+            # Create prompt engine
+            engine = PromptEngine(SELLER_GROUPS)
+
+            # Prompt for all fields (pass name if provided via CLI)
+            user_input = engine.prompt_all(context={"name": name})
+
+            # Create seller data structure
+            seller_data = create_seller_data(user_input)
+
             # Ensure output directory exists
             output_dir.mkdir(parents=True, exist_ok=True)
-
-            # Get schema directory
-            pkg_path = Path(__file__).parent
-            schema_dir = pkg_path / "schema"
-
-            # Load schema to generate example
-            schema_file = schema_dir / "seller_v1.json"
-            if not schema_file.exists():
-                raise FileNotFoundError(f"Schema file not found: {schema_file}")
-
-            with open(schema_file) as f:
-                json.load(f)
-
-            # Create basic seller data from schema
-            seller_data = {
-                "schema": "seller_v1",
-                "time_created": datetime.utcnow().isoformat() + "Z",
-                "name": name,
-                "display_name": name.replace("-", " ").replace("_", " ").title(),
-                "seller_type": "individual",
-                "contact_email": "contact@example.com",
-                "description": f"{name} seller",
-                "is_active": True,
-                "is_verified": False,
-            }
 
             # Write to file
             output_file = output_dir / f"seller.{format}"
@@ -1033,7 +1106,10 @@ def init_seller(
                 with open(output_file, "wb") as f:
                     tomli_w.dump(seller_data, f)
 
-            console.print(f"[green]✓[/green] Seller created: {output_file}")
+            console.print(f"\n[green]✓[/green] Seller created: {output_file}")
+        except typer.Abort:
+            console.print("[yellow]Seller creation cancelled[/yellow]")
+            raise typer.Exit(code=1)
         except Exception as e:
             console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
             raise typer.Exit(code=1)
