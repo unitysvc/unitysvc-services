@@ -297,6 +297,7 @@ unitysvc_services publish COMMAND [OPTIONS]
 **Common Options:**
 
 -   `--data-path, -d PATH` - Data directory path (default: current directory)
+-   `--dryrun` - Preview what would be created/updated without making actual changes
 
 **Required Environment Variables:**
 
@@ -314,7 +315,79 @@ usvc publish --data-path ./data
 
 # Publish only providers
 usvc publish providers
+
+# Preview changes before publishing (dryrun mode)
+usvc publish --dryrun
+
+# Preview specific type
+usvc publish providers --dryrun
 ```
+
+**Dryrun Mode:**
+
+The `--dryrun` option allows you to preview what would happen during publish without making actual changes to the backend. This is useful for:
+
+- Verifying which entities would be created vs updated
+- Checking that all dependencies exist before publishing
+- Confirming changes before committing them
+
+In dryrun mode:
+- No actual data is sent to the backend
+- Backend returns what action would be taken (create/update)
+- Missing dependencies are reported but don't cause errors
+- Summary shows what would happen if published
+
+**Dryrun Output Format:**
+
+Dryrun mode displays a summary table showing what actions would be taken:
+
+```bash
+$ usvc publish --dryrun
+
+Publishing Sellers...
+╭──────────┬─────────┬─────────┬────────╮
+│ Type     │ Created │ Updated │ Failed │
+├──────────┼─────────┼─────────┼────────┤
+│ Sellers  │ 1       │ 0       │        │
+╰──────────┴─────────┴─────────┴────────╯
+
+Publishing Providers...
+╭───────────┬─────────┬─────────┬────────╮
+│ Type      │ Created │ Updated │ Failed │
+├───────────┼─────────┼─────────┼────────┤
+│ Providers │ 2       │ 0       │        │
+╰───────────┴─────────┴─────────┴────────╯
+
+Publishing Offerings...
+╭───────────┬─────────┬─────────┬────────╮
+│ Type      │ Created │ Updated │ Failed │
+├───────────┼─────────┼─────────┼────────┤
+│ Offerings │ 5       │ 3       │        │
+╰───────────┴─────────┴─────────┴────────╯
+
+Publishing Listings...
+╭──────────┬─────────┬─────────┬────────╮
+│ Type     │ Created │ Updated │ Failed │
+├──────────┼─────────┼─────────┼────────┤
+│ Listings │ 8       │ 0       │        │
+╰──────────┴─────────┴─────────┴────────╯
+
+Summary
+╭───────────┬─────────┬─────────┬────────╮
+│ Type      │ Created │ Updated │ Failed │
+├───────────┼─────────┼─────────┼────────┤
+│ Sellers   │ 1       │ 0       │        │
+│ Providers │ 2       │ 0       │        │
+│ Offerings │ 5       │ 3       │        │
+│ Listings  │ 8       │ 0       │        │
+╰───────────┴─────────┴─────────┴────────╯
+```
+
+Notes:
+- Created: Entities that would be created (don't exist on backend)
+- Updated: Entities that would be updated (exist but have changes)
+- Failed: Entities that encountered errors (shown in red if > 0, blank if 0)
+- Blank cells indicate zero count for easier reading
 
 **Publishing Order (when publishing all):**
 
@@ -334,6 +407,7 @@ unitysvc_services publish providers [OPTIONS]
 **Options:**
 
 -   `--data-path, -d PATH` - File or directory path (default: current directory)
+-   `--dryrun` - Preview what would be created/updated without making actual changes
 
 **Examples:**
 
@@ -346,6 +420,9 @@ usvc publish providers --data-path ./data/my-provider/provider.json
 
 # Publish from custom directory
 usvc publish providers --data-path ./custom-data
+
+# Preview provider changes
+usvc publish providers --dryrun
 ```
 
 ### publish sellers
@@ -359,6 +436,7 @@ unitysvc_services publish sellers [OPTIONS]
 **Options:**
 
 -   `--data-path, -d PATH` - File or directory path (default: current directory)
+-   `--dryrun` - Preview what would be created/updated without making actual changes
 
 ### publish offerings
 
@@ -371,6 +449,7 @@ unitysvc_services publish offerings [OPTIONS]
 **Options:**
 
 -   `--data-path, -d PATH` - File or directory path (default: current directory)
+-   `--dryrun` - Preview what would be created/updated without making actual changes
 
 ### publish listings
 
@@ -383,6 +462,7 @@ unitysvc_services publish listings [OPTIONS]
 **Options:**
 
 -   `--data-path, -d PATH` - File or directory path (default: current directory)
+-   `--dryrun` - Preview what would be created/updated without making actual changes
 
 **Publishing Order:**
 
@@ -750,8 +830,11 @@ export UNITYSVC_API_KEY=your-key
 usvc validate
 usvc format
 
-# Publish all (handles order automatically)
+# Preview changes before publishing (recommended)
 cd data
+usvc publish --dryrun
+
+# If preview looks good, publish all (handles order automatically)
 usvc publish
 
 # Verify
@@ -767,6 +850,9 @@ usvc update offering --name my-service --status ready
 # Validate
 usvc validate
 
+# Preview changes
+usvc publish offerings --dryrun
+
 # Publish changes
 usvc publish offerings
 ```
@@ -781,8 +867,11 @@ usvc populate
 usvc validate
 usvc format
 
-# Publish all
+# Preview generated data
 cd data
+usvc publish --dryrun
+
+# Publish all
 usvc publish
 ```
 
