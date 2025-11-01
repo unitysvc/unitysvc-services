@@ -4,10 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from unitysvc_services.utils import (convert_convenience_fields_to_documents,
-                                     deep_merge_dicts, load_data_file,
-                                     resolve_provider_name,
-                                     resolve_service_name_for_listing)
+from unitysvc_services.utils import (
+    convert_convenience_fields_to_documents,
+    deep_merge_dicts,
+    load_data_file,
+    resolve_provider_name,
+    resolve_service_name_for_listing,
+)
 
 
 @pytest.fixture

@@ -88,7 +88,7 @@ class UnitySvcAPI:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
 
             if proc.returncode != 0:
-                error_msg = stderr.decode().strip() if stderr else "Curl command failed"
+                error_msg = stderr.decode().strip() if stderr else "curl command failed"
                 raise RuntimeError(f"Curl error: {error_msg}")
 
             # Parse response: last line is status code, rest is body
@@ -165,7 +165,7 @@ class UnitySvcAPI:
             stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
 
             if proc.returncode != 0:
-                error_msg = stderr.decode().strip() if stderr else "Curl command failed"
+                error_msg = stderr.decode().strip() if stderr else "curl command failed"
                 raise RuntimeError(f"Curl error: {error_msg}")
 
             # Parse response: last line is status code, rest is body
