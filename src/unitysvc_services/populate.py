@@ -132,13 +132,20 @@ def populate(
 
             full_command = ["python3"] + cmd_parts
 
-            console.print(f"[blue]  Command:[/blue] {' '.join(full_command)}")
-            console.print(f"[blue]  Working directory:[/blue] {provider_dir}")
-
             if dry_run:
-                console.print("[yellow]  [DRY-RUN] Would execute command[/yellow]\n")
+                console.print("[yellow]  [DRY-RUN] Would execute command[/yellow]")
+                console.print(f"[yellow]    {' '.join(full_command)}[/yellow]")
+                console.print(f"[yellow]  under  {provider_dir}[/yellow]")
+                if provider_access_info:
+                    console.print("[yellow]  with:[/yellow]")
+                    for key, value in provider_access_info.items():
+                        console.print(f"[yellow]    {key}={value}[/yellow]")
+                console.print()
                 total_skipped += 1
                 continue
+            else:
+                console.print(f"[blue]  Command:[/blue] {' '.join(full_command)}")
+                console.print(f"[blue]  Working directory:[/blue] {provider_dir}")
 
             # Execute the command
             try:

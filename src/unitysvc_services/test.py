@@ -1,12 +1,10 @@
 """Test command group - test code examples with upstream credentials."""
 
 import fnmatch
-import json
 import os
 import shutil
 import subprocess
 import tempfile
-import tomllib
 from pathlib import Path
 from typing import Any
 
@@ -154,26 +152,27 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
     return result
 
 
-def load_provider_credentials(provider_file: Path) -> dict[str, str] | None:
-    """Load API key and endpoint from provider file.
+def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
+    """Load API key and endpoint from service offering file.
 
     Args:
-        provider_file: Path to provider.toml or provider.json
+        listing_file: Path to the listing file (used to locate the service offering)
 
     Returns:
         Dictionary with api_key and api_endpoint, or None if not found
     """
     try:
-        if provider_file.suffix == ".toml":
-            with open(provider_file, "rb") as f:
-                provider_data = tomllib.load(f)
-        else:
-            with open(provider_file) as f:
-                provider_data = json.load(f)
+        # Load related data including the offering
+        related_data = load_related_data(listing_file)
+        offering = related_data.get("offering", {})
 
-        access_info = provider_data.get("provider_access_info", {})
-        api_key = access_info.get("api_key") or access_info.get("FIREWORKS_API_KEY")
-        api_endpoint = access_info.get("api_endpoint") or access_info.get("FIREWORKS_API_BASE_URL")
+        if not offering:
+            return None
+
+        # Extract credentials from upstream_access_interface
+        upstream_access = offering.get("upstream_access_interface", {})
+        api_key = upstream_access.get("api_key")
+        api_endpoint = upstream_access.get("api_endpoint")
 
         if api_key and api_endpoint:
             return {
@@ -181,7 +180,7 @@ def load_provider_credentials(provider_file: Path) -> dict[str, str] | None:
                 "api_endpoint": str(api_endpoint),
             }
     except Exception as e:
-        console.print(f"[yellow]Warning: Failed to load provider credentials: {e}[/yellow]")
+        console.print(f"[yellow]Warning: Failed to load service credentials: {e}[/yellow]")
 
     return None
 
@@ -610,28 +609,6 @@ def run(
 
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
-    # Find all provider files first to get credentials
-    provider_results = find_files_by_schema(data_dir, "provider_v1")
-    provider_credentials: dict[str, dict[str, str]] = {}
-
-    for provider_file, _format, provider_data in provider_results:
-        prov_name = provider_data.get("name", "unknown")
-
-        # Skip if provider filter is set and doesn't match
-        if provider_name and prov_name != provider_name:
-            continue
-
-        credentials = load_provider_credentials(provider_file)
-        if credentials:
-            provider_credentials[prov_name] = credentials
-            console.print(f"[green]✓[/green] Loaded credentials for provider: {prov_name}")
-
-    if not provider_credentials:
-        console.print("[yellow]No provider credentials found.[/yellow]")
-        raise typer.Exit(code=0)
-
-    console.print()
-
     # Find all listing files
     listing_results = find_files_by_schema(data_dir, "listing_v1")
 
@@ -642,7 +619,7 @@ def run(
     console.print(f"[cyan]Found {len(listing_results)} listing file(s)[/cyan]\n")
 
     # Extract code examples from all listings
-    all_code_examples: list[tuple[dict[str, Any], str]] = []
+    all_code_examples: list[tuple[dict[str, Any], str, dict[str, str]]] = []
 
     for listing_file, _format, listing_data in listing_results:
         # Determine provider for this listing
@@ -661,8 +638,10 @@ def run(
         if provider_name and prov_name != provider_name:
             continue
 
-        # Skip if we don't have credentials for this provider
-        if prov_name not in provider_credentials:
+        # Load credentials from service offering for this listing
+        credentials = load_provider_credentials(listing_file)
+        if not credentials:
+            console.print(f"[yellow]⚠ No credentials found for listing: {listing_file}[/yellow]")
             continue
 
         # Filter by service directory name if patterns are provided
@@ -686,7 +665,7 @@ def run(
                 if not file_path.endswith(test_file):
                     continue
 
-            all_code_examples.append((example, prov_name))
+            all_code_examples.append((example, prov_name, credentials))
 
     if not all_code_examples:
         console.print("[yellow]No code examples found in listings.[/yellow]")
@@ -697,13 +676,12 @@ def run(
     # Execute each code example
     results = []
 
-    for example, prov_name in all_code_examples:
+    for example, prov_name, credentials in all_code_examples:
         service_name = example["service_name"]
         title = example["title"]
 
         console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
 
-        credentials = provider_credentials[prov_name]
         result = execute_code_example(example, credentials)
 
         results.append(
