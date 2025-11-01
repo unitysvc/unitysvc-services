@@ -735,18 +735,18 @@ def init_offering(
         console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
+            # Create directory structure
+            offering_dir = output_dir / name
+            offering_dir.mkdir(parents=True, exist_ok=True)
+
             # Create prompt engine
             engine = PromptEngine(OFFERING_GROUPS)
 
             # Prompt for all fields (pass name if provided via CLI)
             user_input = engine.prompt_all(context={"name": name})
 
-            # Create offering data structure
-            offering_data = create_offering_data(user_input)
-
-            # Create directory structure
-            offering_dir = output_dir / name
-            offering_dir.mkdir(parents=True, exist_ok=True)
+            # Create offering data structure (pass offering_dir for document file validation)
+            offering_data = create_offering_data(user_input, offering_dir=offering_dir)
 
             # Write service file
             service_file = offering_dir / f"service.{format}"
@@ -840,18 +840,18 @@ def init_listing(
         console.print(f"[dim]Format:[/dim] {format}\n")
 
         try:
+            # Create directory structure
+            listing_dir = output_dir / name
+            listing_dir.mkdir(parents=True, exist_ok=True)
+
             # Create prompt engine
             engine = PromptEngine(LISTING_GROUPS)
 
             # Prompt for all fields (pass name if provided via CLI)
             user_input = engine.prompt_all(context={"name": name})
 
-            # Create listing data structure
-            listing_data = create_listing_data(user_input)
-
-            # Create directory structure
-            listing_dir = output_dir / name
-            listing_dir.mkdir(parents=True, exist_ok=True)
+            # Create listing data structure (pass listing_dir for document file validation)
+            listing_data = create_listing_data(user_input, listing_dir=listing_dir)
 
             # Write listing file
             listing_file = listing_dir / f"listing.{format}"

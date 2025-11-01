@@ -34,92 +34,212 @@ usvc [OPTIONS] COMMAND [ARGS]...
 
 ## init - Initialize Data Files
 
-Create new data file skeletons from schemas.
+Create new data files through **interactive prompts** or by **copying from existing data**.
 
-### init offering
+All `init` commands support two modes:
 
-Create a new service offering skeleton.
+1. **Interactive Mode** (default): Prompts you step-by-step for field values with validation and smart defaults
+2. **Copy Mode**: Uses `--source` to copy structure from an existing directory
+
+### Key Features
+
+**Interactive Mode Features:**
+- ✅ **Auto-discovery**: Automatically detects seller and service names from existing files
+- ✅ **Validation**: Email format, URI validation, integer checks, and more
+- ✅ **Smart defaults**: Computed defaults based on previous inputs or filesystem discovery
+- ✅ **Skip optional fields**: Press Enter to skip any optional field
+- ✅ **Complex objects**: Add documents and pricing information interactively
+- ✅ **File validation**: Checks document file paths exist before saving
+- ✅ **Cancellation**: Press Ctrl+C to cancel at any time
+
+### init seller
+
+Create a new seller file interactively or copy from existing.
 
 ```bash
-unitysvc_services init offering <name> [OPTIONS]
+usvc init seller <name> [OPTIONS]
 ```
 
 **Arguments:**
 
--   `<name>` - Name of the service offering (required)
+-   `<name>` - Seller identifier (URL-friendly name)
 
 **Options:**
 
--   `--format {json|toml}` - Output format (default: toml)
--   `--source PATH` - Source directory to copy from
--   `--output PATH` - Output directory (default: ./data)
+-   `--format {json|toml}` - Output format (default: json)
+-   `--source PATH` - Copy from existing seller directory (skips interactive prompts)
+-   `--output-dir PATH` - Output directory (default: ./data)
+
+**Interactive Mode** prompts for:
+
+- **Basic Information**: seller type (individual/organization/partnership/corporation), display name, description
+- **Contact Information**: primary email, secondary email, homepage URL
+- **Additional Details**: business registration, tax ID, account manager
+- **Status & Verification**: status (active/pending/disabled), KYC verification
 
 **Examples:**
 
 ```bash
-# Create TOML offering
-usvc init offering my-service
+# Interactive mode - will prompt for all fields
+usvc init seller acme-corp
 
-# Create JSON offering
-usvc init offering my-service --format json
+# Interactive mode with JSON format
+usvc init seller acme-corp --format json
 
-# Copy from existing
-usvc init offering new-service --source ./data/old-service
+# Copy from existing seller
+usvc init seller new-seller --source ./data/acme-corp
+```
+
+### init provider
+
+Create a new provider file interactively or copy from existing.
+
+```bash
+usvc init provider <name> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<name>` - Provider identifier (e.g., 'openai', 'fireworks')
+
+**Options:**
+
+-   `--format {json|toml}` - Output format (default: json)
+-   `--source PATH` - Copy from existing provider directory
+-   `--output-dir PATH` - Output directory (default: ./data)
+
+**Interactive Mode** prompts for:
+
+- **Basic Information**: display name, description
+- **Contact & Web**: contact email, secondary email, homepage URL
+- **Provider Access**: API endpoint, API key, access method (http/websocket/grpc)
+- **Status**: provider status
+- **Service Population** (optional): Command to auto-generate service offerings via `usvc populate`
+
+**Examples:**
+
+```bash
+# Interactive mode
+usvc init provider openai
+
+# Copy mode
+usvc init provider new-provider --source ./data/openai
+```
+
+**Auto-Population Feature:**
+
+If you enable the services populator, you can create a script that automatically generates service offerings:
+
+```bash
+# During init, answer "yes" to "Enable automated service population?"
+# Provide command: python scripts/populate_openai.py
+
+# Later, run populate to generate services
+usvc populate
+```
+
+### init offering
+
+Create a new service offering file interactively or copy from existing.
+
+```bash
+usvc init offering <name> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<name>` - Service name (e.g., 'gpt-4', 'llama-3-1-405b')
+
+**Options:**
+
+-   `--format {json|toml}` - Output format (default: json)
+-   `--source PATH` - Copy from existing offering directory
+-   `--output-dir PATH` - Output directory (default: ./data)
+
+**Interactive Mode** prompts for:
+
+- **Basic Information**: service name, display name, version, description
+- **Classification**: service type (llm/embedding/vision/audio/image/video), upstream status
+- **Upstream Access Interface**: API endpoint, API key, documents (optional)
+- **Upstream Pricing** (optional): pricing unit, tier name, currency, price structure
+- **Additional Information**: tagline
+
+**Pricing Structures:**
+
+When adding pricing, you can choose from three types:
+
+1. **Simple**: `{"amount": 10.00}`
+2. **Input/Output** (for LLMs): `{"input": 5.00, "output": 15.00}`
+3. **Custom JSON**: `{"base": 5.00, "per_unit": 0.001}` or any custom structure
+
+**Examples:**
+
+```bash
+# Interactive mode - will create data/gpt-4/service.json
+usvc init offering gpt-4
+
+# Interactive with TOML format
+usvc init offering gpt-4 --format toml
+
+# Copy from existing offering
+usvc init offering gpt-4-turbo --source ./data/gpt-4
 ```
 
 ### init listing
 
-Create a new service listing skeleton.
+Create a new service listing file interactively or copy from existing.
 
 ```bash
-unitysvc_services init listing <name> [OPTIONS]
+usvc init listing <name> [OPTIONS]
 ```
 
 **Arguments:**
 
--   `<name>` - Name of the service listing (required)
+-   `<name>` - Listing identifier
 
 **Options:**
 
--   `--format {json|toml}` - Output format (default: toml)
--   `--source PATH` - Source directory to copy from
--   `--output PATH` - Output directory (default: ./data)
+-   `--format {json|toml}` - Output format (default: json)
+-   `--source PATH` - Copy from existing listing directory
+-   `--output-dir PATH` - Output directory (default: ./data)
 
-### init provider
+**Interactive Mode** prompts for:
 
-Create a new provider skeleton.
+- **Basic Information**: service name (auto-detected), listing name, display name
+- **Seller Information**: seller name (auto-detected from seller.json)
+- **Status**: listing status (unknown/upstream_ready/downstream_ready/ready/in_service/deprecated)
+- **Documents** (optional): Add multiple documents interactively
+
+**Auto-Discovery:**
+
+The listing workflow automatically discovers:
+- **seller_name**: Searches ./data, ./, ../data, ../ for seller.json/seller.toml
+- **service_name**: Searches ./, ../ for service.json/service.toml
+
+This means you don't need to manually type names - they're auto-filled!
+
+**Document Support:**
+
+When adding documents, you can specify:
+- **Required**: title, MIME type, category
+- **Optional**: description, file path (relative to listing dir), external URL, public flag
+- **Validation**: File existence checks, at least one of file_path or external_URL required
+
+**Examples:**
 
 ```bash
-unitysvc_services init provider <name> [OPTIONS]
+# Interactive mode from project root
+usvc init listing premium-gpt4
+# Auto-detects seller from ./data/seller.json
+
+# From inside service directory
+cd data/my-provider/gpt-4
+usvc init listing standard
+# Auto-detects service from ./service.json and seller from ../../data/seller.json
+
+# Copy mode
+usvc init listing new-listing --source ./data/old-listing
 ```
-
-**Arguments:**
-
--   `<name>` - Provider name (required)
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: toml)
--   `--source PATH` - Source directory to copy from
--   `--output PATH` - Output directory (default: ./data)
-
-### init seller
-
-Create a new seller skeleton.
-
-```bash
-unitysvc_services init seller <name> [OPTIONS]
-```
-
-**Arguments:**
-
--   `<name>` - Seller name (required)
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: toml)
--   `--source PATH` - Source directory to copy from
--   `--output PATH` - Output directory (default: ./data)
 
 ## list - List Local Files
 
@@ -818,6 +938,76 @@ usvc --show-completion
 ```
 
 ## Common Workflows
+
+### Creating Data from Scratch (Interactive)
+
+Create a complete data structure interactively:
+
+```bash
+# 1. Create seller (will prompt for contact info, etc.)
+usvc init seller acme-corp
+# Follow prompts: enter email, homepage, etc.
+
+# 2. Create provider (will prompt for API endpoint, etc.)
+cd data/acme-corp
+usvc init provider openai
+# Follow prompts: API endpoint, contact, optional services_populator
+
+# 3. Create service offering (will prompt for service details)
+cd openai
+usvc init offering gpt-4
+# Follow prompts: description, upstream API, optional pricing
+
+# 4. Create listing (auto-detects seller and service!)
+cd gpt-4
+usvc init listing standard
+# Auto-fills seller from data/seller.json and service from service.json
+# Add optional documents
+
+# 5. Validate everything
+cd ../../../..  # Back to project root
+usvc validate
+
+# 6. Format files
+usvc format
+
+# 7. Preview before publishing
+cd data
+usvc publish --dryrun
+
+# 8. Publish if everything looks good
+usvc publish
+```
+
+**Note**: The interactive prompts include:
+- ✅ Auto-discovery of seller/service names
+- ✅ Validation of emails, URLs, and required fields
+- ✅ Smart defaults (e.g., display name from ID)
+- ✅ Optional document and pricing support
+
+### Copying from Existing Data
+
+Quickly create new data by copying from existing structures:
+
+```bash
+# Copy an existing service offering to create a similar one
+usvc init offering gpt-4-turbo --source ./data/acme-corp/openai/gpt-4
+
+# Copy a listing
+usvc init listing premium --source ./data/acme-corp/openai/gpt-4/standard
+
+# Copy a provider
+usvc init provider anthropic --source ./data/acme-corp/openai
+
+# Copy a seller
+usvc init seller new-seller --source ./data/acme-corp
+```
+
+**Benefits of copy mode:**
+- 🚀 Skip interactive prompts for similar services
+- 📋 Preserves structure and documents
+- ⚡ Faster than manual entry for bulk creation
+- 🔄 Updates names and IDs automatically
 
 ### Full Publish Flow
 
