@@ -10,6 +10,7 @@ import json
 import shutil
 import sys
 import tomllib  # Built-in since Python 3.11
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -730,7 +731,7 @@ def init_offering(
             raise typer.Exit(code=1)
     else:
         # Interactive mode - prompt for values
-        console.print(f"[bold cyan]Creating service offering interactively[/bold cyan]")
+        console.print("[bold cyan]Creating service offering interactively[/bold cyan]")
         console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
         console.print(f"[dim]Format:[/dim] {format}\n")
 
@@ -835,7 +836,7 @@ def init_listing(
             raise typer.Exit(code=1)
     else:
         # Interactive mode - prompt for values
-        console.print(f"[bold cyan]Creating service listing interactively[/bold cyan]")
+        console.print("[bold cyan]Creating service listing interactively[/bold cyan]")
         console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
         console.print(f"[dim]Format:[/dim] {format}\n")
 
@@ -937,7 +938,7 @@ def init_provider(
             raise typer.Exit(code=1)
     else:
         # Interactive mode - prompt for values
-        console.print(f"[bold cyan]Creating provider interactively[/bold cyan]")
+        console.print("[bold cyan]Creating provider interactively[/bold cyan]")
         console.print(f"[dim]Output directory:[/dim] {output_dir / name}")
         console.print(f"[dim]Format:[/dim] {format}\n")
 
@@ -1073,7 +1074,7 @@ def init_seller(
             raise typer.Exit(code=1)
     else:
         # Interactive mode - prompt for values
-        console.print(f"[bold cyan]Creating seller interactively[/bold cyan]")
+        console.print("[bold cyan]Creating seller interactively[/bold cyan]")
         console.print(f"[dim]Output directory:[/dim] {output_dir}")
         console.print(f"[dim]Format:[/dim] {format}\n")
 
