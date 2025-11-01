@@ -1186,10 +1186,10 @@ def publish_callback(
                 display_name,
                 str(results["total"]),
                 str(results["success"]),
-                str(results["failed"]),
-                str(results.get("created", 0)),
-                str(results.get("updated", 0)),
-                str(results.get("unchanged", 0)),
+                str(results["failed"]) if results["failed"] > 0 else "",
+                str(results.get("created", 0)) if results.get("created", 0) > 0 else "",
+                str(results.get("updated", 0)) if results.get("updated", 0) > 0 else "",
+                str(results.get("unchanged", 0)) if results.get("unchanged", 0) > 0 else "",
             )
 
         # Add separator and total row
@@ -1198,10 +1198,10 @@ def publish_callback(
             "[bold]Total[/bold]",
             f"[bold]{all_results['total_found']}[/bold]",
             f"[bold green]{all_results['total_success']}[/bold green]",
-            f"[bold red]{all_results['total_failed']}[/bold red]",
-            f"[bold green]{all_results['total_created']}[/bold green]",
-            f"[bold blue]{all_results['total_updated']}[/bold blue]",
-            f"[bold]{all_results['total_unchanged']}[/bold]",
+            f"[bold red]{all_results['total_failed']}[/bold red]" if all_results["total_failed"] > 0 else "",
+            f"[bold green]{all_results['total_created']}[/bold green]" if all_results["total_created"] > 0 else "",
+            f"[bold blue]{all_results['total_updated']}[/bold blue]" if all_results["total_updated"] > 0 else "",
+            f"[bold]{all_results['total_unchanged']}[/bold]" if all_results["total_unchanged"] > 0 else "",
         )
 
         console.print(table)
@@ -1304,15 +1304,23 @@ def publish_providers(
             # Display summary
             console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Count", justify="right")
+            table.add_column("Type", style="cyan")
+            table.add_column("Found", justify="right")
+            table.add_column("Success", justify="right")
+            table.add_column("Failed", justify="right")
+            table.add_column("Created", justify="right")
+            table.add_column("Updated", justify="right")
+            table.add_column("Unchanged", justify="right")
 
-            table.add_row("Total found", str(result["total"]))
-            table.add_row("Success", f"[green]{result['success']}[/green]")
-            table.add_row("Failed", f"[red]{result['failed']}[/red]")
-            table.add_row("Created", f"[green]{result['created']}[/green]")
-            table.add_row("Updated", f"[blue]{result['updated']}[/blue]")
-            table.add_row("Unchanged", f"[dim]{result['unchanged']}[/dim]")
+            table.add_row(
+                "Providers",
+                str(result["total"]),
+                f"[green]{result['success']}[/green]",
+                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
+                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
+                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
+                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
+            )
 
             console.print(table)
 
@@ -1390,15 +1398,23 @@ def publish_sellers(
         else:
             console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Count", justify="right")
+            table.add_column("Type", style="cyan")
+            table.add_column("Found", justify="right")
+            table.add_column("Success", justify="right")
+            table.add_column("Failed", justify="right")
+            table.add_column("Created", justify="right")
+            table.add_column("Updated", justify="right")
+            table.add_column("Unchanged", justify="right")
 
-            table.add_row("Total found", str(result["total"]))
-            table.add_row("Success", f"[green]{result['success']}[/green]")
-            table.add_row("Failed", f"[red]{result['failed']}[/red]")
-            table.add_row("Created", f"[green]{result['created']}[/green]")
-            table.add_row("Updated", f"[blue]{result['updated']}[/blue]")
-            table.add_row("Unchanged", f"[dim]{result['unchanged']}[/dim]")
+            table.add_row(
+                "Sellers",
+                str(result["total"]),
+                f"[green]{result['success']}[/green]",
+                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
+                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
+                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
+                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
+            )
 
             console.print(table)
 
@@ -1473,15 +1489,23 @@ def publish_offerings(
         else:
             console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Count", justify="right")
+            table.add_column("Type", style="cyan")
+            table.add_column("Found", justify="right")
+            table.add_column("Success", justify="right")
+            table.add_column("Failed", justify="right")
+            table.add_column("Created", justify="right")
+            table.add_column("Updated", justify="right")
+            table.add_column("Unchanged", justify="right")
 
-            table.add_row("Total found", str(result["total"]))
-            table.add_row("Success", f"[green]{result['success']}[/green]")
-            table.add_row("Failed", f"[red]{result['failed']}[/red]")
-            table.add_row("Created", f"[green]{result['created']}[/green]")
-            table.add_row("Updated", f"[blue]{result['updated']}[/blue]")
-            table.add_row("Unchanged", f"[dim]{result['unchanged']}[/dim]")
+            table.add_row(
+                "Offerings",
+                str(result["total"]),
+                f"[green]{result['success']}[/green]",
+                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
+                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
+                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
+                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
+            )
 
             console.print(table)
 
@@ -1557,15 +1581,23 @@ def publish_listings(
         else:
             console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Metric", style="cyan")
-            table.add_column("Count", justify="right")
+            table.add_column("Type", style="cyan")
+            table.add_column("Found", justify="right")
+            table.add_column("Success", justify="right")
+            table.add_column("Failed", justify="right")
+            table.add_column("Created", justify="right")
+            table.add_column("Updated", justify="right")
+            table.add_column("Unchanged", justify="right")
 
-            table.add_row("Total found", str(result["total"]))
-            table.add_row("Success", f"[green]{result['success']}[/green]")
-            table.add_row("Failed", f"[red]{result['failed']}[/red]")
-            table.add_row("Created", f"[green]{result['created']}[/green]")
-            table.add_row("Updated", f"[blue]{result['updated']}[/blue]")
-            table.add_row("Unchanged", f"[dim]{result['unchanged']}[/dim]")
+            table.add_row(
+                "Listings",
+                str(result["total"]),
+                f"[green]{result['success']}[/green]",
+                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
+                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
+                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
+                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
+            )
 
             console.print(table)
 
