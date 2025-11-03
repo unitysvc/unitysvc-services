@@ -551,6 +551,12 @@ def run(
         "-v",
         help="Show detailed output including stdout/stderr from scripts",
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        "-f",
+        help="Force rerun all tests, ignoring existing .out and .err files",
+    ),
 ):
     """Test code examples with upstream API credentials.
 
@@ -558,8 +564,9 @@ def run(
     1. Scans for all listing files (schema: listing_v1)
     2. Extracts code example documents
     3. Loads provider credentials from provider.toml
-    4. Executes each code example with API_KEY and API_ENDPOINT set to upstream values
-    5. Displays test results
+    4. Skips tests that have existing .out and .err files (unless --force is used)
+    5. Executes each code example with API_KEY and API_ENDPOINT set to upstream values
+    6. Displays test results
 
     Examples:
         # Test all code examples
@@ -582,6 +589,9 @@ def run(
 
         # Show detailed output
         unitysvc_services test run --verbose
+
+        # Force rerun all tests (ignore existing results)
+        unitysvc_services test run --force
     """
     # Set data directory
     if data_dir is None:
@@ -675,14 +685,67 @@ def run(
 
     # Execute each code example
     results = []
+    skipped_count = 0
 
     for example, prov_name, credentials in all_code_examples:
         service_name = example["service_name"]
         title = example["title"]
+        example_listing_file = example.get("listing_file")
+
+        # Determine actual filename (strip .j2 if it's a template)
+        file_path = example.get("file_path")
+        if file_path:
+            original_path = Path(file_path)
+            # If it's a .j2 template, the actual filename is without .j2
+            if original_path.suffix == ".j2":
+                actual_filename = original_path.stem
+            else:
+                actual_filename = original_path.name
+        else:
+            actual_filename = None
+
+        # Prepare output file paths if we have the necessary information
+        out_path = None
+        err_path = None
+        if example_listing_file and actual_filename:
+            listing_path = Path(example_listing_file)
+            listing_stem = listing_path.stem
+
+            # Create filename pattern: {service_name}_{listing_stem}_{actual_filename}.out/.err
+            # e.g., "llama-3-1-405b-instruct_svclisting_test.py.out"
+            base_filename = f"{service_name}_{listing_stem}_{actual_filename}"
+            out_filename = f"{base_filename}.out"
+            err_filename = f"{base_filename}.err"
+
+            # Output paths in the listing directory
+            out_path = listing_path.parent / out_filename
+            err_path = listing_path.parent / err_filename
+
+        # Check if test results already exist (skip if not forcing)
+        if not force and out_path and err_path and out_path.exists() and err_path.exists():
+            console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
+            console.print("  [yellow]⊘ Skipped[/yellow] (results already exist)")
+            console.print()
+            skipped_count += 1
+            # Add a skipped result for the summary
+            results.append(
+                {
+                    "service_name": service_name,
+                    "provider": prov_name,
+                    "title": title,
+                    "result": {
+                        "success": True,
+                        "exit_code": None,
+                        "skipped": True,
+                    },
+                }
+            )
+            continue
 
         console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
 
         result = execute_code_example(example, credentials)
+        result["skipped"] = False
 
         results.append(
             {
@@ -698,22 +761,8 @@ def run(
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
 
-            # Save successful test output to .out and .err files
-            if result.get("listing_file") and result.get("actual_filename"):
-                listing_file = Path(result["listing_file"])
-                actual_filename = result["actual_filename"]
-                listing_stem = listing_file.stem
-
-                # Create filename pattern: {service_name}_{listing_stem}_{actual_filename}.out/.err
-                # e.g., "llama-3-1-405b-instruct_svclisting_test.py.out"
-                base_filename = f"{service_name}_{listing_stem}_{actual_filename}"
-                out_filename = f"{base_filename}.out"
-                err_filename = f"{base_filename}.err"
-
-                # Save to listing directory
-                out_path = listing_file.parent / out_filename
-                err_path = listing_file.parent / err_filename
-
+            # Save successful test output to .out and .err files (if paths were determined)
+            if out_path and err_path:
                 # Write stdout to .out file
                 try:
                     with open(out_path, "w", encoding="utf-8") as f:
@@ -739,14 +788,15 @@ def run(
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
             # Write failed test outputs and script to current directory
+            # Use actual_filename from result in case template rendering modified it
             if result.get("listing_file") and result.get("actual_filename"):
-                listing_file = Path(result["listing_file"])
-                actual_filename = result["actual_filename"]
-                listing_stem = listing_file.stem
+                result_listing_file = Path(result["listing_file"])
+                result_actual_filename = result["actual_filename"]
+                result_listing_stem = result_listing_file.stem
 
                 # Create filename: failed_{service_name}_{listing_stem}_{actual_filename}
                 # This will be the base name for .out, .err, and the script file
-                failed_filename = f"failed_{service_name}_{listing_stem}_{actual_filename}"
+                failed_filename = f"failed_{service_name}_{result_listing_stem}_{result_actual_filename}"
 
                 # Write stdout to .out file in current directory
                 out_filename = f"{failed_filename}.out"
@@ -806,13 +856,21 @@ def run(
     table.add_column("Exit Code", style="white")
 
     total_tests = len(results)
-    passed = sum(1 for r in results if r["result"]["success"])
-    failed = total_tests - passed
+    skipped = sum(1 for r in results if r["result"].get("skipped", False))
+    passed = sum(1 for r in results if r["result"]["success"] and not r["result"].get("skipped", False))
+    failed = total_tests - passed - skipped
 
     for test in results:
-        status = "[green]✓ Pass[/green]" if test["result"]["success"] else "[red]✗ Fail[/red]"
+        result = test["result"]
+        if result.get("skipped", False):
+            status = "[yellow]⊘ Skipped[/yellow]"
+        elif result["success"]:
+            status = "[green]✓ Pass[/green]"
+        else:
+            status = "[red]✗ Fail[/red]"
+
         # Use 'is not None' to properly handle exit_code of 0 (success)
-        exit_code = str(test["result"]["exit_code"]) if test["result"]["exit_code"] is not None else "N/A"
+        exit_code = str(result["exit_code"]) if result["exit_code"] is not None else "N/A"
 
         table.add_row(
             test["service_name"],
@@ -824,6 +882,8 @@ def run(
 
     console.print(table)
     console.print(f"\n[green]✓ Passed: {passed}/{total_tests}[/green]")
+    if skipped > 0:
+        console.print(f"[yellow]⊘ Skipped: {skipped}/{total_tests}[/yellow]")
     console.print(f"[red]✗ Failed: {failed}/{total_tests}[/red]")
 
     if failed > 0:
