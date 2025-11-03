@@ -557,6 +557,12 @@ def run(
         "-f",
         help="Force rerun all tests, ignoring existing .out and .err files",
     ),
+    fail_fast: bool = typer.Option(
+        False,
+        "--fail-fast",
+        "-x",
+        help="Stop testing on first failure",
+    ),
 ):
     """Test code examples with upstream API credentials.
 
@@ -592,6 +598,9 @@ def run(
 
         # Force rerun all tests (ignore existing results)
         unitysvc_services test run --force
+
+        # Stop on first failure
+        unitysvc_services test run --fail-fast
     """
     # Set data directory
     if data_dir is None:
@@ -841,6 +850,12 @@ def run(
                     console.print("  [dim]  (includes environment variables for reproduction)[/dim]")
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save test script: {e}[/yellow]")
+
+            # Stop testing if fail-fast is enabled
+            if fail_fast:
+                console.print()
+                console.print("[yellow]⚠ Stopping tests due to --fail-fast[/yellow]")
+                break
 
         console.print()
 
