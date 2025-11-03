@@ -865,24 +865,45 @@ unitysvc_services test run [DATA_DIR] [OPTIONS]
 
 -   `--provider, -p NAME` - Only test code examples for a specific provider
 -   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+-   `--test-file, -t FILENAME` - Only run a specific test file by filename (e.g., 'code-example.py.j2')
 -   `--verbose, -v` - Show detailed output including stdout/stderr from scripts
+-   `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
+-   `--fail-fast, -x` - Stop testing on first failure
 
-**Test Pass Criteria:**
+**Test Pass Criteria:
 
 -   Exit code is 0 AND
 -   If `expect` field is defined in document: expected string found in stdout
 -   If `expect` field is NOT defined: only exit code matters
 
+**Test Result Caching:**
+
+By default, successful test results are cached to avoid re-running tests unnecessarily:
+
+-   When a test passes, `.out` and `.err` files are saved in the same directory as the listing file
+-   On subsequent runs, tests with existing result files are skipped
+-   Use `--force` to ignore cached results and re-run all tests
+-   Failed tests are always re-run (their output goes to current directory with `failed_` prefix)
+
 **Failed Test Output:**
 
 When a test fails, the rendered content is saved to the current directory:
 
--   Filename format: `failed_{service}_{title}{extension}`
--   Contains environment variables used (API_KEY, API_ENDPOINT)
--   Full rendered template content
+-   Filename format: `failed_{service}_{listing}_{filename}.{out|err|extension}`
+-   `.out` file: stdout from the test
+-   `.err` file: stderr from the test
+-   Script file: Full rendered template content with environment variables
 -   Can be run directly to reproduce the issue
 
-**Examples:**
+**Successful Test Output:**
+
+When a test passes, output files are saved in the listing directory:
+
+-   Filename format: `{service}_{listing}_{filename}.{out|err}`
+-   Saved alongside the listing definition file
+-   Used to skip re-running tests unless `--force` is specified
+
+**Examples:
 
 ```bash
 # Test all code examples
@@ -897,11 +918,24 @@ usvc test run --services "llama*,gpt-4*"
 # Test single service
 usvc test run --services "llama-3-1-405b-instruct"
 
+# Test specific file
+usvc test run --test-file "code-example.py.j2"
+
 # Combine filters
 usvc test run --provider fireworks --services "llama*"
 
 # Show detailed output
 usvc test run --verbose
+
+# Force rerun all tests (ignore cached results)
+usvc test run --force
+
+# Stop on first failure (useful for quick feedback)
+usvc test run --fail-fast
+
+# Combine options
+usvc test run --force --fail-fast --verbose
+usvc test run -f -x -v  # Short form
 ```
 
 **Interpreter Detection:**
