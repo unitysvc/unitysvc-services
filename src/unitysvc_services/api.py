@@ -45,7 +45,7 @@ class UnitySvcAPI:
         self.use_curl_fallback = False
         self.client = httpx.AsyncClient(
             headers={
-                "X-API-Key": self.api_key,
+                "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
             timeout=30.0,
@@ -75,7 +75,7 @@ class UnitySvcAPI:
             "-w",
             "\n%{http_code}",  # Write status code on new line
             "-H",
-            f"X-API-Key: {self.api_key}",
+            f"Authorization: Bearer {self.api_key}",
             "-H",
             "Accept: application/json",
             url,
@@ -146,7 +146,7 @@ class UnitySvcAPI:
             "-X",
             "POST",
             "-H",
-            f"X-API-Key: {self.api_key}",
+            f"Authorization: Bearer {self.api_key}",
             "-H",
             "Content-Type: application/json",
             "-H",
