@@ -2,7 +2,6 @@
 
 import fnmatch
 import os
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -13,7 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
-from .utils import find_files_by_schema, render_template_file
+from .utils import determine_interpreter, find_files_by_schema, render_template_file
 
 app = typer.Typer(help="Test code examples with upstream credentials")
 console = Console()
@@ -245,61 +244,14 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["listing_file"] = listing_file
         result["actual_filename"] = actual_filename
 
-        # Determine interpreter to use
-        lines = file_content.split("\n")
-        interpreter_cmd = None
+        # Determine interpreter to use (using shared utility function)
+        interpreter_cmd, error = determine_interpreter(file_content, file_suffix)
+        if error:
+            result["error"] = error
+            return result
 
-        # First, try to parse shebang
-        if lines and lines[0].startswith("#!"):
-            shebang = lines[0][2:].strip()
-            if "/env " in shebang:
-                # e.g., #!/usr/bin/env python3
-                interpreter_cmd = shebang.split("/env ", 1)[1].strip().split()[0]
-            else:
-                # e.g., #!/usr/bin/python3
-                interpreter_cmd = shebang.split("/")[-1].split()[0]
-
-        # If no shebang found, determine interpreter based on file extension
-        if not interpreter_cmd:
-            if file_suffix == ".py":
-                # Try python3 first, fallback to python
-                if shutil.which("python3"):
-                    interpreter_cmd = "python3"
-                elif shutil.which("python"):
-                    interpreter_cmd = "python"
-                else:
-                    result["error"] = "Neither 'python3' nor 'python' found. Please install Python to run this test."
-                    return result
-            elif file_suffix == ".js":
-                # JavaScript files need Node.js
-                if shutil.which("node"):
-                    interpreter_cmd = "node"
-                else:
-                    result["error"] = "'node' not found. Please install Node.js to run JavaScript tests."
-                    return result
-            elif file_suffix == ".sh":
-                # Shell scripts use bash
-                if shutil.which("bash"):
-                    interpreter_cmd = "bash"
-                else:
-                    result["error"] = "'bash' not found. Please install bash to run shell script tests."
-                    return result
-            else:
-                # Unknown file type - try python3/python as fallback
-                if shutil.which("python3"):
-                    interpreter_cmd = "python3"
-                elif shutil.which("python"):
-                    interpreter_cmd = "python"
-                else:
-                    result["error"] = f"Unknown file type '{file_suffix}' and no Python interpreter found."
-                    return result
-        else:
-            # Shebang was found - verify the interpreter exists
-            if not shutil.which(interpreter_cmd):
-                result["error"] = (
-                    f"Interpreter '{interpreter_cmd}' from shebang not found. Please install it to run this test."
-                )
-                return result
+        # At this point, interpreter_cmd is guaranteed to be a string (error check above)
+        assert interpreter_cmd is not None, "interpreter_cmd should not be None after error check"
 
         # Prepare environment variables
         env = os.environ.copy()

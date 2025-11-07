@@ -452,3 +452,79 @@ def render_template_file(
     else:
         # Not a template - return as-is
         return file_content, file_path.name
+
+
+def determine_interpreter(file_content: str, file_suffix: str) -> tuple[str | None, str | None]:
+    """
+    Determine the interpreter command for executing a script file.
+
+    Checks for shebang line first, then falls back to file extension-based detection.
+
+    Args:
+        file_content: The content of the script file
+        file_suffix: The file extension (e.g., ".py", ".js", ".sh")
+
+    Returns:
+        Tuple of (interpreter_cmd, error_message). If successful, returns (interpreter_cmd, None).
+        If failed, returns (None, error_message).
+
+    Examples:
+        >>> determine_interpreter("#!/usr/bin/env python3\\nprint('hello')", ".py")
+        ('python3', None)
+        >>> determine_interpreter("console.log('hello')", ".js")
+        ('node', None)
+        >>> determine_interpreter("curl http://example.com", ".sh")
+        ('bash', None)
+    """
+    import shutil
+
+    # Parse shebang to get interpreter
+    lines = file_content.split("\n")
+    interpreter_cmd = None
+
+    # First, try to parse shebang
+    if lines and lines[0].startswith("#!"):
+        shebang = lines[0][2:].strip()
+        if "/env " in shebang:
+            # e.g., #!/usr/bin/env python3
+            interpreter_cmd = shebang.split("/env ", 1)[1].strip().split()[0]
+        else:
+            # e.g., #!/usr/bin/python3
+            interpreter_cmd = shebang.split("/")[-1].split()[0]
+
+    # If no shebang found, determine interpreter based on file extension
+    if not interpreter_cmd:
+        if file_suffix == ".py":
+            # Try python3 first, fallback to python
+            if shutil.which("python3"):
+                interpreter_cmd = "python3"
+            elif shutil.which("python"):
+                interpreter_cmd = "python"
+            else:
+                return None, "Neither 'python3' nor 'python' found. Please install Python to run this test."
+        elif file_suffix == ".js":
+            # JavaScript files need Node.js
+            if shutil.which("node"):
+                interpreter_cmd = "node"
+            else:
+                return None, "'node' not found. Please install Node.js to run JavaScript tests."
+        elif file_suffix == ".sh":
+            # Shell scripts use bash
+            if shutil.which("bash"):
+                interpreter_cmd = "bash"
+            else:
+                return None, "'bash' not found. Please install bash to run shell script tests."
+        else:
+            # Unknown file type - try python3/python as fallback
+            if shutil.which("python3"):
+                interpreter_cmd = "python3"
+            elif shutil.which("python"):
+                interpreter_cmd = "python"
+            else:
+                return None, f"Unknown file type '{file_suffix}' and no Python interpreter found."
+    else:
+        # Shebang was found - verify the interpreter exists
+        if not shutil.which(interpreter_cmd):
+            return None, f"Interpreter '{interpreter_cmd}' from shebang not found. Please install it to run this test."
+
+    return interpreter_cmd, None
