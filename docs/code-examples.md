@@ -228,20 +228,32 @@ usvc test run --services "code-llama-*"
 
 # Show verbose output including stdout/stderr
 usvc test run --verbose
+
+# Force rerun all tests (ignore cached results)
+usvc test run --force
+
+# Stop on first failure (useful for quick feedback during development)
+usvc test run --fail-fast
+
+# Combine options
+usvc test run --force --fail-fast --verbose
 ```
 
 **How tests work:**
 
 1. Test framework discovers code examples from listing files (category = `code_examples`)
-2. Renders Jinja2 templates with `listing`, `offering`, `provider`, and `seller` data
-3. Sets environment variables (`API_KEY`, `API_ENDPOINT`) from provider credentials
-4. Executes the code example using appropriate interpreter (python3, node, bash)
-5. Validates results:
+2. **Checks for cached results**: If both `.out` and `.err` files exist in the listing directory, skips the test (unless `--force` is used)
+3. Renders Jinja2 templates with `listing`, `offering`, `provider`, and `seller` data
+4. Sets environment variables (`API_KEY`, `API_ENDPOINT`) from provider credentials
+5. Executes the code example using appropriate interpreter (python3, node, bash)
+6. Validates results:
     - Test passes if exit code is 0 AND (no `meta.expect` field OR expected string found in stdout)
     - Test fails if exit code is non-zero OR expected string not found
-6. **Saves output**: When a test passes, stdout is saved to listing directory as `{listing_stem}_{code_filename}.out`
-    - Example: For `svclisting.json` with code file `test.py`, output is saved as `svclisting_test.py.out`
+7. **Saves output**: When a test passes, stdout and stderr are saved to listing directory as `{service}_{listing}_{filename}.{out|err}`
+    - Example: For `listing.json` in `llama-3-1-405b` with code file `test.py`, output is saved as `llama-3-1-405b_listing_test.py.out` and `llama-3-1-405b_listing_test.py.err`
     - Saved in the same directory as the listing file for easy version control
+    - Used to skip re-running tests on subsequent runs (unless `--force` is specified)
+8. **Fail-fast mode**: If `--fail-fast` is enabled, testing stops immediately after the first failure
 
 **Failed test debugging:**
 
@@ -701,7 +713,9 @@ vim listing.json  # Add document entry with meta.requirements and meta.expect
 usvc validate
 usvc test list
 usvc test run --provider your-provider
-# ✓ Successful tests create .out files (e.g., listing_test.py.out in listing directory)
+# ✓ Successful tests create .out and .err files (e.g., servicename_listing_test.py.out)
+# ✓ Subsequent runs skip tests with existing results (use --force to rerun)
+# ✓ Use --fail-fast to stop on first failure for quick feedback
 
 # 6. Debug if needed
 cat failed_*  # Check saved test files (in current directory)

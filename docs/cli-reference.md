@@ -44,13 +44,14 @@ All `init` commands support two modes:
 ### Key Features
 
 **Interactive Mode Features:**
-- ✅ **Auto-discovery**: Automatically detects seller and service names from existing files
-- ✅ **Validation**: Email format, URI validation, integer checks, and more
-- ✅ **Smart defaults**: Computed defaults based on previous inputs or filesystem discovery
-- ✅ **Skip optional fields**: Press Enter to skip any optional field
-- ✅ **Complex objects**: Add documents and pricing information interactively
-- ✅ **File validation**: Checks document file paths exist before saving
-- ✅ **Cancellation**: Press Ctrl+C to cancel at any time
+
+-   ✅ **Auto-discovery**: Automatically detects seller and service names from existing files
+-   ✅ **Validation**: Email format, URI validation, integer checks, and more
+-   ✅ **Smart defaults**: Computed defaults based on previous inputs or filesystem discovery
+-   ✅ **Skip optional fields**: Press Enter to skip any optional field
+-   ✅ **Complex objects**: Add documents and pricing information interactively
+-   ✅ **File validation**: Checks document file paths exist before saving
+-   ✅ **Cancellation**: Press Ctrl+C to cancel at any time
 
 ### init seller
 
@@ -72,10 +73,10 @@ usvc init seller <name> [OPTIONS]
 
 **Interactive Mode** prompts for:
 
-- **Basic Information**: seller type (individual/organization/partnership/corporation), display name, description
-- **Contact Information**: primary email, secondary email, homepage URL
-- **Additional Details**: business registration, tax ID, account manager
-- **Status & Verification**: status (active/pending/disabled), KYC verification
+-   **Basic Information**: seller type (individual/organization/partnership/corporation), display name, description
+-   **Contact Information**: primary email, secondary email, homepage URL
+-   **Additional Details**: business registration, tax ID, account manager
+-   **Status & Verification**: status (active/pending/disabled), KYC verification
 
 **Examples:**
 
@@ -110,11 +111,11 @@ usvc init provider <name> [OPTIONS]
 
 **Interactive Mode** prompts for:
 
-- **Basic Information**: display name, description
-- **Contact & Web**: contact email, secondary email, homepage URL
-- **Provider Access**: API endpoint, API key, access method (http/websocket/grpc)
-- **Status**: provider status
-- **Service Population** (optional): Command to auto-generate service offerings via `usvc populate`
+-   **Basic Information**: display name, description
+-   **Contact & Web**: contact email, secondary email, homepage URL
+-   **Provider Access**: API endpoint, API key, access method (http/websocket/grpc)
+-   **Status**: provider status
+-   **Service Population** (optional): Command to auto-generate service offerings via `usvc populate`
 
 **Examples:**
 
@@ -158,11 +159,11 @@ usvc init offering <name> [OPTIONS]
 
 **Interactive Mode** prompts for:
 
-- **Basic Information**: service name, display name, version, description
-- **Classification**: service type (llm/embedding/vision/audio/image/video), upstream status
-- **Upstream Access Interface**: API endpoint, API key, documents (optional)
-- **Upstream Pricing** (optional): pricing unit, tier name, currency, price structure
-- **Additional Information**: tagline
+-   **Basic Information**: service name, display name, version, description
+-   **Classification**: service type (llm/embedding/vision/audio/image/video), upstream status
+-   **Upstream Access Interface**: API endpoint, API key, documents (optional)
+-   **Upstream Pricing** (optional): pricing unit, tier name, currency, price structure
+-   **Additional Information**: tagline
 
 **Pricing Structures:**
 
@@ -205,25 +206,27 @@ usvc init listing <name> [OPTIONS]
 
 **Interactive Mode** prompts for:
 
-- **Basic Information**: service name (auto-detected), listing name, display name
-- **Seller Information**: seller name (auto-detected from seller.json)
-- **Status**: listing status (unknown/upstream_ready/downstream_ready/ready/in_service/deprecated)
-- **Documents** (optional): Add multiple documents interactively
+-   **Basic Information**: service name (auto-detected), listing name, display name
+-   **Seller Information**: seller name (auto-detected from seller.json)
+-   **Status**: listing status (unknown/upstream_ready/downstream_ready/ready/in_service/deprecated)
+-   **Documents** (optional): Add multiple documents interactively
 
 **Auto-Discovery:**
 
 The listing workflow automatically discovers:
-- **seller_name**: Searches ./data, ./, ../data, ../ for seller.json/seller.toml
-- **service_name**: Searches ./, ../ for service.json/service.toml
+
+-   **seller_name**: Searches ./data, ./, ../data, ../ for seller.json/seller.toml
+-   **service_name**: Searches ./, ../ for service.json/service.toml
 
 This means you don't need to manually type names - they're auto-filled!
 
 **Document Support:**
 
 When adding documents, you can specify:
-- **Required**: title, MIME type, category
-- **Optional**: description, file path (relative to listing dir), external URL, public flag
-- **Validation**: File existence checks, at least one of file_path or external_URL required
+
+-   **Required**: title, MIME type, category
+-   **Optional**: description, file path (relative to listing dir), external URL, public flag
+-   **Validation**: File existence checks, at least one of file_path or external_URL required
 
 **Examples:**
 
@@ -240,6 +243,27 @@ usvc init listing standard
 # Copy mode
 usvc init listing new-listing --source ./data/old-listing
 ```
+
+### Important Notes
+
+**The `init` command provides a starting point but does not handle all fields and validate all input values.**
+
+The interactive mode and copy mode are designed to:
+
+-   Generate basic file structure according to the schema
+-   Populate fields with reasonable default values
+-   Validate common field formats (emails, URLs, etc.)
+-   Ensure required fields are populated
+
+However, **users are expected to manually review and modify the generated spec files** to ensure:
+
+-   Business logic correctness (pricing, terms, policies)
+-   Accurate service descriptions and metadata
+-   Proper document references and paths
+-   Compliance with organizational standards
+-   Semantic correctness beyond schema validation
+
+Always run `usvc validate` after manual modifications and before publishing to production.
 
 ## list - List Local Files
 
@@ -447,15 +471,16 @@ usvc publish providers --dryrun
 
 The `--dryrun` option allows you to preview what would happen during publish without making actual changes to the backend. This is useful for:
 
-- Verifying which entities would be created vs updated
-- Checking that all dependencies exist before publishing
-- Confirming changes before committing them
+-   Verifying which entities would be created vs updated
+-   Checking that all dependencies exist before publishing
+-   Confirming changes before committing them
 
 In dryrun mode:
-- No actual data is sent to the backend
-- Backend returns what action would be taken (create/update)
-- Missing dependencies are reported but don't cause errors
-- Summary shows what would happen if published
+
+-   No actual data is sent to the backend
+-   Backend returns what action would be taken (create/update)
+-   Missing dependencies are reported but don't cause errors
+-   Summary shows what would happen if published
 
 **Dryrun Output Format:**
 
@@ -504,10 +529,11 @@ Summary
 ```
 
 Notes:
-- Created: Entities that would be created (don't exist on backend)
-- Updated: Entities that would be updated (exist but have changes)
-- Failed: Entities that encountered errors (shown in red if > 0, blank if 0)
-- Blank cells indicate zero count for easier reading
+
+-   Created: Entities that would be created (don't exist on backend)
+-   Updated: Entities that would be updated (exist but have changes)
+-   Failed: Entities that encountered errors (shown in red if > 0, blank if 0)
+-   Blank cells indicate zero count for easier reading
 
 **Publishing Order (when publishing all):**
 
@@ -839,24 +865,45 @@ unitysvc_services test run [DATA_DIR] [OPTIONS]
 
 -   `--provider, -p NAME` - Only test code examples for a specific provider
 -   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+-   `--test-file, -t FILENAME` - Only run a specific test file by filename (e.g., 'code-example.py.j2')
 -   `--verbose, -v` - Show detailed output including stdout/stderr from scripts
+-   `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
+-   `--fail-fast, -x` - Stop testing on first failure
 
-**Test Pass Criteria:**
+**Test Pass Criteria:
 
 -   Exit code is 0 AND
 -   If `expect` field is defined in document: expected string found in stdout
 -   If `expect` field is NOT defined: only exit code matters
 
+**Test Result Caching:**
+
+By default, successful test results are cached to avoid re-running tests unnecessarily:
+
+-   When a test passes, `.out` and `.err` files are saved in the same directory as the listing file
+-   On subsequent runs, tests with existing result files are skipped
+-   Use `--force` to ignore cached results and re-run all tests
+-   Failed tests are always re-run (their output goes to current directory with `failed_` prefix)
+
 **Failed Test Output:**
 
 When a test fails, the rendered content is saved to the current directory:
 
--   Filename format: `failed_{service}_{title}{extension}`
--   Contains environment variables used (API_KEY, API_ENDPOINT)
--   Full rendered template content
+-   Filename format: `failed_{service}_{listing}_{filename}.{out|err|extension}`
+-   `.out` file: stdout from the test
+-   `.err` file: stderr from the test
+-   Script file: Full rendered template content with environment variables
 -   Can be run directly to reproduce the issue
 
-**Examples:**
+**Successful Test Output:**
+
+When a test passes, output files are saved in the listing directory:
+
+-   Filename format: `{service}_{listing}_{filename}.{out|err}`
+-   Saved alongside the listing definition file
+-   Used to skip re-running tests unless `--force` is specified
+
+**Examples:
 
 ```bash
 # Test all code examples
@@ -871,11 +918,24 @@ usvc test run --services "llama*,gpt-4*"
 # Test single service
 usvc test run --services "llama-3-1-405b-instruct"
 
+# Test specific file
+usvc test run --test-file "code-example.py.j2"
+
 # Combine filters
 usvc test run --provider fireworks --services "llama*"
 
 # Show detailed output
 usvc test run --verbose
+
+# Force rerun all tests (ignore cached results)
+usvc test run --force
+
+# Stop on first failure (useful for quick feedback)
+usvc test run --fail-fast
+
+# Combine options
+usvc test run --force --fail-fast --verbose
+usvc test run -f -x -v  # Short form
 ```
 
 **Interpreter Detection:**
@@ -980,10 +1040,11 @@ usvc publish
 ```
 
 **Note**: The interactive prompts include:
-- ✅ Auto-discovery of seller/service names
-- ✅ Validation of emails, URLs, and required fields
-- ✅ Smart defaults (e.g., display name from ID)
-- ✅ Optional document and pricing support
+
+-   ✅ Auto-discovery of seller/service names
+-   ✅ Validation of emails, URLs, and required fields
+-   ✅ Smart defaults (e.g., display name from ID)
+-   ✅ Optional document and pricing support
 
 ### Copying from Existing Data
 
@@ -1004,10 +1065,11 @@ usvc init seller new-seller --source ./data/acme-corp
 ```
 
 **Benefits of copy mode:**
-- 🚀 Skip interactive prompts for similar services
-- 📋 Preserves structure and documents
-- ⚡ Faster than manual entry for bulk creation
-- 🔄 Updates names and IDs automatically
+
+-   🚀 Skip interactive prompts for similar services
+-   📋 Preserves structure and documents
+-   ⚡ Faster than manual entry for bulk creation
+-   🔄 Updates names and IDs automatically
 
 ### Full Publish Flow
 
