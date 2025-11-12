@@ -779,29 +779,23 @@ def run(
 
                 # Write failed test script content to current directory (for debugging)
                 # rendered_content is always set if we got here (set during template rendering)
-                content_with_env = result["rendered_content"]
-
-                # Add environment variables as comments at the top
-                env_header = (
-                    "# Environment variables used for this test:\n"
-                    f"# API_KEY={credentials['api_key']}\n"
-                    f"# API_ENDPOINT={credentials['api_endpoint']}\n"
-                    "#\n"
-                    "# To reproduce this test, export these variables:\n"
-                    f"# export API_KEY='{credentials['api_key']}'\n"
-                    f"# export API_ENDPOINT='{credentials['api_endpoint']}'\n"
-                    "#\n\n"
-                )
-
-                content_with_env = env_header + content_with_env
-
                 try:
                     with open(failed_filename, "w", encoding="utf-8") as f:
-                        f.write(content_with_env)
+                        f.write(result["rendered_content"])
                     console.print(f"  [yellow]→ Test script saved to:[/yellow] {failed_filename}")
-                    console.print("  [dim]  (includes environment variables for reproduction)[/dim]")
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save test script: {e}[/yellow]")
+
+                # Write environment variables to .env file
+                env_filename = f"{failed_filename}.env"
+                try:
+                    with open(env_filename, "w", encoding="utf-8") as f:
+                        f.write(f"API_KEY={credentials['api_key']}\n")
+                        f.write(f"API_ENDPOINT={credentials['api_endpoint']}\n")
+                    console.print(f"  [yellow]→ Environment variables saved to:[/yellow] {env_filename}")
+                    console.print(f"  [dim]  (source this file to reproduce: source {env_filename})[/dim]")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save environment file: {e}[/yellow]")
 
             # Stop testing if fail-fast is enabled
             if fail_fast:
