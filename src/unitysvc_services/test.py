@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .models.base import DocumentCategoryEnum
+from .models.base import DocumentCategoryEnum, UpstreamStatusEnum
 from .utils import determine_interpreter, find_files_by_schema, render_template_file
 
 app = typer.Typer(help="Test code examples with upstream credentials")
@@ -308,6 +308,77 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["error"] = f"Error executing script: {str(e)}"
 
     return result
+
+
+def update_offering_override_status(listing_file: Path, status: UpstreamStatusEnum | None) -> None:
+    """Update or remove the status field in the offering override file.
+
+    Args:
+        listing_file: Path to the listing file (offering is in same directory)
+        status: Status to set (e.g., UpstreamStatusEnum.deprecated), or None to remove status field
+    """
+    import json
+
+    try:
+        # Find the offering file (service.json) in the same directory
+        offering_results = find_files_by_schema(listing_file.parent, "service_v1")
+        if not offering_results:
+            console.print(f"[yellow]⚠ No service offering file found in {listing_file.parent}[/yellow]")
+            return
+
+        # Get the base offering file path
+        offering_file_path, offering_format, _offering_data = offering_results[0]
+
+        # Construct override file path
+        override_path = offering_file_path.with_stem(f"{offering_file_path.stem}.override")
+
+        # Load existing override file if it exists
+        if override_path.exists():
+            try:
+                with open(override_path, encoding="utf-8") as f:
+                    if offering_format == "json":
+                        override_data = json.load(f)
+                    else:  # toml
+                        import tomli
+
+                        override_data = tomli.loads(f.read())
+            except Exception as e:
+                console.print(f"[yellow]⚠ Failed to read override file {override_path}: {e}[/yellow]")
+                override_data = {}
+        else:
+            override_data = {}
+
+        # Update or remove upstream_status field
+        if status is None:
+            # Remove upstream_status field if it exists and equals deprecated
+            if override_data.get("upstream_status") == UpstreamStatusEnum.deprecated:
+                del override_data["upstream_status"]
+                console.print("  [dim]→ Removed deprecated upstream_status from override file[/dim]")
+        else:
+            # Set upstream_status field
+            override_data["upstream_status"] = status.value
+            console.print(f"  [dim]→ Set upstream_status to {status.value} in override file[/dim]")
+
+        # Write override file (or delete if empty)
+        if override_data:
+            # Write the override file
+            with open(override_path, "w", encoding="utf-8") as f:
+                if offering_format == "json":
+                    json.dump(override_data, f, indent=2)
+                    f.write("\n")  # Add trailing newline
+                else:  # toml
+                    import tomli_w
+
+                    f.write(tomli_w.dumps(override_data))
+            console.print(f"  [dim]→ Updated override file: {override_path}[/dim]")
+        else:
+            # Delete override file if it's now empty
+            if override_path.exists():
+                override_path.unlink()
+                console.print(f"  [dim]→ Removed empty override file: {override_path}[/dim]")
+
+    except Exception as e:
+        console.print(f"[yellow]⚠ Failed to update override file: {e}[/yellow]")
 
 
 @app.command("list")
@@ -648,6 +719,10 @@ def run(
     results = []
     skipped_count = 0
 
+    # Track test results per service offering (for status updates)
+    # Key: offering directory path, Value: {"passed": int, "failed": int, "listing_file": Path}
+    offering_test_results: dict[str, dict[str, Any]] = {}
+
     for example, prov_name, credentials in all_code_examples:
         service_name = example["service_name"]
         title = example["title"]
@@ -740,6 +815,17 @@ def run(
                         console.print(f"  [dim]→ Error output saved to:[/dim] {err_path}")
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save error output: {e}[/yellow]")
+
+            # Track test result for this offering (don't update status yet)
+            if example_listing_file and not test_file:
+                offering_dir = str(example_listing_file.parent)
+                if offering_dir not in offering_test_results:
+                    offering_test_results[offering_dir] = {
+                        "passed": 0,
+                        "failed": 0,
+                        "listing_file": example_listing_file,
+                    }
+                offering_test_results[offering_dir]["passed"] += 1
         else:
             console.print(f"  [red]✗ Failed[/red] - {result['error']}")
             if verbose:
@@ -797,6 +883,17 @@ def run(
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save environment file: {e}[/yellow]")
 
+            # Track test result for this offering (don't update status yet)
+            if example_listing_file and not test_file:
+                offering_dir = str(example_listing_file.parent)
+                if offering_dir not in offering_test_results:
+                    offering_test_results[offering_dir] = {
+                        "passed": 0,
+                        "failed": 0,
+                        "listing_file": example_listing_file,
+                    }
+                offering_test_results[offering_dir]["failed"] += 1
+
             # Stop testing if fail-fast is enabled
             if fail_fast:
                 console.print()
@@ -804,6 +901,21 @@ def run(
                 break
 
         console.print()
+
+    # Update offering status based on test results (only if not using --test-file)
+    if not test_file and offering_test_results:
+        console.print("\n[cyan]Updating service offering status...[/cyan]")
+        for _offering_dir, test_stats in offering_test_results.items():
+            listing_file = test_stats["listing_file"]
+            passed = test_stats["passed"]
+            failed = test_stats["failed"]
+
+            # If any test failed, set to deprecated
+            if failed > 0:
+                update_offering_override_status(listing_file, UpstreamStatusEnum.deprecated)
+            # If all tests passed, remove deprecated status
+            elif passed > 0 and failed == 0:
+                update_offering_override_status(listing_file, None)
 
     # Print summary table
     console.print("\n" + "=" * 70)

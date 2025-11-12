@@ -2,7 +2,6 @@
 
 import json
 import re
-import tomllib as toml
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -13,6 +12,8 @@ from jsonschema.validators import Draft7Validator
 from rich.console import Console
 
 import unitysvc_services
+
+from .utils import load_data_file as load_data_file_with_override
 
 
 class DataValidationError(Exception):
@@ -269,18 +270,14 @@ class DataValidator:
         return errors
 
     def load_data_file(self, file_path: Path) -> tuple[dict[str, Any] | None, list[str]]:
-        """Load data from JSON or TOML file."""
+        """Load data from JSON or TOML file, automatically merging override files.
+
+        Uses load_data_file from utils which includes override file merging.
+        """
         errors: list[str] = []
 
         try:
-            if file_path.suffix == ".toml":
-                with open(file_path, "rb") as f:
-                    data = toml.load(f)
-            elif file_path.suffix == ".json":
-                with open(file_path, encoding="utf-8") as f:
-                    data = json.load(f)
-            else:
-                return None, [f"Unsupported file format: {file_path.suffix}"]
+            data, _file_format = load_data_file_with_override(file_path)
             return data, errors
         except Exception as e:
             format_name = {".json": "JSON", ".toml": "TOML"}.get(file_path.suffix, "data")

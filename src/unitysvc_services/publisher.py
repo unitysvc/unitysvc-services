@@ -4,7 +4,6 @@ import asyncio
 import base64
 import json
 import os
-import tomllib as toml
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +16,7 @@ import unitysvc_services
 
 from .api import UnitySvcAPI
 from .models.base import ProviderStatusEnum, SellerStatusEnum
-from .utils import convert_convenience_fields_to_documents, find_files_by_schema, render_template_file
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
 from .validator import DataValidator
 
 
@@ -34,17 +33,6 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Semaphore to limit concurrent requests and prevent connection pool exhaustion
         self.max_concurrent_requests = 15
-
-    def load_data_file(self, file_path: Path) -> dict[str, Any]:
-        """Load data from JSON or TOML file."""
-        if file_path.suffix == ".toml":
-            with open(file_path, "rb") as f:
-                return toml.load(f)
-        elif file_path.suffix == ".json":
-            with open(file_path, encoding="utf-8") as f:
-                return json.load(f)
-        else:
-            raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
     def load_file_content(self, file_path: Path, base_path: Path) -> str:
         """Load content from a file (text or binary)."""
@@ -344,7 +332,7 @@ class ServiceDataPublisher(UnitySvcAPI):
     ) -> dict[str, Any]:
         """Async version of post_service_listing for concurrent publishing with retry logic."""
         # Load the listing data file
-        data = self.load_data_file(listing_file)
+        data, _ = load_data_file(listing_file)
 
         # If name is not provided, use filename (without extension)
         if "name" not in data or not data.get("name"):
@@ -492,7 +480,7 @@ class ServiceDataPublisher(UnitySvcAPI):
     ) -> dict[str, Any]:
         """Async version of post_service_offering for concurrent publishing with retry logic."""
         # Load the data file
-        data = self.load_data_file(data_file)
+        data, _ = load_data_file(data_file)
 
         # Convert convenience fields first
         base_path = data_file.parent
@@ -561,7 +549,7 @@ class ServiceDataPublisher(UnitySvcAPI):
     async def post_provider_async(self, data_file: Path, max_retries: int = 3, dryrun: bool = False) -> dict[str, Any]:
         """Async version of post_provider for concurrent publishing with retry logic."""
         # Load the data file
-        data = self.load_data_file(data_file)
+        data, _ = load_data_file(data_file)
 
         # Check provider status - skip if incomplete
         provider_status = data.get("status", ProviderStatusEnum.active)
@@ -602,7 +590,7 @@ class ServiceDataPublisher(UnitySvcAPI):
     async def post_seller_async(self, data_file: Path, max_retries: int = 3, dryrun: bool = False) -> dict[str, Any]:
         """Async version of post_seller for concurrent publishing with retry logic."""
         # Load the data file
-        data = self.load_data_file(data_file)
+        data, _ = load_data_file(data_file)
 
         # Check seller status - skip if incomplete
         seller_status = data.get("status", SellerStatusEnum.active)
@@ -681,7 +669,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         async with semaphore:  # Limit concurrent requests
             try:
                 # Load offering data to get the name
-                data = self.load_data_file(offering_file)
+                data, _ = load_data_file(offering_file)
                 offering_name = data.get("name", offering_file.stem)
 
                 # Publish the offering
@@ -702,7 +690,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
                 return (offering_file, result)
             except Exception as e:
-                data = self.load_data_file(offering_file)
+                data, _ = load_data_file(offering_file)
                 offering_name = data.get("name", offering_file.stem)
                 console.print(f"  [red]✗[/red] Failed to publish offering: [cyan]{offering_name}[/cyan] - {str(e)}")
                 return (offering_file, e)
@@ -784,7 +772,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         async with semaphore:  # Limit concurrent requests
             try:
                 # Load listing data to get the name
-                data = self.load_data_file(listing_file)
+                data, _ = load_data_file(listing_file)
                 listing_name = data.get("name", listing_file.stem)
 
                 # Publish the listing
@@ -806,7 +794,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
                 return (listing_file, result)
             except Exception as e:
-                data = self.load_data_file(listing_file)
+                data, _ = load_data_file(listing_file)
                 listing_name = data.get("name", listing_file.stem)
                 console.print(f"  [red]✗[/red] Failed to publish listing: [cyan]{listing_file}[/cyan] - {str(e)}")
                 return (listing_file, e)
@@ -884,7 +872,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         async with semaphore:  # Limit concurrent requests
             try:
                 # Load provider data to get the name
-                data = self.load_data_file(provider_file)
+                data, _ = load_data_file(provider_file)
                 provider_name = data.get("name", provider_file.stem)
 
                 # Publish the provider
@@ -903,7 +891,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
                 return (provider_file, result)
             except Exception as e:
-                data = self.load_data_file(provider_file)
+                data, _ = load_data_file(provider_file)
                 provider_name = data.get("name", provider_file.stem)
                 console.print(f"  [red]✗[/red] Failed to publish provider: [cyan]{provider_name}[/cyan] - {str(e)}")
                 return (provider_file, e)
@@ -968,7 +956,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         async with semaphore:  # Limit concurrent requests
             try:
                 # Load seller data to get the name
-                data = self.load_data_file(seller_file)
+                data, _ = load_data_file(seller_file)
                 seller_name = data.get("name", seller_file.stem)
 
                 # Publish the seller
@@ -987,7 +975,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
                 return (seller_file, result)
             except Exception as e:
-                data = self.load_data_file(seller_file)
+                data, _ = load_data_file(seller_file)
                 seller_name = data.get("name", seller_file.stem)
                 console.print(f"  [red]✗[/red] Failed to publish seller: [cyan]{seller_name}[/cyan] - {str(e)}")
                 return (seller_file, e)

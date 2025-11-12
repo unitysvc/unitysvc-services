@@ -28,6 +28,7 @@ from .interactive_prompt import (
     create_provider_data,
     create_seller_data,
 )
+from .utils import load_data_file
 
 try:
     import tomli_w
@@ -79,20 +80,6 @@ def find_source_directory(source_name: str, base_dirs: list[Path]) -> Path | Non
                     return nested_path
 
     return None
-
-
-def load_data_file(file_path: Path) -> dict[str, Any]:
-    """Load data from JSON or TOML file."""
-    suffix = file_path.suffix.lower()
-
-    if suffix == ".json":
-        with open(file_path, encoding="utf-8") as f:
-            return json.load(f)
-    elif suffix == ".toml":
-        with open(file_path, "rb") as f:
-            return tomllib.load(f)
-    else:
-        raise ValueError(f"Unsupported file format: {suffix}")
 
 
 def save_data_file(file_path: Path, data: dict[str, Any]) -> None:
@@ -514,7 +501,7 @@ def copy_and_update_structure(
                 elif source_file.suffix.lower() in DATA_FILE_EXTENSIONS:
                     # 2. Process data files
                     try:
-                        data = load_data_file(source_file)
+                        data, _ = load_data_file(source_file)
 
                         # Update name field to match directory name
                         if "name" in data:
@@ -596,7 +583,7 @@ def copy_and_update_structure(
                 service_file = new_path / f"service.{ext}"
                 if service_file.exists():
                     try:
-                        data = load_data_file(service_file)
+                        data, _ = load_data_file(service_file)
                         if "name" in data:
                             print(
                                 f"  Updating service name to match directory: '{data['name']}' -> '{normalized_name}'"
@@ -616,7 +603,7 @@ def copy_and_update_structure(
                     data_files = [file for ext in DATA_FILE_EXTENSIONS for file in dest_dir.glob(f"**/*{ext}")]
                     for data_file in data_files:
                         try:
-                            data = load_data_file(data_file)
+                            data, _ = load_data_file(data_file)
 
                             # Find all strings that start with the old directory path
                             def collect_old_paths(obj, old_paths, new_path_mappings):
