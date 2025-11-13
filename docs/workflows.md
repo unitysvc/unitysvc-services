@@ -83,7 +83,7 @@ usvc update offering --name my-service \
   --version "2.0"
 
 # Update listing status
-usvc update listing --service-name my-service --status in_service
+usvc update listing --services my-service --status in_service
 ```
 
 #### 6. Publish to Platform

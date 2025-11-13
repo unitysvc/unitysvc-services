@@ -370,9 +370,10 @@ def query_offerings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
-    provider_name: str | None = typer.Option(
+    provider: str | None = typer.Option(
         None,
-        "--provider-name",
+        "--provider",
+        "-p",
         help="Filter by provider name (case-insensitive partial match)",
     ),
     service_type: str | None = typer.Option(
@@ -396,7 +397,7 @@ def query_offerings(
         unitysvc_services query offerings --fields id,name,status
 
         # Filter by provider name
-        unitysvc_services query offerings --provider-name openai
+        unitysvc_services query offerings --provider openai
 
         # Filter by service type
         unitysvc_services query offerings --service-type llm
@@ -405,7 +406,7 @@ def query_offerings(
         unitysvc_services query offerings --name llama
 
         # Combine multiple filters
-        unitysvc_services query offerings --service-type llm --provider-name openai
+        unitysvc_services query offerings --service-type llm --provider openai
 
         # Retrieve more than 100 records
         unitysvc_services query offerings --limit 500
@@ -444,8 +445,8 @@ def query_offerings(
     async def _query_offerings_async():
         async with ServiceDataQuery() as query:
             params: dict[str, Any] = {"skip": skip, "limit": limit}
-            if provider_name:
-                params["provider_name"] = provider_name
+            if provider:
+                params["provider_name"] = provider
             if service_type:
                 params["service_type"] = service_type
             if name:
@@ -527,20 +528,22 @@ def query_listings(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
-    seller_name: str | None = typer.Option(
+    seller: str | None = typer.Option(
         None,
-        "--seller-name",
+        "--seller",
         help="Filter by seller name (case-insensitive partial match)",
     ),
-    provider_name: str | None = typer.Option(
+    provider: str | None = typer.Option(
         None,
-        "--provider-name",
+        "--provider",
+        "-p",
         help="Filter by provider name (case-insensitive partial match)",
     ),
-    service_name: str | None = typer.Option(
+    services: str | None = typer.Option(
         None,
-        "--service-name",
-        help="Filter by service name (case-insensitive partial match)",
+        "--services",
+        "-s",
+        help="Comma-separated list of service names (case-insensitive partial match)",
     ),
     service_type: str | None = typer.Option(
         None,
@@ -563,10 +566,13 @@ def query_listings(
         unitysvc_services query listings --fields id,service_name,status
 
         # Filter by seller name
-        unitysvc_services query listings --seller-name chutes
+        unitysvc_services query listings --seller chutes
 
         # Filter by provider name
-        unitysvc_services query listings --provider-name openai
+        unitysvc_services query listings --provider openai
+
+        # Filter by service names (comma-separated)
+        unitysvc_services query listings --services "gpt-4,claude-3"
 
         # Filter by service type
         unitysvc_services query listings --service-type llm
@@ -623,12 +629,12 @@ def query_listings(
     async def _query_listings_async():
         async with ServiceDataQuery() as query:
             params: dict[str, Any] = {"skip": skip, "limit": limit}
-            if seller_name:
-                params["seller_name"] = seller_name
-            if provider_name:
-                params["provider_name"] = provider_name
-            if service_name:
-                params["service_name"] = service_name
+            if seller:
+                params["seller_name"] = seller
+            if provider:
+                params["provider_name"] = provider
+            if services:
+                params["service_name"] = services
             if service_type:
                 params["service_type"] = service_type
             if listing_type:

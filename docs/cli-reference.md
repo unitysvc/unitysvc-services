@@ -847,12 +847,12 @@ usvc update offering --name my-service \
 ### update listing
 
 ```bash
-unitysvc_services update listing --service-name <name> [OPTIONS]
+unitysvc_services update listing --services <name> [OPTIONS]
 ```
 
 **Options:**
 
--   `--service-name, -n NAME` - Service name (required)
+-   `--services, -n NAME` - Service name (required)
 -   `--status, -s STATUS` - New listing_status
 -   `--seller SELLER` - Filter by seller name
 -   `--data-dir, -d PATH` - Data directory (default: current directory)
@@ -871,11 +871,11 @@ unitysvc_services update listing --service-name <name> [OPTIONS]
 
 ```bash
 # Update listing status
-usvc update listing --service-name my-service --status ready
+usvc update listing --services my-service --status ready
 
 # Update for specific seller
 usvc update listing \
-  --service-name my-service \
+  --services my-service \
   --status in_service \
   --seller svcreseller
 ```

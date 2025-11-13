@@ -152,9 +152,9 @@ def update_offering(
 
 @app.command("listing")
 def update_listing(
-    service_name: str = typer.Option(
+    services: str = typer.Option(
         ...,
-        "--service-name",
+        "--services",
         "-n",
         help="Name of the service (to search for listing files in service directory)",
     ),
@@ -167,7 +167,7 @@ def update_listing(
             "ready, in_service, upstream_deprecated, deprecated)"
         ),
     ),
-    seller_name: str | None = typer.Option(
+    seller: str | None = typer.Option(
         None,
         "--seller",
         help="Seller name to filter listings (updates only matching seller's listing)",
@@ -231,23 +231,23 @@ def update_listing(
         console.print(f"[red]✗[/red] Data directory not found: {data_dir}", style="bold red")
         raise typer.Exit(code=1)
 
-    console.print(f"[blue]Searching for service:[/blue] {service_name}")
+    console.print(f"[blue]Searching for service:[/blue] {services}")
     console.print(f"[blue]In directory:[/blue] {data_dir}")
-    if seller_name:
-        console.print(f"[blue]Filtering by seller:[/blue] {seller_name}")
+    if seller:
+        console.print(f"[blue]Filtering by seller:[/blue] {seller}")
     console.print()
 
     # Build field filter
     field_filter = {}
-    if seller_name:
-        field_filter["seller_name"] = seller_name
+    if seller:
+        field_filter["seller_name"] = seller
 
     # Convert field_filter dict to tuple for caching
     field_filter_tuple = tuple(sorted(field_filter.items())) if field_filter else None
 
     # Find listing files matching criteria
     listing_files = find_files_by_schema(
-        data_dir, "listing_v1", path_filter=service_name, field_filter=field_filter_tuple
+        data_dir, "listing_v1", path_filter=services, field_filter=field_filter_tuple
     )
 
     if not listing_files:
