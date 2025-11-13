@@ -366,6 +366,155 @@ The CLI handles this order automatically when you use `publish` without a subcom
 
 Incorrect order will result in foreign key errors.
 
+## Unpublishing Workflow
+
+The unpublish command allows you to remove data from the UnitySVC backend with full control over cascade behavior.
+
+### Understanding Cascade Deletions
+
+**⚠️ CRITICAL:** Unpublish operations cascade automatically to maintain referential integrity:
+
+-   **Deleting a seller** → Removes ALL listings from that seller (across all providers/offerings)
+-   **Deleting a provider** → Removes ALL offerings AND all listings from that provider
+-   **Deleting an offering** → Removes ALL listings for that offering
+-   **Deleting a listing** → Only removes that specific listing
+
+### Recommended Unpublish Process
+
+Always follow this safety-first workflow:
+
+#### 1. Preview Impact (Dryrun)
+
+```bash
+# See what would be deleted before committing
+usvc unpublish offerings --services "deprecated-service" --dryrun
+usvc unpublish providers openai --dryrun
+usvc unpublish sellers old-seller --dryrun
+```
+
+#### 2. Review Cascade Impact
+
+Carefully review the dryrun output showing:
+
+-   Number of offerings to be deleted
+-   Number of listings to be deleted
+-   Number of subscriptions to be deleted
+
+#### 3. Execute Deletion
+
+```bash
+# Delete with confirmation prompt
+usvc unpublish offerings --services "deprecated-service"
+
+# Or skip confirmation for automation
+usvc unpublish providers openai --yes
+```
+
+### Common Unpublish Scenarios
+
+#### Deprecate a Single Service
+
+```bash
+# 1. Check what will be affected
+usvc unpublish offerings --services "gpt-3" --dryrun
+
+# 2. Delete the offering and its listings
+usvc unpublish offerings --services "gpt-3"
+```
+
+#### Remove Multiple Services from a Provider
+
+```bash
+# Delete specific services
+usvc unpublish offerings --services "model-a,model-b,model-c"
+
+# Or delete all offerings from a provider
+usvc unpublish offerings --provider old-provider
+```
+
+#### Remove an Entire Provider
+
+```bash
+# ⚠️ This deletes provider + all offerings + all listings
+usvc unpublish providers deprecated-provider --dryrun
+usvc unpublish providers deprecated-provider
+```
+
+#### Remove a Seller's Listings
+
+```bash
+# ⚠️ This deletes all listings from the seller
+usvc unpublish sellers old-marketplace --dryrun
+usvc unpublish sellers old-marketplace
+```
+
+#### Force Delete with Active Subscriptions
+
+```bash
+# By default, deletions are blocked if subscriptions exist
+# Use --force to override (use with extreme caution!)
+usvc unpublish offerings --services "service-with-users" --force --yes
+```
+
+### Integration with Version Control
+
+After unpublishing, update your local repository:
+
+```bash
+# Delete local files after unpublishing
+rm -rf data/my-provider/deprecated-service/
+
+# Commit the change
+git add data/
+git commit -m "Remove deprecated service from catalog"
+git push
+```
+
+### Automation Example
+
+For scheduled cleanup of deprecated services:
+
+```bash
+#!/bin/bash
+# cleanup-deprecated.sh
+
+# Set credentials
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_API_KEY="${UNITYSVC_API_KEY}"
+
+# Query for deprecated offerings
+# (assumes you have jq installed for JSON processing)
+deprecated_services=$(usvc query offerings --format json | jq -r '.[] | select(.status == "deprecated") | .service_name' | tr '\n' ',')
+
+# Preview what would be deleted
+echo "Deprecated services to remove: $deprecated_services"
+usvc unpublish offerings --services "$deprecated_services" --dryrun
+
+# Uncomment to actually delete (after manual review)
+# usvc unpublish offerings --services "$deprecated_services" --yes
+```
+
+### Best Practices for Unpublishing
+
+**Safety:**
+
+-   **Always dryrun first** - Preview impact before deleting
+-   **Check subscriptions** - Avoid force-deleting services with active users
+-   **Backup data** - Consider exporting data before large deletions
+-   **Use version control** - Keep deleted files in git history
+
+**Communication:**
+
+-   **Notify users** - Warn customers before removing services
+-   **Deprecation period** - Mark as deprecated before deleting
+-   **Document reasons** - Log why services were removed
+
+**Maintenance:**
+
+-   **Clean up files** - Remove local files after unpublishing
+-   **Update documentation** - Remove references to deleted services
+-   **Audit regularly** - Review and remove unused services
+
 ## Best Practices
 
 ### Version Control

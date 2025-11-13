@@ -99,17 +99,18 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## CLI Commands
 
-| Command    | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `init`     | Initialize new data files from schemas           |
-| `list`     | List local data files                            |
-| `query`    | Query backend API for published data             |
-| `publish`  | Publish data to backend                          |
-| `update`   | Update local file fields                         |
-| `validate` | Validate data consistency                        |
-| `format`   | Format data files                                |
-| `populate` | Execute provider populate scripts                |
-| `test`     | Test code examples with upstream API credentials |
+| Command     | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `init`      | Initialize new data files from schemas           |
+| `list`      | List local data files                            |
+| `query`     | Query backend API for published data             |
+| `publish`   | Publish data to backend                          |
+| `unpublish` | Unpublish (delete) data from backend             |
+| `update`    | Update local file fields                         |
+| `validate`  | Validate data consistency                        |
+| `format`    | Format data files                                |
+| `populate`  | Execute provider populate scripts                |
+| `test`      | Test code examples with upstream API credentials |
 
 Run `usvc --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
 
