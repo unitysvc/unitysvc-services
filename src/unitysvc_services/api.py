@@ -261,6 +261,108 @@ class UnitySvcAPI:
             self.use_curl_fallback = True
             return await self._make_post_request_curl(endpoint, json_data, params)
 
+    async def _make_delete_request_curl(
+        self, endpoint: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Make HTTP DELETE request using curl fallback (async).
+
+        Args:
+            endpoint: API endpoint path (e.g., "/publish/offering/123")
+            params: Query parameters
+
+        Returns:
+            JSON response as dictionary
+
+        Raises:
+            httpx.HTTPStatusError: If HTTP status code indicates error (with response details)
+            RuntimeError: If curl command fails or times out
+        """
+        url = f"{self.base_url}{endpoint}"
+        if params:
+            url = f"{url}?{urlencode(params)}"
+
+        cmd = [
+            "curl",
+            "-s",  # Silent mode
+            "-w",
+            "\n%{http_code}",  # Write status code on new line
+            "-X",
+            "DELETE",
+            "-H",
+            f"Authorization: Bearer {self.api_key}",
+            "-H",
+            "Accept: application/json",
+            url,
+        ]
+
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+
+            if proc.returncode != 0:
+                error_msg = stderr.decode().strip() if stderr else "curl command failed"
+                raise RuntimeError(f"Curl error: {error_msg}")
+
+            # Parse response: last line is status code, rest is body
+            output = stdout.decode().strip()
+            lines = output.split("\n")
+            status_code = int(lines[-1])
+            body = "\n".join(lines[:-1])
+
+            # Parse JSON response
+            try:
+                response_data = json.loads(body) if body else {}
+            except json.JSONDecodeError:
+                response_data = {"error": body}
+
+            # Raise exception for non-2xx status codes (mimics httpx behavior)
+            if status_code < 200 or status_code >= 300:
+                # Create a mock response object to raise HTTPStatusError
+                mock_request = httpx.Request("DELETE", url)
+                mock_response = httpx.Response(status_code=status_code, content=body.encode(), request=mock_request)
+                raise httpx.HTTPStatusError(f"HTTP {status_code}", request=mock_request, response=mock_response)
+
+            return response_data
+        except TimeoutError:
+            raise RuntimeError("Request timed out after 30 seconds")
+        except httpx.HTTPStatusError:
+            # Re-raise HTTP errors as-is
+            raise
+
+    async def delete(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Make a DELETE request to the backend API with automatic curl fallback.
+
+        Public async utility method for making DELETE requests. Tries httpx first for performance,
+        automatically falls back to curl if network restrictions are detected (e.g., macOS
+        with conda Python).
+
+        Args:
+            endpoint: API endpoint path (e.g., "/publish/offering/123")
+            params: Query parameters
+
+        Returns:
+            JSON response as dictionary
+
+        Raises:
+            RuntimeError: If both httpx and curl fail
+        """
+        # If we already know curl is needed, use it directly
+        if self.use_curl_fallback:
+            return await self._make_delete_request_curl(endpoint, params)
+
+        # Try httpx first
+        try:
+            response = await self.client.delete(f"{self.base_url}{endpoint}", params=params)
+            response.raise_for_status()
+            return response.json()
+        except (httpx.ConnectError, OSError):
+            # Connection failed - likely network restrictions
+            # Fall back to curl and remember this for future requests
+            self.use_curl_fallback = True
+            return await self._make_delete_request_curl(endpoint, params)
+
     async def check_task(self, task_id: str, poll_interval: float = 2.0, timeout: float = 300.0) -> dict[str, Any]:
         """Check and wait for task completion (async version).
 
