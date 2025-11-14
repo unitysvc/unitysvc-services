@@ -187,7 +187,7 @@ usvc list listings
 usvc update offering --name my-service --status ready
 
 # Update listing status
-usvc update listing --service-name my-service --status in_service
+usvc update listing --services my-service --status in_service
 ```
 
 ### Automated Service Generation

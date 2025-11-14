@@ -346,7 +346,7 @@
         "active",
         "pending",
         "disabled",
-        "incomplete"
+        "draft"
       ],
       "title": "ProviderStatusEnum",
       "type": "string"
@@ -890,7 +890,7 @@
     "status": {
       "$ref": "#/$defs/ProviderStatusEnum",
       "default": "active",
-      "description": "Provider status: active, disabled, or incomplete"
+      "description": "Provider status: active, disabled, or draft (skip publish)"
     },
     "terms_of_service": {
       "anyOf": [

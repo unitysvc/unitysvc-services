@@ -160,7 +160,7 @@
         "active",
         "pending",
         "disabled",
-        "incomplete"
+        "draft"
       ],
       "title": "SellerStatusEnum",
       "type": "string"
@@ -332,7 +332,7 @@
     "status": {
       "$ref": "#/$defs/SellerStatusEnum",
       "default": "active",
-      "description": "Seller status: active, disabled, or incomplete"
+      "description": "Seller status: active, disabled, or draft (skip publish)"
     },
     "stripe_connect_id": {
       "anyOf": [

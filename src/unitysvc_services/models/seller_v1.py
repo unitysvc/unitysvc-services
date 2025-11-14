@@ -101,7 +101,7 @@ class SellerV1(BaseModel):
     # Status field to track seller state
     status: SellerStatusEnum = Field(
         default=SellerStatusEnum.active,
-        description="Seller status: active, disabled, or incomplete",
+        description="Seller status: active, disabled, or draft (skip publish)",
     )
 
     is_verified: bool = Field(

@@ -49,8 +49,8 @@ class ListingV1(BaseModel):
     # unique name for each provider, usually following upstream naming convention
     # status of the service, public, deprecated etc
     listing_status: ListingStatusEnum = Field(
-        default=ListingStatusEnum.unknown,
-        description="Operation status of the service",
+        default=ListingStatusEnum.draft,
+        description="Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)",
     )
 
     #
