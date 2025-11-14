@@ -406,7 +406,7 @@ class DataValidator:
 
     def validate_provider_status(self) -> tuple[bool, list[str]]:
         """
-        Validate provider status and warn about services under disabled/incomplete providers.
+        Validate provider status and warn about services under disabled/draft providers.
 
         Returns tuple of (is_valid, warnings) where warnings indicate services
         that will be affected by provider status.
@@ -454,7 +454,7 @@ class DataValidator:
 
     def validate_seller_status(self) -> tuple[bool, list[str]]:
         """
-        Validate seller status and warn if seller is disabled/incomplete.
+        Validate seller status and warn if seller is disabled/draft.
 
         Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
         """

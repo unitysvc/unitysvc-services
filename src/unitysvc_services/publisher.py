@@ -15,7 +15,7 @@ from rich.table import Table
 import unitysvc_services
 
 from .api import UnitySvcAPI
-from .models.base import ProviderStatusEnum, SellerStatusEnum
+from .models.base import ListingStatusEnum, ProviderStatusEnum, SellerStatusEnum
 from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
 from .validator import DataValidator
 
@@ -421,9 +421,9 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Should only be one seller file in the data directory
         _seller_file, _format, seller_data = seller_files[0]
 
-        # Check seller status - skip if incomplete
+        # Check seller status - skip if draft
         seller_status = seller_data.get("status", SellerStatusEnum.active)
-        if seller_status == SellerStatusEnum.incomplete:
+        if seller_status == SellerStatusEnum.draft:
             return {
                 "skipped": True,
                 "reason": f"Seller status is '{seller_status}' - not publishing listing to backend",
@@ -439,6 +439,15 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Map listing_status to status if present
         if "listing_status" in data:
             data["status"] = data.pop("listing_status")
+
+        # Check listing status - skip if draft
+        listing_status = data.get("status", ListingStatusEnum.ready)
+        if listing_status == ListingStatusEnum.draft:
+            return {
+                "skipped": True,
+                "reason": f"Listing status is '{listing_status}' - not publishing to backend (still in draft)",
+                "name": data.get("name", "unknown"),
+            }
 
         # NOW resolve file references with all context (listing, offering, provider, seller)
         base_path = listing_file.parent
@@ -510,7 +519,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             # Should only be one provider file in the directory
             _provider_file, _format, provider_data = provider_files[0]
             provider_status = provider_data.get("status", ProviderStatusEnum.active)
-            if provider_status == ProviderStatusEnum.incomplete:
+            if provider_status == ProviderStatusEnum.draft:
                 return {
                     "skipped": True,
                     "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
@@ -551,9 +560,9 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Load the data file
         data, _ = load_data_file(data_file)
 
-        # Check provider status - skip if incomplete
+        # Check provider status - skip if draft
         provider_status = data.get("status", ProviderStatusEnum.active)
-        if provider_status == ProviderStatusEnum.incomplete:
+        if provider_status == ProviderStatusEnum.draft:
             # Return success without publishing - provider is incomplete
             return {
                 "skipped": True,
@@ -592,9 +601,9 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Load the data file
         data, _ = load_data_file(data_file)
 
-        # Check seller status - skip if incomplete
+        # Check seller status - skip if draft
         seller_status = data.get("status", SellerStatusEnum.active)
-        if seller_status == SellerStatusEnum.incomplete:
+        if seller_status == SellerStatusEnum.draft:
             # Return success without publishing - seller is incomplete
             return {
                 "skipped": True,

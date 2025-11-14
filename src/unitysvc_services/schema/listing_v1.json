@@ -314,13 +314,10 @@
       "type": "string"
     },
     "ListingStatusEnum": {
+      "description": "Listing status values that sellers can set locally.\n\nSeller-accessible statuses:\n- draft: Listing is being worked on, skipped during publish (won't be sent to backend)\n- ready: Listing is complete and ready for admin review/testing\n- deprecated: Seller marks service as retired/replaced\n\nNote: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)\nare set by the backend admin after testing and validation. These are not included in this\nenum since sellers cannot set them through the CLI tool.",
       "enum": [
-        "unknown",
-        "upstream_ready",
-        "downstream_ready",
+        "draft",
         "ready",
-        "in_service",
-        "upstream_deprecated",
         "deprecated"
       ],
       "title": "ListingStatusEnum",
@@ -892,8 +889,8 @@
     },
     "listing_status": {
       "$ref": "#/$defs/ListingStatusEnum",
-      "default": "unknown",
-      "description": "Operation status of the service"
+      "default": "draft",
+      "description": "Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)"
     },
     "name": {
       "anyOf": [

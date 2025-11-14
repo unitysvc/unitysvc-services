@@ -209,7 +209,7 @@ usvc init listing <name> [OPTIONS]
 
 -   **Basic Information**: service name (auto-detected), listing name, display name
 -   **Seller Information**: seller name (auto-detected from seller.json)
--   **Status**: listing status (unknown/upstream_ready/downstream_ready/ready/in_service/deprecated)
+-   **Status**: listing status (draft/ready/deprecated)
 -   **Documents** (optional): Add multiple documents interactively
 
 **Auto-Discovery:**
@@ -859,13 +859,12 @@ unitysvc_services update listing --services <name> [OPTIONS]
 
 **Listing Status Values:**
 
--   `unknown` - Not yet determined
--   `upstream_ready` - Upstream ready
--   `downstream_ready` - Downstream ready
--   `ready` - Operationally ready
--   `in_service` - Currently in service
--   `upstream_deprecated` - Deprecated upstream
--   `deprecated` - No longer offered
+Seller-accessible statuses (can be set via CLI):
+-   `draft` - Listing is being worked on, skipped during publish (won't be sent to backend)
+-   `ready` - Listing is complete and ready for admin review/testing
+-   `deprecated` - Seller marks service as retired/replaced
+
+Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service) are set by the backend admin after testing and validation, not through the CLI tool.
 
 **Examples:**
 

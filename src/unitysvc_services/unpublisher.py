@@ -219,12 +219,14 @@ def unpublish_offerings(
             console.print(f"[yellow]⚠ No offering ID found in {file_path}, skipping[/yellow]")
             continue
 
-        offerings_to_delete.append({
-            "id": offering_id,
-            "name": service_name,
-            "provider": provider,
-            "file_path": str(file_path),
-        })
+        offerings_to_delete.append(
+            {
+                "id": offering_id,
+                "name": service_name,
+                "provider": provider,
+                "file_path": str(file_path),
+            }
+        )
 
     if not offerings_to_delete:
         console.print("[yellow]No offerings found matching filters[/yellow]")

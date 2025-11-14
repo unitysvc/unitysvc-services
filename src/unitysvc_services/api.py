@@ -261,9 +261,7 @@ class UnitySvcAPI:
             self.use_curl_fallback = True
             return await self._make_post_request_curl(endpoint, json_data, params)
 
-    async def _make_delete_request_curl(
-        self, endpoint: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def _make_delete_request_curl(self, endpoint: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make HTTP DELETE request using curl fallback (async).
 
         Args:

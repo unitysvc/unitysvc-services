@@ -83,18 +83,22 @@ class SellerTypeEnum(StrEnum):
 class ListingStatusEnum(StrEnum):
     """
     Listing status values that sellers can set locally.
+
     Seller-accessible statuses:
-    - unknown: Initial/default state (auto-set when listing is created)
+    - draft: Listing is being worked on, skipped during publish (won't be sent to backend)
+    - ready: Listing is complete and ready for admin review/testing
     - deprecated: Seller marks service as retired/replaced
 
-    Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, ready, in_service)
+    Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)
     are set by the backend admin after testing and validation. These are not included in this
     enum since sellers cannot set them through the CLI tool.
     """
 
-    # Not yet determined
-    unknown = "unknown"
-    #
+    # Still being worked on - skip during publish
+    draft = "draft"
+    # Ready for admin review and testing
+    ready = "ready"
+    # No longer offered
     deprecated = "deprecated"
 
 
@@ -214,7 +218,7 @@ class ProviderStatusEnum(StrEnum):
     active = "active"
     pending = "pending"
     disabled = "disabled"
-    incomplete = "incomplete"  # Provider information is incomplete
+    draft = "draft"  # Provider information is incomplete, skip during publish
 
 
 class SellerStatusEnum(StrEnum):
@@ -223,7 +227,7 @@ class SellerStatusEnum(StrEnum):
     active = "active"
     pending = "pending"
     disabled = "disabled"
-    incomplete = "incomplete"  # Seller information is incomplete
+    draft = "draft"  # Seller information is incomplete, skip during publish
 
 
 class Document(BaseModel):

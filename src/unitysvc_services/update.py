@@ -246,9 +246,7 @@ def update_listing(
     field_filter_tuple = tuple(sorted(field_filter.items())) if field_filter else None
 
     # Find listing files matching criteria
-    listing_files = find_files_by_schema(
-        data_dir, "listing_v1", path_filter=services, field_filter=field_filter_tuple
-    )
+    listing_files = find_files_by_schema(data_dir, "listing_v1", path_filter=services, field_filter=field_filter_tuple)
 
     if not listing_files:
         console.print(
