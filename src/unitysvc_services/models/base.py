@@ -81,20 +81,20 @@ class SellerTypeEnum(StrEnum):
 
 
 class ListingStatusEnum(StrEnum):
+    """
+    Listing status values that sellers can set locally.
+    Seller-accessible statuses:
+    - unknown: Initial/default state (auto-set when listing is created)
+    - deprecated: Seller marks service as retired/replaced
+
+    Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, ready, in_service)
+    are set by the backend admin after testing and validation. These are not included in this
+    enum since sellers cannot set them through the CLI tool.
+    """
+
     # Not yet determined
     unknown = "unknown"
-    # step 1: upstream is ready to be used
-    upstream_ready = "upstream_ready"
-    # step 2: downstream is ready, with proper routing, logging, and billing
-    downstream_ready = "downstream_ready"
-    # step 3: service is operationally ready (with proper documentation and initial
-    # performance metrics, and pricing strategy)
-    ready = "ready"
-    # step 4: service is in service
-    in_service = "in_service"
-    # step 5.1: service is deprecated from upstream
-    upstream_deprecated = "upstream_deprecated"
-    # step 5.2: service is no longer offered to users (due to business reasons)
+    #
     deprecated = "deprecated"
 
 
