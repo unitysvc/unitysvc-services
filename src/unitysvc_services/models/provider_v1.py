@@ -62,7 +62,7 @@ class ProviderV1(BaseModel):
     # Status field to track provider state
     status: ProviderStatusEnum = Field(
         default=ProviderStatusEnum.active,
-        description="Provider status: active, disabled, or incomplete",
+        description="Provider status: active, disabled, or draft (skip publish)",
     )
 
     @field_validator("name")

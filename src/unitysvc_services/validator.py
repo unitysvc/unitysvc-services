@@ -406,7 +406,7 @@ class DataValidator:
 
     def validate_provider_status(self) -> tuple[bool, list[str]]:
         """
-        Validate provider status and warn about services under disabled/incomplete providers.
+        Validate provider status and warn about services under disabled/draft providers.
 
         Returns tuple of (is_valid, warnings) where warnings indicate services
         that will be affected by provider status.
@@ -454,7 +454,7 @@ class DataValidator:
 
     def validate_seller_status(self) -> tuple[bool, list[str]]:
         """
-        Validate seller status and warn if seller is disabled/incomplete.
+        Validate seller status and warn if seller is disabled/draft.
 
         Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
         """
@@ -521,12 +521,20 @@ class DataValidator:
             if any(part.startswith(".") for part in file_path.parts):
                 continue
 
+            # Skip schema directory and pyproject.toml (not data files)
+            if "schema" in file_path.parts or file_path.name == "pyproject.toml":
+                continue
+
             # Check if file should be validated
             # Only .j2 files (Jinja2 templates) are validated for Jinja2 syntax
             is_template = file_path.name.endswith(".j2")
             is_data_file = file_path.suffix in [".json", ".toml"]
 
-            if file_path.is_file() and (is_data_file or is_template):
+            # Skip override files - they don't need schema validation
+            # Override files are automatically merged with base files by load_data_file()
+            is_override_file = ".override." in file_path.name
+
+            if file_path.is_file() and (is_data_file or is_template) and not is_override_file:
                 relative_path = file_path.relative_to(self.data_dir)
 
                 if is_data_file:

@@ -20,17 +20,18 @@ usvc [OPTIONS] COMMAND [ARGS]...
 
 ## Commands Overview
 
-| Command    | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `init`     | Initialize new data files from schemas           |
-| `list`     | List data files in directory                     |
-| `query`    | Query backend API for data                       |
-| `publish`  | Publish data to backend                          |
-| `update`   | Update local data files                          |
-| `validate` | Validate data consistency                        |
-| `format`   | Format data files                                |
-| `populate` | Execute provider populate scripts                |
-| `test`     | Test code examples with upstream API credentials |
+| Command     | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `init`      | Initialize new data files from schemas           |
+| `list`      | List data files in directory                     |
+| `query`     | Query backend API for data                       |
+| `publish`   | Publish data to backend                          |
+| `unpublish` | Unpublish (delete) data from backend             |
+| `update`    | Update local data files                          |
+| `validate`  | Validate data consistency                        |
+| `format`    | Format data files                                |
+| `populate`  | Execute provider populate scripts                |
+| `test`      | Test code examples with upstream API credentials |
 
 ## init - Initialize Data Files
 
@@ -208,7 +209,7 @@ usvc init listing <name> [OPTIONS]
 
 -   **Basic Information**: service name (auto-detected), listing name, display name
 -   **Seller Information**: seller name (auto-detected from seller.json)
--   **Status**: listing status (unknown/upstream_ready/downstream_ready/ready/in_service/deprecated)
+-   **Status**: listing status (draft/ready/deprecated)
 -   **Documents** (optional): Add multiple documents interactively
 
 **Auto-Discovery:**
@@ -542,6 +543,200 @@ Notes:
 3. Service Offerings - Must exist before listings
 4. Service Listings - Depends on sellers, providers, and offerings
 
+## unpublish - Unpublish from Backend
+
+Unpublish (delete) data from UnitySVC backend. This command provides granular control over removing offerings, listings, providers, and sellers.
+
+**⚠️ IMPORTANT CASCADE BEHAVIOR:**
+
+-   **Deleting a seller** will automatically delete ALL associated listings from that seller (across all providers and offerings)
+-   **Deleting a provider** will automatically delete ALL associated offerings AND listings from that provider
+-   **Deleting an offering** will automatically delete ALL associated listings for that offering
+-   **Deleting a listing** only removes that specific listing
+
+By default, deletion is blocked if there are active subscriptions. Use `--force` to override this protection.
+
+**Common Options:**
+
+-   `--dryrun` - Preview what would be deleted without actually deleting
+-   `--force` - Force deletion even with active subscriptions
+-   `--yes, -y` - Skip confirmation prompt
+
+**Required Environment Variables:**
+
+-   `UNITYSVC_BASE_URL` - Backend API URL
+-   `UNITYSVC_API_KEY` - API key for authentication
+
+### unpublish offerings
+
+Unpublish (delete) service offerings from backend.
+
+**⚠️ CASCADE WARNING:** Deleting an offering will also delete ALL associated listings and subscriptions.
+
+```bash
+unitysvc_services unpublish offerings [DATA_DIR] [OPTIONS]
+```
+
+**Arguments:**
+
+-   `[DATA_DIR]` - Directory containing offering files (default: current directory)
+
+**Options:**
+
+-   `--services, -s NAMES` - Comma-separated list of service names to unpublish
+-   `--provider, -p NAME` - Unpublish offerings from specific provider
+-   `--dryrun` - Show what would be deleted without actually deleting
+-   `--force` - Force deletion even with active subscriptions
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Dry-run to see what would be deleted
+usvc unpublish offerings --services "gpt-4" --dryrun
+
+# Delete specific offering
+usvc unpublish offerings --services "gpt-4"
+
+# Delete multiple offerings
+usvc unpublish offerings --services "gpt-4,gpt-3.5-turbo"
+
+# Delete all offerings from a provider
+usvc unpublish offerings --provider openai
+
+# Force delete (ignore active subscriptions)
+usvc unpublish offerings --services "gpt-4" --force --yes
+```
+
+**Output:**
+
+Shows a table of offerings to be deleted, including service name, provider, and offering ID. After deletion, displays cascade information (how many listings and subscriptions were also deleted).
+
+### unpublish listings
+
+Unpublish (delete) a specific service listing from backend.
+
+```bash
+unitysvc_services unpublish listings <listing-id> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<listing-id>` - UUID of the listing to unpublish (required)
+
+**Options:**
+
+-   `--dryrun` - Show what would be deleted without actually deleting
+-   `--force` - Force deletion even with active subscriptions
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Dry-run
+usvc unpublish listings abc-123-def-456 --dryrun
+
+# Delete listing
+usvc unpublish listings abc-123-def-456
+
+# Force delete without confirmation
+usvc unpublish listings abc-123-def-456 --force --yes
+```
+
+**Output:**
+
+Shows deletion confirmation and number of subscriptions deleted (if any).
+
+### unpublish providers
+
+Unpublish (delete) a provider from backend.
+
+**⚠️ CASCADE WARNING:** Deleting a provider will delete the provider AND ALL associated offerings, listings, and subscriptions.
+
+```bash
+unitysvc_services unpublish providers <provider-name> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<provider-name>` - Name of the provider to unpublish (required)
+
+**Options:**
+
+-   `--dryrun` - Show what would be deleted without actually deleting
+-   `--force` - Force deletion even with active subscriptions
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Dry-run to see impact
+usvc unpublish providers openai --dryrun
+
+# Delete provider and all its offerings/listings
+usvc unpublish providers openai
+
+# Force delete without confirmation
+usvc unpublish providers openai --force --yes
+```
+
+**Output:**
+
+Shows deletion summary including counts of:
+
+-   Offerings deleted
+-   Listings deleted
+-   Subscriptions deleted
+
+### unpublish sellers
+
+Unpublish (delete) a seller from backend.
+
+**⚠️ CASCADE WARNING:** Deleting a seller will delete the seller AND ALL associated listings and subscriptions. Note that this does NOT delete providers or offerings (which can be resold by other sellers), only the listings tied to this specific seller.
+
+```bash
+unitysvc_services unpublish sellers <seller-name> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<seller-name>` - Name of the seller to unpublish (required)
+
+**Options:**
+
+-   `--dryrun` - Show what would be deleted without actually deleting
+-   `--force` - Force deletion even with active subscriptions
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Dry-run to see impact
+usvc unpublish sellers my-company --dryrun
+
+# Delete seller and all its listings
+usvc unpublish sellers my-company
+
+# Force delete without confirmation
+usvc unpublish sellers my-company --force --yes
+```
+
+**Output:**
+
+Shows deletion summary including counts of:
+
+-   Providers deleted (if seller owns providers)
+-   Offerings deleted (if seller owns providers with offerings)
+-   Listings deleted
+-   Subscriptions deleted
+
+**Important Notes:**
+
+-   Always use `--dryrun` first to preview the impact before actual deletion
+-   Cascade deletions are permanent and cannot be undone
+-   Active subscriptions will block deletion unless `--force` is used
+-   Use `--yes` flag in automated scripts to skip interactive confirmation
+
 ### publish providers
 
 Publish only providers (ignoring other types).
@@ -652,35 +847,34 @@ usvc update offering --name my-service \
 ### update listing
 
 ```bash
-unitysvc_services update listing --service-name <name> [OPTIONS]
+unitysvc_services update listing --services <name> [OPTIONS]
 ```
 
 **Options:**
 
--   `--service-name, -n NAME` - Service name (required)
+-   `--services, -n NAME` - Service name (required)
 -   `--status, -s STATUS` - New listing_status
 -   `--seller SELLER` - Filter by seller name
 -   `--data-dir, -d PATH` - Data directory (default: current directory)
 
 **Listing Status Values:**
 
--   `unknown` - Not yet determined
--   `upstream_ready` - Upstream ready
--   `downstream_ready` - Downstream ready
--   `ready` - Operationally ready
--   `in_service` - Currently in service
--   `upstream_deprecated` - Deprecated upstream
--   `deprecated` - No longer offered
+Seller-accessible statuses (can be set via CLI):
+-   `draft` - Listing is being worked on, skipped during publish (won't be sent to backend)
+-   `ready` - Listing is complete and ready for admin review/testing
+-   `deprecated` - Seller marks service as retired/replaced
+
+Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service) are set by the backend admin after testing and validation, not through the CLI tool.
 
 **Examples:**
 
 ```bash
 # Update listing status
-usvc update listing --service-name my-service --status ready
+usvc update listing --services my-service --status ready
 
 # Update for specific seller
 usvc update listing \
-  --service-name my-service \
+  --services my-service \
   --status in_service \
   --seller svcreseller
 ```
