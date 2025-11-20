@@ -86,7 +86,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                         "file_path": str(absolute_path),
                         "listing_data": listing_data,  # Full listing data for templates
                         "listing_file": listing_file,  # Path to listing file for loading related data
-                        "interface": interface,  # Interface data for templates (contains api_endpoint, signature, etc.)
+                        "interface": interface,  # Interface data for templates (api_endpoint, routing_key, etc.)
                         "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
                         "requirements": meta.get("requirements"),  # Required packages (from meta)
                     }
