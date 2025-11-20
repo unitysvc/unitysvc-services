@@ -86,6 +86,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                         "file_path": str(absolute_path),
                         "listing_data": listing_data,  # Full listing data for templates
                         "listing_file": listing_file,  # Path to listing file for loading related data
+                        "interface": interface,  # Interface data for templates (contains api_endpoint, signature, etc.)
                         "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
                         "requirements": meta.get("requirements"),  # Required packages (from meta)
                     }
@@ -230,6 +231,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
                 offering=related_data.get("offering", {}),
                 provider=related_data.get("provider", {}),
                 seller=related_data.get("seller", {}),
+                interface=code_example.get("interface", {}),
             )
         except Exception as e:
             result["error"] = f"Template rendering failed: {str(e)}"

@@ -408,6 +408,7 @@ def render_template_file(
     offering: dict[str, Any] | None = None,
     provider: dict[str, Any] | None = None,
     seller: dict[str, Any] | None = None,
+    interface: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     """Render a Jinja2 template file and return content and new filename.
 
@@ -420,6 +421,7 @@ def render_template_file(
         offering: Offering data for template rendering (optional)
         provider: Provider data for template rendering (optional)
         seller: Seller data for template rendering (optional)
+        interface: AccessInterface data for template rendering (optional, contains api_endpoint, signature, etc.)
 
     Returns:
         Tuple of (rendered_content, new_filename_without_j2)
@@ -442,6 +444,7 @@ def render_template_file(
             offering=offering or {},
             provider=provider or {},
             seller=seller or {},
+            interface=interface or {},
         )
 
         # Strip .j2 from filename
