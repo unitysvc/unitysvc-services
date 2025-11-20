@@ -64,6 +64,7 @@ usvc query providers --fields id,name,contact_email
 -   🚀 **CLI Tools** - Complete command-line interface
 -   🤖 **Automation** - Script-based service generation
 -   📝 **Multiple Formats** - Support for JSON and TOML
+-   🎯 **Smart Routing** - Request routing based on routing keys (e.g., model-specific endpoints)
 
 ## Workflows
 
