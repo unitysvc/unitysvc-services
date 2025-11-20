@@ -6,8 +6,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
-from .utils import (find_file_by_schema_and_name, find_files_by_schema,
-                    write_data_file)
+from .utils import find_file_by_schema_and_name, find_files_by_schema, write_data_file
 
 app = typer.Typer(help="Update local data files")
 console = Console()
