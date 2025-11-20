@@ -340,6 +340,11 @@ class AccessInterface(BaseModel):
         default=None, description="Request transformation configuration"
     )
 
+    signature: dict[str, Any] | None = Field(
+        default=None,
+        description="Request signature for matching (e.g., {'model': 'gpt-4'})",
+    )
+
     documents: list[Document] | None = Field(
         default=None, description="List of documents associated with the interface"
     )

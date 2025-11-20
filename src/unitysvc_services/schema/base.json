@@ -748,6 +748,20 @@
       "description": "Request transformation configuration",
       "title": "Request Transformer"
     },
+    "signature": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Request signature for matching (e.g., {'model': 'gpt-4'})",
+      "title": "Signature"
+    },
     "sort_order": {
       "default": 0,
       "description": "Display order",
