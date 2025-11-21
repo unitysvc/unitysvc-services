@@ -164,7 +164,7 @@ command = "populate_services.py"
 
 [provider_access_info]
 API_KEY = "your-provider-api-key"
-API_ENDPOINT = "https://api.provider.com/v1"
+BASE_URL = "https://api.provider.com/v1"
 REGION = "us-east-1"
 ```
 
@@ -183,13 +183,13 @@ import requests
 
 # Get environment variables from provider_access_info
 api_key = os.getenv("API_KEY")
-api_endpoint = os.getenv("API_ENDPOINT")
+base_url = os.getenv("BASE_URL")
 region = os.getenv("REGION")
 
 def fetch_services():
     """Fetch services from provider API."""
     response = requests.get(
-        f"{api_endpoint}/services",
+        f"{base_url}/services",
         headers={"Authorization": f"Bearer {api_key}"},
         params={"region": region}
     )

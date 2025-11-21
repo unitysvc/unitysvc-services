@@ -7,9 +7,10 @@ The UnitySVC services data management follows a **local-first, version-controlle
 ## Terminology
 
 In this SDK:
-- **"Services" or "Offerings"** refer to service offering files (schema `service_v1`) that define what providers offer
-- **"Listings"** refer to service listing files (schema `listing_v1`) that define how sellers present/sell those services
-- Both offerings and listings are organized under each provider's `services/` directory
+
+-   **"Services" or "Offerings"** refer to service offering files (schema `service_v1`) that define what providers offer
+-   **"Listings"** refer to service listing files (schema `listing_v1`) that define how sellers present/sell those services
+-   Both offerings and listings are organized under each provider's `services/` directory
 
 ## Required File Structure
 
@@ -42,71 +43,81 @@ data/
 ## Naming Rules and Restrictions
 
 ### 1. Provider Directory (`${provider_name}/`)
-- **Must match** the `name` field in `provider.json`/`provider.toml`
-- Name is normalized: lowercase with hyphens replacing spaces/underscores
-- Example: Provider name `"My Provider"` → directory `my-provider/`
+
+-   **Must match** the `name` field in `provider.json`/`provider.toml`
+-   Name is normalized: lowercase with hyphens replacing spaces/underscores
+-   Example: Provider name `"My Provider"` → directory `my-provider/`
 
 ### 2. Seller File (`seller.json` or `seller.toml`)
-- **Exactly ONE** seller file per repository (at root of `data/`)
-- Defines the seller for all services in this data repository
-- Can be JSON or TOML format
-- Contains seller business information, contact details, and branding
+
+-   **Exactly ONE** seller file per repository (at root of `data/`)
+-   Defines the seller for all services in this data repository
+-   Can be JSON or TOML format
+-   Contains seller business information, contact details, and branding
 
 ### 3. Services Directory
-- **Must be** named `services/` under each provider directory
-- Path: `${provider_name}/services/`
-- This is where all service offerings and listings are defined
+
+-   **Must be** named `services/` under each provider directory
+-   Path: `${provider_name}/services/`
+-   This is where all service offerings and listings are defined
 
 ### 4. Service Directory (`${service_name}/`)
-- **Must match** the `name` field in `service.json`/`service.toml`
-- Name is normalized: lowercase with hyphens
-- Example: Service name `"GPT-4"` → directory `gpt-4/`
-- Located under: `${provider_name}/services/${service_name}/`
+
+-   **Must match** the `name` field in `service.json`/`service.toml`
+-   Name is normalized: lowercase with hyphens
+-   Example: Service name `"GPT-4"` → directory `gpt-4/`
+-   Located under: `${provider_name}/services/${service_name}/`
 
 ### 5. Service Offering Files (referred to as "services" in the SDK)
-- **service.json** or **service.toml**: Service offering metadata (required)
-- Schema must be `"service_v1"`
-- Contains upstream service details, pricing, access interfaces
-- Defines what the provider offers
-- Location: `${provider_name}/services/${service_name}/service.json`
+
+-   **service.json** or **service.toml**: Service offering metadata (required)
+-   Schema must be `"service_v1"`
+-   Contains upstream service details, pricing, access interfaces
+-   Defines what the provider offers
+-   Location: `${provider_name}/services/${service_name}/service.json`
 
 ### 6. Service Listing Files
-- **listing-${seller}.json** or **listing-${seller}.toml**: Service listing (required)
-- File name pattern: `listing-*.json` or `listing-*.toml`
-- Commonly named: `listing-svcreseller.json`, `listing-marketplace.json`
-- Schema must be `"listing_v1"`
-- Contains user-facing information, downstream pricing, documentation
-- Defines how the seller presents/sells the service
-- Location: `${provider_name}/services/${service_name}/listing-*.json`
-- Both offerings and listings are defined in the same service directory under the provider
+
+-   **listing-${seller}.json** or **listing-${seller}.toml**: Service listing (required)
+-   File name pattern: `listing-*.json` or `listing-*.toml`
+-   Commonly named: `listing-svcreseller.json`, `listing-marketplace.json`
+-   Schema must be `"listing_v1"`
+-   Contains user-facing information, downstream pricing, documentation
+-   Defines how the seller presents/sells the service
+-   Location: `${provider_name}/services/${service_name}/listing-*.json`
+-   Both offerings and listings are defined in the same service directory under the provider
 
 #### Multiple Listings Per Service
+
 When a single service offering has multiple listings (e.g., different pricing tiers, different marketplaces), the filename becomes significant:
 
-- **Filename as identifier**: If the `name` field is not provided in the listing file, the filename (without extension) is automatically used as the listing name
-- **Example**: `listing-premium.json`, `listing-basic.json`, `listing-enterprise.json` for different tiers
-- **Best practice**: Use descriptive filenames that indicate the listing variant, or explicitly set the `name` field in each file
+-   **Filename as identifier**: If the `name` field is not provided in the listing file, the filename (without extension) is automatically used as the listing name
+-   **Example**: `listing-premium.json`, `listing-basic.json`, `listing-enterprise.json` for different tiers
+-   **Best practice**: Use descriptive filenames that indicate the listing variant, or explicitly set the `name` field in each file
 
 ### 7. External Files (Documentation, Code Examples, etc.)
-- External files like code examples, documentation, images can be placed anywhere in the directory structure
-- They are referenced by **relative paths** from the referencing file
-- This allows sharing files across multiple services
+
+-   External files like code examples, documentation, images can be placed anywhere in the directory structure
+-   They are referenced by **relative paths** from the referencing file
+-   This allows sharing files across multiple services
 
 ## File Formats
 
 Both JSON and TOML formats are supported for all data files:
 
 ### JSON Format
+
 ```json
 {
-  "schema": "service_v1",
-  "name": "my-service",
-  "display_name": "My Service",
-  "description": "A high-performance digital service"
+    "schema": "service_v1",
+    "name": "my-service",
+    "display_name": "My Service",
+    "description": "A high-performance digital service"
 }
 ```
 
 ### TOML Format
+
 ```toml
 schema = "service_v1"
 name = "my-service"
@@ -123,9 +134,10 @@ Override files provide a way to complement and customize data files without modi
 Override files follow the pattern: `<base_name>.override.<extension>`
 
 Examples:
-- `service.json` → `service.override.json`
-- `provider.toml` → `provider.override.toml`
-- `listing-premium.json` → `listing-premium.override.json`
+
+-   `service.json` → `service.override.json`
+-   `provider.toml` → `provider.override.toml`
+-   `listing-premium.json` → `listing-premium.override.json`
 
 ### How Override Files Work
 
@@ -143,6 +155,7 @@ This merge happens automatically and transparently - you don't need to do anythi
 **Nested Dictionaries**: Recursively merged - override values complement and replace base values
 
 **Example**:
+
 ```json
 // Base: service.json
 {
@@ -202,6 +215,7 @@ This replacement behavior for lists is intentional and predictable - if you want
 ### Common Use Cases
 
 **1. Manual curation of auto-generated data**
+
 ```json
 // service.json (auto-generated by script)
 {
@@ -220,18 +234,20 @@ This replacement behavior for lists is intentional and predictable - if you want
 ```
 
 **2. Environment-specific configuration**
+
 ```toml
 # provider.toml (base configuration)
 schema = "provider_v1"
 name = "my-provider"
-api_endpoint = "https://api.example.com"
+base_url = "https://api.example.com"
 
 # provider.override.toml (local testing overrides)
-api_endpoint = "http://localhost:8000"
+base_url = "http://localhost:8000"
 debug_mode = true
 ```
 
 **3. Maintaining custom metadata**
+
 ```json
 // listing-premium.json (generated from template)
 {
@@ -260,10 +276,10 @@ Override files must be in the same directory as their corresponding base files, 
 
 Each file must include a `schema` field identifying its type:
 
-- **provider.json/toml**: `schema = "provider_v1"`
-- **seller.json/toml**: `schema = "seller_v1"`
-- **service.json/toml**: `schema = "service_v1"`
-- **listing-*.json/toml**: `schema = "listing_v1"`
+-   **provider.json/toml**: `schema = "provider_v1"`
+-   **seller.json/toml**: `schema = "seller_v1"`
+-   **service.json/toml**: `schema = "service_v1"`
+-   **listing-\*.json/toml**: `schema = "listing_v1"`
 
 ## Validation Rules
 
@@ -282,6 +298,7 @@ The validator enforces these structure rules:
 External files can be shared across multiple services using relative paths:
 
 ### Example Structure
+
 ```
 data/
 ├── openai/
@@ -299,26 +316,30 @@ data/
 ```
 
 ### In Listing Files
+
 ```json
 {
-  "schema": "listing_v1",
-  "user_access_interfaces": [{
-    "documents": [
-      {
-        "title": "Python Code Example",
-        "file_path": "../../docs/code-example.py",
-        "category": "code_examples"
-      }
+    "schema": "listing_v1",
+    "user_access_interfaces": [
+        {
+            "documents": [
+                {
+                    "title": "Python Code Example",
+                    "file_path": "../../docs/code-example.py",
+                    "category": "code_examples"
+                }
+            ]
+        }
     ]
-  }]
 }
 ```
 
 ### Benefits
-- **Reusability**: One code example can be shared by multiple services
-- **Maintainability**: Update one file, all services reflect the change
-- **Organization**: Group related documentation at provider level
-- **Flexibility**: Place files wherever makes sense for your structure
+
+-   **Reusability**: One code example can be shared by multiple services
+-   **Maintainability**: Update one file, all services reflect the change
+-   **Organization**: Group related documentation at provider level
+-   **Flexibility**: Place files wherever makes sense for your structure
 
 ## Complete Example
 
@@ -347,6 +368,6 @@ data/
 
 ## Next Steps
 
-- [File Schemas](file-schemas.md) - Detailed schema specifications
-- [CLI Reference](cli-reference.md#validate) - Validation command details
-- [Workflows](workflows.md) - Learn about manual and automated workflows
+-   [File Schemas](file-schemas.md) - Detailed schema specifications
+-   [CLI Reference](cli-reference.md#validate) - Validation command details
+-   [Workflows](workflows.md) - Learn about manual and automated workflows

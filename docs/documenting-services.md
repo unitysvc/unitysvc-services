@@ -199,7 +199,7 @@ Provider metadata from `provider.toml` or `provider.json`:
 {{ provider.provider_id }}              # Provider ID
 {{ provider.provider_name }}            # Provider name
 {{ provider.provider_access_info }}     # Access information
-{{ provider.provider_access_info.api_endpoint }}  # API endpoint URL
+{{ provider.provider_access_info.base_url }}  # API endpoint URL
 ```
 
 ### 4. `seller` - Seller Data (Seller_v1)
@@ -279,7 +279,7 @@ GPT-4 is a large multimodal model that can solve complex problems with greater a
 ## Getting Started
 
 To use this service, connect to the API endpoint at:
-`{{ provider.provider_access_info.api_endpoint }}`
+`{{ provider.provider_access_info.base_url }}`
 
 {% if offering.service_info.description %}
 {{ offering.service_info.description }}
@@ -321,7 +321,7 @@ This guide helps you get started with {{ listing.service_name }} from {{ provide
 ### Using curl
 
 \```bash
-curl {{ provider.provider_access_info.api_endpoint }}/chat/completions \
+curl {{ provider.provider_access_info.base_url }}/chat/completions \
  -H "Content-Type: application/json" \
  -H "Authorization: Bearer YOUR_API_KEY" \
  -d '{
@@ -336,7 +336,7 @@ curl {{ provider.provider_access_info.api_endpoint }}/chat/completions \
 import httpx
 
 response = httpx.post(
-"{{ provider.provider_access_info.api_endpoint }}/chat/completions",
+"{{ provider.provider_access_info.base_url }}/chat/completions",
 headers={"Authorization": "Bearer YOUR_API_KEY"},
 json={
 "model": "{{ offering.name }}",

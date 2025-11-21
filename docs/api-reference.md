@@ -506,7 +506,7 @@ from unitysvc_services.test import run
 **Test Execution:**
 
 1. Template rendering with listing, offering, provider, seller data
-2. Environment variable setup (API_KEY, API_ENDPOINT)
+2. Environment variable setup (API_KEY, BASE_URL)
 3. Interpreter detection (.py → python3, .js → node, .sh → bash)
 4. Script execution with timeout
 5. Output validation (exit code + optional expect string)

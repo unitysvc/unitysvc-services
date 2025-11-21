@@ -860,6 +860,7 @@ unitysvc_services update listing --services <name> [OPTIONS]
 **Listing Status Values:**
 
 Seller-accessible statuses (can be set via CLI):
+
 -   `draft` - Listing is being worked on, skipped during publish (won't be sent to backend)
 -   `ready` - Listing is complete and ready for admin review/testing
 -   `deprecated` - Seller marks service as retired/replaced
@@ -1002,7 +1003,7 @@ Test code examples with upstream API credentials. This command discovers code ex
 2. Extracts code example documents (category = `code_examples`)
 3. Loads provider credentials from provider files
 4. Renders Jinja2 templates with listing, offering, provider, and seller data
-5. Sets environment variables (API_KEY, API_ENDPOINT) from provider credentials
+5. Sets environment variables (API_KEY, BASE_URL) from provider credentials
 6. Executes code examples using appropriate interpreter (python3, node, bash)
 7. Validates results based on exit code and optional `expect` field
 
@@ -1064,7 +1065,7 @@ unitysvc_services test run [DATA_DIR] [OPTIONS]
 -   `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
 -   `--fail-fast, -x` - Stop testing on first failure
 
-**Test Pass Criteria:
+\*\*Test Pass Criteria:
 
 -   Exit code is 0 AND
 -   If `expect` field is defined in document: expected string found in stdout
@@ -1097,7 +1098,7 @@ When a test passes, output files are saved in the listing directory:
 -   Saved alongside the listing definition file
 -   Used to skip re-running tests unless `--force` is specified
 
-**Examples:
+\*\*Examples:
 
 ```bash
 # Test all code examples

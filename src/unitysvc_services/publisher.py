@@ -15,8 +15,10 @@ from rich.table import Table
 import unitysvc_services
 
 from .api import UnitySvcAPI
-from .models.base import ListingStatusEnum, ProviderStatusEnum, SellerStatusEnum
-from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
+from .models.base import (ListingStatusEnum, ProviderStatusEnum,
+                          SellerStatusEnum)
+from .utils import (convert_convenience_fields_to_documents,
+                    find_files_by_schema, load_data_file, render_template_file)
 from .validator import DataValidator
 
 
@@ -81,10 +83,10 @@ class ServiceDataPublisher(UnitySvcAPI):
         """
         result: dict[str, Any] = {}
 
-        # Check if this dict looks like an AccessInterface (has api_endpoint or interface_type)
+        # Check if this dict looks like an AccessInterface (has base_url or interface_type)
         # If so, use it as the interface context for nested documents
         current_interface = interface
-        if "api_endpoint" in data or "interface_type" in data:
+        if "base_url" in data or "interface_type" in data:
             current_interface = data
 
         for key, value in data.items():

@@ -421,7 +421,7 @@ def render_template_file(
         offering: Offering data for template rendering (optional)
         provider: Provider data for template rendering (optional)
         seller: Seller data for template rendering (optional)
-        interface: AccessInterface data for template rendering (optional, contains api_endpoint, routing_key, etc.)
+        interface: AccessInterface data for template rendering (optional, contains base_url, routing_key, etc.)
 
     Returns:
         Tuple of (rendered_content, new_filename_without_j2)

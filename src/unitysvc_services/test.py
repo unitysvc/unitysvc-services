@@ -12,7 +12,8 @@ from rich.console import Console
 from rich.table import Table
 
 from .models.base import DocumentCategoryEnum, UpstreamStatusEnum
-from .utils import determine_interpreter, find_files_by_schema, render_template_file
+from .utils import (determine_interpreter, find_files_by_schema,
+                    render_template_file)
 
 app = typer.Typer(help="Test code examples with upstream credentials")
 console = Console()
@@ -86,7 +87,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                         "file_path": str(absolute_path),
                         "listing_data": listing_data,  # Full listing data for templates
                         "listing_file": listing_file,  # Path to listing file for loading related data
-                        "interface": interface,  # Interface data for templates (api_endpoint, routing_key, etc.)
+                        "interface": interface,  # Interface data for templates (base_url, routing_key, etc.)
                         "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
                         "requirements": meta.get("requirements"),  # Required packages (from meta)
                     }
@@ -159,7 +160,7 @@ def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
         listing_file: Path to the listing file (used to locate the service offering)
 
     Returns:
-        Dictionary with api_key and api_endpoint, or None if not found
+        Dictionary with api_key and base_url, or None if not found
     """
     try:
         # Load related data including the offering
@@ -172,12 +173,12 @@ def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
         # Extract credentials from upstream_access_interface
         upstream_access = offering.get("upstream_access_interface", {})
         api_key = upstream_access.get("api_key")
-        api_endpoint = upstream_access.get("api_endpoint")
+        base_url = upstream_access.get("base_url")
 
-        if api_key and api_endpoint:
+        if api_key and base_url:
             return {
                 "api_key": str(api_key),
-                "api_endpoint": str(api_endpoint),
+                "base_url": str(base_url),
             }
     except Exception as e:
         console.print(f"[yellow]Warning: Failed to load service credentials: {e}[/yellow]")
@@ -190,7 +191,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
 
     Args:
         code_example: Code example metadata with file_path and listing_data
-        credentials: Dictionary with api_key and api_endpoint
+        credentials: Dictionary with api_key and base_url
 
     Returns:
         Result dictionary with success, exit_code, stdout, stderr, rendered_content, file_suffix
@@ -258,7 +259,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         # Prepare environment variables
         env = os.environ.copy()
         env["API_KEY"] = credentials["api_key"]
-        env["API_ENDPOINT"] = credentials["api_endpoint"]
+        env["BASE_URL"] = credentials["base_url"]
 
         # Write script to temporary file with original extension
         with tempfile.NamedTemporaryFile(mode="w", suffix=file_suffix, delete=False) as temp_file:
@@ -596,7 +597,7 @@ def run(
     2. Extracts code example documents
     3. Loads provider credentials from provider.toml
     4. Skips tests that have existing .out and .err files (unless --force is used)
-    5. Executes each code example with API_KEY and API_ENDPOINT set to upstream values
+    5. Executes each code example with API_KEY and BASE_URL set to upstream values
     6. Displays test results
 
     Examples:
@@ -879,7 +880,7 @@ def run(
                 try:
                     with open(env_filename, "w", encoding="utf-8") as f:
                         f.write(f"API_KEY={credentials['api_key']}\n")
-                        f.write(f"API_ENDPOINT={credentials['api_endpoint']}\n")
+                        f.write(f"BASE_URL={credentials['base_url']}\n")
                     console.print(f"  [yellow]→ Environment variables saved to:[/yellow] {env_filename}")
                     console.print(f"  [dim]  (source this file to reproduce: source {env_filename})[/dim]")
                 except Exception as e:
