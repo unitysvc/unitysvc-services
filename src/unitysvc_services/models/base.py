@@ -328,7 +328,7 @@ class AccessInterface(BaseModel):
 
     access_method: AccessMethodEnum = Field(default=AccessMethodEnum.http, description="Type of access method")
 
-    base_url: str = Field(max_length=500, description="API endpoint URL")
+    base_url: str = Field(max_length=500, description="Base URL for api access")
 
     api_key: str | None = Field(default=None, max_length=2000, description="API key if required")
 
