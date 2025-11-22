@@ -12,8 +12,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .models.base import DocumentCategoryEnum, UpstreamStatusEnum
-from .utils import (determine_interpreter, find_files_by_schema,
-                    render_template_file)
+from .utils import determine_interpreter, find_files_by_schema, render_template_file
 
 app = typer.Typer(help="Test code examples with upstream credentials")
 console = Console()

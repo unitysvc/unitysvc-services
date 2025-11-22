@@ -1,11 +1,9 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import (BaseModel, ConfigDict, EmailStr, Field, HttpUrl,
-                      field_validator)
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import (AccessInterface, Document,
-                                           ProviderStatusEnum, validate_name)
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum, validate_name
 
 
 class ProviderV1(BaseModel):

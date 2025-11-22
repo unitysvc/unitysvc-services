@@ -1,17 +1,33 @@
 {
   "$defs": {
     "AccessMethodEnum": {
-      "enum": ["http", "websocket", "grpc"],
+      "enum": [
+        "http",
+        "websocket",
+        "grpc"
+      ],
       "title": "AccessMethodEnum",
       "type": "string"
     },
     "AuthMethodEnum": {
-      "enum": ["api_key", "oauth", "jwt", "bearer_token", "basic_auth"],
+      "enum": [
+        "api_key",
+        "oauth",
+        "jwt",
+        "bearer_token",
+        "basic_auth"
+      ],
       "title": "AuthMethodEnum",
       "type": "string"
     },
     "ContentFilterEnum": {
-      "enum": ["adult", "violence", "hate_speech", "profanity", "pii"],
+      "enum": [
+        "adult",
+        "violence",
+        "hate_speech",
+        "profanity",
+        "pii"
+      ],
       "title": "ContentFilterEnum",
       "type": "string"
     },
@@ -122,7 +138,11 @@
           "title": "Version"
         }
       },
-      "required": ["title", "mime_type", "category"],
+      "required": [
+        "title",
+        "mime_type",
+        "category"
+      ],
       "title": "Document",
       "type": "object"
     },
@@ -166,12 +186,22 @@
       "type": "string"
     },
     "OveragePolicyEnum": {
-      "enum": ["block", "throttle", "charge", "queue"],
+      "enum": [
+        "block",
+        "throttle",
+        "charge",
+        "queue"
+      ],
       "title": "OveragePolicyEnum",
       "type": "string"
     },
     "QuotaResetCycleEnum": {
-      "enum": ["daily", "weekly", "monthly", "yearly"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "yearly"
+      ],
       "title": "QuotaResetCycleEnum",
       "type": "string"
     },
@@ -226,7 +256,11 @@
           "description": "Time window for the limit"
         }
       },
-      "required": ["limit", "unit", "window"],
+      "required": [
+        "limit",
+        "unit",
+        "window"
+      ],
       "title": "RateLimit",
       "type": "object"
     },
@@ -243,7 +277,10 @@
       "type": "string"
     },
     "RequestTransformEnum": {
-      "enum": ["proxy_rewrite", "body_transformer"],
+      "enum": [
+        "proxy_rewrite",
+        "body_transformer"
+      ],
       "title": "RequestTransformEnum",
       "type": "string"
     },
@@ -569,7 +606,13 @@
       "type": "object"
     },
     "TimeWindowEnum": {
-      "enum": ["second", "minute", "hour", "day", "month"],
+      "enum": [
+        "second",
+        "minute",
+        "hour",
+        "day",
+        "month"
+      ],
       "title": "TimeWindowEnum",
       "type": "string"
     }
@@ -580,12 +623,6 @@
       "$ref": "#/$defs/AccessMethodEnum",
       "default": "http",
       "description": "Type of access method"
-    },
-    "base_url": {
-      "description": "API endpoint URL",
-      "maxLength": 500,
-      "title": "Api Endpoint",
-      "type": "string"
     },
     "api_key": {
       "anyOf": [
@@ -600,6 +637,12 @@
       "default": null,
       "description": "API key if required",
       "title": "Api Key"
+    },
+    "base_url": {
+      "description": "Base URL for api access",
+      "maxLength": 500,
+      "title": "Base Url",
+      "type": "string"
     },
     "constraint": {
       "anyOf": [
@@ -705,7 +748,7 @@
       "description": "Request transformation configuration",
       "title": "Request Transformer"
     },
-    "signature": {
+    "routing_key": {
       "anyOf": [
         {
           "additionalProperties": true,
@@ -716,8 +759,8 @@
         }
       ],
       "default": null,
-      "description": "Request signature for matching (e.g., {'model': 'gpt-4'})",
-      "title": "Signature"
+      "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
+      "title": "Routing Key"
     },
     "sort_order": {
       "default": 0,
@@ -726,7 +769,9 @@
       "type": "integer"
     }
   },
-  "required": ["base_url"],
+  "required": [
+    "base_url"
+  ],
   "title": "AccessInterface",
   "type": "object"
 }
