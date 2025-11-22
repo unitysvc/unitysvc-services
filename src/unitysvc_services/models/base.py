@@ -328,7 +328,7 @@ class AccessInterface(BaseModel):
 
     access_method: AccessMethodEnum = Field(default=AccessMethodEnum.http, description="Type of access method")
 
-    api_endpoint: str = Field(max_length=500, description="API endpoint URL")
+    base_url: str = Field(max_length=500, description="Base URL for api access")
 
     api_key: str | None = Field(default=None, max_length=2000, description="API key if required")
 
@@ -338,6 +338,11 @@ class AccessInterface(BaseModel):
 
     request_transformer: dict[RequestTransformEnum, dict[str, Any]] | None = Field(
         default=None, description="Request transformation configuration"
+    )
+
+    routing_key: dict[str, Any] | None = Field(
+        default=None,
+        description="Request routing key for matching (e.g., {'model': 'gpt-4'})",
     )
 
     documents: list[Document] | None = Field(

@@ -17,7 +17,7 @@ class ProviderV1(BaseModel):
     # how to automatically populate service data, if available
     services_populator: dict[str, Any] | None = None
     # parameters for accessing service provider, which typically
-    # include "api_endpoint" and "api_key"
+    # include "base_url" and "api_key"
     provider_access_info: AccessInterface = Field(description="Dictionary of upstream access interface")
     #
     # fields that will be stored in backend database

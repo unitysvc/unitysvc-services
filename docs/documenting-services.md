@@ -22,17 +22,17 @@ docs/
 
 **Characteristics:**
 
-- Used exactly as stored
-- No variable substitution
-- No template processing
-- Validated only for file existence
+-   Used exactly as stored
+-   No variable substitution
+-   No template processing
+-   Validated only for file existence
 
 **Example use cases:**
 
-- Static documentation that doesn't change per service
-- General guides and tutorials
-- Privacy policies and terms of service
-- FAQ documents
+-   Static documentation that doesn't change per service
+-   General guides and tutorials
+-   Privacy policies and terms of service
+-   FAQ documents
 
 ### Jinja2 Template Documents
 
@@ -49,18 +49,18 @@ docs/
 
 **Characteristics:**
 
-- Rendered before use with actual data
-- Support variable substitution
-- Access to listing, offering, provider, and seller data
-- Validated for Jinja2 syntax errors
-- `.j2` extension is stripped after rendering
+-   Rendered before use with actual data
+-   Support variable substitution
+-   Access to listing, offering, provider, and seller data
+-   Validated for Jinja2 syntax errors
+-   `.j2` extension is stripped after rendering
 
 **Example use cases:**
 
-- Service-specific descriptions that include model names
-- Code examples that reference specific endpoints
-- Documentation that varies by provider or seller
-- Dynamic content based on listing data
+-   Service-specific descriptions that include model names
+-   Code examples that reference specific endpoints
+-   Documentation that varies by provider or seller
+-   Dynamic content based on listing data
 
 ## File Naming Convention
 
@@ -118,44 +118,49 @@ Documents are added to listings through the `user_access_interfaces` field in yo
 
 ### Document Fields
 
-- **`category`** (required): Document category type
-  - `description` - Service descriptions
-  - `getting_started` - Quickstart guides
-  - `api_reference` - API documentation
-  - `code_examples` - Executable code examples (see [Creating Code Examples](code-examples.md))
-  - `faq` - Frequently asked questions
-  - `pricing` - Pricing information
-  - `terms_of_service` - Terms of service
-  - `privacy_policy` - Privacy policy
-  - `logo` - Company/service logos
+-   **`category`** (required): Document category type
 
-- **`title`** (required): Display name for the document
+    -   `description` - Service descriptions
+    -   `getting_started` - Quickstart guides
+    -   `api_reference` - API documentation
+    -   `code_examples` - Executable code examples (see [Creating Code Examples](code-examples.md))
+    -   `faq` - Frequently asked questions
+    -   `pricing` - Pricing information
+    -   `terms_of_service` - Terms of service
+    -   `privacy_policy` - Privacy policy
+    -   `logo` - Company/service logos
 
-- **`file_path`** (required): Relative path from listing file to the document
-  - Path resolution is relative to the listing file location
-  - Example: `../../docs/description.md.j2` points to provider-level docs
-  - Example: `quickstart.md` points to service-level doc in same directory
+-   **`title`** (required): Display name for the document
 
-- **`mime_type`** (required): Document content type
-  - `markdown` - Markdown documents
-  - `python` - Python scripts
-  - `javascript` - JavaScript files
-  - `shell` - Shell scripts
-  - `json` - JSON documents
-  - `pdf` - PDF files
-  - `png`, `jpeg`, `svg` - Image files
+-   **`file_path`** (required): Relative path from listing file to the document
 
-- **`is_public`** (required): Whether document is publicly accessible
-  - `true` - Available to all users
-  - `false` - Restricted access
+    -   Path resolution is relative to the listing file location
+    -   Example: `../../docs/description.md.j2` points to provider-level docs
+    -   Example: `quickstart.md` points to service-level doc in same directory
 
-- **`requirements`** (optional): Package dependencies for code examples
-  - For Python: `["httpx", "openai"]`
-  - For JavaScript: `["node-fetch", "openai"]`
+-   **`mime_type`** (required): Document content type
 
-- **`expect`** (optional): Expected output for code example validation
-  - Used by test framework (see [Creating Code Examples](code-examples.md))
-  - Example: `"✓ Test passed"`
+    -   `markdown` - Markdown documents
+    -   `python` - Python scripts
+    -   `javascript` - JavaScript files
+    -   `shell` - Shell scripts
+    -   `json` - JSON documents
+    -   `pdf` - PDF files
+    -   `png`, `jpeg`, `svg` - Image files
+
+-   **`is_public`** (required): Whether document is publicly accessible
+
+    -   `true` - Available to all users
+    -   `false` - Restricted access
+
+-   **`requirements`** (optional): Package dependencies for code examples
+
+    -   For Python: `["httpx", "openai"]`
+    -   For JavaScript: `["node-fetch", "openai"]`
+
+-   **`expect`** (optional): Expected output for code example validation
+    -   Used by test framework (see [Creating Code Examples](code-examples.md))
+    -   Example: `"✓ Test passed"`
 
 ## Template Variables
 
@@ -183,6 +188,7 @@ Service offering metadata from `service.json`:
 {{ offering.service_type }}             # e.g., "llm", "embedding"
 {{ offering.name }}                     # Model/service name
 {{ offering.service_info }}             # Service information
+{{ interface.signature.model }}         # model of a LLM request
 ```
 
 ### 3. `provider` - Provider Data (Provider_v1)
@@ -193,7 +199,7 @@ Provider metadata from `provider.toml` or `provider.json`:
 {{ provider.provider_id }}              # Provider ID
 {{ provider.provider_name }}            # Provider name
 {{ provider.provider_access_info }}     # Access information
-{{ provider.provider_access_info.api_endpoint }}  # API endpoint URL
+{{ provider.provider_access_info.base_url }}  # API endpoint URL
 ```
 
 ### 4. `seller` - Seller Data (Seller_v1)
@@ -229,17 +235,17 @@ GPT-4 is a large multimodal model that can solve complex problems with greater a
 
 ## Features
 
-- Advanced reasoning capabilities
-- Multimodal input support
-- Improved factual accuracy
-- Better instruction following
+-   Advanced reasoning capabilities
+-   Multimodal input support
+-   Improved factual accuracy
+-   Better instruction following
 
 ## Use Cases
 
-- Content generation
-- Code assistance
-- Data analysis
-- Question answering
+-   Content generation
+-   Code assistance
+-   Data analysis
+-   Question answering
 ```
 
 **In `listing.json`:**
@@ -265,15 +271,15 @@ GPT-4 is a large multimodal model that can solve complex problems with greater a
 
 ## Service Details
 
-- **Service Name**: {{ listing.service_name }}
-- **Provider**: {{ provider.provider_name }}
-- **Type**: {{ offering.service_type }}
-- **Listing Type**: {{ listing.listing_type }}
+-   **Service Name**: {{ listing.service_name }}
+-   **Provider**: {{ provider.provider_name }}
+-   **Type**: {{ offering.service_type }}
+-   **Listing Type**: {{ listing.listing_type }}
 
 ## Getting Started
 
 To use this service, connect to the API endpoint at:
-`{{ provider.provider_access_info.api_endpoint }}`
+`{{ provider.provider_access_info.base_url }}`
 
 {% if offering.service_info.description %}
 {{ offering.service_info.description }}
@@ -300,28 +306,28 @@ For support inquiries, contact {{ seller.contact_email }}.
 
 **File: `quickstart.md.j2`**
 
-```markdown
+````markdown
 # Quick Start: {{ listing.service_name }}
 
 This guide helps you get started with {{ listing.service_name }} from {{ provider.provider_name }}.
 
 ## Prerequisites
 
-- API key from {{ provider.provider_name }}
-- HTTP client library (curl, httpx, etc.)
+-   API key from {{ provider.provider_name }}
+-   HTTP client library (curl, httpx, etc.)
 
 ## Basic Usage
 
 ### Using curl
 
 \```bash
-curl {{ provider.provider_access_info.api_endpoint }}/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -d '{
-    "model": "{{ offering.name }}",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
+curl {{ provider.provider_access_info.base_url }}/chat/completions \
+ -H "Content-Type: application/json" \
+ -H "Authorization: Bearer YOUR_API_KEY" \
+ -d '{
+"model": "{{ offering.name }}",
+"messages": [{"role": "user", "content": "Hello!"}]
+}'
 \```
 
 ### Using Python
@@ -330,12 +336,12 @@ curl {{ provider.provider_access_info.api_endpoint }}/chat/completions \
 import httpx
 
 response = httpx.post(
-    "{{ provider.provider_access_info.api_endpoint }}/chat/completions",
-    headers={"Authorization": "Bearer YOUR_API_KEY"},
-    json={
-        "model": "{{ offering.name }}",
-        "messages": [{"role": "user", "content": "Hello!"}]
-    }
+"{{ provider.provider_access_info.base_url }}/chat/completions",
+headers={"Authorization": "Bearer YOUR_API_KEY"},
+json={
+"model": "{{ offering.name }}",
+"messages": [{"role": "user", "content": "Hello!"}]
+}
 )
 
 print(response.json())
@@ -343,10 +349,10 @@ print(response.json())
 
 ## Next Steps
 
-- Check the [API Reference](#) for detailed documentation
-- Try the [code examples](#) for your preferred language
-- Review [best practices](#) for production use
-```
+-   Check the [API Reference](#) for detailed documentation
+-   Try the [code examples](#) for your preferred language
+-   Review [best practices](#) for production use
+````
 
 **In `listing.json`:**
 
@@ -428,9 +434,11 @@ data/
 ## Document Categories Reference
 
 ### description
+
 Service overview and feature descriptions. Typically shown first to users.
 
 **Example:**
+
 ```json
 {
     "category": "description",
@@ -442,9 +450,11 @@ Service overview and feature descriptions. Typically shown first to users.
 ```
 
 ### getting_started
+
 Quickstart guides and initial setup instructions.
 
 **Example:**
+
 ```json
 {
     "category": "getting_started",
@@ -456,9 +466,11 @@ Quickstart guides and initial setup instructions.
 ```
 
 ### api_reference
+
 Detailed API documentation, endpoint references, and parameter descriptions.
 
 **Example:**
+
 ```json
 {
     "category": "api_reference",
@@ -470,9 +482,11 @@ Detailed API documentation, endpoint references, and parameter descriptions.
 ```
 
 ### code_examples
+
 Executable code examples in various languages. See [Creating Code Examples](code-examples.md) for detailed guide.
 
 **Example:**
+
 ```json
 {
     "category": "code_examples",
@@ -486,9 +500,11 @@ Executable code examples in various languages. See [Creating Code Examples](code
 ```
 
 ### faq
+
 Frequently asked questions about the service.
 
 **Example:**
+
 ```json
 {
     "category": "faq",
@@ -500,9 +516,11 @@ Frequently asked questions about the service.
 ```
 
 ### pricing
+
 Pricing information and cost structures.
 
 **Example:**
+
 ```json
 {
     "category": "pricing",
@@ -514,9 +532,11 @@ Pricing information and cost structures.
 ```
 
 ### terms_of_service
+
 Terms of service for using the service.
 
 **Example:**
+
 ```json
 {
     "category": "terms_of_service",
@@ -528,9 +548,11 @@ Terms of service for using the service.
 ```
 
 ### logo
+
 Company or service logo images.
 
 **Example:**
+
 ```json
 {
     "category": "logo",
@@ -557,11 +579,11 @@ usvc validate
 
 **What is validated:**
 
-- Data files (`.json`, `.toml`) are validated against schemas
-- Template files (`.j2`) are validated for Jinja2 syntax errors
-- File references are checked for existence
-- Document categories are validated against allowed values
-- Regular documents are checked for file existence only
+-   Data files (`.json`, `.toml`) are validated against schemas
+-   Template files (`.j2`) are validated for Jinja2 syntax errors
+-   File references are checked for existence
+-   Document categories are validated against allowed values
+-   Regular documents are checked for file existence only
 
 ### Common Validation Errors
 
@@ -623,7 +645,7 @@ Set `is_public: true` for user-facing documentation:
 
 ```json
 {
-    "is_public": true  // Users can access this
+    "is_public": true // Users can access this
 }
 ```
 
@@ -638,6 +660,6 @@ usvc publish
 
 ## Next Steps
 
-- Learn about [Creating Code Examples](code-examples.md) for testing executable examples
-- Review [File Schemas](https://unitysvc-services.readthedocs.io/en/latest/file-schemas/) for complete field reference
-- Check [Workflows](https://unitysvc-services.readthedocs.io/en/latest/workflows/) for best practices
+-   Learn about [Creating Code Examples](code-examples.md) for testing executable examples
+-   Review [File Schemas](https://unitysvc-services.readthedocs.io/en/latest/file-schemas/) for complete field reference
+-   Check [Workflows](https://unitysvc-services.readthedocs.io/en/latest/workflows/) for best practices

@@ -59,6 +59,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         provider: dict[str, Any] | None = None,
         seller: dict[str, Any] | None = None,
         listing_filename: str | None = None,
+        interface: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Recursively resolve file references and include content in data.
 
@@ -73,11 +74,18 @@ class ServiceDataPublisher(UnitySvcAPI):
             provider: Provider data for template rendering (optional)
             seller: Seller data for template rendering (optional)
             listing_filename: Listing filename for constructing output filenames (optional)
+            interface: AccessInterface data for template rendering (optional, for interface documents)
 
         Returns:
             Data with file references resolved and content loaded
         """
         result: dict[str, Any] = {}
+
+        # Check if this dict looks like an AccessInterface (has base_url or interface_type)
+        # If so, use it as the interface context for nested documents
+        current_interface = interface
+        if "base_url" in data or "interface_type" in data:
+            current_interface = data
 
         for key, value in data.items():
             if isinstance(value, dict):
@@ -90,6 +98,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                     provider=provider,
                     seller=seller,
                     listing_filename=listing_filename,
+                    interface=current_interface,
                 )
             elif isinstance(value, list):
                 # Process lists
@@ -103,6 +112,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                             provider=provider,
                             seller=seller,
                             listing_filename=listing_filename,
+                            interface=current_interface,
                         )
                         if isinstance(item, dict)
                         else item
@@ -124,6 +134,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                         offering=offering,
                         provider=provider,
                         seller=seller,
+                        interface=current_interface,
                     )
                     result["file_content"] = content
 

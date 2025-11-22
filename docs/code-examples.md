@@ -27,7 +27,7 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['API_ENDPOINT']}/chat/completions",
+    f"{os.environ['BASE_URL']}/chat/completions",
     headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
     json={"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}
 )
@@ -47,7 +47,7 @@ API_KEY = "sk-abc123xyz789"  # NEVER DO THIS!
 
 # ✓ GOOD: Use environment variables
 API_KEY = os.environ.get("API_KEY")
-API_ENDPOINT = os.environ.get("API_ENDPOINT")
+BASE_URL = os.environ.get("BASE_URL")
 ```
 
 **Standard Environment Variables:**
@@ -55,7 +55,7 @@ API_ENDPOINT = os.environ.get("API_ENDPOINT")
 The test framework automatically sets these environment variables when running code examples:
 
 -   `API_KEY` - Provider API key from `provider.provider_access_info.api_key`
--   `API_ENDPOINT` - Provider API endpoint from `provider.provider_access_info.api_endpoint`
+-   `BASE_URL` - Provider API endpoint from `provider.provider_access_info.base_url`
 
 Your code examples should **always** read credentials from these environment variables.
 
@@ -155,7 +155,7 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['API_ENDPOINT']}/chat/completions",
+    f"{os.environ['BASE_URL']}/chat/completions",
     headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
     json={
         "model": "{{ offering.name }}",  # Dynamic: changes per service
@@ -244,7 +244,7 @@ usvc test run --force --fail-fast --verbose
 1. Test framework discovers code examples from listing files (category = `code_examples`)
 2. **Checks for cached results**: If both `.out` and `.err` files exist in the listing directory, skips the test (unless `--force` is used)
 3. Renders Jinja2 templates with `listing`, `offering`, `provider`, and `seller` data
-4. Sets environment variables (`API_KEY`, `API_ENDPOINT`) from provider credentials
+4. Sets environment variables (`API_KEY`, `BASE_URL`) from provider credentials
 5. Executes the code example using appropriate interpreter (python3, node, bash)
 6. Validates results:
     - Test passes if exit code is 0 AND (no `meta.expect` field OR expected string found in stdout)
@@ -266,7 +266,7 @@ Testing: llama-3-1-405b - Python code example
   → Test content saved to: failed_llama-3-1-405b_Python_code_example.py
 
 # The saved file includes:
-# - Environment variables used (API_KEY, API_ENDPOINT)
+# - Environment variables used (API_KEY, BASE_URL)
 # - Full rendered template content
 # - You can run it directly to reproduce the issue
 ```
@@ -326,10 +326,10 @@ import os
 
 # Use environment variables
 API_KEY = os.environ.get("API_KEY")
-API_ENDPOINT = os.environ.get("API_ENDPOINT")
+BASE_URL = os.environ.get("BASE_URL")
 
 response = httpx.post(
-    f"{API_ENDPOINT}/chat/completions",
+    f"{BASE_URL}/chat/completions",
     headers={"Authorization": f"Bearer {API_KEY}"},
     json={
         "model": "accounts/fireworks/models/llama-v3p1-405b-instruct",
@@ -347,7 +347,7 @@ if response.status_code == 200 and "choices" in response.json():
 
 ```bash
 export API_KEY="fw_abc123xyz789"
-export API_ENDPOINT="https://api.fireworks.ai/inference/v1"
+export BASE_URL="https://api.fireworks.ai/inference/v1"
 python3 test.py
 ```
 
@@ -365,10 +365,10 @@ import os
 
 # Use environment variables (set by test framework)
 API_KEY = os.environ.get("API_KEY")
-API_ENDPOINT = os.environ.get("API_ENDPOINT")
+BASE_URL = os.environ.get("BASE_URL")
 
 response = httpx.post(
-    f"{API_ENDPOINT}/chat/completions",
+    f"{BASE_URL}/chat/completions",
     headers={"Authorization": f"Bearer {API_KEY}"},
     json={
         "model": "{{ offering.name }}",  # Template variable
@@ -508,7 +508,7 @@ If tests fail, the rendered content is saved to the current directory for debugg
 cat failed_llama-3-1-405b_Python_code_example.py
 
 # The file will contain:
-# - Environment variables used (API_KEY, API_ENDPOINT)
+# - Environment variables used (API_KEY, BASE_URL)
 # - Full rendered template content
 # - You can run it directly to reproduce the issue
 ```
@@ -530,7 +530,7 @@ usvc publish
 #!/bin/bash
 # Simple test that outputs JSON response
 
-curl ${API_ENDPOINT}/chat/completions \
+curl ${BASE_URL}/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer ${API_KEY}" \
   -d '{"model": "{{ offering.name }}", "messages": [{"role": "user", "content": "test"}]}'
@@ -561,7 +561,7 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['API_ENDPOINT']}/chat/completions",
+    f"{os.environ['BASE_URL']}/chat/completions",
     headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
     json={"model": "{{ offering.name }}", "messages": [{"role": "user", "content": "test"}]}
 )
@@ -596,7 +596,7 @@ if "choices" in data:
 
 ```javascript
 #!/usr/bin/env node
-const response = await fetch(`${process.env.API_ENDPOINT}/chat/completions`, {
+const response = await fetch(`${process.env.BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
@@ -659,7 +659,7 @@ Provider metadata (Provider_v1 schema)
 
 -   `provider.provider_name` - Provider name
 -   `provider.provider_access_info` - Access credentials and endpoints
-    -   `provider.provider_access_info.api_endpoint` - API endpoint URL
+    -   `provider.provider_access_info.base_url` - API endpoint URL
     -   `provider.provider_access_info.api_key` - API key
 -   All other fields from the provider schema
 
@@ -699,7 +699,7 @@ python3 test.py
 
 # 2. Use environment variables
 export API_KEY="..."
-export API_ENDPOINT="..."
+export BASE_URL="..."
 python3 test.py
 
 # 3. Convert to template
@@ -832,7 +832,7 @@ If the required interpreter is not found, the test will fail with a clear error 
 
 **Solution:**
 
--   Check that you're using environment variables (API_KEY, API_ENDPOINT)
+-   Check that you're using environment variables (API_KEY, BASE_URL)
 -   Verify template variables are correct
 -   Run `usvc test run --verbose` to see full output
 

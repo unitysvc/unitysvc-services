@@ -698,7 +698,7 @@ PROVIDER_GROUPS = [
         title="Provider Access (API Credentials)",
         fields=[
             FieldDef(
-                name="api_endpoint",
+                name="base_url",
                 prompt_text="API endpoint URL",
                 field_type="uri",
                 required=True,
@@ -823,7 +823,7 @@ OFFERING_GROUPS = [
         title="Upstream Access Interface",
         fields=[
             FieldDef(
-                name="upstream_api_endpoint",
+                name="upstream_base_url",
                 prompt_text="Upstream API endpoint URL",
                 field_type="uri",
                 required=True,
@@ -987,7 +987,7 @@ def create_provider_data(user_input: dict[str, Any]) -> dict[str, Any]:
         Complete provider data dictionary
     """
     # Extract access interface fields
-    access_fields = ["api_endpoint", "api_key", "access_method"]
+    access_fields = ["base_url", "api_key", "access_method"]
     provider_access_info: dict[str, Any] = {}
 
     for key in access_fields:
@@ -1032,13 +1032,13 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         Complete service offering data dictionary
     """
     # Extract upstream access interface fields
-    upstream_fields = ["upstream_api_endpoint", "upstream_api_key", "add_upstream_documents"]
+    upstream_fields = ["upstream_base_url", "upstream_api_key", "add_upstream_documents"]
     upstream_access_interface: dict[str, Any] = {}
 
     for key in upstream_fields:
         # Map to the actual field names in AccessInterface
-        if key == "upstream_api_endpoint" and user_input.get(key):
-            upstream_access_interface["api_endpoint"] = user_input[key]
+        if key == "upstream_base_url" and user_input.get(key):
+            upstream_access_interface["base_url"] = user_input[key]
         elif key == "upstream_api_key" and user_input.get(key):
             upstream_access_interface["api_key"] = user_input[key]
 

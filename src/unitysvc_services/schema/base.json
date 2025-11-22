@@ -624,12 +624,6 @@
       "default": "http",
       "description": "Type of access method"
     },
-    "api_endpoint": {
-      "description": "API endpoint URL",
-      "maxLength": 500,
-      "title": "Api Endpoint",
-      "type": "string"
-    },
     "api_key": {
       "anyOf": [
         {
@@ -643,6 +637,12 @@
       "default": null,
       "description": "API key if required",
       "title": "Api Key"
+    },
+    "base_url": {
+      "description": "Base URL for api access",
+      "maxLength": 500,
+      "title": "Base Url",
+      "type": "string"
     },
     "constraint": {
       "anyOf": [
@@ -748,6 +748,20 @@
       "description": "Request transformation configuration",
       "title": "Request Transformer"
     },
+    "routing_key": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
+      "title": "Routing Key"
+    },
     "sort_order": {
       "default": 0,
       "description": "Display order",
@@ -756,7 +770,7 @@
     }
   },
   "required": [
-    "api_endpoint"
+    "base_url"
   ],
   "title": "AccessInterface",
   "type": "object"

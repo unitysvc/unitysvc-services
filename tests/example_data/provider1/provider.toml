@@ -11,4 +11,4 @@ command = "scripts/update_fireworks_services.py --api-key fw_example_key --force
 
 [provider_access_info]
 api_key = "sk_example_key"
-api_endpoint = "XXXXXXXXXXXXXXXXXXXXXXXXX"
+base_url = "XXXXXXXXXXXXXXXXXXXXXXXXX"

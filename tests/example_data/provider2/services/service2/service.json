@@ -8,16 +8,8 @@
     "maxResolution": "2048x2048",
     "modelType": "diffusion",
     "parameterCount": "12000000000",
-    "supportedFormats": [
-      "PNG",
-      "JPEG",
-      "WEBP"
-    ],
-    "supportedSchedulers": [
-      "DDIM",
-      "DDPM",
-      "DPMSolverMultistep"
-    ],
+    "supportedFormats": ["PNG", "JPEG", "WEBP"],
+    "supportedSchedulers": ["DDIM", "DDPM", "DPMSolverMultistep"],
     "supportsImageInput": false,
     "supportsTools": false
   },
@@ -28,7 +20,7 @@
   "time_created": "2024-03-15T10:30:00.000Z",
   "upstream_access_interface": {
     "access_method": "http",
-    "api_endpoint": "https://api.fireworks.ai/inference/v1/image/generation",
+    "base_url": "https://api.fireworks.ai/inference/v1/image/generation",
     "api_key": "your_api_key_here",
     "documents": [
       {

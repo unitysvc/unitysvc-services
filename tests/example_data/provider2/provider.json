@@ -3,7 +3,7 @@
   "homepage": "https://openai.com/",
   "name": "provider2",
   "provider_access_info": {
-    "api_endpoint": "XXXXXXXXXXXXXXXXXXXXXXXXX",
+    "base_url": "XXXXXXXXXXXXXXXXXXXXXXXXX",
     "api_key": "sk_example_key"
   },
   "schema": "provider_v1",

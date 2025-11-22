@@ -28,6 +28,7 @@ The UnitySVC Provider SDK is a Python package that enables digital service provi
 - 🚀 **CLI Tools** - Complete command-line interface
 - 🤖 **Automation** - Script-based service generation
 - 📝 **Multiple Formats** - Support for JSON and TOML
+- 🎯 **Smart Routing** - Request routing based on routing keys (e.g., model-specific endpoints)
 
 ## Documentation Overview
 
