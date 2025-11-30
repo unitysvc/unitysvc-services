@@ -178,9 +178,7 @@ class TokenPriceData(BasePriceData):
             )
 
         if not has_unified and not has_input_output:
-            raise ValueError(
-                "Must specify either 'price' (unified) or 'input'/'output' (separate pricing)."
-            )
+            raise ValueError("Must specify either 'price' (unified) or 'input'/'output' (separate pricing).")
 
         if has_input_output and (self.input is None or self.output is None):
             raise ValueError("Both 'input' and 'output' must be specified for separate pricing.")
@@ -290,9 +288,9 @@ def validate_price_data(
     """
     from pydantic import TypeAdapter
 
-    adapter: TypeAdapter[
-        TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData
-    ] = TypeAdapter(PriceData)
+    adapter: TypeAdapter[TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData] = (
+        TypeAdapter(PriceData)
+    )
     return adapter.validate_python(data)
 
 
