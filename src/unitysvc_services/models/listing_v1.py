@@ -63,10 +63,10 @@ class ListingV1(BaseModel):
     user_access_interfaces: list[AccessInterface] = Field(description="Dictionary of user access interfaces")
 
     #
-    # how upstream charges for their services, which can include
-    # a list of pricing models
+    # Customer pricing: What the customer pays for each unit of service usage.
+    # This is the price shown to customers on the marketplace.
     #
-    user_price: Pricing | None = Field(description="Dictionary of pricing information")
+    customer_price: Pricing | None = Field(description="Customer pricing information")
 
     documents: list[Document] | None = Field(
         default=None,

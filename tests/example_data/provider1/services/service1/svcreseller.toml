@@ -18,7 +18,7 @@ is_active = true
 is_public = true
 
 
-[user_price]
+[customer_price]
 currency = "USD"
 description = "Pricing Per 1M Tokens"
 price_data = {"price" = 0.2}

@@ -955,6 +955,17 @@
       "title": "Schema",
       "type": "string"
     },
+    "seller_price": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pricing"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Seller pricing information"
+    },
     "service_type": {
       "$ref": "#/$defs/ServiceTypeEnum"
     },
@@ -995,17 +1006,6 @@
       "$ref": "#/$defs/AccessInterface",
       "description": "Dictionary of upstream access interface"
     },
-    "upstream_price": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Pricing"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "description": "List of pricing information"
-    },
     "upstream_status": {
       "$ref": "#/$defs/UpstreamStatusEnum",
       "default": "ready",
@@ -1032,7 +1032,7 @@
     "description",
     "details",
     "upstream_access_interface",
-    "upstream_price"
+    "seller_price"
   ],
   "title": "ServiceV1",
   "type": "object"

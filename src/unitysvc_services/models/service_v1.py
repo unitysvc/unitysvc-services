@@ -75,10 +75,11 @@ class ServiceV1(BaseModel):
     #  - access_method
     upstream_access_interface: AccessInterface = Field(description="Dictionary of upstream access interface")
     #
-    # how upstream charges for their services, which can include
-    # a list of pricing models
+    # Seller pricing: The agreed rate between seller and UnitySVC.
+    # This is what the seller charges UnitySVC for each unit of service usage.
+    # Note: This is NOT the seller's actual upstream/provider cost (trade secret).
     #
-    upstream_price: Pricing | None = Field(description="List of pricing information")
+    seller_price: Pricing | None = Field(description="Seller pricing information")
 
     @field_validator("name")
     @classmethod

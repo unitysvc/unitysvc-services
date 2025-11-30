@@ -83,7 +83,7 @@ file_path = "code-example.md"
 is_active = true
 is_public = true
 
-[upstream_price]
+[seller_price]
 currency = "USD"
 description = "Pricing Per 1M Tokens"
 unit = "one_million_tokens"

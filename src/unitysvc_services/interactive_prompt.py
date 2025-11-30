@@ -847,14 +847,14 @@ OFFERING_GROUPS = [
     ),
     FieldGroup(
         name="pricing",
-        title="Upstream Pricing (Optional)",
+        title="Seller Pricing (Optional)",
         fields=[
             FieldDef(
-                name="add_upstream_pricing",
-                prompt_text="Add upstream pricing information?",
+                name="add_seller_pricing",
+                prompt_text="Add seller pricing information?",
                 field_type="boolean",
                 default=False,
-                description="How the upstream provider charges for this service",
+                description="The agreed rate between seller and UnitySVC",
             ),
         ],
     ),
@@ -1060,10 +1060,10 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         if documents:
             upstream_access_interface["documents"] = documents
 
-    # Handle upstream pricing if user wants to add it
-    upstream_price = None
-    if user_input.get("add_upstream_pricing"):
-        upstream_price = prompt_for_pricing()
+    # Handle seller pricing if user wants to add it
+    seller_price = None
+    if user_input.get("add_seller_pricing"):
+        seller_price = prompt_for_pricing()
 
     # Create base data
     data = {
@@ -1073,12 +1073,12 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         "details": {},  # Required field, user can add details manually later
     }
 
-    # Add upstream price if provided
-    if upstream_price:
-        data["upstream_price"] = upstream_price
+    # Add seller price if provided
+    if seller_price:
+        data["seller_price"] = seller_price
 
-    # Add non-upstream fields (exclude add_upstream_documents and add_upstream_pricing which are just flags)
-    excluded_fields = upstream_fields + ["add_upstream_pricing"]
+    # Add non-upstream fields (exclude add_upstream_documents and add_seller_pricing which are just flags)
+    excluded_fields = upstream_fields + ["add_seller_pricing"]
     for key, value in user_input.items():
         if key not in excluded_fields and value is not None:
             data[key] = value
@@ -1100,7 +1100,7 @@ def create_listing_data(user_input: dict[str, Any], listing_dir: Path | None = N
         "schema": "listing_v1",
         "time_created": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "user_access_interfaces": [],  # Required field, user must add interfaces manually
-        "user_price": None,  # Optional, can be added later
+        "customer_price": None,  # Optional, can be added later
     }
 
     # Handle documents if user wants to add them

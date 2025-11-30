@@ -165,7 +165,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `tagline`         | string            | Short elevator pitch                                            |
 | `tags`            | array of enum     | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
 | `upstream_status` | enum              | Service status: `uploading`, `ready` (default), or `deprecated` |
-| `upstream_price`  | Pricing           | Upstream pricing information                                    |
+| `seller_price`    | Pricing           | Seller pricing information (what seller charges UnitySVC)       |
 | `documents`       | array of Document | Technical specs, documentation                                  |
 
 ### ServiceType Enum Values
@@ -206,11 +206,11 @@ supports_vision = true
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 
-[upstream_price]
+[seller_price]
 currency = "USD"
 unit = "one_million_tokens"
 
-[upstream_price.price_data]
+[seller_price.price_data]
 input_per_million = 30.00
 output_per_million = 60.00
 ```
@@ -236,7 +236,7 @@ Listing files define how a seller presents/sells a service to end users.
 | `seller_name`               | string            | Seller identifier (references seller file)                                 |
 | `display_name`              | string            | Customer-facing name (max 200 chars)                                       |
 | `listing_status`            | enum              | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
-| `user_price`                | Pricing           | Customer-facing pricing                                                    |
+| `customer_price`            | Pricing           | Customer-facing pricing (what customer pays)                               |
 | `documents`                 | array of Document | SLAs, documentation, guides                                                |
 | `user_parameters_schema`    | object            | JSON schema for user configuration                                         |
 | `user_parameters_ui_schema` | object            | UI schema for user configuration                                           |
@@ -272,11 +272,11 @@ name = "OpenAI API Access"
 [user_access_interfaces.routing_key]
 model = "gpt-4"
 
-[user_price]
+[customer_price]
 currency = "USD"
 unit = "one_million_tokens"
 
-[user_price.price_data]
+[customer_price.price_data]
 input_per_million = 35.00
 output_per_million = 70.00
 

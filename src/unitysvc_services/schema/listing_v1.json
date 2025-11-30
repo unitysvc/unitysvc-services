@@ -871,6 +871,17 @@
   },
   "additionalProperties": false,
   "properties": {
+    "customer_price": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pricing"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Customer pricing information"
+    },
     "display_name": {
       "anyOf": [
         {
@@ -992,23 +1003,12 @@
       "default": null,
       "description": "Dictionary of user parameters UI schema",
       "title": "User Parameters Ui Schema"
-    },
-    "user_price": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Pricing"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "description": "Dictionary of pricing information"
     }
   },
   "required": [
     "time_created",
     "user_access_interfaces",
-    "user_price"
+    "customer_price"
   ],
   "title": "ListingV1",
   "type": "object"
