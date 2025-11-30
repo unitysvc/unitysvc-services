@@ -408,9 +408,16 @@
         },
         "price_data": {
           "additionalProperties": true,
-          "description": "JSON containing price data (single price, tiered, usage-based, etc.)",
+          "description": "JSON containing price type and data. Must include 'type' field.",
           "title": "Price Data",
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "type": {
+              "$ref": "#/$defs/PricingTypeEnum",
+              "description": "Pricing type that determines the structure"
+            }
+          },
+          "required": ["type"]
         },
         "reference": {
           "anyOf": [
@@ -424,28 +431,24 @@
           "default": null,
           "description": "Reference URL to upstream pricing",
           "title": "Reference"
-        },
-        "unit": {
-          "$ref": "#/$defs/PricingUnitEnum",
-          "description": "Unit of pricing"
         }
       },
       "required": [
-        "unit",
         "price_data"
       ],
       "title": "Pricing",
       "type": "object"
     },
-    "PricingUnitEnum": {
+    "PricingTypeEnum": {
       "enum": [
         "one_million_tokens",
         "one_second",
         "image",
         "step"
       ],
-      "title": "PricingUnitEnum",
-      "type": "string"
+      "title": "PricingTypeEnum",
+      "type": "string",
+      "description": "Pricing type determines how price_data is structured and calculated"
     },
     "QuotaResetCycleEnum": {
       "enum": [

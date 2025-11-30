@@ -80,9 +80,9 @@ def prompt_for_pricing() -> dict[str, Any]:
     """
     console.print("\n[bold cyan]Adding pricing information[/bold cyan]")
 
-    # Required field: unit
-    unit = Prompt.ask(
-        "[bold blue]Pricing unit[/bold blue] [red]*[/red]",
+    # Required field: pricing type (now inside price_data)
+    pricing_type = Prompt.ask(
+        "[bold blue]Pricing type[/bold blue] [red]*[/red]",
         choices=["one_million_tokens", "one_second", "image", "step"],
         default="one_million_tokens",
     )
@@ -98,28 +98,28 @@ def prompt_for_pricing() -> dict[str, Any]:
         "[bold blue]Reference URL[/bold blue] [dim](optional, link to upstream pricing page)[/dim]", default=""
     )
 
-    # Price data - ask user what type of pricing structure they want
-    console.print("\n[dim]Price data is a flexible structure. Common examples:[/dim]")
-    console.print('[dim]  1. Simple: {"amount": 10.00}[/dim]')
-    console.print('[dim]  2. Input/Output (LLMs): {"input": 5.00, "output": 15.00}[/dim]')
-    console.print('[dim]  3. Custom JSON: {"base": 5.00, "per_unit": 0.001}[/dim]')
+    # Price data - ask user what pricing structure they want
+    console.print("\n[dim]Price data structure options:[/dim]")
+    console.print('[dim]  1. Simple: {"type": "...", "price": 10.00}[/dim]')
+    console.print('[dim]  2. Input/Output (LLMs): {"type": "...", "input": 5.00, "output": 15.00}[/dim]')
+    console.print('[dim]  3. Custom: any JSON with "type" field included[/dim]')
 
-    pricing_type = Prompt.ask(
-        "\n[bold blue]Pricing structure type[/bold blue]",
+    structure = Prompt.ask(
+        "\n[bold blue]Price data structure[/bold blue]",
         choices=["simple", "input_output", "custom"],
         default="simple",
     )
 
-    if pricing_type == "simple":
+    if structure == "simple":
         amount = Prompt.ask("[bold blue]Price amount[/bold blue] [dim](numeric value)[/dim]", default="0")
         try:
             price_amount = float(amount)
         except ValueError:
             console.print("[yellow]Invalid amount, using 0[/yellow]")
             price_amount = 0.0
-        price_data = {"amount": price_amount}
+        price_data: dict[str, Any] = {"type": pricing_type, "price": price_amount}
 
-    elif pricing_type == "input_output":
+    elif structure == "input_output":
         input_amount = Prompt.ask("[bold blue]Input price amount[/bold blue] [dim](numeric value)[/dim]", default="0")
         try:
             input_price = float(input_amount)
@@ -134,17 +134,19 @@ def prompt_for_pricing() -> dict[str, Any]:
             console.print("[yellow]Invalid amount, using 0[/yellow]")
             output_price = 0.0
 
-        price_data = {"input": input_price, "output": output_price}
+        price_data = {"type": pricing_type, "input": input_price, "output": output_price}
 
     else:  # custom
-        console.print('\n[dim]Enter price_data as JSON (e.g., {"base": 5.00, "per_unit": 0.001})[/dim]')
+        console.print(f'\n[dim]Enter additional price_data fields as JSON (type "{pricing_type}" will be added)[/dim]')
+        console.print('[dim]Example: {"price": 0.05, "min_charge": 0.01}[/dim]')
         while True:
-            json_input = Prompt.ask("[bold blue]Price data JSON[/bold blue]", default="{}")
+            json_input = Prompt.ask("[bold blue]Additional price data JSON[/bold blue]", default="{}")
             try:
-                price_data = json.loads(json_input)
-                if not isinstance(price_data, dict):
+                custom_data = json.loads(json_input)
+                if not isinstance(custom_data, dict):
                     console.print("[red]Error: Price data must be a JSON object (dict)[/red]")
                     continue
+                price_data = {"type": pricing_type, **custom_data}
                 break
             except json.JSONDecodeError as e:
                 console.print(f"[red]Invalid JSON: {e}[/red]")
@@ -152,7 +154,6 @@ def prompt_for_pricing() -> dict[str, Any]:
 
     # Build pricing dict
     pricing: dict[str, Any] = {
-        "unit": unit,
         "price_data": price_data,
     }
 

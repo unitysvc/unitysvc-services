@@ -165,7 +165,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `tagline`         | string            | Short elevator pitch                                            |
 | `tags`            | array of enum     | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
 | `upstream_status` | enum              | Service status: `uploading`, `ready` (default), or `deprecated` |
-| `seller_price`    | Pricing           | Seller pricing information (what seller charges UnitySVC)       |
+| `seller_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
 | `documents`       | array of Document | Technical specs, documentation                                  |
 
 ### ServiceType Enum Values
@@ -208,11 +208,11 @@ base_url = "https://api.openai.com/v1"
 
 [seller_price]
 currency = "USD"
-unit = "one_million_tokens"
 
 [seller_price.price_data]
-input_per_million = 30.00
-output_per_million = 60.00
+type = "one_million_tokens"
+input = "30.00"
+output = "60.00"
 ```
 
 ## Schema: listing_v1
@@ -236,7 +236,7 @@ Listing files define how a seller presents/sells a service to end users.
 | `seller_name`               | string            | Seller identifier (references seller file)                                 |
 | `display_name`              | string            | Customer-facing name (max 200 chars)                                       |
 | `listing_status`            | enum              | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
-| `customer_price`            | Pricing           | Customer-facing pricing (what customer pays)                               |
+| `customer_price`            | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
 | `documents`                 | array of Document | SLAs, documentation, guides                                                |
 | `user_parameters_schema`    | object            | JSON schema for user configuration                                         |
 | `user_parameters_ui_schema` | object            | UI schema for user configuration                                           |
@@ -274,11 +274,11 @@ model = "gpt-4"
 
 [customer_price]
 currency = "USD"
-unit = "one_million_tokens"
 
 [customer_price.price_data]
-input_per_million = 35.00
-output_per_million = 70.00
+type = "one_million_tokens"
+input = "35.00"
+output = "70.00"
 
 [[documents]]
 title = "Quick Start Guide"
@@ -337,46 +337,44 @@ When a request arrives at `/p/openai` with `{"model": "gpt-4", "messages": [...]
 
 ### Pricing Object
 
-Flexible pricing structure for both upstream and user-facing prices.
+Flexible pricing structure for both upstream (`seller_price`) and user-facing (`customer_price`) prices.
 
-| Field         | Type         | Description                                                       |
-| ------------- | ------------ | ----------------------------------------------------------------- |
-| `currency`    | string       | ISO currency code (e.g., "USD", "EUR")                            |
-| `unit`        | enum         | Pricing unit: `one_million_tokens`, `one_second`, `image`, `step` |
-| `price_data`  | object       | Flexible price structure (single price, tiered, usage-based)      |
-| `name`        | string       | Pricing tier name (e.g., "Basic", "Pro")                          |
-| `description` | string       | Pricing model description                                         |
-| `reference`   | string (URL) | Reference URL to upstream pricing page                            |
+> **Full documentation:** See [Pricing Specification](pricing.md) for complete details on pricing types, validation rules, and examples.
 
-**Example price_data structures:**
+| Field         | Type         | Description                                                               |
+| ------------- | ------------ | ------------------------------------------------------------------------- |
+| `currency`    | string       | ISO currency code (e.g., "USD", "EUR")                                    |
+| `price_data`  | object       | Type-specific price structure (see [Pricing Types](pricing.md#price-data-types)) |
+| `name`        | string       | Pricing tier name (e.g., "Basic", "Pro")                                  |
+| `description` | string       | Pricing model description                                                 |
+| `reference`   | string (URL) | Reference URL to upstream pricing page                                    |
+
+**price_data types:**
+
+| Type                  | Description                              | Example Fields                    |
+| --------------------- | ---------------------------------------- | --------------------------------- |
+| `one_million_tokens`  | Per million tokens (for LLMs)            | `price` or `input`/`output`       |
+| `one_second`          | Per second of usage                      | `price`                           |
+| `image`               | Per image generated                      | `price`                           |
+| `step`                | Per step/iteration                       | `price`                           |
+| `revenue_share`       | Percentage of customer charge (seller_price only) | `percentage`             |
+
+**Quick examples:**
 
 ```json
-// Simple per-unit pricing
-{
-  "price_data": {
-    "value": 2.50
-  }
-}
+// Unified token pricing
+{"price_data": {"type": "one_million_tokens", "price": "2.50"}}
 
-// Input/output pricing (LLM)
-{
-  "price_data": {
-    "input_per_million": 30.00,
-    "output_per_million": 60.00
-  }
-}
+// Separate input/output pricing (LLM)
+{"price_data": {"type": "one_million_tokens", "input": "10.00", "output": "30.00"}}
 
-// Tiered pricing
-{
-  "price_data": {
-    "tiers": [
-      {"up_to": 1000000, "price": 2.00},
-      {"up_to": 10000000, "price": 1.50},
-      {"above": 10000000, "price": 1.00}
-    ]
-  }
-}
+// Image generation pricing
+{"price_data": {"type": "image", "price": "0.04"}}
 ```
+
+> **Note:** Use string values for prices (e.g., `"2.50"`) to avoid floating-point precision issues.
+
+See [Pricing Specification](pricing.md) for TOML examples, validation rules, and cost calculation details.
 
 ### Document Object
 
@@ -519,6 +517,7 @@ The SDK preserves the original format when updating files.
 
 ## See Also
 
+-   [Pricing Specification](pricing.md) - Complete pricing documentation
 -   [Data Structure](data-structure.md) - File organization rules
 -   [CLI Reference](cli-reference.md#validate) - Validation command
 -   [Getting Started](getting-started.md) - Create your first files

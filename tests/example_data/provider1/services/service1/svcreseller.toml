@@ -21,5 +21,4 @@ is_public = true
 [customer_price]
 currency = "USD"
 description = "Pricing Per 1M Tokens"
-price_data = {"price" = 0.2}
-unit = "one_million_tokens"
+price_data = {"type" = "one_million_tokens", "price" = "0.2"}
