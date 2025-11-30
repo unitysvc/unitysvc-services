@@ -71,6 +71,9 @@ class DocumentContextEnum(StrEnum):
     service_offering = "service_offering"  # Documents belong to ServiceOffering
     service_listing = "service_listing"  # Documents belong to ServiceListing
     user = "user"  # can be for seller, subscriber, consumer
+    # Backend-specific contexts
+    seller = "seller"  # Documents belong to Seller
+    provider = "provider"  # Documents belong to Provider
 
 
 class DocumentCategoryEnum(StrEnum):
@@ -109,6 +112,7 @@ class MimeTypeEnum(StrEnum):
 class InterfaceContextTypeEnum(StrEnum):
     service_offering = "service_offering"  # Pricing from upstream provider
     service_listing = "service_listing"  # Pricing shown to end users
+    service_subscription = "service_subscription"  # User's subscription to a service
 
 
 class SellerTypeEnum(StrEnum):
@@ -390,19 +394,6 @@ class ServiceTypeEnum(StrEnum):
     undetermined = "undetermined"
     #
     text_to_3d = "text_to_3d"
-
-
-class SubscriptionStatusEnum(StrEnum):
-    active = "active"
-    cancelled = "cancelled"
-    expired = "expired"
-    pending = "pending"
-    trialing = "trialing"
-    failed = "failed"
-    paused = "paused"
-    incomplete = "incomplete"
-    incomplete_expired = "incomplete_expired"
-    unpaid = "unpaid"
 
 
 class TagEnum(StrEnum):
