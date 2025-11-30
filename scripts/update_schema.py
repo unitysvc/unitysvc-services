@@ -8,33 +8,30 @@ Usage:
     python scripts/update_schema.py
 """
 
-import importlib.util
+import importlib
 import inspect
 import json
 import sys
-import types
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 
 
-def load_module_from_file(file_path: Path) -> Any:
-    """Load a Python module from a file path."""
-    spec = importlib.util.spec_from_file_location(file_path.stem, file_path)
-    if spec is None or spec.loader is None:
-        raise ImportError(f"Could not load module from {file_path}")
+def find_pydantic_models(module: Any, module_name: str) -> dict[str, type[BaseModel]]:
+    """Find all Pydantic BaseModel classes defined in a module that have schema_version field.
 
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
-
-
-def find_pydantic_models(module: Any) -> dict[str, type[BaseModel]]:
-    """Find all Pydantic BaseModel classes in a module."""
+    Only models with schema_version are file validation schemas (V1 models).
+    Data classes used for API don't have schema_version and are skipped.
+    """
     models = {}
     for name, obj in inspect.getmembers(module, inspect.isclass):
-        if issubclass(obj, BaseModel) and obj is not BaseModel and obj.__module__ == module.__name__:
+        if (
+            issubclass(obj, BaseModel)
+            and obj is not BaseModel
+            and obj.__module__ == module_name
+            and "schema_version" in obj.model_fields  # Only V1 models with schema_version
+        ):
             models[name] = obj
     return models
 
@@ -58,29 +55,13 @@ def main():
     # Determine paths
     script_dir = Path(__file__).parent
     project_root = script_dir.parent
+    src_dir = project_root / "src"
     models_dir = project_root / "src" / "unitysvc_services" / "models"
     schema_dir = project_root / "src" / "unitysvc_services" / "schema"
 
-    # Add project root to Python path to enable imports
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-
-    # Set up module aliasing for scripts.models.base
-    # Models import from scripts.models.base which is the pattern used in business-data repos
-    # Create fake module hierarchy
-    scripts_module = types.ModuleType("scripts")
-    scripts_models_module = types.ModuleType("scripts.models")
-    sys.modules["scripts"] = scripts_module
-    sys.modules["scripts.models"] = scripts_models_module
-
-    # Load base module directly
-    base_path = models_dir / "base.py"
-    spec = importlib.util.spec_from_file_location("scripts.models.base", base_path)
-    if spec and spec.loader:
-        base_module = importlib.util.module_from_spec(spec)
-        sys.modules["scripts.models.base"] = base_module
-        spec.loader.exec_module(base_module)
-        scripts_models_module.base = base_module
+    # Add src directory to Python path to enable package imports
+    if str(src_dir) not in sys.path:
+        sys.path.insert(0, str(src_dir))
 
     # Ensure schema directory exists
     schema_dir.mkdir(exist_ok=True)
@@ -93,6 +74,7 @@ def main():
     print(f"Output directory: {schema_dir}\n")
 
     # Process all Python files in models directory
+    # Only models with schema_version field will generate schemas
     total_generated = 0
     for model_file in models_dir.glob("*.py"):
         if model_file.name.startswith("__"):
@@ -101,11 +83,12 @@ def main():
         print(f"Processing: {model_file.name}")
 
         try:
-            # Load the module
-            module = load_module_from_file(model_file)
+            # Import the module properly using the package structure
+            module_name = f"unitysvc_services.models.{model_file.stem}"
+            module = importlib.import_module(module_name)
 
-            # Find Pydantic models
-            models = find_pydantic_models(module)
+            # Find Pydantic models defined in this module
+            models = find_pydantic_models(module, module_name)
 
             if not models:
                 print("  No Pydantic models found")
