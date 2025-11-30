@@ -1,9 +1,46 @@
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from enum import StrEnum
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.functional_validators import BeforeValidator
+
+
+def _validate_price_string(v: Any) -> str:
+    """Validate that price values are strings representing valid non-negative decimal numbers.
+
+    This prevents floating-point precision issues where values like 2.0
+    might become 1.9999999 when saved/loaded. Prices are stored as strings
+    and converted to Decimal only when calculations are needed.
+    """
+    if isinstance(v, float):
+        raise ValueError(
+            f"Price value must be a string (e.g., '0.50'), not a float ({v}). "
+            "Floats can cause precision issues."
+        )
+
+    # Convert int to string first
+    if isinstance(v, int):
+        v = str(v)
+
+    if not isinstance(v, str):
+        raise ValueError(f"Price value must be a string, got {type(v).__name__}")
+
+    # Validate it's a valid decimal number and non-negative
+    try:
+        decimal_val = Decimal(v)
+    except InvalidOperation:
+        raise ValueError(f"Price value '{v}' is not a valid decimal number")
+
+    if decimal_val < 0:
+        raise ValueError(f"Price value must be non-negative, got '{v}'")
+
+    return v
+
+
+# Price string type that only accepts strings/ints, not floats
+PriceStr = Annotated[str, BeforeValidator(_validate_price_string)]
 
 
 class AccessMethodEnum(StrEnum):
@@ -147,21 +184,18 @@ class TokenPriceData(BasePriceData):
     type: Literal["one_million_tokens"] = "one_million_tokens"
 
     # Option 1: Unified price for all tokens
-    price: Decimal | None = Field(
+    price: PriceStr | None = Field(
         default=None,
-        ge=0,
         description="Unified price per million tokens (used when input/output are the same)",
     )
 
     # Option 2: Separate input/output pricing
-    input: Decimal | None = Field(
+    input: PriceStr | None = Field(
         default=None,
-        ge=0,
         description="Price per million input tokens",
     )
-    output: Decimal | None = Field(
+    output: PriceStr | None = Field(
         default=None,
-        ge=0,
         description="Price per million output tokens",
     )
 
@@ -196,8 +230,7 @@ class TimePriceData(BasePriceData):
 
     type: Literal["one_second"] = "one_second"
 
-    price: Decimal = Field(
-        ge=0,
+    price: PriceStr = Field(
         description="Price per second of usage",
     )
 
@@ -212,8 +245,7 @@ class ImagePriceData(BasePriceData):
 
     type: Literal["image"] = "image"
 
-    price: Decimal = Field(
-        ge=0,
+    price: PriceStr = Field(
         description="Price per image",
     )
 
@@ -228,10 +260,26 @@ class StepPriceData(BasePriceData):
 
     type: Literal["step"] = "step"
 
-    price: Decimal = Field(
-        ge=0,
+    price: PriceStr = Field(
         description="Price per step/iteration",
     )
+
+
+def _validate_percentage_string(v: Any) -> str:
+    """Validate that percentage values are strings representing valid decimals in range 0-100."""
+    # First use the standard price validation
+    v = _validate_price_string(v)
+
+    # Then check the 0-100 range
+    decimal_val = Decimal(v)
+    if decimal_val > 100:
+        raise ValueError(f"Percentage must be between 0 and 100, got '{v}'")
+
+    return v
+
+
+# Percentage string type for revenue share (0-100 range)
+PercentageStr = Annotated[str, BeforeValidator(_validate_percentage_string)]
 
 
 class RevenueSharePriceData(BasePriceData):
@@ -246,15 +294,13 @@ class RevenueSharePriceData(BasePriceData):
     For example, if percentage is "70" and the customer pays $10, the seller
     receives $7.
 
-    Price values use Decimal for precision. In JSON/TOML, specify as strings
-    (e.g., "70.00") to avoid floating-point precision issues.
+    Percentage values must be strings (e.g., "70.00") to avoid floating-point
+    precision issues.
     """
 
     type: Literal["revenue_share"] = "revenue_share"
 
-    percentage: Decimal = Field(
-        ge=0,
-        le=100,
+    percentage: PercentageStr = Field(
         description="Percentage of customer charge that goes to the seller (0-100)",
     )
 
