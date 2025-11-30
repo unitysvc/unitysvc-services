@@ -383,19 +383,6 @@
           "description": "Pricing model description",
           "title": "Description"
         },
-        "name": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Pricing tier name (e.g., Basic, Pro, Enterprise)",
-          "title": "Name"
-        },
         "price_data": {
           "additionalProperties": true,
           "description": "JSON containing price type and data. Must include 'type' field.",
@@ -434,7 +421,8 @@
         "one_million_tokens",
         "one_second",
         "image",
-        "step"
+        "step",
+        "revenue_share"
       ],
       "title": "PricingTypeEnum",
       "type": "string",

@@ -345,7 +345,6 @@ Flexible pricing structure for both upstream (`seller_price`) and user-facing (`
 | ------------- | ------------ | ------------------------------------------------------------------------- |
 | `currency`    | string       | ISO currency code (e.g., "USD", "EUR")                                    |
 | `price_data`  | object       | Type-specific price structure (see [Pricing Types](pricing.md#price-data-types)) |
-| `name`        | string       | Pricing tier name (e.g., "Basic", "Pro")                                  |
 | `description` | string       | Pricing model description                                                 |
 | `reference`   | string (URL) | Reference URL to upstream pricing page                                    |
 

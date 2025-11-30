@@ -560,12 +560,8 @@ class Pricing(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    # Pricing tier name (Basic, Pro, Enterprise, etc.)
-    name: str | None = Field(default=None, description="Pricing tier name (e.g., Basic, Pro, Enterprise)")
-
     description: str | None = Field(default=None, description="Pricing model description")
 
-    # Currency and description
     currency: str | None = Field(default=None, description="Currency code (e.g., USD)")
 
     # Price data with type-based validation

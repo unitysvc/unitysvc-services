@@ -19,7 +19,6 @@ Both use the same `Pricing` structure, which supports multiple pricing types thr
 
 ```
 Pricing
-├── name          (optional) - Pricing tier name (e.g., "Basic", "Pro")
 ├── description   (optional) - Human-readable pricing description
 ├── currency      (optional) - ISO currency code (e.g., "USD", "EUR")
 ├── price_data    (required) - Type-specific pricing data (see below)
@@ -30,7 +29,6 @@ Pricing
 
 | Field         | Type   | Required | Description                                         |
 | ------------- | ------ | -------- | --------------------------------------------------- |
-| `name`        | string | No       | Pricing tier name (e.g., "Basic", "Pro", "Enterprise") |
 | `description` | string | No       | Human-readable description of the pricing model     |
 | `currency`    | string | No       | ISO 4217 currency code (e.g., "USD", "EUR", "GBP")  |
 | `price_data`  | object | **Yes**  | Type-specific pricing structure (see below)         |
@@ -298,7 +296,6 @@ model = "gpt-4-turbo"
 
 [customer_price]
 currency = "USD"
-name = "Premium Tier"
 description = "Premium access with priority support"
 
 [customer_price.price_data]
