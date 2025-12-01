@@ -1,84 +1,78 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import ConfigDict, Field, HttpUrl, field_validator
 
-from unitysvc_services.models.base import (
+from .base import (
     AccessInterface,
     Document,
     Pricing,
-    ServiceTypeEnum,
     TagEnum,
-    UpstreamStatusEnum,
     validate_name,
 )
+from .service_data import ServiceOfferingData
 
 
-class ServiceV1(BaseModel):
+class ServiceV1(ServiceOfferingData):
+    """
+    Service offering model for file-based definitions (service_v1 schema).
+
+    Extends ServiceOfferingData with:
+    - schema_version: Schema identifier for file validation
+    - time_created: Timestamp for file creation
+    - logo: Convenience field (converted to documents during import)
+    - tags: Tags for the service (e.g., bring your own API key)
+    - Typed models (AccessInterface, Document, Pricing) instead of dicts
+    - Field validators for name format
+
+    This model is used for validating service.json/service.toml files
+    created by the CLI tool.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    #
-    # fields for business data collection and maintenance
-    #
+    # File-specific fields for validation
     schema_version: str = Field(default="service_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
-    #
-    # fields that will be stored in backend database
-    #
-    # unique name for each provider, usually following upstream naming convention
-    name: str
-    # type of service to group services
-    service_type: ServiceTypeEnum
-    # common display name for the service, allowing across provider linking
-    display_name: str
-    # version of the service, this, combined with display_name, allowing across provider linking
-    # of specific services, despite of provider internal naming conventions. Note that
-    # same display_name and version does not guarantee the same service (e.g. context window
-    # can be different)
-    version: str | None
+    # Override to make required in file validation (base has Optional for API flexibility)
+    display_name: str = Field(  # type: ignore[assignment]
+        max_length=150,
+        description="Human-friendly common name (e.g., 'GPT-4 Turbo')",
+    )
 
-    # description of service, mandatory
-    description: str
+    description: str = Field(  # type: ignore[assignment]
+        description="Service description",
+    )
 
-    # this field is added for convenience. It will be converted to
-    # documents during importing.
+    # Required in file for static information
+    details: dict[str, Any] = Field(  # type: ignore[assignment]
+        description="Dictionary of static features and information",
+    )
+
+    # Convenience field for logo (converted to documents during import)
     logo: str | HttpUrl | None = None
 
-    # Short elevator pitch or description for the service
-    tagline: str | None = None
-
-    # Tags for the service, e.g., bring your own API key
+    # Tags for the service
     tags: list[TagEnum] | None = Field(
         default=None,
         description="List of tags for the service, e.g., bring your own API key",
     )
 
-    # status of the service, public, deprecated etc
-    upstream_status: UpstreamStatusEnum = Field(
-        default=UpstreamStatusEnum.ready,
-        description="Status of the service from upstream service provider",
+    # Override with typed models for file validation
+    upstream_access_interface: AccessInterface = Field(  # type: ignore[assignment]
+        description="Dictionary of upstream access interface",
     )
 
-    # static information from upstream, each service_type will have a
-    # set of mandatory fields
-    details: dict[str, Any] = Field(description="Dictionary of static features and information")
-
-    documents: list[Document] | None = Field(
+    documents: list[Document] | None = Field(  # type: ignore[assignment]
         default=None,
         description="List of documents associated with the service (e.g. tech spec.)",
     )
-    #
-    # how to access the service from upstream, which can include
-    #  - endpoint
-    #  - apikey
-    #  - access_method
-    upstream_access_interface: AccessInterface = Field(description="Dictionary of upstream access interface")
-    #
-    # how upstream charges for their services, which can include
-    # a list of pricing models
-    #
-    upstream_price: Pricing | None = Field(description="List of pricing information")
+
+    seller_price: Pricing | None = Field(  # type: ignore[assignment]
+        default=None,
+        description="Seller pricing information",
+    )
 
     @field_validator("name")
     @classmethod

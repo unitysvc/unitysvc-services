@@ -327,6 +327,37 @@
       "title": "DocumentCategoryEnum",
       "type": "string"
     },
+    "ImagePriceData": {
+      "additionalProperties": false,
+      "description": "Price data for per-image pricing (image generation, processing).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.04\") to avoid floating-point precision issues.",
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Price per image",
+          "title": "Price"
+        },
+        "type": {
+          "const": "image",
+          "default": "image",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "price"
+      ],
+      "title": "ImagePriceData",
+      "type": "object"
+    },
     "ListingStatusEnum": {
       "description": "Listing status values that sellers can set locally.\n\nSeller-accessible statuses:\n- draft: Listing is being worked on, skipped during publish (won't be sent to backend)\n- ready: Listing is complete and ready for admin review/testing\n- deprecated: Seller marks service as retired/replaced\n\nNote: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)\nare set by the backend admin after testing and validation. These are not included in this\nenum since sellers cannot set them through the CLI tool.",
       "enum": [
@@ -366,6 +397,7 @@
     },
     "Pricing": {
       "additionalProperties": false,
+      "description": "Universal pricing model for services.\n\nThe price_data field uses a discriminated union based on the 'type' field:\n- \"one_million_tokens\": TokenPriceData (for LLMs, supports unified or input/output pricing)\n- \"one_second\": TimePriceData (for audio/video, compute time)\n- \"image\": ImagePriceData (for image generation)\n- \"step\": StepPriceData (for diffusion steps, iterations)\n\nExample usage:\n    # Token pricing with separate input/output\n    Pricing(\n        currency=\"USD\",\n        price_data={\"type\": \"one_million_tokens\", \"input\": 0.5, \"output\": 1.5}\n    )\n\n    # Image pricing\n    Pricing(\n        currency=\"USD\",\n        price_data={\"type\": \"image\", \"price\": 0.04}\n    )",
       "properties": {
         "currency": {
           "anyOf": [
@@ -393,24 +425,36 @@
           "description": "Pricing model description",
           "title": "Description"
         },
-        "name": {
-          "anyOf": [
+        "price_data": {
+          "description": "Price data with 'type' field determining structure. See TokenPriceData, TimePriceData, ImagePriceData, StepPriceData for valid structures.",
+          "discriminator": {
+            "mapping": {
+              "image": "#/$defs/ImagePriceData",
+              "one_million_tokens": "#/$defs/TokenPriceData",
+              "one_second": "#/$defs/TimePriceData",
+              "revenue_share": "#/$defs/RevenueSharePriceData",
+              "step": "#/$defs/StepPriceData"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/TokenPriceData"
             },
             {
-              "type": "null"
+              "$ref": "#/$defs/TimePriceData"
+            },
+            {
+              "$ref": "#/$defs/ImagePriceData"
+            },
+            {
+              "$ref": "#/$defs/StepPriceData"
+            },
+            {
+              "$ref": "#/$defs/RevenueSharePriceData"
             }
           ],
-          "default": null,
-          "description": "Pricing tier name (e.g., Basic, Pro, Enterprise)",
-          "title": "Name"
-        },
-        "price_data": {
-          "additionalProperties": true,
-          "description": "JSON containing price data (single price, tiered, usage-based, etc.)",
-          "title": "Price Data",
-          "type": "object"
+          "title": "Price Data"
         },
         "reference": {
           "anyOf": [
@@ -424,28 +468,13 @@
           "default": null,
           "description": "Reference URL to upstream pricing",
           "title": "Reference"
-        },
-        "unit": {
-          "$ref": "#/$defs/PricingUnitEnum",
-          "description": "Unit of pricing"
         }
       },
       "required": [
-        "unit",
         "price_data"
       ],
       "title": "Pricing",
       "type": "object"
-    },
-    "PricingUnitEnum": {
-      "enum": [
-        "one_million_tokens",
-        "one_second",
-        "image",
-        "step"
-      ],
-      "title": "PricingUnitEnum",
-      "type": "string"
     },
     "QuotaResetCycleEnum": {
       "enum": [
@@ -535,6 +564,38 @@
       ],
       "title": "RequestTransformEnum",
       "type": "string"
+    },
+    "RevenueSharePriceData": {
+      "additionalProperties": false,
+      "description": "Price data for revenue share pricing (seller_price only).\n\nThis pricing type is used exclusively for seller_price when the seller\nreceives a percentage of what the customer pays. It cannot be used for\ncustomer_price since the customer price must be a concrete amount.\n\nThe percentage represents the seller's share of the customer charge.\nFor example, if percentage is \"70\" and the customer pays $10, the seller\nreceives $7.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"70.00\") to avoid floating-point precision issues.",
+      "properties": {
+        "percentage": {
+          "anyOf": [
+            {
+              "maximum": 100.0,
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Percentage of customer charge that goes to the seller (0-100)",
+          "title": "Percentage"
+        },
+        "type": {
+          "const": "revenue_share",
+          "default": "revenue_share",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "percentage"
+      ],
+      "title": "RevenueSharePriceData",
+      "type": "object"
     },
     "ServiceConstraints": {
       "additionalProperties": false,
@@ -857,6 +918,68 @@
       "title": "ServiceConstraints",
       "type": "object"
     },
+    "StepPriceData": {
+      "additionalProperties": false,
+      "description": "Price data for per-step pricing (diffusion steps, iterations).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.001\") to avoid floating-point precision issues.",
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Price per step/iteration",
+          "title": "Price"
+        },
+        "type": {
+          "const": "step",
+          "default": "step",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "price"
+      ],
+      "title": "StepPriceData",
+      "type": "object"
+    },
+    "TimePriceData": {
+      "additionalProperties": false,
+      "description": "Price data for time-based pricing (audio/video processing, compute time).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.006\") to avoid floating-point precision issues.",
+      "properties": {
+        "price": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            }
+          ],
+          "description": "Price per second of usage",
+          "title": "Price"
+        },
+        "type": {
+          "const": "one_second",
+          "default": "one_second",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "price"
+      ],
+      "title": "TimePriceData",
+      "type": "object"
+    },
     "TimeWindowEnum": {
       "enum": [
         "second",
@@ -867,10 +990,91 @@
       ],
       "title": "TimeWindowEnum",
       "type": "string"
+    },
+    "TokenPriceData": {
+      "additionalProperties": false,
+      "description": "Price data for token-based pricing (LLMs).\nSupports either unified pricing or separate input/output pricing.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.50\") to avoid floating-point precision issues.",
+      "properties": {
+        "input": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Price per million input tokens",
+          "title": "Input"
+        },
+        "output": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Price per million output tokens",
+          "title": "Output"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "minimum": 0.0,
+              "type": "number"
+            },
+            {
+              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unified price per million tokens (used when input/output are the same)",
+          "title": "Price"
+        },
+        "type": {
+          "const": "one_million_tokens",
+          "default": "one_million_tokens",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "TokenPriceData",
+      "type": "object"
     }
   },
   "additionalProperties": false,
+  "description": "Service listing model for file-based definitions (listing_v1 schema).\n\nExtends ServiceListingData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- Typed models (AccessInterface, Document, Pricing) instead of dicts\n- Field validators for name format\n\nThis model is used for validating listing.json/listing.toml files\ncreated by the CLI tool.",
   "properties": {
+    "customer_price": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pricing"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Customer pricing information"
+    },
     "display_name": {
       "anyOf": [
         {
@@ -917,8 +1121,21 @@
         }
       ],
       "default": null,
-      "description": "Name identifier for the service listing, default to filename",
+      "description": "Name identifier for the service listing (defaults to 'default' if not provided)",
       "title": "Name"
+    },
+    "provider_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Provider name (resolved from directory structure if not specified)",
+      "title": "Provider Name"
     },
     "schema": {
       "default": "listing_v1",
@@ -952,13 +1169,26 @@
       "description": "Name of the service (ServiceV1.name), optional if only one service is defined under the same directory.",
       "title": "Service Name"
     },
+    "service_version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Version of the service offering",
+      "title": "Service Version"
+    },
     "time_created": {
       "format": "date-time",
       "title": "Time Created",
       "type": "string"
     },
     "user_access_interfaces": {
-      "description": "Dictionary of user access interfaces",
+      "description": "List of user access interfaces for the listing",
       "items": {
         "$ref": "#/$defs/AccessInterface"
       },
@@ -976,7 +1206,7 @@
         }
       ],
       "default": null,
-      "description": "Dictionary of user parameters schema",
+      "description": "JSON Schema for user parameters",
       "title": "User Parameters Schema"
     },
     "user_parameters_ui_schema": {
@@ -990,25 +1220,13 @@
         }
       ],
       "default": null,
-      "description": "Dictionary of user parameters UI schema",
+      "description": "UI schema for user parameters form rendering",
       "title": "User Parameters Ui Schema"
-    },
-    "user_price": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/Pricing"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "description": "Dictionary of pricing information"
     }
   },
   "required": [
-    "time_created",
     "user_access_interfaces",
-    "user_price"
+    "time_created"
   ],
   "title": "ListingV1",
   "type": "object"

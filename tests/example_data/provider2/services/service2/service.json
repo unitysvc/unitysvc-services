@@ -35,14 +35,14 @@
     ],
     "name": "Fireworks Image API"
   },
-  "upstream_price": {
+  "seller_price": {
     "currency": "USD",
     "description": "Pricing Per Image",
     "price_data": {
-      "price": 0.04
+      "type": "image",
+      "price": "0.04"
     },
-    "reference": null,
-    "unit": "image"
+    "reference": null
   },
   "upstream_status": "ready",
   "version": "1.0"

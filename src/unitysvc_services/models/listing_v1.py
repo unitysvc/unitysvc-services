@@ -1,86 +1,50 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
-from unitysvc_services.models.base import (
+from .base import (
     AccessInterface,
     Document,
-    ListingStatusEnum,
     Pricing,
     validate_name,
 )
+from .listing_data import ServiceListingData
 
 
-class ListingV1(BaseModel):
+class ListingV1(ServiceListingData):
+    """
+    Service listing model for file-based definitions (listing_v1 schema).
+
+    Extends ServiceListingData with:
+    - schema_version: Schema identifier for file validation
+    - time_created: Timestamp for file creation
+    - Typed models (AccessInterface, Document, Pricing) instead of dicts
+    - Field validators for name format
+
+    This model is used for validating listing.json/listing.toml files
+    created by the CLI tool.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    #
-    # fields for business data collection and maintenance
-    #
+    # File-specific fields for validation
     schema_version: str = Field(default="listing_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
-    #
-    # fields that will be stored in backend database
-    #
-    service_name: str | None = Field(
+    # Override with typed models instead of dicts for file validation
+    # (listing_status, user_parameters_schema, user_parameters_ui_schema are inherited from ServiceListingData)
+    user_access_interfaces: list[AccessInterface] = Field(  # type: ignore[assignment]
+        description="List of user access interfaces for the listing"
+    )
+
+    customer_price: Pricing | None = Field(  # type: ignore[assignment]
         default=None,
-        description=(
-            "Name of the service (ServiceV1.name), optional if only one service is defined under the same directory."
-        ),
+        description="Customer pricing information",
     )
 
-    seller_name: str | None = Field(default=None, description="Name of the seller offering this service listing")
-
-    name: str | None = Field(
-        default=None,
-        max_length=255,
-        description="Name identifier for the service listing, default to filename",
-    )
-
-    # Display name for UI (human-readable listing name)
-    display_name: str | None = Field(
-        default=None,
-        max_length=200,
-        description="Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
-    )
-
-    # unique name for each provider, usually following upstream naming convention
-    # status of the service, public, deprecated etc
-    listing_status: ListingStatusEnum = Field(
-        default=ListingStatusEnum.draft,
-        description="Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)",
-    )
-
-    #
-    # how to users access the service from upstream, which can include
-    #  - endpoint
-    #  - access_method
-    #  - code_examples
-    # multiple access interfaces can be provided, for example, if the service
-    # is available through multiple interfaces or service groups
-    user_access_interfaces: list[AccessInterface] = Field(description="Dictionary of user access interfaces")
-
-    #
-    # how upstream charges for their services, which can include
-    # a list of pricing models
-    #
-    user_price: Pricing | None = Field(description="Dictionary of pricing information")
-
-    documents: list[Document] | None = Field(
+    documents: list[Document] | None = Field(  # type: ignore[assignment]
         default=None,
         description="List of documents associated with the listing (e.g. service level agreements)",
-    )
-    #
-    # schema for accepting user parameters for the service
-    #
-    user_parameters_schema: dict[str, Any] | None = Field(
-        default=None, description="Dictionary of user parameters schema"
-    )
-
-    user_parameters_ui_schema: dict[str, Any] | None = Field(
-        default=None, description="Dictionary of user parameters UI schema"
     )
 
     @field_validator("name")

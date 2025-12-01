@@ -163,16 +163,24 @@ usvc init offering <name> [OPTIONS]
 -   **Basic Information**: service name, display name, version, description
 -   **Classification**: service type (llm/embedding/vision/audio/image/video), upstream status
 -   **Upstream Access Interface**: API endpoint, API key, documents (optional)
--   **Upstream Pricing** (optional): pricing unit, tier name, currency, price structure
+-   **Upstream Pricing** (optional): pricing type, currency, price structure
 -   **Additional Information**: tagline
+
+**Pricing Types:**
+
+-   `one_million_tokens` - Per million tokens (LLMs)
+-   `one_second` - Per second of usage (audio/video)
+-   `image` - Per image generated
+-   `step` - Per step/iteration
+-   `revenue_share` - Percentage of customer charge (seller only)
 
 **Pricing Structures:**
 
-When adding pricing, you can choose from three types:
+When adding pricing, you can choose from three structures:
 
-1. **Simple**: `{"amount": 10.00}`
-2. **Input/Output** (for LLMs): `{"input": 5.00, "output": 15.00}`
-3. **Custom JSON**: `{"base": 5.00, "per_unit": 0.001}` or any custom structure
+1. **Simple**: `{"type": "one_million_tokens", "price": "10.00"}`
+2. **Input/Output** (for LLMs): `{"type": "one_million_tokens", "input": "5.00", "output": "15.00"}`
+3. **Custom JSON**: any structure with required "type" field
 
 **Examples:**
 

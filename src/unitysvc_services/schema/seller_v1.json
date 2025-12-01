@@ -177,7 +177,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Seller information for marketplace sellers.\n\nEach repository can only have one seller.json file at the root of the data directory.",
+  "description": "Seller information for marketplace sellers (seller_v1 schema).\n\nExtends SellerData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- logo: Convenience field (converted to documents during import)\n- Typed Document model instead of dict for file validation\n- Field validators for name format\n\nEach repository can only have one seller.json file at the root of the data directory.",
   "properties": {
     "account_manager": {
       "anyOf": [
@@ -369,9 +369,9 @@
     }
   },
   "required": [
-    "time_created",
     "name",
-    "contact_email"
+    "contact_email",
+    "time_created"
   ],
   "title": "SellerV1",
   "type": "object"

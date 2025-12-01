@@ -1,8 +1,79 @@
-import re
-from enum import StrEnum
-from typing import Any
+from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from decimal import Decimal, InvalidOperation
+from enum import StrEnum
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic.functional_validators import BeforeValidator
+
+
+def _validate_price_string(v: Any) -> str:
+    """Validate that price values are strings representing valid non-negative decimal numbers.
+
+    This prevents floating-point precision issues where values like 2.0
+    might become 1.9999999 when saved/loaded. Prices are stored as strings
+    and converted to Decimal only when calculations are needed.
+    """
+    if isinstance(v, float):
+        raise ValueError(
+            f"Price value must be a string (e.g., '0.50'), not a float ({v}). Floats can cause precision issues."
+        )
+
+    # Convert int to string first
+    if isinstance(v, int):
+        v = str(v)
+
+    if not isinstance(v, str):
+        raise ValueError(f"Price value must be a string, got {type(v).__name__}")
+
+    # Validate it's a valid decimal number and non-negative
+    try:
+        decimal_val = Decimal(v)
+    except InvalidOperation:
+        raise ValueError(f"Price value '{v}' is not a valid decimal number")
+
+    if decimal_val < 0:
+        raise ValueError(f"Price value must be non-negative, got '{v}'")
+
+    return v
+
+
+# Price string type that only accepts strings/ints, not floats
+PriceStr = Annotated[str, BeforeValidator(_validate_price_string)]
+
+
+# ============================================================================
+# Usage Data for cost calculation
+# ============================================================================
+
+
+class UsageData(BaseModel):
+    """
+    Usage data for cost calculation.
+
+    Different pricing types require different usage fields:
+    - one_million_tokens: input_tokens, output_tokens (or total_tokens)
+    - one_second: seconds
+    - image: count
+    - step: count
+
+    Extra fields are ignored, so you can pass **usage_info directly.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    # Token-based usage (for LLMs)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None  # Alternative to input/output for unified pricing
+
+    # Time-based usage
+    seconds: float | None = None
+
+    # Count-based usage (images, steps, requests)
+    count: int | None = None
 
 
 class AccessMethodEnum(StrEnum):
@@ -33,6 +104,9 @@ class DocumentContextEnum(StrEnum):
     service_offering = "service_offering"  # Documents belong to ServiceOffering
     service_listing = "service_listing"  # Documents belong to ServiceListing
     user = "user"  # can be for seller, subscriber, consumer
+    # Backend-specific contexts
+    seller = "seller"  # Documents belong to Seller
+    provider = "provider"  # Documents belong to Provider
 
 
 class DocumentCategoryEnum(StrEnum):
@@ -71,6 +145,7 @@ class MimeTypeEnum(StrEnum):
 class InterfaceContextTypeEnum(StrEnum):
     service_offering = "service_offering"  # Pricing from upstream provider
     service_listing = "service_listing"  # Pricing shown to end users
+    service_subscription = "service_subscription"  # User's subscription to a service
 
 
 class SellerTypeEnum(StrEnum):
@@ -110,15 +185,236 @@ class OveragePolicyEnum(StrEnum):
 
 
 class PricingTypeEnum(StrEnum):
-    upstream = "upstream"  # Pricing from upstream provider
-    user_facing = "user_facing"  # Pricing shown to end users
+    """
+    Pricing type determines how price_data is structured and calculated.
+    The type is stored inside price_data as the 'type' field.
+    """
 
-
-class PricingUnitEnum(StrEnum):
     one_million_tokens = "one_million_tokens"
     one_second = "one_second"
     image = "image"
     step = "step"
+    # Seller-only: seller receives a percentage of what customer pays
+    revenue_share = "revenue_share"
+
+
+# ============================================================================
+# Price Data Models - Discriminated Union for type-safe price_data validation
+# ============================================================================
+
+
+class BasePriceData(BaseModel):
+    """Base class for all price data types."""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class TokenPriceData(BasePriceData):
+    """
+    Price data for token-based pricing (LLMs).
+    Supports either unified pricing or separate input/output pricing.
+
+    Price values use Decimal for precision. In JSON/TOML, specify as strings
+    (e.g., "0.50") to avoid floating-point precision issues.
+    """
+
+    type: Literal["one_million_tokens"] = "one_million_tokens"
+
+    # Option 1: Unified price for all tokens
+    price: PriceStr | None = Field(
+        default=None,
+        description="Unified price per million tokens (used when input/output are the same)",
+    )
+
+    # Option 2: Separate input/output pricing
+    input: PriceStr | None = Field(
+        default=None,
+        description="Price per million input tokens",
+    )
+    output: PriceStr | None = Field(
+        default=None,
+        description="Price per million output tokens",
+    )
+
+    @model_validator(mode="after")
+    def validate_price_fields(self) -> TokenPriceData:
+        """Ensure either unified price or input/output pair is provided."""
+        has_unified = self.price is not None
+        has_input_output = self.input is not None or self.output is not None
+
+        if has_unified and has_input_output:
+            raise ValueError(
+                "Cannot specify both 'price' and 'input'/'output'. "
+                "Use 'price' for unified pricing or 'input'/'output' for separate pricing."
+            )
+
+        if not has_unified and not has_input_output:
+            raise ValueError("Must specify either 'price' (unified) or 'input'/'output' (separate pricing).")
+
+        if has_input_output and (self.input is None or self.output is None):
+            raise ValueError("Both 'input' and 'output' must be specified for separate pricing.")
+
+        return self
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for token-based pricing."""
+        input_tokens = usage.input_tokens or 0
+        output_tokens = usage.output_tokens or 0
+
+        if usage.total_tokens is not None and usage.input_tokens is None:
+            input_tokens = usage.total_tokens
+            output_tokens = 0
+
+        if self.input is not None and self.output is not None:
+            input_cost = Decimal(self.input) * input_tokens / 1_000_000
+            output_cost = Decimal(self.output) * output_tokens / 1_000_000
+        else:
+            price = Decimal(self.price)  # type: ignore[arg-type]
+            input_cost = price * input_tokens / 1_000_000
+            output_cost = price * output_tokens / 1_000_000
+
+        return input_cost + output_cost
+
+
+class TimePriceData(BasePriceData):
+    """
+    Price data for time-based pricing (audio/video processing, compute time).
+
+    Price values use Decimal for precision. In JSON/TOML, specify as strings
+    (e.g., "0.006") to avoid floating-point precision issues.
+    """
+
+    type: Literal["one_second"] = "one_second"
+
+    price: PriceStr = Field(
+        description="Price per second of usage",
+    )
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for time-based pricing."""
+        if usage.seconds is None:
+            raise ValueError("Time-based pricing requires 'seconds' in usage data")
+
+        return Decimal(self.price) * Decimal(str(usage.seconds))
+
+
+class ImagePriceData(BasePriceData):
+    """
+    Price data for per-image pricing (image generation, processing).
+
+    Price values use Decimal for precision. In JSON/TOML, specify as strings
+    (e.g., "0.04") to avoid floating-point precision issues.
+    """
+
+    type: Literal["image"] = "image"
+
+    price: PriceStr = Field(
+        description="Price per image",
+    )
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for image-based pricing."""
+        if usage.count is None:
+            raise ValueError("Image pricing requires 'count' in usage data")
+
+        return Decimal(self.price) * usage.count
+
+
+class StepPriceData(BasePriceData):
+    """
+    Price data for per-step pricing (diffusion steps, iterations).
+
+    Price values use Decimal for precision. In JSON/TOML, specify as strings
+    (e.g., "0.001") to avoid floating-point precision issues.
+    """
+
+    type: Literal["step"] = "step"
+
+    price: PriceStr = Field(
+        description="Price per step/iteration",
+    )
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for step-based pricing."""
+        if usage.count is None:
+            raise ValueError("Step pricing requires 'count' in usage data")
+
+        return Decimal(self.price) * usage.count
+
+
+def _validate_percentage_string(v: Any) -> str:
+    """Validate that percentage values are strings representing valid decimals in range 0-100."""
+    # First use the standard price validation
+    v = _validate_price_string(v)
+
+    # Then check the 0-100 range
+    decimal_val = Decimal(v)
+    if decimal_val > 100:
+        raise ValueError(f"Percentage must be between 0 and 100, got '{v}'")
+
+    return v
+
+
+# Percentage string type for revenue share (0-100 range)
+PercentageStr = Annotated[str, BeforeValidator(_validate_percentage_string)]
+
+
+class RevenueSharePriceData(BasePriceData):
+    """
+    Price data for revenue share pricing (seller_price only).
+
+    This pricing type is used exclusively for seller_price when the seller
+    receives a percentage of what the customer pays. It cannot be used for
+    customer_price since the customer price must be a concrete amount.
+
+    The percentage represents the seller's share of the customer charge.
+    For example, if percentage is "70" and the customer pays $10, the seller
+    receives $7.
+
+    Percentage values must be strings (e.g., "70.00") to avoid floating-point
+    precision issues.
+    """
+
+    type: Literal["revenue_share"] = "revenue_share"
+
+    percentage: PercentageStr = Field(
+        description="Percentage of customer charge that goes to the seller (0-100)",
+    )
+
+
+# Discriminated union of all price data types
+PriceData = Annotated[
+    TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData,
+    Field(discriminator="type"),
+]
+
+
+def validate_price_data(
+    data: dict[str, Any],
+) -> TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData:
+    """
+    Validate price_data dict and return the appropriate typed model.
+
+    Args:
+        data: Dictionary containing price data with 'type' field
+
+    Returns:
+        Validated PriceData model instance
+
+    Raises:
+        ValueError: If validation fails
+
+    Example:
+        >>> data = {"type": "one_million_tokens", "input": 0.5, "output": 1.5}
+        >>> validated = validate_price_data(data)
+        >>> print(validated.input)  # 0.5
+    """
+    from pydantic import TypeAdapter
+
+    adapter: TypeAdapter[TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData] = (
+        TypeAdapter(PriceData)
+    )
+    return adapter.validate_python(data)
 
 
 class QuotaResetCycleEnum(StrEnum):
@@ -171,19 +467,6 @@ class ServiceTypeEnum(StrEnum):
     undetermined = "undetermined"
     #
     text_to_3d = "text_to_3d"
-
-
-class SubscriptionStatusEnum(StrEnum):
-    active = "active"
-    cancelled = "cancelled"
-    expired = "expired"
-    pending = "pending"
-    trialing = "trialing"
-    failed = "failed"
-    paused = "paused"
-    incomplete = "incomplete"
-    incomplete_expired = "incomplete_expired"
-    unpaid = "unpaid"
 
 
 class TagEnum(StrEnum):
@@ -360,25 +643,67 @@ class AccessInterface(BaseModel):
 
 
 class Pricing(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    """
+    Universal pricing model for services.
 
-    # Pricing tier name (Basic, Pro, Enterprise, etc.)
-    name: str | None = Field(default=None, description="Pricing tier name (e.g., Basic, Pro, Enterprise)")
+    The price_data field uses a discriminated union based on the 'type' field:
+    - "one_million_tokens": TokenPriceData (for LLMs, supports unified or input/output pricing)
+    - "one_second": TimePriceData (for audio/video, compute time)
+    - "image": ImagePriceData (for image generation)
+    - "step": StepPriceData (for diffusion steps, iterations)
+
+    Example usage:
+        # Token pricing with separate input/output
+        Pricing(
+            currency="USD",
+            price_data={"type": "one_million_tokens", "input": 0.5, "output": 1.5}
+        )
+
+        # Image pricing
+        Pricing(
+            currency="USD",
+            price_data={"type": "image", "price": 0.04}
+        )
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     description: str | None = Field(default=None, description="Pricing model description")
 
-    # Currency and description
     currency: str | None = Field(default=None, description="Currency code (e.g., USD)")
 
-    unit: PricingUnitEnum = Field(description="Unit of pricing")
-
-    # Store price as JSON - flexible structure for different pricing models
-    price_data: dict[str, Any] = Field(
-        description="JSON containing price data (single price, tiered, usage-based, etc.)",
+    # Price data with type-based validation
+    # Use get_validated_price_data() to get the typed model
+    price_data: PriceData = Field(
+        description="Price data with 'type' field determining structure. "
+        "See TokenPriceData, TimePriceData, ImagePriceData, StepPriceData for valid structures.",
     )
 
     # Optional reference to upstream pricing
     reference: str | None = Field(default=None, description="Reference URL to upstream pricing")
+
+    def get_price_type(self) -> str:
+        """Get the pricing type from price_data."""
+        return self.price_data.type
+
+    def get_unified_price(self) -> str | None:
+        """
+        Get unified price if available.
+        Returns the 'price' field for all types, or None for input/output token pricing.
+        """
+        if hasattr(self.price_data, "price"):
+            return self.price_data.price  # type: ignore[return-value]
+        return None
+
+    def get_input_output_prices(self) -> tuple[str, str] | None:
+        """
+        Get input/output prices for token-based pricing.
+        Returns (input_price, output_price) tuple or None if not applicable.
+        """
+        if isinstance(self.price_data, TokenPriceData):
+            if self.price_data.input is not None and self.price_data.output is not None:
+                return (self.price_data.input, self.price_data.output)
+        return None
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:

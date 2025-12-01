@@ -73,91 +73,94 @@ def find_seller_name(data_dir: Path | None = None) -> str | None:
 
 
 def prompt_for_pricing() -> dict[str, Any]:
-    """Interactively prompt for pricing information.
+    """Interactively prompt for pricing information (for seller_price).
 
     Returns:
         Dictionary with pricing data
     """
     console.print("\n[bold cyan]Adding pricing information[/bold cyan]")
 
-    # Required field: unit
-    unit = Prompt.ask(
-        "[bold blue]Pricing unit[/bold blue] [red]*[/red]",
-        choices=["one_million_tokens", "one_second", "image", "step"],
+    # Required field: pricing type (now inside price_data)
+    # Note: revenue_share is only valid for seller_price, which is the only context
+    # where this function is called
+    pricing_type = Prompt.ask(
+        "[bold blue]Pricing type[/bold blue] [red]*[/red]",
+        choices=["one_million_tokens", "one_second", "image", "step", "revenue_share"],
         default="one_million_tokens",
     )
 
     # Optional fields
-    name = Prompt.ask(
-        "[bold blue]Pricing tier name[/bold blue] [dim](optional, e.g., 'Standard', 'Pro')[/dim]",
-        default="",
-    )
     description = Prompt.ask("[bold blue]Description[/bold blue] [dim](optional)[/dim]", default="")
     currency = Prompt.ask("[bold blue]Currency code[/bold blue] [dim](optional, e.g., 'USD')[/dim]", default="USD")
     reference = Prompt.ask(
         "[bold blue]Reference URL[/bold blue] [dim](optional, link to upstream pricing page)[/dim]", default=""
     )
 
-    # Price data - ask user what type of pricing structure they want
-    console.print("\n[dim]Price data is a flexible structure. Common examples:[/dim]")
-    console.print('[dim]  1. Simple: {"amount": 10.00}[/dim]')
-    console.print('[dim]  2. Input/Output (LLMs): {"input": 5.00, "output": 15.00}[/dim]')
-    console.print('[dim]  3. Custom JSON: {"base": 5.00, "per_unit": 0.001}[/dim]')
+    # Build price_data based on pricing type
+    price_data: dict[str, Any]
 
-    pricing_type = Prompt.ask(
-        "\n[bold blue]Pricing structure type[/bold blue]",
-        choices=["simple", "input_output", "custom"],
-        default="simple",
-    )
+    if pricing_type == "revenue_share":
+        # Revenue share pricing - just needs a percentage
+        console.print("\n[dim]Revenue share: seller receives a percentage of customer charge[/dim]")
+        percentage = Prompt.ask(
+            "[bold blue]Percentage[/bold blue] [dim](0-100, e.g., '70' for 70%)[/dim]",
+            default="70",
+        )
+        price_data = {"type": pricing_type, "percentage": percentage}
+    else:
+        # Other pricing types - ask for price structure
+        console.print("\n[dim]Price data structure options:[/dim]")
+        console.print('[dim]  1. Simple: {"type": "...", "price": "10.00"}[/dim]')
+        console.print('[dim]  2. Input/Output (LLMs): {"type": "...", "input": "5.00", "output": "15.00"}[/dim]')
+        console.print('[dim]  3. Custom: any JSON with "type" field included[/dim]')
 
-    if pricing_type == "simple":
-        amount = Prompt.ask("[bold blue]Price amount[/bold blue] [dim](numeric value)[/dim]", default="0")
-        try:
-            price_amount = float(amount)
-        except ValueError:
-            console.print("[yellow]Invalid amount, using 0[/yellow]")
-            price_amount = 0.0
-        price_data = {"amount": price_amount}
+        structure = Prompt.ask(
+            "\n[bold blue]Price data structure[/bold blue]",
+            choices=["simple", "input_output", "custom"],
+            default="simple",
+        )
 
-    elif pricing_type == "input_output":
-        input_amount = Prompt.ask("[bold blue]Input price amount[/bold blue] [dim](numeric value)[/dim]", default="0")
-        try:
-            input_price = float(input_amount)
-        except ValueError:
-            console.print("[yellow]Invalid amount, using 0[/yellow]")
-            input_price = 0.0
+        if structure == "simple":
+            amount = Prompt.ask(
+                "[bold blue]Price amount[/bold blue] [dim](e.g., '0.50')[/dim]",
+                default="0",
+            )
+            price_data = {"type": pricing_type, "price": amount}
 
-        output_amount = Prompt.ask("[bold blue]Output price amount[/bold blue] [dim](numeric value)[/dim]", default="0")
-        try:
-            output_price = float(output_amount)
-        except ValueError:
-            console.print("[yellow]Invalid amount, using 0[/yellow]")
-            output_price = 0.0
+        elif structure == "input_output":
+            input_amount = Prompt.ask(
+                "[bold blue]Input price amount[/bold blue] [dim](e.g., '0.50')[/dim]",
+                default="0",
+            )
+            output_amount = Prompt.ask(
+                "[bold blue]Output price amount[/bold blue] [dim](e.g., '1.50')[/dim]",
+                default="0",
+            )
+            price_data = {"type": pricing_type, "input": input_amount, "output": output_amount}
 
-        price_data = {"input": input_price, "output": output_price}
-
-    else:  # custom
-        console.print('\n[dim]Enter price_data as JSON (e.g., {"base": 5.00, "per_unit": 0.001})[/dim]')
-        while True:
-            json_input = Prompt.ask("[bold blue]Price data JSON[/bold blue]", default="{}")
-            try:
-                price_data = json.loads(json_input)
-                if not isinstance(price_data, dict):
-                    console.print("[red]Error: Price data must be a JSON object (dict)[/red]")
-                    continue
-                break
-            except json.JSONDecodeError as e:
-                console.print(f"[red]Invalid JSON: {e}[/red]")
-                console.print("[dim]Try again or press Ctrl+C to cancel[/dim]")
+        else:  # custom
+            console.print(
+                f'\n[dim]Enter additional price_data fields as JSON (type "{pricing_type}" will be added)[/dim]'
+            )
+            console.print('[dim]Example: {"price": "0.05"}[/dim]')
+            while True:
+                json_input = Prompt.ask("[bold blue]Additional price data JSON[/bold blue]", default="{}")
+                try:
+                    custom_data = json.loads(json_input)
+                    if not isinstance(custom_data, dict):
+                        console.print("[red]Error: Price data must be a JSON object (dict)[/red]")
+                        continue
+                    price_data = {"type": pricing_type, **custom_data}
+                    break
+                except json.JSONDecodeError as e:
+                    console.print(f"[red]Invalid JSON: {e}[/red]")
+                    console.print("[dim]Try again or press Ctrl+C to cancel[/dim]")
 
     # Build pricing dict
     pricing: dict[str, Any] = {
-        "unit": unit,
         "price_data": price_data,
     }
 
-    if name:
-        pricing["name"] = name
     if description:
         pricing["description"] = description
     if currency:
@@ -847,14 +850,14 @@ OFFERING_GROUPS = [
     ),
     FieldGroup(
         name="pricing",
-        title="Upstream Pricing (Optional)",
+        title="Seller Pricing (Optional)",
         fields=[
             FieldDef(
-                name="add_upstream_pricing",
-                prompt_text="Add upstream pricing information?",
+                name="add_seller_pricing",
+                prompt_text="Add seller pricing information?",
                 field_type="boolean",
                 default=False,
-                description="How the upstream provider charges for this service",
+                description="The agreed rate between seller and UnitySVC",
             ),
         ],
     ),
@@ -1060,10 +1063,10 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         if documents:
             upstream_access_interface["documents"] = documents
 
-    # Handle upstream pricing if user wants to add it
-    upstream_price = None
-    if user_input.get("add_upstream_pricing"):
-        upstream_price = prompt_for_pricing()
+    # Handle seller pricing if user wants to add it
+    seller_price = None
+    if user_input.get("add_seller_pricing"):
+        seller_price = prompt_for_pricing()
 
     # Create base data
     data = {
@@ -1073,12 +1076,12 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         "details": {},  # Required field, user can add details manually later
     }
 
-    # Add upstream price if provided
-    if upstream_price:
-        data["upstream_price"] = upstream_price
+    # Add seller price if provided
+    if seller_price:
+        data["seller_price"] = seller_price
 
-    # Add non-upstream fields (exclude add_upstream_documents and add_upstream_pricing which are just flags)
-    excluded_fields = upstream_fields + ["add_upstream_pricing"]
+    # Add non-upstream fields (exclude add_upstream_documents and add_seller_pricing which are just flags)
+    excluded_fields = upstream_fields + ["add_seller_pricing"]
     for key, value in user_input.items():
         if key not in excluded_fields and value is not None:
             data[key] = value
@@ -1100,7 +1103,7 @@ def create_listing_data(user_input: dict[str, Any], listing_dir: Path | None = N
         "schema": "listing_v1",
         "time_created": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "user_access_interfaces": [],  # Required field, user must add interfaces manually
-        "user_price": None,  # Optional, can be added later
+        "customer_price": None,  # Optional, can be added later
     }
 
     # Handle documents if user wants to add them
