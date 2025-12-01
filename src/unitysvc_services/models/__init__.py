@@ -14,6 +14,7 @@ from .base import (
     TimePriceData,
     TokenPriceData,
     UpstreamStatusEnum,
+    UsageData,
     validate_price_data,
 )
 from .listing_data import ServiceListingData
@@ -54,4 +55,6 @@ __all__ = [
     "StepPriceData",
     "RevenueSharePriceData",
     "validate_price_data",
+    # Cost calculation
+    "UsageData",
 ]

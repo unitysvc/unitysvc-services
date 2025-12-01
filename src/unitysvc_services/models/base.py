@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
@@ -16,8 +18,7 @@ def _validate_price_string(v: Any) -> str:
     """
     if isinstance(v, float):
         raise ValueError(
-            f"Price value must be a string (e.g., '0.50'), not a float ({v}). "
-            "Floats can cause precision issues."
+            f"Price value must be a string (e.g., '0.50'), not a float ({v}). Floats can cause precision issues."
         )
 
     # Convert int to string first
@@ -41,6 +42,38 @@ def _validate_price_string(v: Any) -> str:
 
 # Price string type that only accepts strings/ints, not floats
 PriceStr = Annotated[str, BeforeValidator(_validate_price_string)]
+
+
+# ============================================================================
+# Usage Data for cost calculation
+# ============================================================================
+
+
+class UsageData(BaseModel):
+    """
+    Usage data for cost calculation.
+
+    Different pricing types require different usage fields:
+    - one_million_tokens: input_tokens, output_tokens (or total_tokens)
+    - one_second: seconds
+    - image: count
+    - step: count
+
+    Extra fields are ignored, so you can pass **usage_info directly.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    # Token-based usage (for LLMs)
+    input_tokens: int | None = None
+    output_tokens: int | None = None
+    total_tokens: int | None = None  # Alternative to input/output for unified pricing
+
+    # Time-based usage
+    seconds: float | None = None
+
+    # Count-based usage (images, steps, requests)
+    count: int | None = None
 
 
 class AccessMethodEnum(StrEnum):
@@ -204,7 +237,7 @@ class TokenPriceData(BasePriceData):
     )
 
     @model_validator(mode="after")
-    def validate_price_fields(self) -> "TokenPriceData":
+    def validate_price_fields(self) -> TokenPriceData:
         """Ensure either unified price or input/output pair is provided."""
         has_unified = self.price is not None
         has_input_output = self.input is not None or self.output is not None
@@ -223,6 +256,25 @@ class TokenPriceData(BasePriceData):
 
         return self
 
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for token-based pricing."""
+        input_tokens = usage.input_tokens or 0
+        output_tokens = usage.output_tokens or 0
+
+        if usage.total_tokens is not None and usage.input_tokens is None:
+            input_tokens = usage.total_tokens
+            output_tokens = 0
+
+        if self.input is not None and self.output is not None:
+            input_cost = Decimal(self.input) * input_tokens / 1_000_000
+            output_cost = Decimal(self.output) * output_tokens / 1_000_000
+        else:
+            price = Decimal(self.price)  # type: ignore[arg-type]
+            input_cost = price * input_tokens / 1_000_000
+            output_cost = price * output_tokens / 1_000_000
+
+        return input_cost + output_cost
+
 
 class TimePriceData(BasePriceData):
     """
@@ -237,6 +289,13 @@ class TimePriceData(BasePriceData):
     price: PriceStr = Field(
         description="Price per second of usage",
     )
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for time-based pricing."""
+        if usage.seconds is None:
+            raise ValueError("Time-based pricing requires 'seconds' in usage data")
+
+        return Decimal(self.price) * Decimal(str(usage.seconds))
 
 
 class ImagePriceData(BasePriceData):
@@ -253,6 +312,13 @@ class ImagePriceData(BasePriceData):
         description="Price per image",
     )
 
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for image-based pricing."""
+        if usage.count is None:
+            raise ValueError("Image pricing requires 'count' in usage data")
+
+        return Decimal(self.price) * usage.count
+
 
 class StepPriceData(BasePriceData):
     """
@@ -267,6 +333,13 @@ class StepPriceData(BasePriceData):
     price: PriceStr = Field(
         description="Price per step/iteration",
     )
+
+    def calculate_cost(self, usage: UsageData) -> Decimal:
+        """Calculate cost for step-based pricing."""
+        if usage.count is None:
+            raise ValueError("Step pricing requires 'count' in usage data")
+
+        return Decimal(self.price) * usage.count
 
 
 def _validate_percentage_string(v: Any) -> str:
@@ -613,16 +686,16 @@ class Pricing(BaseModel):
         """Get the pricing type from price_data."""
         return self.price_data.type
 
-    def get_unified_price(self) -> Decimal | None:
+    def get_unified_price(self) -> str | None:
         """
         Get unified price if available.
         Returns the 'price' field for all types, or None for input/output token pricing.
         """
         if hasattr(self.price_data, "price"):
-            return self.price_data.price
+            return self.price_data.price  # type: ignore[return-value]
         return None
 
-    def get_input_output_prices(self) -> tuple[Decimal, Decimal] | None:
+    def get_input_output_prices(self) -> tuple[str, str] | None:
         """
         Get input/output prices for token-based pricing.
         Returns (input_price, output_price) tuple or None if not applicable.
