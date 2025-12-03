@@ -1,21 +1,24 @@
 # Development Scripts
 
-This directory contains development and maintenance scripts for the UnitySVC Provider SDK.
+This directory contains development and maintenance scripts for the UnitySVC Seller SDK.
 
 ## update_schema.py
 
 Generates JSON schemas from Pydantic models.
 
 **When to use:**
-- After modifying any Pydantic model in `src/unitysvc_services/models/`
-- Before committing model changes
+
+-   After modifying any Pydantic model in `src/unitysvc_services/models/`
+-   Before committing model changes
 
 **Usage:**
+
 ```bash
 python scripts/update_schema.py
 ```
 
 **What it does:**
+
 1. Scans all Python files in `src/unitysvc_services/models/`
 2. Extracts Pydantic BaseModel classes
 3. Generates JSON schemas for each model
@@ -23,6 +26,7 @@ python scripts/update_schema.py
 5. Formats output to match pre-commit requirements (2-space indent, sorted keys)
 
 **Output:**
+
 ```
 src/unitysvc_services/schema/
 ├── base.json           # Base models and enums
@@ -33,6 +37,7 @@ src/unitysvc_services/schema/
 ```
 
 The generated schemas are:
-- Used for data validation in CLI commands
-- Included in the package distribution
-- Referenced in documentation
+
+-   Used for data validation in CLI commands
+-   Included in the package distribution
+-   Referenced in documentation

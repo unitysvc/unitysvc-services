@@ -1,6 +1,6 @@
 # Workflows
 
-This guide explains the different workflows for managing service data with the UnitySVC Provider SDK.
+This guide explains the different workflows for managing service data with the UnitySVC Seller SDK.
 
 **Note:** All examples use the shorter `usvc` command alias. You can replace `usvc` with `unitysvc_services` if preferred.
 
@@ -10,6 +10,29 @@ The SDK supports two primary workflows:
 
 1. **Manual Workflow** - For small catalogs or one-time setup
 2. **Automated Workflow** - For large or dynamic catalogs
+
+```mermaid
+flowchart TB
+    subgraph Manual["Manual Workflow"]
+        A1[usvc init] --> A2[Edit Files]
+        A2 --> A3[usvc validate]
+        A3 --> A4[usvc format]
+        A4 --> A5[usvc publish]
+    end
+
+    subgraph Automated["Automated Workflow"]
+        B1[Configure populate script] --> B2[usvc populate]
+        B2 --> B3[usvc validate]
+        B3 --> B4[usvc format]
+        B4 --> B5[usvc publish]
+    end
+
+    subgraph Platform["UnitySVC Platform"]
+        A5 --> C[Backend API]
+        B5 --> C
+        C --> D[Service Available]
+    end
+```
 
 ## Manual Workflow
 
@@ -356,6 +379,31 @@ usvc update offering --name premium-service --status ready
 ## Publishing Order
 
 **Recommended:** Use `usvc publish` without subcommands to publish all types automatically in the correct order:
+
+```mermaid
+flowchart LR
+    subgraph Step1["Step 1"]
+        A[Sellers]
+        B[Providers]
+    end
+
+    subgraph Step2["Step 2"]
+        C[Service Offerings]
+    end
+
+    subgraph Step3["Step 3"]
+        D[Service Listings]
+    end
+
+    A --> D
+    B --> C
+    C --> D
+
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#fff3e0
+    style D fill:#e8f5e9
+```
 
 1. **Sellers** - Must exist before listings
 2. **Providers** - Must exist before offerings

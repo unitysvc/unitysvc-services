@@ -1,4 +1,4 @@
-site_name: UnitySVC Provider SDK
+site_name: UnitySVC Seller SDK
 site_description: Local-first service data management for UnitySVC platform
 site_author: UnitySVC Team
 site_url: https://unitysvc-services.readthedocs.io
@@ -43,7 +43,11 @@ markdown_extensions:
   - codehilite
   - pymdownx.highlight:
       anchor_linenums: true
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
   - pymdownx.tabbed:
       alternate_style: true
   - pymdownx.details
@@ -61,6 +65,7 @@ nav:
       - Installation & Quick Start: getting-started.md
       - Data Structure: data-structure.md
       - Workflows: workflows.md
+      - Seller Lifecycle: seller-lifecycle.md
   - Reference:
       - CLI Commands: cli-reference.md
       - File Schemas: file-schemas.md

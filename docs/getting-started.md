@@ -1,6 +1,6 @@
 # Getting Started
 
-This guide will help you get started with the UnitySVC Provider SDK.
+This guide will help you get started with the UnitySVC Seller SDK.
 
 ## Installation
 
@@ -147,6 +147,47 @@ usvc publish --data-path ./data
 usvc publish providers
 usvc publish sellers
 ```
+
+#### What Gets Published?
+
+When you run `usvc publish`, you're submitting two types of data to UnitySVC:
+
+```mermaid
+flowchart TD
+    subgraph Seller["Seller Publishes"]
+        A[ServiceOffering<br/>What seller offers TO UnitySVC]
+        B[ServiceListing<br/>What seller offers TO Users]
+    end
+
+    subgraph Agreement["Agreement"]
+        C{UnitySVC Reviews<br/>& Approves}
+    end
+
+    subgraph Active["Active Service"]
+        D[Service goes live]
+        E[Usage tracked per request]
+        F[Monthly invoice generated]
+    end
+
+    A --> C
+    B --> C
+    C -->|Approved| D
+    D --> E
+    E --> F
+```
+
+| Data Type           | Purpose                    | Key Fields                                        |
+| ------------------- | -------------------------- | ------------------------------------------------- |
+| **ServiceOffering** | What you offer TO UnitySVC | Provider info, API endpoints, seller pricing      |
+| **ServiceListing**  | What you offer TO Users    | User-facing info, customer pricing, documentation |
+
+After UnitySVC reviews and approves your submission:
+
+1. **Service goes live** - Available to customers on the platform
+2. **Usage tracked** - Every API request is metered and logged
+3. **Monthly invoicing** - You receive payouts based on usage × seller price
+
+See [Seller Lifecycle](seller-lifecycle.md) for details on invoicing, disputes, and payouts.
 
 ### Step 9: Verify Your Published Data
 

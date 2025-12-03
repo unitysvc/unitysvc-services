@@ -1,6 +1,6 @@
 # API Reference
 
-Python API documentation for the UnitySVC Provider SDK.
+Python API documentation for the UnitySVC Seller SDK.
 
 ## Overview
 
