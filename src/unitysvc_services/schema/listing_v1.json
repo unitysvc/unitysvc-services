@@ -190,6 +190,29 @@
       "title": "ContentFilterEnum",
       "type": "string"
     },
+    "CurrencyEnum": {
+      "description": "Supported currency codes for pricing.",
+      "enum": [
+        "USD",
+        "EUR",
+        "GBP",
+        "JPY",
+        "CNY",
+        "CAD",
+        "AUD",
+        "CHF",
+        "INR",
+        "KRW",
+        "BTC",
+        "ETH",
+        "USDT",
+        "USDC",
+        "TAO",
+        "CREDITS"
+      ],
+      "title": "CurrencyEnum",
+      "type": "string"
+    },
     "Document": {
       "additionalProperties": false,
       "properties": {
@@ -332,18 +355,9 @@
       "description": "Price data for per-image pricing (image generation, processing).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.04\") to avoid floating-point precision issues.",
       "properties": {
         "price": {
-          "anyOf": [
-            {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            }
-          ],
           "description": "Price per image",
-          "title": "Price"
+          "title": "Price",
+          "type": "string"
         },
         "type": {
           "const": "image",
@@ -397,20 +411,19 @@
     },
     "Pricing": {
       "additionalProperties": false,
-      "description": "Universal pricing model for services.\n\nThe price_data field uses a discriminated union based on the 'type' field:\n- \"one_million_tokens\": TokenPriceData (for LLMs, supports unified or input/output pricing)\n- \"one_second\": TimePriceData (for audio/video, compute time)\n- \"image\": ImagePriceData (for image generation)\n- \"step\": StepPriceData (for diffusion steps, iterations)\n\nExample usage:\n    # Token pricing with separate input/output\n    Pricing(\n        currency=\"USD\",\n        price_data={\"type\": \"one_million_tokens\", \"input\": 0.5, \"output\": 1.5}\n    )\n\n    # Image pricing\n    Pricing(\n        currency=\"USD\",\n        price_data={\"type\": \"image\", \"price\": 0.04}\n    )",
+      "description": "Universal pricing model for services.\n\nThe price_data field uses a discriminated union based on the 'type' field:\n- \"one_million_tokens\": TokenPriceData (for LLMs, supports unified or input/output pricing)\n- \"one_second\": TimePriceData (for audio/video, compute time)\n- \"image\": ImagePriceData (for image generation)\n- \"step\": StepPriceData (for diffusion steps, iterations)\n\nExample usage:\n    # Token pricing with separate input/output\n    Pricing(\n        currency=CurrencyEnum.USD,\n        price_data={\"type\": \"one_million_tokens\", \"input\": 0.5, \"output\": 1.5}\n    )\n\n    # Image pricing\n    Pricing(\n        currency=CurrencyEnum.USD,\n        price_data={\"type\": \"image\", \"price\": 0.04}\n    )",
       "properties": {
         "currency": {
           "anyOf": [
             {
-              "type": "string"
+              "$ref": "#/$defs/CurrencyEnum"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Currency code (e.g., USD)",
-          "title": "Currency"
+          "description": "Currency code (e.g., USD)"
         },
         "description": {
           "anyOf": [
@@ -567,22 +580,12 @@
     },
     "RevenueSharePriceData": {
       "additionalProperties": false,
-      "description": "Price data for revenue share pricing (seller_price only).\n\nThis pricing type is used exclusively for seller_price when the seller\nreceives a percentage of what the customer pays. It cannot be used for\ncustomer_price since the customer price must be a concrete amount.\n\nThe percentage represents the seller's share of the customer charge.\nFor example, if percentage is \"70\" and the customer pays $10, the seller\nreceives $7.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"70.00\") to avoid floating-point precision issues.",
+      "description": "Price data for revenue share pricing (seller_price only).\n\nThis pricing type is used exclusively for seller_price when the seller\nreceives a percentage of what the customer pays. It cannot be used for\ncustomer_price since the customer price must be a concrete amount.\n\nThe percentage represents the seller's share of the customer charge.\nFor example, if percentage is \"70\" and the customer pays $10, the seller\nreceives $7.\n\nPercentage values must be strings (e.g., \"70.00\") to avoid floating-point\nprecision issues.",
       "properties": {
         "percentage": {
-          "anyOf": [
-            {
-              "maximum": 100.0,
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            }
-          ],
           "description": "Percentage of customer charge that goes to the seller (0-100)",
-          "title": "Percentage"
+          "title": "Percentage",
+          "type": "string"
         },
         "type": {
           "const": "revenue_share",
@@ -923,18 +926,9 @@
       "description": "Price data for per-step pricing (diffusion steps, iterations).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.001\") to avoid floating-point precision issues.",
       "properties": {
         "price": {
-          "anyOf": [
-            {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            }
-          ],
           "description": "Price per step/iteration",
-          "title": "Price"
+          "title": "Price",
+          "type": "string"
         },
         "type": {
           "const": "step",
@@ -954,18 +948,9 @@
       "description": "Price data for time-based pricing (audio/video processing, compute time).\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.006\") to avoid floating-point precision issues.",
       "properties": {
         "price": {
-          "anyOf": [
-            {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
-              "type": "string"
-            }
-          ],
           "description": "Price per second of usage",
-          "title": "Price"
+          "title": "Price",
+          "type": "string"
         },
         "type": {
           "const": "one_second",
@@ -998,11 +983,6 @@
         "input": {
           "anyOf": [
             {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
               "type": "string"
             },
             {
@@ -1016,11 +996,6 @@
         "output": {
           "anyOf": [
             {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
               "type": "string"
             },
             {
@@ -1034,11 +1009,6 @@
         "price": {
           "anyOf": [
             {
-              "minimum": 0.0,
-              "type": "number"
-            },
-            {
-              "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
               "type": "string"
             },
             {

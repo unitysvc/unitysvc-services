@@ -82,6 +82,32 @@ class AccessMethodEnum(StrEnum):
     grpc = "grpc"
 
 
+class CurrencyEnum(StrEnum):
+    """Supported currency codes for pricing."""
+
+    # Traditional currencies
+    USD = "USD"  # US Dollar
+    EUR = "EUR"  # Euro
+    GBP = "GBP"  # British Pound
+    JPY = "JPY"  # Japanese Yen
+    CNY = "CNY"  # Chinese Yuan
+    CAD = "CAD"  # Canadian Dollar
+    AUD = "AUD"  # Australian Dollar
+    CHF = "CHF"  # Swiss Franc
+    INR = "INR"  # Indian Rupee
+    KRW = "KRW"  # Korean Won
+
+    # Cryptocurrencies
+    BTC = "BTC"  # Bitcoin
+    ETH = "ETH"  # Ethereum
+    USDT = "USDT"  # Tether
+    USDC = "USDC"  # USD Coin
+    TAO = "TAO"  # Bittensor TAO
+
+    # Credits/Points (for platforms that use credits)
+    CREDITS = "CREDITS"  # Generic credits system
+
+
 class AuthMethodEnum(StrEnum):
     api_key = "api_key"
     oauth = "oauth"
@@ -655,13 +681,13 @@ class Pricing(BaseModel):
     Example usage:
         # Token pricing with separate input/output
         Pricing(
-            currency="USD",
+            currency=CurrencyEnum.USD,
             price_data={"type": "one_million_tokens", "input": 0.5, "output": 1.5}
         )
 
         # Image pricing
         Pricing(
-            currency="USD",
+            currency=CurrencyEnum.USD,
             price_data={"type": "image", "price": 0.04}
         )
     """
@@ -670,7 +696,7 @@ class Pricing(BaseModel):
 
     description: str | None = Field(default=None, description="Pricing model description")
 
-    currency: str | None = Field(default=None, description="Currency code (e.g., USD)")
+    currency: CurrencyEnum | None = Field(default=None, description="Currency code (e.g., USD)")
 
     # Price data with type-based validation
     # Use get_validated_price_data() to get the typed model
