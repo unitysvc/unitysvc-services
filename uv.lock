@@ -1339,7 +1339,7 @@ wheels = [
 
 [[package]]
 name = "unitysvc-services"
-version = "0.1.19"
+version = "0.1.20"
 source = { editable = "." }
 dependencies = [
     { name = "email-validator" },

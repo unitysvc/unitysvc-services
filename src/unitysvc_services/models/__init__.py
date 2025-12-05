@@ -2,7 +2,6 @@ from .base import (
     BasePriceData,
     ImagePriceData,
     ListingStatusEnum,
-    PriceData,
     Pricing,
     PricingTypeEnum,
     ProviderStatusEnum,
@@ -15,7 +14,7 @@ from .base import (
     TokenPriceData,
     UpstreamStatusEnum,
     UsageData,
-    validate_price_data,
+    validate_pricing,
 )
 from .listing_data import ServiceListingData
 from .listing_v1 import ListingV1
@@ -47,14 +46,13 @@ __all__ = [
     # Pricing
     "Pricing",
     "PricingTypeEnum",
-    "PriceData",
     "BasePriceData",
     "TokenPriceData",
     "TimePriceData",
     "ImagePriceData",
     "StepPriceData",
     "RevenueSharePriceData",
-    "validate_price_data",
+    "validate_pricing",
     # Cost calculation
     "UsageData",
 ]

@@ -216,8 +216,8 @@ class OveragePolicyEnum(StrEnum):
 
 class PricingTypeEnum(StrEnum):
     """
-    Pricing type determines how price_data is structured and calculated.
-    The type is stored inside price_data as the 'type' field.
+    Pricing type determines the structure and calculation method.
+    The type is stored as the 'type' field in the pricing object.
     """
 
     one_million_tokens = "one_million_tokens"
@@ -229,14 +229,30 @@ class PricingTypeEnum(StrEnum):
 
 
 # ============================================================================
-# Price Data Models - Discriminated Union for type-safe price_data validation
+# Pricing Models - Discriminated Union for type-safe pricing validation
 # ============================================================================
 
 
 class BasePriceData(BaseModel):
-    """Base class for all price data types."""
+    """Base class for all price data types.
+
+    All pricing types include:
+    - type: Discriminator field for the pricing type
+    - description: Optional human-readable description
+    - reference: Optional URL to upstream pricing page
+    """
 
     model_config = ConfigDict(extra="forbid")
+
+    description: str | None = Field(
+        default=None,
+        description="Human-readable description of the pricing model",
+    )
+
+    reference: str | None = Field(
+        default=None,
+        description="URL to upstream provider's pricing page",
+    )
 
 
 class TokenPriceData(BasePriceData):
@@ -412,37 +428,38 @@ class RevenueSharePriceData(BasePriceData):
     )
 
 
-# Discriminated union of all price data types
-PriceData = Annotated[
+# Discriminated union of all pricing types
+# This is the type used for seller_price and customer_price fields
+Pricing = Annotated[
     TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData,
     Field(discriminator="type"),
 ]
 
 
-def validate_price_data(
+def validate_pricing(
     data: dict[str, Any],
 ) -> TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData:
     """
-    Validate price_data dict and return the appropriate typed model.
+    Validate pricing dict and return the appropriate typed model.
 
     Args:
-        data: Dictionary containing price data with 'type' field
+        data: Dictionary containing pricing data with 'type' field
 
     Returns:
-        Validated PriceData model instance
+        Validated Pricing model instance
 
     Raises:
         ValueError: If validation fails
 
     Example:
-        >>> data = {"type": "one_million_tokens", "input": 0.5, "output": 1.5}
-        >>> validated = validate_price_data(data)
-        >>> print(validated.input)  # 0.5
+        >>> data = {"type": "one_million_tokens", "input": "0.5", "output": "1.5"}
+        >>> validated = validate_pricing(data)
+        >>> print(validated.input)  # "0.5"
     """
     from pydantic import TypeAdapter
 
     adapter: TypeAdapter[TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData] = (
-        TypeAdapter(PriceData)
+        TypeAdapter(Pricing)
     )
     return adapter.validate_python(data)
 
@@ -670,70 +687,6 @@ class AccessInterface(BaseModel):
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
-
-
-class Pricing(BaseModel):
-    """
-    Universal pricing model for services.
-
-    The price_data field uses a discriminated union based on the 'type' field:
-    - "one_million_tokens": TokenPriceData (for LLMs, supports unified or input/output pricing)
-    - "one_second": TimePriceData (for audio/video, compute time)
-    - "image": ImagePriceData (for image generation)
-    - "step": StepPriceData (for diffusion steps, iterations)
-
-    Example usage:
-        # Token pricing with separate input/output
-        Pricing(
-            currency=CurrencyEnum.USD,
-            price_data={"type": "one_million_tokens", "input": 0.5, "output": 1.5}
-        )
-
-        # Image pricing
-        Pricing(
-            currency=CurrencyEnum.USD,
-            price_data={"type": "image", "price": 0.04}
-        )
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    description: str | None = Field(default=None, description="Pricing model description")
-
-    currency: CurrencyEnum | None = Field(default=None, description="Currency code (e.g., USD)")
-
-    # Price data with type-based validation
-    # Use get_validated_price_data() to get the typed model
-    price_data: PriceData = Field(
-        description="Price data with 'type' field determining structure. "
-        "See TokenPriceData, TimePriceData, ImagePriceData, StepPriceData for valid structures.",
-    )
-
-    # Optional reference to upstream pricing
-    reference: str | None = Field(default=None, description="Reference URL to upstream pricing")
-
-    def get_price_type(self) -> str:
-        """Get the pricing type from price_data."""
-        return self.price_data.type
-
-    def get_unified_price(self) -> str | None:
-        """
-        Get unified price if available.
-        Returns the 'price' field for all types, or None for input/output token pricing.
-        """
-        if hasattr(self.price_data, "price"):
-            return self.price_data.price  # type: ignore[return-value]
-        return None
-
-    def get_input_output_prices(self) -> tuple[str, str] | None:
-        """
-        Get input/output prices for token-based pricing.
-        Returns (input_price, output_price) tuple or None if not applicable.
-        """
-        if isinstance(self.price_data, TokenPriceData):
-            if self.price_data.input is not None and self.price_data.output is not None:
-                return (self.price_data.input, self.price_data.output)
-        return None
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:

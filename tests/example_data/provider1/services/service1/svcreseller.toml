@@ -2,6 +2,7 @@ schema = "listing_v1"
 listing_status = "ready"
 time_created = "2024-02-29T05:52:38.739683Z"
 seller_name = "svcreseller"
+currency = "USD"
 
 [[user_access_interfaces]]
 access_method = "http"
@@ -17,8 +18,7 @@ file_path = "code-example.md"
 is_active = true
 is_public = true
 
-
 [customer_price]
-currency = "USD"
+type = "one_million_tokens"
+price = "0.2"
 description = "Pricing Per 1M Tokens"
-price_data = {"type" = "one_million_tokens", "price" = "0.2"}
