@@ -17,7 +17,7 @@ Both use the same `Pricing` structure, which supports multiple pricing types thr
 
 ## Multi-Currency Support
 
-Currency is specified at the **listing level**, not inside the pricing object:
+Currency is specified at the **service/listing level**, not inside the pricing object:
 
 -   **Service** (ServiceOffering): Has ONE `seller_price` with ONE currency
 -   **Listing** (ServiceListing): Has ONE `customer_price` with ONE currency
@@ -26,14 +26,14 @@ Currency is specified at the **listing level**, not inside the pricing object:
 ```
 ServiceOffering (gpt-4-turbo)
 ├── seller_price (USD)
-│
-├── ServiceListing (gpt-4-turbo-usd)
-│   ├── currency: USD
-│   └── customer_price
-│
-└── ServiceListing (gpt-4-turbo-eur)
-    ├── currency: EUR
-    └── customer_price
+
+ServiceListing (gpt-4-turbo-usd)
+├── currency: USD
+└── customer_price
+
+ServiceListing (gpt-4-turbo-eur)
+├── currency: EUR
+└── customer_price
 ```
 
 ### Currency Field Location
@@ -43,25 +43,9 @@ ServiceOffering (gpt-4-turbo)
 | ServiceOffering | `currency` | Currency for seller_price                           |
 | ServiceListing  | `currency` | Currency for customer_price (indexed for filtering) |
 
-### Currency Filtering
-
-When displaying listings to users:
-
-| User Type     | Currency Selection                            |
-| ------------- | --------------------------------------------- |
-| Authenticated | Filter by user's wallet currencies            |
-| Anonymous     | Use browser locale (en-US → USD, de-DE → EUR) |
-| New user      | Suggest wallet based on locale                |
-
-```sql
--- Find listings matching user's wallet currencies
-SELECT * FROM service_listing
-WHERE currency IN ('USD', 'EUR')  -- user's wallet currencies
-```
-
 ## Pricing Object Structure
 
-The Pricing object is a **flat discriminated union** based on the `type` field. Currency is NOT inside the pricing object - it's specified at the listing/offering level.
+Acceptable fields of the Pricing object are based on the `type` field.
 
 ```
 Pricing
