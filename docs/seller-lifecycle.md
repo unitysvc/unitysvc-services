@@ -95,11 +95,12 @@ flowchart LR
     A[Usage Data] --> B[Calculate:<br/>usage × seller_price]
     B --> C[Generate Invoice]
     C --> D{Dispute Window<br/>1-2 weeks}
-    D -->|No Dispute| E[Invoice Finalized]
+    D -->|No Dispute| E[finalized]
     D -->|Dispute| F[Submit Revision]
     F --> G{UnitySVC Reviews}
     G -->|Accept| E
     G -->|Negotiate| F
+    E -->|Payout window expires| H[funds_released]
 ```
 
 ### Invoice Contents
@@ -140,27 +141,31 @@ You have **1-2 weeks** to review the invoice:
 
 ## 4. Payout Process
 
-After invoice finalization, your balance enters the payout window:
+Invoices track earnings. Actual payouts are handled separately - you can request payouts from your available balance at any time.
 
 ```mermaid
 flowchart TB
-    subgraph Finalize["Invoice Finalized"]
+    subgraph Finalize["Invoice: finalized"]
         A[Update current_balance]
     end
 
-    subgraph Window["Payout Window (30-60 days)"]
+    subgraph Window["Payout Window (1-2 months)"]
         B[Balance held for<br/>customer chargebacks]
         C{Any issues?}
         D[Deduct chargebacks]
         E[Window expires]
     end
 
-    subgraph Available["Payout Available"]
+    subgraph Released["Invoice: funds_released"]
         F[Update available_payout]
-        G{Payout Mode}
+    end
+
+    subgraph Payout["Payout (separate from invoices)"]
+        G{Payout Trigger}
         H[On-demand request]
         I[Automatic payout]
-        J[Payment processed]
+        J[SellerPayout created]
+        K[Payment processed]
     end
 
     A --> B
@@ -174,7 +179,19 @@ flowchart TB
     G --> I
     H --> J
     I --> J
+    J --> K
 ```
+
+### Invoice Statuses
+
+| Status | Description | Balance Updated |
+|--------|-------------|-----------------|
+| `generated` | Invoice created, in dispute window | - |
+| `disputed` | You disputed, awaiting review | - |
+| `resolved` | Dispute resolved | - |
+| `finalized` | Invoice closed | `current_balance` |
+| `funds_released` | Payout window expired | `available_payout` |
+| `voided` | Invoice voided (fraud/abuse detected) | - |
 
 ### Balance Fields
 
@@ -187,7 +204,7 @@ Your seller account tracks two balances:
 
 ### Payout Window
 
-The payout window (default 60 days) provides time for:
+The payout window (default 2 months) provides time for:
 
 - Customer dispute resolution
 - Chargeback handling
@@ -211,9 +228,9 @@ The payout window (default 60 days) provides time for:
 | Feb 14 | Dispute deadline passes | - | - |
 | Feb 15 | Invoice finalized | $1,000 | $0 |
 | Mar 15 | February invoice finalized ($1,200) | $2,200 | $0 |
-| Apr 16 | January payout window expires | $2,200 | $1,000 |
+| Apr 1 | January payout window expires (2 months) | $2,200 | $1,000 |
 | Apr 20 | You request $500 payout | $1,700 | $500 |
-| May 15 | February payout window expires | $1,700 | $1,700 |
+| May 1 | February payout window expires (2 months) | $1,700 | $1,700 |
 
 ## Summary
 
@@ -222,7 +239,7 @@ The payout window (default 60 days) provides time for:
 3. **Service goes live** and usage is tracked
 4. **Monthly invoice** generated based on usage × seller_price
 5. **Dispute window** gives you time to review (1-2 weeks)
-6. **Payout window** protects against chargebacks (30-60 days)
+6. **Payout window** protects against chargebacks (1-2 months)
 7. **Payout** when balance becomes available
 
 ## Questions?

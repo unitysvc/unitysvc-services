@@ -133,6 +133,9 @@ class DocumentContextEnum(StrEnum):
     # Backend-specific contexts
     seller = "seller"  # Documents belong to Seller
     provider = "provider"  # Documents belong to Provider
+    #
+    customer_statement = "customer_statement"
+    seller_invoice = "seller_invoice"
 
 
 class DocumentCategoryEnum(StrEnum):
@@ -148,6 +151,7 @@ class DocumentCategoryEnum(StrEnum):
     specification = "specification"
     service_level_agreement = "service_level_agreement"
     terms_of_service = "terms_of_service"
+    statement = "statement"
     invoice = "invoice"
     logo = "logo"
     avatar = "avatar"
