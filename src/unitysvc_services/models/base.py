@@ -44,6 +44,37 @@ def _validate_price_string(v: Any) -> str:
 PriceStr = Annotated[str, BeforeValidator(_validate_price_string)]
 
 
+def _validate_amount_string(v: Any) -> str:
+    """Validate that amount values are strings representing valid decimal numbers.
+
+    Similar to _validate_price_string but allows negative values for
+    discounts, fees, and adjustments.
+    """
+    if isinstance(v, float):
+        raise ValueError(
+            f"Amount value must be a string (e.g., '-5.00'), not a float ({v}). Floats can cause precision issues."
+        )
+
+    # Convert int to string first
+    if isinstance(v, int):
+        v = str(v)
+
+    if not isinstance(v, str):
+        raise ValueError(f"Amount value must be a string, got {type(v).__name__}")
+
+    # Validate it's a valid decimal number (can be negative)
+    try:
+        Decimal(v)
+    except InvalidOperation:
+        raise ValueError(f"Amount value '{v}' is not a valid decimal number")
+
+    return v
+
+
+# Amount string type that allows negative values (for fees, discounts)
+AmountStr = Annotated[str, BeforeValidator(_validate_amount_string)]
+
+
 # ============================================================================
 # Usage Data for cost calculation
 # ============================================================================
@@ -216,27 +247,51 @@ class OveragePolicyEnum(StrEnum):
 
 class PricingTypeEnum(StrEnum):
     """
-    Pricing type determines how price_data is structured and calculated.
-    The type is stored inside price_data as the 'type' field.
+    Pricing type determines the structure and calculation method.
+    The type is stored as the 'type' field in the pricing object.
     """
 
+    # Basic pricing types
     one_million_tokens = "one_million_tokens"
     one_second = "one_second"
     image = "image"
     step = "step"
     # Seller-only: seller receives a percentage of what customer pays
     revenue_share = "revenue_share"
+    # Composite pricing types
+    constant = "constant"  # Fixed amount (fee or discount)
+    add = "add"  # Sum of multiple prices
+    multiply = "multiply"  # Base price multiplied by factor
+    # Tiered pricing types
+    tiered = "tiered"  # Volume-based tiers (all units at one tier's price)
+    graduated = "graduated"  # Graduated tiers (each tier's units at that rate)
 
 
 # ============================================================================
-# Price Data Models - Discriminated Union for type-safe price_data validation
+# Pricing Models - Discriminated Union for type-safe pricing validation
 # ============================================================================
 
 
 class BasePriceData(BaseModel):
-    """Base class for all price data types."""
+    """Base class for all price data types.
+
+    All pricing types include:
+    - type: Discriminator field for the pricing type
+    - description: Optional human-readable description
+    - reference: Optional URL to upstream pricing page
+    """
 
     model_config = ConfigDict(extra="forbid")
+
+    description: str | None = Field(
+        default=None,
+        description="Human-readable description of the pricing model",
+    )
+
+    reference: str | None = Field(
+        default=None,
+        description="URL to upstream provider's pricing page",
+    )
 
 
 class TokenPriceData(BasePriceData):
@@ -286,8 +341,22 @@ class TokenPriceData(BasePriceData):
 
         return self
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for token-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for token-based pricing.
+
+        Args:
+            usage: Usage data with token counts
+            customer_charge: Not used for token pricing (ignored)
+            request_count: Number of requests (ignored for token pricing)
+
+        Returns:
+            Calculated cost based on token usage
+        """
         input_tokens = usage.input_tokens or 0
         output_tokens = usage.output_tokens or 0
 
@@ -320,8 +389,22 @@ class TimePriceData(BasePriceData):
         description="Price per second of usage",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for time-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for time-based pricing.
+
+        Args:
+            usage: Usage data with seconds
+            customer_charge: Not used for time pricing (ignored)
+            request_count: Number of requests (ignored for time pricing)
+
+        Returns:
+            Calculated cost based on time usage
+        """
         if usage.seconds is None:
             raise ValueError("Time-based pricing requires 'seconds' in usage data")
 
@@ -342,8 +425,22 @@ class ImagePriceData(BasePriceData):
         description="Price per image",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for image-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for image-based pricing.
+
+        Args:
+            usage: Usage data with count
+            customer_charge: Not used for image pricing (ignored)
+            request_count: Number of requests (ignored for image pricing)
+
+        Returns:
+            Calculated cost based on image count
+        """
         if usage.count is None:
             raise ValueError("Image pricing requires 'count' in usage data")
 
@@ -364,8 +461,22 @@ class StepPriceData(BasePriceData):
         description="Price per step/iteration",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for step-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for step-based pricing.
+
+        Args:
+            usage: Usage data with count
+            customer_charge: Not used for step pricing (ignored)
+            request_count: Number of requests (ignored for step pricing)
+
+        Returns:
+            Calculated cost based on step count
+        """
         if usage.count is None:
             raise ValueError("Step pricing requires 'count' in usage data")
 
@@ -411,38 +522,400 @@ class RevenueSharePriceData(BasePriceData):
         description="Percentage of customer charge that goes to the seller (0-100)",
     )
 
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for revenue share pricing.
 
-# Discriminated union of all price data types
-PriceData = Annotated[
-    TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData,
+        Args:
+            usage: Usage data (not used for revenue share, but kept for consistent API)
+            customer_charge: Total amount charged to customer (required)
+            request_count: Number of requests (ignored for revenue share)
+
+        Returns:
+            Seller's share of the customer charge
+
+        Raises:
+            ValueError: If customer_charge is not provided
+        """
+        if customer_charge is None:
+            raise ValueError("Revenue share pricing requires 'customer_charge'")
+
+        return customer_charge * Decimal(self.percentage) / Decimal("100")
+
+
+class ConstantPriceData(BasePriceData):
+    """
+    Price data for a constant/fixed amount.
+
+    Used for fixed fees, discounts, or adjustments that don't depend on usage.
+    Amount can be positive (charge) or negative (discount/credit).
+    """
+
+    type: Literal["constant"] = "constant"
+
+    amount: AmountStr = Field(
+        description="Fixed amount (positive for charge, negative for discount)",
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Return the constant amount regardless of usage.
+
+        Args:
+            usage: Usage data (ignored for constant pricing)
+            customer_charge: Customer charge (ignored for constant pricing)
+            request_count: Number of requests (ignored for constant pricing)
+
+        Returns:
+            The fixed amount
+        """
+        return Decimal(self.amount)
+
+
+# Forward reference for nested pricing - will be resolved after Pricing is defined
+class AddPriceData(BasePriceData):
+    """
+    Composite pricing that sums multiple price components.
+
+    Allows combining different pricing types, e.g., base token cost + fixed fee.
+
+    Example:
+        {
+            "type": "add",
+            "prices": [
+                {"type": "one_million_tokens", "input": "0.50", "output": "1.50"},
+                {"type": "constant", "amount": "-5.00", "description": "Platform fee"}
+            ]
+        }
+    """
+
+    type: Literal["add"] = "add"
+
+    prices: list[dict[str, Any]] = Field(
+        description="List of pricing components to sum together",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate total cost by summing all price components.
+
+        Args:
+            usage: Usage data passed to each component
+            customer_charge: Customer charge passed to each component
+            request_count: Number of requests passed to each component
+
+        Returns:
+            Sum of all component costs
+        """
+        total = Decimal("0")
+        for price_data in self.prices:
+            component = validate_pricing(price_data)
+            total += component.calculate_cost(usage, customer_charge, request_count)
+        return total
+
+
+class MultiplyPriceData(BasePriceData):
+    """
+    Composite pricing that multiplies a base price by a factor.
+
+    Useful for applying percentage-based adjustments to a base price.
+
+    Example:
+        {
+            "type": "multiply",
+            "factor": "0.70",
+            "base": {"type": "one_million_tokens", "input": "0.50", "output": "1.50"}
+        }
+    """
+
+    type: Literal["multiply"] = "multiply"
+
+    factor: PriceStr = Field(
+        description="Multiplication factor (e.g., '0.70' for 70%)",
+    )
+
+    base: dict[str, Any] = Field(
+        description="Base pricing to multiply",
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost by multiplying base price by factor.
+
+        Args:
+            usage: Usage data passed to base component
+            customer_charge: Customer charge passed to base component
+            request_count: Number of requests passed to base component
+
+        Returns:
+            Base cost multiplied by factor
+        """
+        base_pricing = validate_pricing(self.base)
+        base_cost = base_pricing.calculate_cost(usage, customer_charge, request_count)
+        return base_cost * Decimal(self.factor)
+
+
+def _get_metric_value(
+    based_on: str,
+    usage: UsageData,
+    customer_charge: Decimal | None,
+    request_count: int | None,
+) -> Decimal:
+    """Get the value of a metric by name.
+
+    Args:
+        based_on: Name of the metric (e.g., 'request_count', 'customer_charge', or any UsageData field)
+        usage: Usage data object
+        customer_charge: Customer charge value
+        request_count: Request count value
+
+    Returns:
+        The metric value as Decimal
+    """
+    # Check special parameters first
+    if based_on == "request_count":
+        return Decimal(request_count or 0)
+    elif based_on == "customer_charge":
+        return customer_charge or Decimal("0")
+
+    # Try to get from UsageData fields
+    if hasattr(usage, based_on):
+        value = getattr(usage, based_on)
+        if value is not None:
+            return Decimal(str(value))
+
+    return Decimal("0")
+
+
+class PriceTier(BaseModel):
+    """A single tier in tiered pricing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    up_to: int | None = Field(
+        description="Upper limit for this tier (None for unlimited)",
+    )
+    price: dict[str, Any] = Field(
+        description="Price configuration for this tier",
+    )
+
+
+class TieredPriceData(BasePriceData):
+    """
+    Volume-based tiered pricing where the tier determines price for ALL units.
+
+    The tier is determined by the `based_on` metric, and ALL units are priced
+    at that tier's rate. `based_on` can be 'request_count', 'customer_charge',
+    or any field from UsageData (e.g., 'input_tokens', 'seconds', 'count').
+
+    Example (volume pricing - all units at same rate):
+        {
+            "type": "tiered",
+            "based_on": "request_count",
+            "tiers": [
+                {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
+                {"up_to": 10000, "price": {"type": "constant", "amount": "80.00"}},
+                {"up_to": null, "price": {"type": "constant", "amount": "500.00"}}
+            ]
+        }
+    If request_count is 5000, the price is $80.00 (falls in 1001-10000 tier).
+    """
+
+    type: Literal["tiered"] = "tiered"
+
+    based_on: str = Field(
+        description="Metric for tier selection: 'request_count', 'customer_charge', or UsageData field",
+    )
+
+    tiers: list[PriceTier] = Field(
+        description="List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost based on which tier the usage falls into.
+
+        Args:
+            usage: Usage data
+            customer_charge: Customer charge (used if based_on="customer_charge")
+            request_count: Number of requests (used if based_on="request_count")
+
+        Returns:
+            Cost from the matching tier's price
+        """
+        metric_value = _get_metric_value(self.based_on, usage, customer_charge, request_count)
+
+        # Find the matching tier
+        for tier in self.tiers:
+            if tier.up_to is None or metric_value <= tier.up_to:
+                tier_pricing = validate_pricing(tier.price)
+                return tier_pricing.calculate_cost(usage, customer_charge, request_count)
+
+        # Should not reach here if tiers are properly configured
+        raise ValueError("No matching tier found")
+
+
+class GraduatedTier(BaseModel):
+    """A single tier in graduated pricing with per-unit price."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    up_to: int | None = Field(
+        description="Upper limit for this tier (None for unlimited)",
+    )
+    unit_price: PriceStr = Field(
+        description="Price per unit in this tier",
+    )
+
+
+class GraduatedPriceData(BasePriceData):
+    """
+    Graduated tiered pricing where each tier's units are priced at that tier's rate.
+
+    Like AWS pricing - first N units at price A, next M units at price B, etc.
+    `based_on` can be 'request_count', 'customer_charge', or any UsageData field.
+
+    Example (graduated pricing - different rates per tier):
+        {
+            "type": "graduated",
+            "based_on": "request_count",
+            "tiers": [
+                {"up_to": 1000, "unit_price": "0.01"},
+                {"up_to": 10000, "unit_price": "0.008"},
+                {"up_to": null, "unit_price": "0.005"}
+            ]
+        }
+    If request_count is 5000:
+        - First 1000 at $0.01 = $10.00
+        - Next 4000 at $0.008 = $32.00
+        - Total = $42.00
+    """
+
+    type: Literal["graduated"] = "graduated"
+
+    based_on: str = Field(
+        description="Metric for graduated calc: 'request_count', 'customer_charge', or UsageData field",
+    )
+
+    tiers: list[GraduatedTier] = Field(
+        description="List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost with graduated pricing across tiers.
+
+        Args:
+            usage: Usage data
+            customer_charge: Customer charge (used if based_on="customer_charge")
+            request_count: Number of requests (used if based_on="request_count")
+
+        Returns:
+            Total cost summed across all applicable tiers
+        """
+        metric_value = _get_metric_value(self.based_on, usage, customer_charge, request_count)
+        total_cost = Decimal("0")
+        remaining = metric_value
+        previous_limit = Decimal("0")
+
+        for tier in self.tiers:
+            if remaining <= 0:
+                break
+
+            # Calculate units in this tier
+            if tier.up_to is None:
+                units_in_tier = remaining
+            else:
+                tier_size = Decimal(tier.up_to) - previous_limit
+                units_in_tier = min(remaining, tier_size)
+
+            # Add cost for this tier
+            total_cost += units_in_tier * Decimal(tier.unit_price)
+            remaining -= units_in_tier
+            previous_limit = Decimal(tier.up_to) if tier.up_to else previous_limit
+
+        return total_cost
+
+
+# Discriminated union of all pricing types
+# This is the type used for seller_price and customer_price fields
+Pricing = Annotated[
+    TokenPriceData
+    | TimePriceData
+    | ImagePriceData
+    | StepPriceData
+    | RevenueSharePriceData
+    | ConstantPriceData
+    | AddPriceData
+    | MultiplyPriceData
+    | TieredPriceData
+    | GraduatedPriceData,
     Field(discriminator="type"),
 ]
 
 
-def validate_price_data(
+def validate_pricing(
     data: dict[str, Any],
-) -> TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData:
+) -> (
+    TokenPriceData
+    | TimePriceData
+    | ImagePriceData
+    | StepPriceData
+    | RevenueSharePriceData
+    | ConstantPriceData
+    | AddPriceData
+    | MultiplyPriceData
+    | TieredPriceData
+    | GraduatedPriceData
+):
     """
-    Validate price_data dict and return the appropriate typed model.
+    Validate pricing dict and return the appropriate typed model.
 
     Args:
-        data: Dictionary containing price data with 'type' field
+        data: Dictionary containing pricing data with 'type' field
 
     Returns:
-        Validated PriceData model instance
+        Validated Pricing model instance
 
     Raises:
         ValueError: If validation fails
 
     Example:
-        >>> data = {"type": "one_million_tokens", "input": 0.5, "output": 1.5}
-        >>> validated = validate_price_data(data)
-        >>> print(validated.input)  # 0.5
+        >>> data = {"type": "one_million_tokens", "input": "0.5", "output": "1.5"}
+        >>> validated = validate_pricing(data)
+        >>> print(validated.input)  # "0.5"
     """
     from pydantic import TypeAdapter
 
     adapter: TypeAdapter[TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData] = (
-        TypeAdapter(PriceData)
+        TypeAdapter(Pricing)
     )
     return adapter.validate_python(data)
 
@@ -670,70 +1143,6 @@ class AccessInterface(BaseModel):
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
-
-
-class Pricing(BaseModel):
-    """
-    Universal pricing model for services.
-
-    The price_data field uses a discriminated union based on the 'type' field:
-    - "one_million_tokens": TokenPriceData (for LLMs, supports unified or input/output pricing)
-    - "one_second": TimePriceData (for audio/video, compute time)
-    - "image": ImagePriceData (for image generation)
-    - "step": StepPriceData (for diffusion steps, iterations)
-
-    Example usage:
-        # Token pricing with separate input/output
-        Pricing(
-            currency=CurrencyEnum.USD,
-            price_data={"type": "one_million_tokens", "input": 0.5, "output": 1.5}
-        )
-
-        # Image pricing
-        Pricing(
-            currency=CurrencyEnum.USD,
-            price_data={"type": "image", "price": 0.04}
-        )
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    description: str | None = Field(default=None, description="Pricing model description")
-
-    currency: CurrencyEnum | None = Field(default=None, description="Currency code (e.g., USD)")
-
-    # Price data with type-based validation
-    # Use get_validated_price_data() to get the typed model
-    price_data: PriceData = Field(
-        description="Price data with 'type' field determining structure. "
-        "See TokenPriceData, TimePriceData, ImagePriceData, StepPriceData for valid structures.",
-    )
-
-    # Optional reference to upstream pricing
-    reference: str | None = Field(default=None, description="Reference URL to upstream pricing")
-
-    def get_price_type(self) -> str:
-        """Get the pricing type from price_data."""
-        return self.price_data.type
-
-    def get_unified_price(self) -> str | None:
-        """
-        Get unified price if available.
-        Returns the 'price' field for all types, or None for input/output token pricing.
-        """
-        if hasattr(self.price_data, "price"):
-            return self.price_data.price  # type: ignore[return-value]
-        return None
-
-    def get_input_output_prices(self) -> tuple[str, str] | None:
-        """
-        Get input/output prices for token-based pricing.
-        Returns (input_price, output_price) tuple or None if not applicable.
-        """
-        if isinstance(self.price_data, TokenPriceData):
-            if self.price_data.input is not None and self.price_data.output is not None:
-                return (self.price_data.input, self.price_data.output)
-        return None
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:

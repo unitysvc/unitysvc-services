@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .base import ListingStatusEnum
+from .base import CurrencyEnum, ListingStatusEnum
 
 
 class ServiceListingData(BaseModel):
@@ -86,6 +86,12 @@ class ServiceListingData(BaseModel):
     customer_price: dict[str, Any] | None = Field(
         default=None,
         description="Customer pricing: What the customer pays for each unit of service usage",
+    )
+
+    # Currency for customer_price
+    currency: CurrencyEnum = Field(
+        default=CurrencyEnum.USD,
+        description="Currency for customer_price (indexed for filtering)",
     )
 
     # Access interfaces

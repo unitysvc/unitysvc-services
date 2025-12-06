@@ -23,13 +23,10 @@
       "name": "Provider API"
     }
   ],
+  "currency": "USD",
   "customer_price": {
-    "currency": "USD",
-    "description": "Pricing Per 1M Tokens",
-    "price_data": {
-      "type": "one_million_tokens",
-      "price": "0.15"
-    },
-    "reference": null
+    "type": "one_million_tokens",
+    "price": "0.15",
+    "description": "Pricing Per 1M Tokens"
   }
 }

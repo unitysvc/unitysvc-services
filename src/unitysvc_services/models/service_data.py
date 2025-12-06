@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .base import ServiceTypeEnum, UpstreamStatusEnum
+from .base import CurrencyEnum, ServiceTypeEnum, UpstreamStatusEnum
 
 
 class ServiceOfferingData(BaseModel):
@@ -105,4 +105,10 @@ class ServiceOfferingData(BaseModel):
     documents: list[dict[str, Any]] | None = Field(
         default=None,
         description="List of documents associated with the service",
+    )
+
+    # Currency for seller_price
+    currency: CurrencyEnum = Field(
+        default=CurrencyEnum.USD,
+        description="Currency for seller_price",
     )
