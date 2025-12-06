@@ -262,6 +262,9 @@ class PricingTypeEnum(StrEnum):
     constant = "constant"  # Fixed amount (fee or discount)
     add = "add"  # Sum of multiple prices
     multiply = "multiply"  # Base price multiplied by factor
+    # Tiered pricing types
+    tiered = "tiered"  # Volume-based tiers (all units at one tier's price)
+    graduated = "graduated"  # Graduated tiers (each tier's units at that rate)
 
 
 # ============================================================================
@@ -669,6 +672,198 @@ class MultiplyPriceData(BasePriceData):
         return base_cost * Decimal(self.factor)
 
 
+def _get_metric_value(
+    based_on: str,
+    usage: UsageData,
+    customer_charge: Decimal | None,
+    request_count: int | None,
+) -> Decimal:
+    """Get the value of a metric by name.
+
+    Args:
+        based_on: Name of the metric (e.g., 'request_count', 'customer_charge', or any UsageData field)
+        usage: Usage data object
+        customer_charge: Customer charge value
+        request_count: Request count value
+
+    Returns:
+        The metric value as Decimal
+    """
+    # Check special parameters first
+    if based_on == "request_count":
+        return Decimal(request_count or 0)
+    elif based_on == "customer_charge":
+        return customer_charge or Decimal("0")
+
+    # Try to get from UsageData fields
+    if hasattr(usage, based_on):
+        value = getattr(usage, based_on)
+        if value is not None:
+            return Decimal(str(value))
+
+    return Decimal("0")
+
+
+class PriceTier(BaseModel):
+    """A single tier in tiered pricing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    up_to: int | None = Field(
+        description="Upper limit for this tier (None for unlimited)",
+    )
+    price: dict[str, Any] = Field(
+        description="Price configuration for this tier",
+    )
+
+
+class TieredPriceData(BasePriceData):
+    """
+    Volume-based tiered pricing where the tier determines price for ALL units.
+
+    The tier is determined by the `based_on` metric, and ALL units are priced
+    at that tier's rate. `based_on` can be 'request_count', 'customer_charge',
+    or any field from UsageData (e.g., 'input_tokens', 'seconds', 'count').
+
+    Example (volume pricing - all units at same rate):
+        {
+            "type": "tiered",
+            "based_on": "request_count",
+            "tiers": [
+                {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
+                {"up_to": 10000, "price": {"type": "constant", "amount": "80.00"}},
+                {"up_to": null, "price": {"type": "constant", "amount": "500.00"}}
+            ]
+        }
+    If request_count is 5000, the price is $80.00 (falls in 1001-10000 tier).
+    """
+
+    type: Literal["tiered"] = "tiered"
+
+    based_on: str = Field(
+        description="Metric for tier selection: 'request_count', 'customer_charge', or UsageData field",
+    )
+
+    tiers: list[PriceTier] = Field(
+        description="List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost based on which tier the usage falls into.
+
+        Args:
+            usage: Usage data
+            customer_charge: Customer charge (used if based_on="customer_charge")
+            request_count: Number of requests (used if based_on="request_count")
+
+        Returns:
+            Cost from the matching tier's price
+        """
+        metric_value = _get_metric_value(self.based_on, usage, customer_charge, request_count)
+
+        # Find the matching tier
+        for tier in self.tiers:
+            if tier.up_to is None or metric_value <= tier.up_to:
+                tier_pricing = validate_pricing(tier.price)
+                return tier_pricing.calculate_cost(usage, customer_charge, request_count)
+
+        # Should not reach here if tiers are properly configured
+        raise ValueError("No matching tier found")
+
+
+class GraduatedTier(BaseModel):
+    """A single tier in graduated pricing with per-unit price."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    up_to: int | None = Field(
+        description="Upper limit for this tier (None for unlimited)",
+    )
+    unit_price: PriceStr = Field(
+        description="Price per unit in this tier",
+    )
+
+
+class GraduatedPriceData(BasePriceData):
+    """
+    Graduated tiered pricing where each tier's units are priced at that tier's rate.
+
+    Like AWS pricing - first N units at price A, next M units at price B, etc.
+    `based_on` can be 'request_count', 'customer_charge', or any UsageData field.
+
+    Example (graduated pricing - different rates per tier):
+        {
+            "type": "graduated",
+            "based_on": "request_count",
+            "tiers": [
+                {"up_to": 1000, "unit_price": "0.01"},
+                {"up_to": 10000, "unit_price": "0.008"},
+                {"up_to": null, "unit_price": "0.005"}
+            ]
+        }
+    If request_count is 5000:
+        - First 1000 at $0.01 = $10.00
+        - Next 4000 at $0.008 = $32.00
+        - Total = $42.00
+    """
+
+    type: Literal["graduated"] = "graduated"
+
+    based_on: str = Field(
+        description="Metric for graduated calc: 'request_count', 'customer_charge', or UsageData field",
+    )
+
+    tiers: list[GraduatedTier] = Field(
+        description="List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost with graduated pricing across tiers.
+
+        Args:
+            usage: Usage data
+            customer_charge: Customer charge (used if based_on="customer_charge")
+            request_count: Number of requests (used if based_on="request_count")
+
+        Returns:
+            Total cost summed across all applicable tiers
+        """
+        metric_value = _get_metric_value(self.based_on, usage, customer_charge, request_count)
+        total_cost = Decimal("0")
+        remaining = metric_value
+        previous_limit = Decimal("0")
+
+        for tier in self.tiers:
+            if remaining <= 0:
+                break
+
+            # Calculate units in this tier
+            if tier.up_to is None:
+                units_in_tier = remaining
+            else:
+                tier_size = Decimal(tier.up_to) - previous_limit
+                units_in_tier = min(remaining, tier_size)
+
+            # Add cost for this tier
+            total_cost += units_in_tier * Decimal(tier.unit_price)
+            remaining -= units_in_tier
+            previous_limit = Decimal(tier.up_to) if tier.up_to else previous_limit
+
+        return total_cost
+
+
 # Discriminated union of all pricing types
 # This is the type used for seller_price and customer_price fields
 Pricing = Annotated[
@@ -679,7 +874,9 @@ Pricing = Annotated[
     | RevenueSharePriceData
     | ConstantPriceData
     | AddPriceData
-    | MultiplyPriceData,
+    | MultiplyPriceData
+    | TieredPriceData
+    | GraduatedPriceData,
     Field(discriminator="type"),
 ]
 
@@ -695,6 +892,8 @@ def validate_pricing(
     | ConstantPriceData
     | AddPriceData
     | MultiplyPriceData
+    | TieredPriceData
+    | GraduatedPriceData
 ):
     """
     Validate pricing dict and return the appropriate typed model.

@@ -252,6 +252,325 @@ description = "70% revenue share"
 -   Reseller agreements with variable customer pricing
 -   Partner programs with revenue-sharing terms
 
+## Composite Pricing Types
+
+In addition to the basic pricing types, UnitySVC supports composite pricing models that allow you to combine, modify, and create complex pricing structures.
+
+### Constant Pricing (`constant`)
+
+A fixed amount that doesn't depend on usage. Can be positive (charge) or negative (discount/credit).
+
+**Fields:**
+
+| Field    | Type   | Required | Description                                               |
+| -------- | ------ | -------- | --------------------------------------------------------- |
+| `type`   | string | **Yes**  | Must be `"constant"`                                      |
+| `amount` | string | **Yes**  | Fixed amount (positive for charge, negative for discount) |
+
+**Example - Fixed Fee:**
+
+```json
+{
+    "type": "constant",
+    "amount": "5.00",
+    "description": "Monthly platform fee"
+}
+```
+
+**Example - Discount:**
+
+```json
+{
+    "type": "constant",
+    "amount": "-10.00",
+    "description": "Volume discount"
+}
+```
+
+### Add Pricing (`add`)
+
+Combines multiple pricing components by summing them together. Useful for base price + fees, or usage + fixed costs.
+
+**Fields:**
+
+| Field    | Type   | Required | Description                             |
+| -------- | ------ | -------- | --------------------------------------- |
+| `type`   | string | **Yes**  | Must be `"add"`                         |
+| `prices` | array  | **Yes**  | List of pricing objects to sum together |
+
+**Example - Token pricing with platform fee:**
+
+```json
+{
+    "type": "add",
+    "prices": [
+        { "type": "one_million_tokens", "input": "0.50", "output": "1.50" },
+        {
+            "type": "constant",
+            "amount": "-5.00",
+            "description": "Platform fee credit"
+        }
+    ]
+}
+```
+
+### Multiply Pricing (`multiply`)
+
+Applies a multiplier to a base pricing model. Useful for percentage-based adjustments.
+
+**Fields:**
+
+| Field    | Type   | Required | Description                                  |
+| -------- | ------ | -------- | -------------------------------------------- |
+| `type`   | string | **Yes**  | Must be `"multiply"`                         |
+| `factor` | string | **Yes**  | Multiplication factor (e.g., "0.70" for 70%) |
+| `base`   | object | **Yes**  | Base pricing object to multiply              |
+
+**Example - 70% of standard pricing:**
+
+```json
+{
+    "type": "multiply",
+    "factor": "0.70",
+    "base": { "type": "one_million_tokens", "input": "1.00", "output": "2.00" },
+    "description": "Partner discount (30% off)"
+}
+```
+
+### Tiered Pricing (`tiered`)
+
+Volume-based pricing where the tier determines the price for ALL usage. Once you cross a threshold, all units are priced at that tier's rate.
+
+**Fields:**
+
+| Field      | Type   | Required | Description                              |
+| ---------- | ------ | -------- | ---------------------------------------- |
+| `type`     | string | **Yes**  | Must be `"tiered"`                       |
+| `based_on` | string | **Yes**  | Metric for tier selection (see below)    |
+| `tiers`    | array  | **Yes**  | List of tier objects, ordered by `up_to` |
+
+**Tier Object:**
+
+| Field   | Type    | Required | Description                                      |
+| ------- | ------- | -------- | ------------------------------------------------ |
+| `up_to` | integer | **Yes**  | Upper limit for this tier (`null` for unlimited) |
+| `price` | object  | **Yes**  | Pricing object for this tier                     |
+
+**`based_on` Options:**
+
+-   `"request_count"` - Number of API requests
+-   `"customer_charge"` - Total customer charge amount
+-   Any `UsageData` field: `"input_tokens"`, `"output_tokens"`, `"total_tokens"`, `"seconds"`, `"count"`
+
+**Example - Fixed price tiers based on request volume:**
+
+```json
+{
+    "type": "tiered",
+    "based_on": "request_count",
+    "tiers": [
+        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "amount": "80.00" } },
+        { "up_to": null, "price": { "type": "constant", "amount": "500.00" } }
+    ],
+    "description": "Volume-based flat pricing"
+}
+```
+
+**How it works:**
+
+-   500 requests → Tier 1 → $10.00
+-   5,000 requests → Tier 2 → $80.00
+-   50,000 requests → Tier 3 → $500.00
+
+**Example - Different token rates based on volume:**
+
+```json
+{
+    "type": "tiered",
+    "based_on": "input_tokens",
+    "tiers": [
+        {
+            "up_to": 1000000,
+            "price": { "type": "one_million_tokens", "price": "5.00" }
+        },
+        {
+            "up_to": null,
+            "price": { "type": "one_million_tokens", "price": "2.50" }
+        }
+    ],
+    "description": "Volume discount on token pricing"
+}
+```
+
+### Graduated Pricing (`graduated`)
+
+AWS-style pricing where each tier's units are priced at that tier's rate. You always pay the higher rate for the first N units, regardless of total volume.
+
+**Fields:**
+
+| Field      | Type   | Required | Description                                  |
+| ---------- | ------ | -------- | -------------------------------------------- |
+| `type`     | string | **Yes**  | Must be `"graduated"`                        |
+| `based_on` | string | **Yes**  | Metric for tier calculation (same as tiered) |
+| `tiers`    | array  | **Yes**  | List of tier objects, ordered by `up_to`     |
+
+**Graduated Tier Object:**
+
+| Field        | Type    | Required | Description                                      |
+| ------------ | ------- | -------- | ------------------------------------------------ |
+| `up_to`      | integer | **Yes**  | Upper limit for this tier (`null` for unlimited) |
+| `unit_price` | string  | **Yes**  | Price per unit in this tier                      |
+
+**Example - Per-request graduated pricing:**
+
+```json
+{
+    "type": "graduated",
+    "based_on": "request_count",
+    "tiers": [
+        { "up_to": 1000, "unit_price": "0.01" },
+        { "up_to": 10000, "unit_price": "0.008" },
+        { "up_to": null, "unit_price": "0.005" }
+    ],
+    "description": "Graduated per-request pricing"
+}
+```
+
+**How it works (5,000 requests):**
+
+-   First 1,000 × $0.01 = $10.00
+-   Next 4,000 × $0.008 = $32.00
+-   **Total = $42.00**
+
+**Example - First 1 million requests free, then pay per request:**
+
+```json
+{
+    "type": "graduated",
+    "based_on": "request_count",
+    "tiers": [
+        { "up_to": 1000000, "unit_price": "0" },
+        { "up_to": null, "unit_price": "0.00001" }
+    ],
+    "description": "First 1M requests free, then $0.00001 per request"
+}
+```
+
+**How it works (1,500,000 requests):**
+
+-   First 1,000,000 × $0.00 = $0.00 (free tier)
+-   Next 500,000 × $0.00001 = $5.00
+-   **Total = $5.00**
+
+**Important: `unit_price` applies per unit of `based_on`**
+
+The `unit_price` is multiplied by units of the metric specified in `based_on`:
+
+-   `based_on: "request_count"` → `unit_price` is price **per request**
+-   `based_on: "input_tokens"` → `unit_price` is price **per input token**
+-   `based_on: "seconds"` → `unit_price` is price **per second**
+
+**Limitation:** Graduated pricing operates on a single metric. For multi-metric pricing (e.g., separate graduated rates for input and output tokens), use `add` to combine multiple graduated pricings:
+
+**Example - Graduated pricing for both input and output tokens:**
+
+```json
+{
+    "type": "add",
+    "prices": [
+        {
+            "type": "graduated",
+            "based_on": "input_tokens",
+            "tiers": [
+                { "up_to": 1000000, "unit_price": "0.000001" },
+                { "up_to": null, "unit_price": "0.0000005" }
+            ]
+        },
+        {
+            "type": "graduated",
+            "based_on": "output_tokens",
+            "tiers": [
+                { "up_to": 1000000, "unit_price": "0.000003" },
+                { "up_to": null, "unit_price": "0.0000015" }
+            ]
+        }
+    ],
+    "description": "Graduated token pricing with separate input/output rates"
+}
+```
+
+Note that in this example the `unit_price` is per-token, not per million token.
+
+### Tiered vs Graduated: Key Difference
+
+| Model         | 5,000 requests                    | Result     |
+| ------------- | --------------------------------- | ---------- |
+| **Tiered**    | All 5,000 at tier 2 rate ($0.008) | **$40.00** |
+| **Graduated** | 1,000 × $0.01 + 4,000 × $0.008    | **$42.00** |
+
+-   **Tiered (Volume)**: Rewards high volume - once you reach a tier, ALL units get that rate
+-   **Graduated**: Each portion pays its tier's rate - first units always cost more
+
+### Nested Composite Pricing
+
+Composite pricing types can be nested for complex scenarios:
+
+**Example - Graduated pricing with minimum fee:**
+
+```json
+{
+    "type": "add",
+    "prices": [
+        {
+            "type": "graduated",
+            "based_on": "request_count",
+            "tiers": [
+                { "up_to": 1000, "unit_price": "0.01" },
+                { "up_to": null, "unit_price": "0.005" }
+            ]
+        },
+        {
+            "type": "constant",
+            "amount": "5.00",
+            "description": "Minimum monthly fee"
+        }
+    ]
+}
+```
+
+**Example - Tiered pricing with partner discount:**
+
+```json
+{
+    "type": "multiply",
+    "factor": "0.80",
+    "base": {
+        "type": "tiered",
+        "based_on": "request_count",
+        "tiers": [
+            {
+                "up_to": 10000,
+                "price": {
+                    "type": "one_million_tokens",
+                    "input": "1.00",
+                    "output": "2.00"
+                }
+            },
+            {
+                "up_to": null,
+                "price": {
+                    "type": "one_million_tokens",
+                    "input": "0.50",
+                    "output": "1.00"
+                }
+            }
+        ]
+    },
+    "description": "Partner pricing (20% discount on tiered rates)"
+}
+```
+
 ## Complete Examples
 
 ### Service File with Seller Price (JSON)
@@ -360,6 +679,8 @@ description = "Premium access with priority support"
 
 ## Pricing Type Selection Guide
 
+### Basic Pricing Types
+
 | Service Type                | Recommended Pricing Type | Example Use Cases                   |
 | --------------------------- | ------------------------ | ----------------------------------- |
 | LLM, Chat, Completion       | `one_million_tokens`     | GPT-4, Claude, Llama                |
@@ -371,6 +692,16 @@ description = "Premium access with priority support"
 | Image Analysis              | `image`                  | GPT-4 Vision (per image analyzed)   |
 | Diffusion with Step Control | `step`                   | Custom diffusion pipelines          |
 | Revenue Share (seller only) | `revenue_share`          | Marketplace partnerships, resellers |
+
+### Composite Pricing Types
+
+| Use Case                    | Recommended Type | Description                               |
+| --------------------------- | ---------------- | ----------------------------------------- |
+| Fixed fees or discounts     | `constant`       | Monthly fees, credits, adjustments        |
+| Combined pricing            | `add`            | Base usage + platform fee                 |
+| Percentage discounts        | `multiply`       | Partner discounts, promotional rates      |
+| Volume-based pricing        | `tiered`         | All units at tier rate once threshold met |
+| AWS-style graduated pricing | `graduated`      | Each tier's units at that tier's rate     |
 
 ## Validation
 
@@ -418,11 +749,13 @@ Error: "Both 'input' and 'output' must be specified for separate pricing"
 }
 ```
 
-Error: "Input should be 'one_million_tokens', 'one_second', 'image', 'step', or 'revenue_share'"
+Error: "Invalid pricing type. Valid types: 'one_million_tokens', 'one_second', 'image', 'step', 'revenue_share', 'constant', 'add', 'multiply', 'tiered', 'graduated'"
 
 ## Cost Calculation
 
 The backend calculates costs using this formula:
+
+### Basic Pricing Types
 
 | Pricing Type                   | Cost Formula                                                            |
 | ------------------------------ | ----------------------------------------------------------------------- |
@@ -432,6 +765,16 @@ The backend calculates costs using this formula:
 | `image`                        | count × price                                                           |
 | `step`                         | count × price                                                           |
 | `revenue_share`                | customer_charge × percentage / 100                                      |
+
+### Composite Pricing Types
+
+| Pricing Type | Cost Formula                                                       |
+| ------------ | ------------------------------------------------------------------ |
+| `constant`   | amount (fixed value)                                               |
+| `add`        | sum(price.calculate_cost() for each price in prices)               |
+| `multiply`   | base.calculate_cost() × factor                                     |
+| `tiered`     | Find tier where metric ≤ up_to, return tier.price.calculate_cost() |
+| `graduated`  | Sum of (units_in_tier × unit_price) for each tier                  |
 
 ## See Also
 
