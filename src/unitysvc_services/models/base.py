@@ -44,6 +44,37 @@ def _validate_price_string(v: Any) -> str:
 PriceStr = Annotated[str, BeforeValidator(_validate_price_string)]
 
 
+def _validate_amount_string(v: Any) -> str:
+    """Validate that amount values are strings representing valid decimal numbers.
+
+    Similar to _validate_price_string but allows negative values for
+    discounts, fees, and adjustments.
+    """
+    if isinstance(v, float):
+        raise ValueError(
+            f"Amount value must be a string (e.g., '-5.00'), not a float ({v}). Floats can cause precision issues."
+        )
+
+    # Convert int to string first
+    if isinstance(v, int):
+        v = str(v)
+
+    if not isinstance(v, str):
+        raise ValueError(f"Amount value must be a string, got {type(v).__name__}")
+
+    # Validate it's a valid decimal number (can be negative)
+    try:
+        Decimal(v)
+    except InvalidOperation:
+        raise ValueError(f"Amount value '{v}' is not a valid decimal number")
+
+    return v
+
+
+# Amount string type that allows negative values (for fees, discounts)
+AmountStr = Annotated[str, BeforeValidator(_validate_amount_string)]
+
+
 # ============================================================================
 # Usage Data for cost calculation
 # ============================================================================
@@ -220,12 +251,17 @@ class PricingTypeEnum(StrEnum):
     The type is stored as the 'type' field in the pricing object.
     """
 
+    # Basic pricing types
     one_million_tokens = "one_million_tokens"
     one_second = "one_second"
     image = "image"
     step = "step"
     # Seller-only: seller receives a percentage of what customer pays
     revenue_share = "revenue_share"
+    # Composite pricing types
+    constant = "constant"  # Fixed amount (fee or discount)
+    add = "add"  # Sum of multiple prices
+    multiply = "multiply"  # Base price multiplied by factor
 
 
 # ============================================================================
@@ -302,8 +338,22 @@ class TokenPriceData(BasePriceData):
 
         return self
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for token-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for token-based pricing.
+
+        Args:
+            usage: Usage data with token counts
+            customer_charge: Not used for token pricing (ignored)
+            request_count: Number of requests (ignored for token pricing)
+
+        Returns:
+            Calculated cost based on token usage
+        """
         input_tokens = usage.input_tokens or 0
         output_tokens = usage.output_tokens or 0
 
@@ -336,8 +386,22 @@ class TimePriceData(BasePriceData):
         description="Price per second of usage",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for time-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for time-based pricing.
+
+        Args:
+            usage: Usage data with seconds
+            customer_charge: Not used for time pricing (ignored)
+            request_count: Number of requests (ignored for time pricing)
+
+        Returns:
+            Calculated cost based on time usage
+        """
         if usage.seconds is None:
             raise ValueError("Time-based pricing requires 'seconds' in usage data")
 
@@ -358,8 +422,22 @@ class ImagePriceData(BasePriceData):
         description="Price per image",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for image-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for image-based pricing.
+
+        Args:
+            usage: Usage data with count
+            customer_charge: Not used for image pricing (ignored)
+            request_count: Number of requests (ignored for image pricing)
+
+        Returns:
+            Calculated cost based on image count
+        """
         if usage.count is None:
             raise ValueError("Image pricing requires 'count' in usage data")
 
@@ -380,8 +458,22 @@ class StepPriceData(BasePriceData):
         description="Price per step/iteration",
     )
 
-    def calculate_cost(self, usage: UsageData) -> Decimal:
-        """Calculate cost for step-based pricing."""
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for step-based pricing.
+
+        Args:
+            usage: Usage data with count
+            customer_charge: Not used for step pricing (ignored)
+            request_count: Number of requests (ignored for step pricing)
+
+        Returns:
+            Calculated cost based on step count
+        """
         if usage.count is None:
             raise ValueError("Step pricing requires 'count' in usage data")
 
@@ -427,18 +519,183 @@ class RevenueSharePriceData(BasePriceData):
         description="Percentage of customer charge that goes to the seller (0-100)",
     )
 
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost for revenue share pricing.
+
+        Args:
+            usage: Usage data (not used for revenue share, but kept for consistent API)
+            customer_charge: Total amount charged to customer (required)
+            request_count: Number of requests (ignored for revenue share)
+
+        Returns:
+            Seller's share of the customer charge
+
+        Raises:
+            ValueError: If customer_charge is not provided
+        """
+        if customer_charge is None:
+            raise ValueError("Revenue share pricing requires 'customer_charge'")
+
+        return customer_charge * Decimal(self.percentage) / Decimal("100")
+
+
+class ConstantPriceData(BasePriceData):
+    """
+    Price data for a constant/fixed amount.
+
+    Used for fixed fees, discounts, or adjustments that don't depend on usage.
+    Amount can be positive (charge) or negative (discount/credit).
+    """
+
+    type: Literal["constant"] = "constant"
+
+    amount: AmountStr = Field(
+        description="Fixed amount (positive for charge, negative for discount)",
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Return the constant amount regardless of usage.
+
+        Args:
+            usage: Usage data (ignored for constant pricing)
+            customer_charge: Customer charge (ignored for constant pricing)
+            request_count: Number of requests (ignored for constant pricing)
+
+        Returns:
+            The fixed amount
+        """
+        return Decimal(self.amount)
+
+
+# Forward reference for nested pricing - will be resolved after Pricing is defined
+class AddPriceData(BasePriceData):
+    """
+    Composite pricing that sums multiple price components.
+
+    Allows combining different pricing types, e.g., base token cost + fixed fee.
+
+    Example:
+        {
+            "type": "add",
+            "prices": [
+                {"type": "one_million_tokens", "input": "0.50", "output": "1.50"},
+                {"type": "constant", "amount": "-5.00", "description": "Platform fee"}
+            ]
+        }
+    """
+
+    type: Literal["add"] = "add"
+
+    prices: list[dict[str, Any]] = Field(
+        description="List of pricing components to sum together",
+        min_length=1,
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate total cost by summing all price components.
+
+        Args:
+            usage: Usage data passed to each component
+            customer_charge: Customer charge passed to each component
+            request_count: Number of requests passed to each component
+
+        Returns:
+            Sum of all component costs
+        """
+        total = Decimal("0")
+        for price_data in self.prices:
+            component = validate_pricing(price_data)
+            total += component.calculate_cost(usage, customer_charge, request_count)
+        return total
+
+
+class MultiplyPriceData(BasePriceData):
+    """
+    Composite pricing that multiplies a base price by a factor.
+
+    Useful for applying percentage-based adjustments to a base price.
+
+    Example:
+        {
+            "type": "multiply",
+            "factor": "0.70",
+            "base": {"type": "one_million_tokens", "input": "0.50", "output": "1.50"}
+        }
+    """
+
+    type: Literal["multiply"] = "multiply"
+
+    factor: PriceStr = Field(
+        description="Multiplication factor (e.g., '0.70' for 70%)",
+    )
+
+    base: dict[str, Any] = Field(
+        description="Base pricing to multiply",
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost by multiplying base price by factor.
+
+        Args:
+            usage: Usage data passed to base component
+            customer_charge: Customer charge passed to base component
+            request_count: Number of requests passed to base component
+
+        Returns:
+            Base cost multiplied by factor
+        """
+        base_pricing = validate_pricing(self.base)
+        base_cost = base_pricing.calculate_cost(usage, customer_charge, request_count)
+        return base_cost * Decimal(self.factor)
+
 
 # Discriminated union of all pricing types
 # This is the type used for seller_price and customer_price fields
 Pricing = Annotated[
-    TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData,
+    TokenPriceData
+    | TimePriceData
+    | ImagePriceData
+    | StepPriceData
+    | RevenueSharePriceData
+    | ConstantPriceData
+    | AddPriceData
+    | MultiplyPriceData,
     Field(discriminator="type"),
 ]
 
 
 def validate_pricing(
     data: dict[str, Any],
-) -> TokenPriceData | TimePriceData | ImagePriceData | StepPriceData | RevenueSharePriceData:
+) -> (
+    TokenPriceData
+    | TimePriceData
+    | ImagePriceData
+    | StepPriceData
+    | RevenueSharePriceData
+    | ConstantPriceData
+    | AddPriceData
+    | MultiplyPriceData
+):
     """
     Validate pricing dict and return the appropriate typed model.
 
