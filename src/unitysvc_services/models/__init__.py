@@ -2,6 +2,7 @@ from .base import (
     AddPriceData,
     BasePriceData,
     ConstantPriceData,
+    ExprPriceData,
     GraduatedPriceData,
     ImagePriceData,
     ListingStatusEnum,
@@ -63,6 +64,7 @@ __all__ = [
     "MultiplyPriceData",
     "TieredPriceData",
     "GraduatedPriceData",
+    "ExprPriceData",
     "validate_pricing",
     # Cost calculation
     "UsageData",
