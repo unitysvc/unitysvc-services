@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import ast
+import operator
 import re
 from decimal import Decimal, InvalidOperation
 from enum import StrEnum
@@ -265,6 +267,8 @@ class PricingTypeEnum(StrEnum):
     # Tiered pricing types
     tiered = "tiered"  # Volume-based tiers (all units at one tier's price)
     graduated = "graduated"  # Graduated tiers (each tier's units at that rate)
+    # Expression-based pricing (seller_price only)
+    expr = "expr"  # Arbitrary expression using usage metrics
 
 
 # ============================================================================
@@ -701,7 +705,110 @@ def _get_metric_value(
         if value is not None:
             return Decimal(str(value))
 
-    return Decimal("0")
+    # Build context with all available metrics
+    context: dict[str, Decimal] = {
+        "request_count": Decimal(request_count or 0),
+        "customer_charge": customer_charge or Decimal("0"),
+    }
+
+    # Add all UsageData fields
+    for field_name in UsageData.model_fields:
+        value = getattr(usage, field_name)
+        context[field_name] = Decimal(str(value)) if value is not None else Decimal("0")
+
+    try:
+        tree = ast.parse(based_on, mode="eval")
+    except SyntaxError as e:
+        raise ValueError(f"Invalid expression syntax: {based_on}") from e
+
+    binary_ops: dict[type[ast.operator], Any] = {
+        ast.Add: operator.add,
+        ast.Sub: operator.sub,
+        ast.Mult: operator.mul,
+        ast.Div: operator.truediv,
+    }
+    unary_ops: dict[type[ast.unaryop], Any] = {
+        ast.USub: operator.neg,
+        ast.UAdd: operator.pos,
+    }
+
+    def safe_eval(node: ast.expr) -> Decimal:
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, int | float):
+                return Decimal(str(node.value))
+            raise ValueError(f"Unsupported constant type: {type(node.value)}")
+        elif isinstance(node, ast.Name):
+            if node.id not in context:
+                raise ValueError(f"Unknown metric: {node.id}")
+            return context[node.id]
+        elif isinstance(node, ast.BinOp):
+            bin_op_type = type(node.op)
+            if bin_op_type not in binary_ops:
+                raise ValueError(f"Unsupported operator: {bin_op_type.__name__}")
+            return binary_ops[bin_op_type](safe_eval(node.left), safe_eval(node.right))
+        elif isinstance(node, ast.UnaryOp):
+            unary_op_type = type(node.op)
+            if unary_op_type not in unary_ops:
+                raise ValueError(f"Unsupported unary operator: {unary_op_type.__name__}")
+            return unary_ops[unary_op_type](safe_eval(node.operand))
+        else:
+            raise ValueError(f"Unsupported expression type: {type(node).__name__}")
+
+    return safe_eval(tree.body)
+
+
+class ExprPriceData(BasePriceData):
+    """
+    Expression-based pricing that evaluates an arithmetic expression using usage metrics.
+
+    **IMPORTANT: This pricing type should only be used for `seller_price`.**
+    It is NOT suitable for `customer_price` because:
+    1. Customer pricing should be predictable and transparent
+    2. Expression-based pricing can lead to confusing or unexpected charges
+    3. Customers should be able to easily calculate their costs before using a service
+
+    For seller pricing, expressions are useful when the cost from an upstream provider
+    involves complex calculations that can't be expressed with basic pricing types.
+
+    The expression can use any available metrics and arithmetic operators (+, -, *, /).
+
+    Available metrics:
+    - input_tokens, output_tokens, total_tokens (token counts)
+    - seconds (time-based usage)
+    - count (images, steps, etc.)
+    - request_count (number of API requests)
+    - customer_charge (what the customer paid, for revenue share calculations)
+
+    Example:
+        {
+            "type": "expr",
+            "expr": "input_tokens / 1000000 * 0.50 + output_tokens / 1000000 * 1.50"
+        }
+    """
+
+    type: Literal["expr"] = "expr"
+
+    expr: str = Field(
+        description="Arithmetic expression using usage metrics (e.g., 'input_tokens / 1000000 * 2.5')",
+    )
+
+    def calculate_cost(
+        self,
+        usage: UsageData,
+        customer_charge: Decimal | None = None,
+        request_count: int | None = None,
+    ) -> Decimal:
+        """Calculate cost by evaluating the expression with usage data.
+
+        Args:
+            usage: Usage data providing metric values
+            customer_charge: Customer charge value (available as 'customer_charge' in expression)
+            request_count: Number of requests (available as 'request_count' in expression)
+
+        Returns:
+            The result of evaluating the expression
+        """
+        return _get_metric_value(self.expr, usage, customer_charge, request_count)
 
 
 class PriceTier(BaseModel):
@@ -866,6 +973,7 @@ class GraduatedPriceData(BasePriceData):
 
 # Discriminated union of all pricing types
 # This is the type used for seller_price and customer_price fields
+# Note: ExprPriceData should only be used for seller_price
 Pricing = Annotated[
     TokenPriceData
     | TimePriceData
@@ -876,7 +984,8 @@ Pricing = Annotated[
     | AddPriceData
     | MultiplyPriceData
     | TieredPriceData
-    | GraduatedPriceData,
+    | GraduatedPriceData
+    | ExprPriceData,
     Field(discriminator="type"),
 ]
 
@@ -894,6 +1003,7 @@ def validate_pricing(
     | MultiplyPriceData
     | TieredPriceData
     | GraduatedPriceData
+    | ExprPriceData
 ):
     """
     Validate pricing dict and return the appropriate typed model.

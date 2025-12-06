@@ -63,9 +63,21 @@ Pricing
 | `description` | string | No       | Human-readable description of the pricing model |
 | `reference`   | string | No       | URL to upstream provider's pricing page         |
 
-## Pricing Types
+---
 
-Each pricing type has specific fields in addition to the common fields.
+## Per-Request Pricing Types
+
+These pricing types calculate cost based on usage data from a single API request. They are suitable for both `customer_price` and `seller_price`.
+
+**Available metrics for per-request pricing:**
+
+| Metric          | Description                   | Source    |
+| --------------- | ----------------------------- | --------- |
+| `input_tokens`  | Number of input tokens        | UsageData |
+| `output_tokens` | Number of output tokens       | UsageData |
+| `total_tokens`  | Total tokens (input + output) | UsageData |
+| `seconds`       | Duration in seconds           | UsageData |
+| `count`         | Count (images, steps, etc.)   | UsageData |
 
 ### Token-Based Pricing (`one_million_tokens`)
 
@@ -110,11 +122,11 @@ For LLM and text-based services. Prices are per million tokens.
 **TOML Example:**
 
 ```toml
-[seller_price]
+[customer_price]
 type = "one_million_tokens"
-input = "10.00"
-output = "30.00"
-description = "GPT-4 Turbo pricing"
+input = "12.00"
+output = "36.00"
+description = "Customer token pricing"
 ```
 
 ### Time-Based Pricing (`one_second`)
@@ -138,15 +150,6 @@ For audio/video processing, compute time, and other time-based services.
 }
 ```
 
-**TOML Example:**
-
-```toml
-[seller_price]
-type = "one_second"
-price = "0.006"
-description = "Audio transcription pricing"
-```
-
 ### Image Pricing (`image`)
 
 For image generation, processing, and analysis services.
@@ -166,15 +169,6 @@ For image generation, processing, and analysis services.
     "price": "0.04",
     "description": "DALL-E 3 image generation"
 }
-```
-
-**TOML Example:**
-
-```toml
-[seller_price]
-type = "image"
-price = "0.04"
-description = "DALL-E 3 image generation"
 ```
 
 ### Step-Based Pricing (`step`)
@@ -198,67 +192,11 @@ For diffusion models, iterative processes, and other step-based services.
 }
 ```
 
-**TOML Example:**
-
-```toml
-[seller_price]
-type = "step"
-price = "0.001"
-description = "Diffusion model steps"
-```
-
-### Revenue Share Pricing (`revenue_share`) - Seller Only
-
-For revenue-sharing arrangements where the seller receives a percentage of the customer charge.
-
-> **Important:** This pricing type can **only** be used for `seller_price`. It cannot be used for `customer_price` since customer pricing must specify a concrete amount.
-
-**Fields:**
-
-| Field        | Type   | Required | Description                                          |
-| ------------ | ------ | -------- | ---------------------------------------------------- |
-| `type`       | string | **Yes**  | Must be `"revenue_share"`                            |
-| `percentage` | string | **Yes**  | Percentage of customer charge for the seller (0-100) |
-
-**How it works:**
-
-The `percentage` field represents the seller's share of whatever the customer pays. For example:
-
--   If `percentage` is `"70"` and the customer pays $10, the seller receives $7
--   If `percentage` is `"85.5"` and the customer pays $100, the seller receives $85.50
-
-**Example:**
-
-```json
-{
-    "type": "revenue_share",
-    "percentage": "70.00",
-    "description": "70% revenue share"
-}
-```
-
-**TOML Example:**
-
-```toml
-[seller_price]
-type = "revenue_share"
-percentage = "70.00"
-description = "70% revenue share"
-```
-
-**Use Cases:**
-
--   Marketplace arrangements where sellers want a fixed percentage rather than per-unit pricing
--   Reseller agreements with variable customer pricing
--   Partner programs with revenue-sharing terms
-
-## Composite Pricing Types
-
-In addition to the basic pricing types, UnitySVC supports composite pricing models that allow you to combine, modify, and create complex pricing structures.
-
 ### Constant Pricing (`constant`)
 
-A fixed amount that doesn't depend on usage. Can be positive (charge) or negative (discount/credit).
+A fixed amount per request that doesn't depend on usage metrics.
+
+> **Note:** When used for `customer_price`, this amount is charged **per API request**. For example, `"amount": "0.01"` means the customer pays $0.01 for each request they make.
 
 **Fields:**
 
@@ -267,29 +205,52 @@ A fixed amount that doesn't depend on usage. Can be positive (charge) or negativ
 | `type`   | string | **Yes**  | Must be `"constant"`                                      |
 | `amount` | string | **Yes**  | Fixed amount (positive for charge, negative for discount) |
 
-**Example - Fixed Fee:**
+**Example - Per-Request Fee:**
 
 ```json
 {
     "type": "constant",
-    "amount": "5.00",
-    "description": "Monthly platform fee"
+    "amount": "0.01",
+    "description": "Per-request fee"
 }
 ```
 
-**Example - Discount:**
+---
+
+## Volume Pricing Types
+
+These pricing types are designed for `seller_price` to handle volume-based billing over a billing period. They use aggregate metrics like `request_count` (total requests in billing period) or combine multiple pricing components.
+
+> **Note:** While `add` and `multiply` can technically be used for `customer_price` when wrapping per-request types, `tiered` and `graduated` with `based_on: "request_count"` are seller-only.
+
+**Additional metrics available for volume pricing:**
+
+| Metric          | Description                              | Availability |
+| --------------- | ---------------------------------------- | ------------ |
+| `request_count` | Number of API requests in billing period | Seller only  |
+
+### Constant Pricing (`constant`) - Billing Period
+
+When used in volume pricing contexts (e.g., inside `tiered` tiers or combined with `add`), `constant` represents a fixed amount for the billing period rather than per request.
+
+**Example - Flat monthly fee based on tier:**
 
 ```json
 {
-    "type": "constant",
-    "amount": "-10.00",
-    "description": "Volume discount"
+    "type": "tiered",
+    "based_on": "request_count",
+    "tiers": [
+        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "amount": "50.00" } },
+        { "up_to": null, "price": { "type": "constant", "amount": "200.00" } }
+    ],
+    "description": "Flat monthly fee based on request volume"
 }
 ```
 
 ### Add Pricing (`add`)
 
-Combines multiple pricing components by summing them together. Useful for base price + fees, or usage + fixed costs.
+Combines multiple pricing components by summing them together. Useful for base price + fees, or combining different pricing models.
 
 **Fields:**
 
@@ -298,7 +259,7 @@ Combines multiple pricing components by summing them together. Useful for base p
 | `type`   | string | **Yes**  | Must be `"add"`                         |
 | `prices` | array  | **Yes**  | List of pricing objects to sum together |
 
-**Example - Token pricing with platform fee:**
+**Example - Token pricing with per-request fee:**
 
 ```json
 {
@@ -307,10 +268,37 @@ Combines multiple pricing components by summing them together. Useful for base p
         { "type": "one_million_tokens", "input": "0.50", "output": "1.50" },
         {
             "type": "constant",
-            "amount": "-5.00",
-            "description": "Platform fee credit"
+            "amount": "0.001",
+            "description": "Per-request fee"
         }
     ]
+}
+```
+
+**Example - Graduated pricing for both input and output tokens:**
+
+```json
+{
+    "type": "add",
+    "prices": [
+        {
+            "type": "graduated",
+            "based_on": "input_tokens",
+            "tiers": [
+                { "up_to": 1000000, "unit_price": "0.000001" },
+                { "up_to": null, "unit_price": "0.0000005" }
+            ]
+        },
+        {
+            "type": "graduated",
+            "based_on": "output_tokens",
+            "tiers": [
+                { "up_to": 1000000, "unit_price": "0.000003" },
+                { "up_to": null, "unit_price": "0.0000015" }
+            ]
+        }
+    ],
+    "description": "Graduated token pricing with separate input/output rates"
 }
 ```
 
@@ -346,7 +334,7 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
 | Field      | Type   | Required | Description                              |
 | ---------- | ------ | -------- | ---------------------------------------- |
 | `type`     | string | **Yes**  | Must be `"tiered"`                       |
-| `based_on` | string | **Yes**  | Metric for tier selection (see below)    |
+| `based_on` | string | **Yes**  | Metric for tier selection                |
 | `tiers`    | array  | **Yes**  | List of tier objects, ordered by `up_to` |
 
 **Tier Object:**
@@ -355,12 +343,6 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
 | ------- | ------- | -------- | ------------------------------------------------ |
 | `up_to` | integer | **Yes**  | Upper limit for this tier (`null` for unlimited) |
 | `price` | object  | **Yes**  | Pricing object for this tier                     |
-
-**`based_on` Options:**
-
--   `"request_count"` - Number of API requests
--   `"customer_charge"` - Total customer charge amount
--   Any `UsageData` field: `"input_tokens"`, `"output_tokens"`, `"total_tokens"`, `"seconds"`, `"count"`
 
 **Example - Fixed price tiers based on request volume:**
 
@@ -383,20 +365,28 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
 -   5,000 requests → Tier 2 → $80.00
 -   50,000 requests → Tier 3 → $500.00
 
-**Example - Different token rates based on volume:**
+**Example - Different token rates based on request volume:**
 
 ```json
 {
     "type": "tiered",
-    "based_on": "input_tokens",
+    "based_on": "request_count",
     "tiers": [
         {
-            "up_to": 1000000,
-            "price": { "type": "one_million_tokens", "price": "5.00" }
+            "up_to": 1000,
+            "price": {
+                "type": "one_million_tokens",
+                "input": "3.00",
+                "output": "15.00"
+            }
         },
         {
             "up_to": null,
-            "price": { "type": "one_million_tokens", "price": "2.50" }
+            "price": {
+                "type": "one_million_tokens",
+                "input": "1.50",
+                "output": "7.50"
+            }
         }
     ],
     "description": "Volume discount on token pricing"
@@ -409,11 +399,11 @@ AWS-style pricing where each tier's units are priced at that tier's rate. You al
 
 **Fields:**
 
-| Field      | Type   | Required | Description                                  |
-| ---------- | ------ | -------- | -------------------------------------------- |
-| `type`     | string | **Yes**  | Must be `"graduated"`                        |
-| `based_on` | string | **Yes**  | Metric for tier calculation (same as tiered) |
-| `tiers`    | array  | **Yes**  | List of tier objects, ordered by `up_to`     |
+| Field      | Type   | Required | Description                              |
+| ---------- | ------ | -------- | ---------------------------------------- |
+| `type`     | string | **Yes**  | Must be `"graduated"`                    |
+| `based_on` | string | **Yes**  | Metric for tier calculation              |
+| `tiers`    | array  | **Yes**  | List of tier objects, ordered by `up_to` |
 
 **Graduated Tier Object:**
 
@@ -457,51 +447,6 @@ AWS-style pricing where each tier's units are priced at that tier's rate. You al
 }
 ```
 
-**How it works (1,500,000 requests):**
-
--   First 1,000,000 × $0.00 = $0.00 (free tier)
--   Next 500,000 × $0.00001 = $5.00
--   **Total = $5.00**
-
-**Important: `unit_price` applies per unit of `based_on`**
-
-The `unit_price` is multiplied by units of the metric specified in `based_on`:
-
--   `based_on: "request_count"` → `unit_price` is price **per request**
--   `based_on: "input_tokens"` → `unit_price` is price **per input token**
--   `based_on: "seconds"` → `unit_price` is price **per second**
-
-**Limitation:** Graduated pricing operates on a single metric. For multi-metric pricing (e.g., separate graduated rates for input and output tokens), use `add` to combine multiple graduated pricings:
-
-**Example - Graduated pricing for both input and output tokens:**
-
-```json
-{
-    "type": "add",
-    "prices": [
-        {
-            "type": "graduated",
-            "based_on": "input_tokens",
-            "tiers": [
-                { "up_to": 1000000, "unit_price": "0.000001" },
-                { "up_to": null, "unit_price": "0.0000005" }
-            ]
-        },
-        {
-            "type": "graduated",
-            "based_on": "output_tokens",
-            "tiers": [
-                { "up_to": 1000000, "unit_price": "0.000003" },
-                { "up_to": null, "unit_price": "0.0000015" }
-            ]
-        }
-    ],
-    "description": "Graduated token pricing with separate input/output rates"
-}
-```
-
-Note that in this example the `unit_price` is per-token, not per million token.
-
 ### Tiered vs Graduated: Key Difference
 
 | Model         | 5,000 requests                    | Result     |
@@ -512,7 +457,199 @@ Note that in this example the `unit_price` is per-token, not per million token.
 -   **Tiered (Volume)**: Rewards high volume - once you reach a tier, ALL units get that rate
 -   **Graduated**: Each portion pays its tier's rate - first units always cost more
 
-### Nested Composite Pricing
+### Expression-Based `based_on`
+
+Both `tiered` and `graduated` pricing support arithmetic expressions in the `based_on` field, enabling complex tier selection logic based on computed values rather than single metrics.
+
+**Supported Operations:**
+
+| Operation      | Example                              | Description                     |
+| -------------- | ------------------------------------ | ------------------------------- |
+| Addition       | `input_tokens + output_tokens`       | Sum of two metrics              |
+| Subtraction    | `total_tokens - input_tokens`        | Difference between metrics      |
+| Multiplication | `output_tokens * 4`                  | Metric multiplied by a factor   |
+| Division       | `input_tokens / 1000`                | Metric divided by a factor      |
+| Parentheses    | `(input_tokens + output_tokens) * 2` | Group operations for precedence |
+| Unary minus    | `input_tokens - -100`                | Negation                        |
+
+**Example - Weighted Token Pricing (output tokens cost 4x more):**
+
+```json
+{
+    "type": "tiered",
+    "based_on": "input_tokens + output_tokens * 4",
+    "tiers": [
+        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "amount": "10.00" } }
+    ],
+    "description": "Higher tier when weighted token usage exceeds 10k"
+}
+```
+
+How it works:
+
+-   5000 input + 1000 output → 5000 + 4000 = 9000 → Tier 1 ($1.00)
+-   5000 input + 2000 output → 5000 + 8000 = 13000 → Tier 2 ($10.00)
+
+**Example - Combine Request Count and Token Usage:**
+
+```json
+{
+    "type": "tiered",
+    "based_on": "request_count * 100 + input_tokens",
+    "tiers": [
+        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "amount": "5.00" } }
+    ],
+    "description": "Tier based on weighted combination of requests and tokens"
+}
+```
+
+**Error Handling:**
+
+Invalid expressions will raise errors at calculation time:
+
+-   **Invalid syntax**: `"input_tokens +"` → `Invalid expression syntax`
+-   **Unknown metric**: `"input_tokens + unknown_field"` → `Unknown metric: unknown_field`
+-   **Unsupported operator**: `"input_tokens ** 2"` → `Unsupported operator: Pow`
+
+---
+
+## Seller-Only Pricing Types
+
+These pricing types use `customer_charge`, which is only available for `seller_price` calculations. This metric represents what the customer was charged and is used for revenue-sharing arrangements.
+
+> **Important:** These pricing types should **only** be used for `seller_price`. Using them for `customer_price` will result in errors or undefined behavior.
+
+**Additional metrics available for seller pricing:**
+
+| Metric            | Description                          | Availability |
+| ----------------- | ------------------------------------ | ------------ |
+| `customer_charge` | Total amount charged to the customer | Seller only  |
+
+### Revenue Share Pricing (`revenue_share`)
+
+For revenue-sharing arrangements where the seller receives a percentage of the customer charge.
+
+**Fields:**
+
+| Field        | Type   | Required | Description                                          |
+| ------------ | ------ | -------- | ---------------------------------------------------- |
+| `type`       | string | **Yes**  | Must be `"revenue_share"`                            |
+| `percentage` | string | **Yes**  | Percentage of customer charge for the seller (0-100) |
+
+**How it works:**
+
+The `percentage` field represents the seller's share of whatever the customer pays. For example:
+
+-   If `percentage` is `"70"` and the customer pays $10, the seller receives $7
+-   If `percentage` is `"85.5"` and the customer pays $100, the seller receives $85.50
+
+**Example:**
+
+```json
+{
+    "type": "revenue_share",
+    "percentage": "70.00",
+    "description": "70% revenue share"
+}
+```
+
+**TOML Example:**
+
+```toml
+[seller_price]
+type = "revenue_share"
+percentage = "70.00"
+description = "70% revenue share"
+```
+
+**Use Cases:**
+
+-   Marketplace arrangements where sellers want a fixed percentage rather than per-unit pricing
+-   Reseller agreements with variable customer pricing
+-   Partner programs with revenue-sharing terms
+
+### Expression Pricing (`expr`)
+
+Expression-based pricing that evaluates an arbitrary arithmetic expression using usage metrics. This is useful when the upstream provider's pricing involves complex calculations that can't be expressed with basic pricing types.
+
+**Fields:**
+
+| Field  | Type   | Required | Description                               |
+| ------ | ------ | -------- | ----------------------------------------- |
+| `type` | string | **Yes**  | Must be `"expr"`                          |
+| `expr` | string | **Yes**  | Arithmetic expression using usage metrics |
+
+**Available Metrics:**
+
+-   `input_tokens`, `output_tokens`, `total_tokens` - Token counts
+-   `seconds` - Time-based usage
+-   `count` - Generic count (images, steps, etc.)
+-   `request_count` - Number of API requests (seller only)
+-   `customer_charge` - What the customer paid (seller only)
+
+**Supported Operations:**
+
+-   Addition: `+`
+-   Subtraction: `-`
+-   Multiplication: `*`
+-   Division: `/`
+-   Parentheses: `(` `)`
+-   Numeric literals: `1000000`, `0.5`, etc.
+
+**Example - Token Pricing with Different Rates:**
+
+```json
+{
+    "type": "expr",
+    "expr": "input_tokens / 1000000 * 0.50 + output_tokens / 1000000 * 1.50",
+    "description": "Custom token pricing"
+}
+```
+
+**Example - Complex Weighted Pricing:**
+
+```json
+{
+    "type": "expr",
+    "expr": "(input_tokens + output_tokens * 4) / 1000000 * 2.00",
+    "description": "Output tokens weighted 4x"
+}
+```
+
+**Example - Revenue Share as Expression:**
+
+```json
+{
+    "type": "expr",
+    "expr": "customer_charge * 0.70",
+    "description": "70% revenue share"
+}
+```
+
+**Example - Per-Request Fee:**
+
+```json
+{
+    "type": "expr",
+    "expr": "request_count * 0.001 + input_tokens / 1000000 * 0.50",
+    "description": "Per-request fee plus token cost"
+}
+```
+
+**TOML Example:**
+
+```toml
+[seller_price]
+type = "expr"
+expr = "input_tokens / 1000000 * 0.50 + output_tokens / 1000000 * 1.50"
+description = "Custom token pricing for seller"
+```
+
+---
+
+## Nested Composite Pricing
 
 Composite pricing types can be nested for complex scenarios:
 
@@ -570,6 +707,8 @@ Composite pricing types can be nested for complex scenarios:
     "description": "Partner pricing (20% discount on tiered rates)"
 }
 ```
+
+---
 
 ## Complete Examples
 
@@ -677,31 +816,42 @@ description = "Premium access with priority support"
 }
 ```
 
+---
+
 ## Pricing Type Selection Guide
 
-### Basic Pricing Types
+### Per-Request Pricing Types (for `customer_price` and `seller_price`)
 
-| Service Type                | Recommended Pricing Type | Example Use Cases                   |
-| --------------------------- | ------------------------ | ----------------------------------- |
-| LLM, Chat, Completion       | `one_million_tokens`     | GPT-4, Claude, Llama                |
-| Embedding                   | `one_million_tokens`     | text-embedding-ada-002              |
-| Audio Transcription         | `one_second`             | Whisper, Deepgram                   |
-| Text-to-Speech              | `one_second`             | ElevenLabs, Azure TTS               |
-| Video Processing            | `one_second`             | Video transcription, analysis       |
-| Image Generation            | `image`                  | DALL-E, Stable Diffusion, FLUX      |
-| Image Analysis              | `image`                  | GPT-4 Vision (per image analyzed)   |
-| Diffusion with Step Control | `step`                   | Custom diffusion pipelines          |
-| Revenue Share (seller only) | `revenue_share`          | Marketplace partnerships, resellers |
+| Service Type                | Recommended Pricing Type | Example Use Cases              |
+| --------------------------- | ------------------------ | ------------------------------ |
+| LLM, Chat, Completion       | `one_million_tokens`     | GPT-4, Claude, Llama           |
+| Embedding                   | `one_million_tokens`     | text-embedding-ada-002         |
+| Audio Transcription         | `one_second`             | Whisper, Deepgram              |
+| Text-to-Speech              | `one_second`             | ElevenLabs, Azure TTS          |
+| Video Processing            | `one_second`             | Video transcription, analysis  |
+| Image Generation            | `image`                  | DALL-E, Stable Diffusion, FLUX |
+| Image Analysis              | `image`                  | GPT-4 Vision (per image)       |
+| Diffusion with Step Control | `step`                   | Custom diffusion pipelines     |
+| Per-request fees/discounts  | `constant`               | Fixed fee per API request      |
 
-### Composite Pricing Types
+### Volume Pricing Types (for `seller_price` - uses `request_count`)
 
-| Use Case                    | Recommended Type | Description                               |
-| --------------------------- | ---------------- | ----------------------------------------- |
-| Fixed fees or discounts     | `constant`       | Monthly fees, credits, adjustments        |
-| Combined pricing            | `add`            | Base usage + platform fee                 |
-| Percentage discounts        | `multiply`       | Partner discounts, promotional rates      |
-| Volume-based pricing        | `tiered`         | All units at tier rate once threshold met |
-| AWS-style graduated pricing | `graduated`      | Each tier's units at that tier's rate     |
+| Use Case                | Recommended Type | Description                          |
+| ----------------------- | ---------------- | ------------------------------------ |
+| Flat billing period fee | `constant`       | Fixed amount per billing period      |
+| Combined pricing        | `add`            | Sum of multiple pricing components   |
+| Percentage adjustments  | `multiply`       | Apply discount/markup factor         |
+| Request-based tiers     | `tiered`         | Tiers based on `request_count`       |
+| Request-based graduated | `graduated`      | Graduated pricing by `request_count` |
+
+### Seller-Only Pricing Types (for `seller_price` - uses `customer_charge`)
+
+| Use Case            | Recommended Type | Description                      |
+| ------------------- | ---------------- | -------------------------------- |
+| Revenue sharing     | `revenue_share`  | Percentage of customer charge    |
+| Complex expressions | `expr`           | Arbitrary arithmetic expressions |
+
+---
 
 ## Validation
 
@@ -749,13 +899,15 @@ Error: "Both 'input' and 'output' must be specified for separate pricing"
 }
 ```
 
-Error: "Invalid pricing type. Valid types: 'one_million_tokens', 'one_second', 'image', 'step', 'revenue_share', 'constant', 'add', 'multiply', 'tiered', 'graduated'"
+Error: "Invalid pricing type. Valid types: 'one_million_tokens', 'one_second', 'image', 'step', 'revenue_share', 'constant', 'add', 'multiply', 'tiered', 'graduated', 'expr'"
+
+---
 
 ## Cost Calculation
 
-The backend calculates costs using this formula:
+The backend calculates costs using these formulas:
 
-### Basic Pricing Types
+### Per-Request Pricing Types
 
 | Pricing Type                   | Cost Formula                                                            |
 | ------------------------------ | ----------------------------------------------------------------------- |
@@ -764,17 +916,26 @@ The backend calculates costs using this formula:
 | `one_second`                   | seconds × price                                                         |
 | `image`                        | count × price                                                           |
 | `step`                         | count × price                                                           |
-| `revenue_share`                | customer_charge × percentage / 100                                      |
+| `constant`                     | amount (fixed value per request)                                        |
 
-### Composite Pricing Types
+### Volume Pricing Types
 
 | Pricing Type | Cost Formula                                                       |
 | ------------ | ------------------------------------------------------------------ |
-| `constant`   | amount (fixed value)                                               |
+| `constant`   | amount (fixed value per billing period)                            |
 | `add`        | sum(price.calculate_cost() for each price in prices)               |
 | `multiply`   | base.calculate_cost() × factor                                     |
 | `tiered`     | Find tier where metric ≤ up_to, return tier.price.calculate_cost() |
 | `graduated`  | Sum of (units_in_tier × unit_price) for each tier                  |
+
+### Seller-Only Pricing Types
+
+| Pricing Type    | Cost Formula                           |
+| --------------- | -------------------------------------- |
+| `revenue_share` | customer_charge × percentage / 100     |
+| `expr`          | Evaluate expression with usage metrics |
+
+---
 
 ## See Also
 
