@@ -107,7 +107,7 @@ def query_sellers(
 
     async def _query_sellers_async():
         async with ServiceDataQuery() as query:
-            sellers = await query.get("/publish/sellers", {"skip": skip, "limit": limit})
+            sellers = await query.get("/seller/sellers", {"skip": skip, "limit": limit})
             return sellers.get("data", sellers) if isinstance(sellers, dict) else sellers
 
     try:
@@ -267,7 +267,7 @@ def query_providers(
 
     async def _query_providers_async():
         async with ServiceDataQuery() as query:
-            providers = await query.get("/publish/providers", {"skip": skip, "limit": limit})
+            providers = await query.get("/seller/providers", {"skip": skip, "limit": limit})
             return providers.get("data", providers) if isinstance(providers, dict) else providers
 
     try:
@@ -452,7 +452,7 @@ def query_offerings(
             if name:
                 params["name"] = name
 
-            offerings = await query.get("/publish/offerings", params)
+            offerings = await query.get("/seller/offerings", params)
             return offerings.get("data", offerings) if isinstance(offerings, dict) else offerings
 
     try:
@@ -640,7 +640,7 @@ def query_listings(
             if listing_type:
                 params["listing_type"] = listing_type
 
-            listings = await query.get("/publish/listings", params)
+            listings = await query.get("/seller/listings", params)
             return listings.get("data", listings) if isinstance(listings, dict) else listings
 
     try:

@@ -479,7 +479,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             f"seller: {data_with_content.get('seller_name')}"
         )
         result = await self._post_with_retry(
-            endpoint="/publish/listing",
+            endpoint="/seller/listings",
             data=data_with_content,
             entity_type="listing",
             entity_name=data.get("name", "unknown"),
@@ -552,7 +552,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Post to the endpoint using retry helper
         context_info = f"provider: {data_with_content.get('provider_name')}"
         result = await self._post_with_retry(
-            endpoint="/publish/offering",
+            endpoint="/seller/offerings",
             data=data_with_content,
             entity_type="offering",
             entity_name=data.get("name", "unknown"),
@@ -599,7 +599,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Post to the endpoint using retry helper
         return await self._post_with_retry(
-            endpoint="/publish/provider",
+            endpoint="/seller/providers",
             data=data_with_content,
             entity_type="provider",
             entity_name=data.get("name", "unknown"),
@@ -638,7 +638,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Post to the endpoint using retry helper
         return await self._post_with_retry(
-            endpoint="/publish/seller",
+            endpoint="/seller/sellers",
             data=data_with_content,
             entity_type="seller",
             entity_name=data.get("name", "unknown"),

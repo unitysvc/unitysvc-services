@@ -47,7 +47,7 @@ class ServiceDataUnpublisher(UnitySvcAPI):
         if force:
             params["force"] = "true"
 
-        return await self.delete(f"/publish/offering/{offering_id}", params=params)
+        return await self.delete(f"/seller/offerings/{offering_id}", params=params)
 
     async def delete_service_listing(
         self,
@@ -74,7 +74,7 @@ class ServiceDataUnpublisher(UnitySvcAPI):
         if force:
             params["force"] = "true"
 
-        return await self.delete(f"/publish/listing/{listing_id}", params=params)
+        return await self.delete(f"/seller/listings/{listing_id}", params=params)
 
     async def delete_provider(
         self,
@@ -101,7 +101,7 @@ class ServiceDataUnpublisher(UnitySvcAPI):
         if force:
             params["force"] = "true"
 
-        return await self.delete(f"/publish/provider/{provider_name}", params=params)
+        return await self.delete(f"/seller/providers/{provider_name}", params=params)
 
     async def delete_seller(
         self,
@@ -128,7 +128,7 @@ class ServiceDataUnpublisher(UnitySvcAPI):
         if force:
             params["force"] = "true"
 
-        return await self.delete(f"/publish/seller/{seller_name}", params=params)
+        return await self.delete(f"/seller/sellers/{seller_name}", params=params)
 
 
 @app.command("offerings")
