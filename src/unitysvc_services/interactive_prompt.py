@@ -24,53 +24,6 @@ console = Console()
 # =============================================================================
 
 
-def find_seller_name(data_dir: Path | None = None) -> str | None:
-    """Find seller name from seller.json or seller.toml in data directory.
-
-    Args:
-        data_dir: Directory to search for seller file (defaults to search common locations)
-
-    Returns:
-        Seller name if found, None otherwise
-    """
-    # Search in multiple common locations
-    search_dirs = []
-
-    if data_dir is not None:
-        search_dirs.append(data_dir)
-    else:
-        # Common locations to search
-        cwd = Path.cwd()
-        search_dirs.extend(
-            [
-                cwd / "data",  # ./data (most common)
-                cwd,  # current directory
-                cwd.parent / "data",  # ../data (if we're in a subdirectory)
-                cwd.parent,  # parent directory
-            ]
-        )
-
-    # Look for seller file in each search directory
-    for search_dir in search_dirs:
-        for filename in ["seller.json", "seller.toml"]:
-            seller_file = search_dir / filename
-            if seller_file.exists():
-                try:
-                    if filename.endswith(".json"):
-                        with open(seller_file) as f:
-                            data = json.load(f)
-                    else:  # .toml
-                        with open(seller_file, "rb") as f:
-                            data = tomllib.load(f)
-
-                    seller_name = data.get("name")
-                    if seller_name:
-                        return seller_name
-                except Exception:
-                    continue
-
-    return None
-
 
 def prompt_for_pricing() -> dict[str, Any]:
     """Interactively prompt for pricing information (for seller_price).
@@ -907,20 +860,6 @@ LISTING_GROUPS = [
                 field_type="string",
                 required=False,
                 description="Human-readable listing name (e.g., 'Premium GPT-4 Access')",
-            ),
-        ],
-    ),
-    FieldGroup(
-        name="seller",
-        title="Seller Information",
-        fields=[
-            FieldDef(
-                name="seller_name",
-                prompt_text="Seller name (must match seller.json)",
-                field_type="string",
-                required=False,
-                default=lambda ctx, data: find_seller_name(),
-                description="Auto-detected from seller.json in data directory",
             ),
         ],
     ),

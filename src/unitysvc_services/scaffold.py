@@ -9,7 +9,6 @@ by copying from existing examples or data directories and updating the name fiel
 import json
 import shutil
 import sys
-import tomllib  # Built-in since Python 3.11
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -21,12 +20,10 @@ from .interactive_prompt import (
     LISTING_GROUPS,
     OFFERING_GROUPS,
     PROVIDER_GROUPS,
-    SELLER_GROUPS,
     PromptEngine,
     create_listing_data,
     create_offering_data,
     create_provider_data,
-    create_seller_data,
 )
 from .utils import load_data_file
 
@@ -969,135 +966,3 @@ def init_provider(
             raise typer.Exit(code=1)
 
 
-@app.command("seller")
-def init_seller(
-    name: str = typer.Argument(..., help="Name for the new seller"),
-    output_dir: Path = typer.Option(
-        Path.cwd() / "data",
-        "--output-dir",
-        "-o",
-        help="Output directory (default: ./data)",
-    ),
-    format: str = typer.Option(
-        "json",
-        "--format",
-        "-f",
-        help="Output format: json or toml",
-    ),
-    source: str | None = typer.Option(
-        None,
-        "--source",
-        "-s",
-        help="Copy from existing seller file",
-    ),
-):
-    """Create a new seller skeleton."""
-    # Prepare arguments for scaffold
-    if source:
-        # Copy mode - for seller, source is a file not a directory
-        base_dirs = [Path.cwd() / "data", Path.cwd()]
-        source_path = None
-
-        # Try to find the source file
-        for base_dir in base_dirs:
-            potential_path = base_dir / source
-            if potential_path.exists() and potential_path.is_file():
-                source_path = potential_path
-                break
-            # Also try with common seller filenames
-            for filename in ["seller.json", "seller.toml"]:
-                potential_file = base_dir / source / filename
-                if potential_file.exists():
-                    source_path = potential_file
-                    break
-            if source_path:
-                break
-
-        if not source_path:
-            console.print(
-                f"[red]✗[/red] Source seller file not found: {source}",
-                style="bold red",
-            )
-            raise typer.Exit(code=1)
-
-        console.print(f"[blue]Copying from:[/blue] {source_path}")
-        console.print(f"[blue]Creating:[/blue] seller.{format}")
-        console.print(f"[blue]Output directory:[/blue] {output_dir}\n")
-
-        try:
-            # Load source file
-            if source_path.suffix == ".json":
-                with open(source_path) as f:
-                    data = json.load(f)
-            else:  # .toml
-                with open(source_path, "rb") as f:
-                    data = tomllib.load(f)
-
-            # Update name
-            data["name"] = name
-
-            # Ensure output directory exists
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            # Write to output format
-            output_file = output_dir / f"seller.{format}"
-            if format == "json":
-                with open(output_file, "w") as f:
-                    json.dump(data, f, indent=2)
-                    f.write("\n")
-            else:  # toml
-                if not TOML_WRITE_AVAILABLE:
-                    console.print(
-                        "[red]✗[/red] TOML write support not available. Install tomli_w.",
-                        style="bold red",
-                    )
-                    raise typer.Exit(code=1)
-                with open(output_file, "wb") as f:
-                    tomli_w.dump(data, f)
-
-            console.print(f"[green]✓[/green] Seller created: {output_file}")
-        except Exception as e:
-            console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
-            raise typer.Exit(code=1)
-    else:
-        # Interactive mode - prompt for values
-        console.print("[bold cyan]Creating seller interactively[/bold cyan]")
-        console.print(f"[dim]Output directory:[/dim] {output_dir}")
-        console.print(f"[dim]Format:[/dim] {format}\n")
-
-        try:
-            # Create prompt engine
-            engine = PromptEngine(SELLER_GROUPS)
-
-            # Prompt for all fields (pass name if provided via CLI)
-            user_input = engine.prompt_all(context={"name": name})
-
-            # Create seller data structure
-            seller_data = create_seller_data(user_input)
-
-            # Ensure output directory exists
-            output_dir.mkdir(parents=True, exist_ok=True)
-
-            # Write to file
-            output_file = output_dir / f"seller.{format}"
-            if format == "json":
-                with open(output_file, "w") as f:
-                    json.dump(seller_data, f, indent=2)
-                    f.write("\n")
-            else:  # toml
-                if not TOML_WRITE_AVAILABLE:
-                    console.print(
-                        "[red]✗[/red] TOML write support not available. Install tomli_w.",
-                        style="bold red",
-                    )
-                    raise typer.Exit(code=1)
-                with open(output_file, "wb") as f:
-                    tomli_w.dump(seller_data, f)
-
-            console.print(f"\n[green]✓[/green] Seller created: {output_file}")
-        except typer.Abort:
-            console.print("[yellow]Seller creation cancelled[/yellow]")
-            raise typer.Exit(code=1)
-        except Exception as e:
-            console.print(f"[red]✗[/red] Failed to create seller: {e}", style="bold red")
-            raise typer.Exit(code=1)

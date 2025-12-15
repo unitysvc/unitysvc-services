@@ -15,7 +15,7 @@ from rich.table import Table
 import unitysvc_services
 
 from .api import UnitySvcAPI
-from .models.base import ListingStatusEnum, ProviderStatusEnum, SellerStatusEnum
+from .models.base import ListingStatusEnum, ProviderStatusEnum
 from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
 from .validator import DataValidator
 
@@ -409,44 +409,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         else:
             provider_data = {}
 
-        # Find seller_name from seller definition in the data directory
-        # Navigate up to find the data directory and look for seller file
-        data_dir = listing_file.parent
-        while data_dir.name != "data" and data_dir.parent != data_dir:
-            data_dir = data_dir.parent
-
-        if data_dir.name != "data":
-            raise ValueError(
-                f"Cannot find 'data' directory in path: {listing_file}. "
-                f"Expected path structure includes a 'data' directory."
-            )
-
-        # Look for seller file in the data directory by checking schema field
-        seller_files = find_files_by_schema(data_dir, "seller_v1")
-
-        if not seller_files:
-            raise ValueError(
-                f"Cannot find seller_v1 file in {data_dir}. A seller definition is required in the data directory."
-            )
-
-        # Should only be one seller file in the data directory
-        _seller_file, _format, seller_data = seller_files[0]
-
-        # Check seller status - skip if draft
-        seller_status = seller_data.get("status", SellerStatusEnum.active)
-        if seller_status == SellerStatusEnum.draft:
-            return {
-                "skipped": True,
-                "reason": f"Seller status is '{seller_status}' - not publishing listing to backend",
-                "name": data.get("name", "unknown"),
-            }
-
-        seller_name = seller_data.get("name")
-        if not seller_name:
-            raise ValueError("Seller data missing 'name' field")
-
-        data["seller_name"] = seller_name
-
         # Map listing_status to status if present
         if "listing_status" in data:
             data["status"] = data.pop("listing_status")
@@ -460,7 +422,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                 "name": data.get("name", "unknown"),
             }
 
-        # NOW resolve file references with all context (listing, offering, provider, seller)
+        # NOW resolve file references with all context (listing, offering, provider)
         base_path = listing_file.parent
         data_with_content = self.resolve_file_references(
             data,
@@ -468,15 +430,14 @@ class ServiceDataPublisher(UnitySvcAPI):
             listing=data,
             offering=service_data,
             provider=provider_data,
-            seller=seller_data,
+            seller=None,
             listing_filename=listing_file.name,
         )
 
         # Post to the endpoint using retry helper
         context_info = (
             f"service: {data_with_content.get('service_name')}, "
-            f"provider: {data_with_content.get('provider_name')}, "
-            f"seller: {data_with_content.get('seller_name')}"
+            f"provider: {data_with_content.get('provider_name')}"
         )
         result = await self._post_with_retry(
             endpoint="/seller/listings",
@@ -491,7 +452,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Add local metadata to result for display purposes
         result["service_name"] = data_with_content.get("service_name")
         result["provider_name"] = data_with_content.get("provider_name")
-        result["seller_name"] = data_with_content.get("seller_name")
 
         return result
 
@@ -607,44 +567,6 @@ class ServiceDataPublisher(UnitySvcAPI):
             dryrun=dryrun,
         )
 
-    async def post_seller_async(self, data_file: Path, max_retries: int = 3, dryrun: bool = False) -> dict[str, Any]:
-        """Async version of post_seller for concurrent publishing with retry logic."""
-        # Load the data file
-        data, _ = load_data_file(data_file)
-
-        # Check seller status - skip if draft
-        seller_status = data.get("status", SellerStatusEnum.active)
-        if seller_status == SellerStatusEnum.draft:
-            # Return success without publishing - seller is incomplete
-            return {
-                "skipped": True,
-                "reason": f"Seller status is '{seller_status}' - not publishing to backend",
-                "name": data.get("name", "unknown"),
-            }
-
-        # Convert convenience fields (logo only for sellers, no terms_of_service)
-        base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(data, base_path, logo_field="logo", terms_field=None)
-
-        # Resolve file references and include content with seller context
-        data_with_content = self.resolve_file_references(
-            data,
-            base_path,
-            listing=None,
-            offering=None,
-            provider=None,
-            seller=data,
-        )
-
-        # Post to the endpoint using retry helper
-        return await self._post_with_retry(
-            endpoint="/seller/sellers",
-            data=data_with_content,
-            entity_type="seller",
-            entity_name=data.get("name", "unknown"),
-            max_retries=max_retries,
-            dryrun=dryrun,
-        )
 
     def find_offering_files(self, data_dir: Path) -> list[Path]:
         """Find all service offering files in a directory tree."""
@@ -661,10 +583,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         files = find_files_by_schema(data_dir, "provider_v1")
         return sorted([f[0] for f in files])
 
-    def find_seller_files(self, data_dir: Path) -> list[Path]:
-        """Find all seller files in a directory tree."""
-        files = find_files_by_schema(data_dir, "seller_v1")
-        return sorted([f[0] for f in files])
 
     @staticmethod
     def _get_status_display(status: str) -> tuple[str, str]:
@@ -965,103 +883,21 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         return results
 
-    async def _publish_seller_task(
-        self, seller_file: Path, console: Console, semaphore: asyncio.Semaphore, dryrun: bool = False
-    ) -> tuple[Path, dict[str, Any] | Exception]:
-        """
-        Async task to publish a single seller with concurrency control.
-
-        Returns tuple of (seller_file, result_or_exception).
-        """
-        async with semaphore:  # Limit concurrent requests
-            try:
-                # Load seller data to get the name
-                data, _ = load_data_file(seller_file)
-                seller_name = data.get("name", seller_file.stem)
-
-                # Publish the seller
-                result = await self.post_seller_async(seller_file, dryrun=dryrun)
-
-                # Print complete statement after publication
-                if result.get("skipped"):
-                    reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped seller: [cyan]{seller_name}[/cyan] - {reason}")
-                else:
-                    status = result.get("status", "created")
-                    symbol, color = self._get_status_display(status)
-                    console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] seller: [cyan]{seller_name}[/cyan]"
-                    )
-
-                return (seller_file, result)
-            except Exception as e:
-                data, _ = load_data_file(seller_file)
-                seller_name = data.get("name", seller_file.stem)
-                console.print(f"  [red]✗[/red] Failed to publish seller: [cyan]{seller_name}[/cyan] - {str(e)}")
-                return (seller_file, e)
-
-    async def publish_all_sellers(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
-        """
-        Publish all sellers found in a directory tree concurrently.
-
-        Returns a summary of successes and failures.
-        """
-        seller_files = self.find_seller_files(data_dir)
-        results: dict[str, Any] = {
-            "total": len(seller_files),
-            "success": 0,
-            "failed": 0,
-            "created": 0,
-            "updated": 0,
-            "unchanged": 0,
-            "errors": [],
-        }
-
-        if not seller_files:
-            return results
-
-        console = Console()
-
-        # Run all seller publications concurrently with rate limiting
-        # Create semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-        tasks = [
-            self._publish_seller_task(seller_file, console, semaphore, dryrun=dryrun) for seller_file in seller_files
-        ]
-        task_results = await asyncio.gather(*tasks)
-
-        # Process results
-        for seller_file, result in task_results:
-            if isinstance(result, Exception):
-                results["failed"] += 1
-                results["errors"].append({"file": str(seller_file), "error": str(result)})
-            else:
-                results["success"] += 1
-                # Track status counts (handle both normal and dryrun statuses)
-                status = result.get("status", "created")
-                if status in ("created", "create"):  # "create" is dryrun mode
-                    results["created"] += 1
-                elif status in ("updated", "update"):  # "update" is dryrun mode
-                    results["updated"] += 1
-                elif status == "unchanged":
-                    results["unchanged"] += 1
-
-        return results
-
     async def publish_all_models(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
         """
         Publish all data types in the correct order.
 
         Publishing order:
-        1. Sellers - Must exist before listings
-        2. Providers - Must exist before offerings
-        3. Service Offerings - Must exist before listings
-        4. Service Listings - Depends on sellers, providers, and offerings
+        1. Providers - Must exist before offerings
+        2. Service Offerings - Must exist before listings
+        3. Service Listings - Depends on providers and offerings
+
+        Note: Sellers are no longer published from local files. Sellers must be created
+        on the UnitySVC platform, and the seller context is derived from the API key.
 
         Returns a dict with results for each data type and overall summary.
         """
         all_results: dict[str, Any] = {
-            "sellers": {},
             "providers": {},
             "offerings": {},
             "listings": {},
@@ -1073,9 +909,8 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total_unchanged": 0,
         }
 
-        # Publish in order: sellers -> providers -> offerings -> listings
+        # Publish in order: providers -> offerings -> listings
         publish_order = [
-            ("sellers", self.publish_all_sellers),
             ("providers", self.publish_all_providers),
             ("offerings", self.publish_all_offerings),
             ("listings", self.publish_all_listings),
@@ -1128,17 +963,19 @@ def publish_callback(
     Publish data to backend.
 
     When called without a subcommand, publishes all data types in order:
-    sellers → providers → offerings → listings.
+    providers → offerings → listings.
 
     Use subcommands to publish specific data types:
     - providers: Publish only providers
-    - sellers: Publish only sellers
     - offerings: Publish only service offerings
     - listings: Publish only service listings
 
+    Note: Sellers are no longer published from local files. Create your seller
+    account on the UnitySVC platform and use your seller API key for publishing.
+
     Required environment variables:
     - UNITYSVC_BASE_URL: Backend API URL
-    - UNITYSVC_API_KEY: API key for authentication
+    - UNITYSVC_API_KEY: API key for authentication (seller API key)
     """
     # If a subcommand was invoked, skip this callback logic
     if ctx.invoked_subcommand is not None:
@@ -1179,14 +1016,13 @@ def publish_callback(
         table.add_column("Unchanged", justify="right", style="dim")
 
         data_type_display_names = {
-            "sellers": "Sellers",
             "providers": "Providers",
             "offerings": "Offerings",
             "listings": "Listings",
         }
 
         # Add rows for each data type
-        for data_type in ["sellers", "providers", "offerings", "listings"]:
+        for data_type in ["providers", "offerings", "listings"]:
             display_name = data_type_display_names[data_type]
             results = all_results[data_type]
 
@@ -1216,7 +1052,7 @@ def publish_callback(
 
         # Display errors if any
         has_errors = False
-        for data_type in ["sellers", "providers", "offerings", "listings"]:
+        for data_type in ["providers", "offerings", "listings"]:
             display_name = data_type_display_names[data_type]
             results = all_results[data_type]
 
@@ -1351,97 +1187,6 @@ def publish_providers(
         raise
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
-        raise typer.Exit(code=1)
-
-
-@app.command("sellers")
-def publish_sellers(
-    data_path: Path | None = typer.Option(
-        None,
-        "--data-path",
-        "-d",
-        help="Path to seller file or directory (default: current directory)",
-    ),
-    dryrun: bool = typer.Option(
-        False,
-        "--dryrun",
-        help="Run in dry run mode (no actual changes)",
-    ),
-):
-    """Publish seller(s) from a file or directory."""
-    # Set data path
-    if data_path is None:
-        data_path = Path.cwd()
-
-    if not data_path.is_absolute():
-        data_path = Path.cwd() / data_path
-
-    if not data_path.exists():
-        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
-        raise typer.Exit(code=1)
-
-    # Handle single file
-    if data_path.is_file():
-        console.print(f"[blue]Publishing seller:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-    else:
-        console.print(f"[blue]Scanning for sellers in:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-
-    async def _publish_sellers_async():
-        async with ServiceDataPublisher() as publisher:
-            # Handle single file
-            if data_path.is_file():
-                return await publisher.post_seller_async(data_path, dryrun=dryrun), True
-            # Handle directory
-            else:
-                return await publisher.publish_all_sellers(data_path, dryrun=dryrun), False
-
-    try:
-        result, is_single = asyncio.run(_publish_sellers_async())
-
-        if is_single:
-            console.print("[green]✓[/green] Seller published successfully!")
-            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
-        else:
-            console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
-            table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Type", style="cyan")
-            table.add_column("Found", justify="right")
-            table.add_column("Success", justify="right")
-            table.add_column("Failed", justify="right")
-            table.add_column("Created", justify="right")
-            table.add_column("Updated", justify="right")
-            table.add_column("Unchanged", justify="right")
-
-            table.add_row(
-                "Sellers",
-                str(result["total"]),
-                f"[green]{result['success']}[/green]",
-                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
-                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
-                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
-                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
-            )
-
-            console.print(table)
-
-            if result["errors"]:
-                console.print("\n[bold red]Errors:[/bold red]")
-                for error in result["errors"]:
-                    console.print(f"  [red]✗[/red] {error['file']}")
-                    console.print(f"    {error['error']}")
-                raise typer.Exit(code=1)
-            else:
-                if dryrun:
-                    console.print("\n[green]✓[/green] Dry run completed successfully - no changes made!")
-                else:
-                    console.print("\n[green]✓[/green] All sellers published successfully!")
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish sellers: {e}", style="bold red")
         raise typer.Exit(code=1)
 
 

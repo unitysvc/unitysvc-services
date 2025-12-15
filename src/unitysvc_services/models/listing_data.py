@@ -56,11 +56,8 @@ class ServiceListingData(BaseModel):
         description="Provider name (resolved from directory structure if not specified)",
     )
 
-    # Seller info
-    seller_name: str | None = Field(
-        default=None,
-        description="Name of the seller offering this service listing",
-    )
+    # Note: seller_name is no longer specified here. The seller is derived from the API key
+    # used during publishing. Create your seller account on the UnitySVC platform.
 
     # Listing identification
     name: str | None = Field(
