@@ -237,14 +237,14 @@ class DataValidator:
         """
         from pydantic import BaseModel
 
-        from unitysvc_services.models import ListingV1, ProviderV1, ServiceV1
+        from unitysvc_services.models import ListingV1, OfferingV1, ProviderV1
 
         errors: list[str] = []
 
         # Map schema names to Pydantic model classes
         model_map: dict[str, type[BaseModel]] = {
             "provider_v1": ProviderV1,
-            "offering_v1": ServiceV1,
+            "offering_v1": OfferingV1,
             "listing_v1": ListingV1,
         }
 

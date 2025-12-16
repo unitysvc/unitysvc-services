@@ -13,7 +13,7 @@ from .base import (
 from .offering_data import ServiceOfferingData
 
 
-class ServiceV1(ServiceOfferingData):
+class OfferingV1(ServiceOfferingData):
     """
     Service offering model for file-based definitions (offering_v1 schema).
 

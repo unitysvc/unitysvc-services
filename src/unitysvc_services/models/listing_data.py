@@ -44,7 +44,7 @@ class ServiceListingData(BaseModel):
     service_name: str | None = Field(
         default=None,
         description=(
-            "Name of the service (ServiceV1.name), optional if only one service is defined under the same directory."
+            "Name of the service (OfferingV1.name), optional if only one service is defined under the same directory."
         ),
     )
     service_version: str | None = Field(
