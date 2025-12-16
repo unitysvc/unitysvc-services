@@ -1129,16 +1129,8 @@
       "title": "Customer Price"
     },
     "display_name": {
-      "anyOf": [
-        {
-          "maxLength": 200,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
+      "maxLength": 200,
+      "type": "string",
       "description": "Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
       "title": "Display Name"
     },
@@ -1278,6 +1270,7 @@
     }
   },
   "required": [
+    "display_name",
     "user_access_interfaces",
     "time_created"
   ],

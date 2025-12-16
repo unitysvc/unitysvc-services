@@ -367,11 +367,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         # If service_name is not in listing data, find it from service files in the same directory
         if "service_name" not in data or not data["service_name"]:
             # Find all service files in the same directory
-            service_files = find_files_by_schema(listing_file.parent, "service_v1")
+            service_files = find_files_by_schema(listing_file.parent, "offering_v1")
 
             if len(service_files) == 0:
                 raise ValueError(
-                    f"Cannot find any service_v1 files in {listing_file.parent}. "
+                    f"Cannot find any offering_v1 files in {listing_file.parent}. "
                     f"Listing files must be in the same directory as a service definition."
                 )
             elif len(service_files) > 1:
@@ -390,7 +390,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             # service_name is provided in listing data, find the matching service to get version
             service_name = data["service_name"]
             service_files = find_files_by_schema(
-                listing_file.parent, "service_v1", field_filter=(("name", service_name),)
+                listing_file.parent, "offering_v1", field_filter=(("name", service_name),)
             )
 
             if not service_files:
@@ -436,8 +436,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Post to the endpoint using retry helper
         context_info = (
-            f"service: {data_with_content.get('service_name')}, "
-            f"provider: {data_with_content.get('provider_name')}"
+            f"service: {data_with_content.get('service_name')}, provider: {data_with_content.get('provider_name')}"
         )
         result = await self._post_with_retry(
             endpoint="/seller/listings",
@@ -567,10 +566,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             dryrun=dryrun,
         )
 
-
     def find_offering_files(self, data_dir: Path) -> list[Path]:
         """Find all service offering files in a directory tree."""
-        files = find_files_by_schema(data_dir, "service_v1")
+        files = find_files_by_schema(data_dir, "offering_v1")
         return sorted([f[0] for f in files])
 
     def find_listing_files(self, data_dir: Path) -> list[Path]:
@@ -582,7 +580,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         """Find all provider files in a directory tree."""
         files = find_files_by_schema(data_dir, "provider_v1")
         return sorted([f[0] for f in files])
-
 
     @staticmethod
     def _get_status_display(status: str) -> tuple[str, str]:

@@ -44,12 +44,6 @@ class ServiceOfferingData(BaseModel):
         max_length=100,
     )
 
-    display_name: str | None = Field(
-        default=None,
-        max_length=150,
-        description="Human-friendly common name (e.g., 'GPT-4 Turbo')",
-    )
-
     version: str | None = Field(
         default=None,
         max_length=50,

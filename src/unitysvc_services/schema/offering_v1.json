@@ -1108,7 +1108,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "Service offering model for file-based definitions (service_v1 schema).\n\nExtends ServiceOfferingData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- logo: Convenience field (converted to documents during import)\n- tags: Tags for the service (e.g., bring your own API key)\n- Typed models (AccessInterface, Document, Pricing) instead of dicts\n- Field validators for name format\n\nThis model is used for validating service.json/service.toml files\ncreated by the CLI tool.",
+  "description": "Service offering model for file-based definitions (offering_v1 schema).\n\nExtends ServiceOfferingData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- logo: Convenience field (converted to documents during import)\n- tags: Tags for the service (e.g., bring your own API key)\n- Typed models (AccessInterface, Document, Pricing) instead of dicts\n- Field validators for name format\n\nThis model is used for validating offering.json/offering.toml files\ncreated by the CLI tool.",
   "properties": {
     "currency": {
       "$ref": "#/$defs/CurrencyEnum",
@@ -1125,12 +1125,6 @@
       "description": "Dictionary of static features and information",
       "title": "Details",
       "type": "object"
-    },
-    "display_name": {
-      "description": "Human-friendly common name (e.g., 'GPT-4 Turbo')",
-      "maxLength": 150,
-      "title": "Display Name",
-      "type": "string"
     },
     "documents": {
       "anyOf": [
@@ -1186,7 +1180,7 @@
       "title": "Provider Name"
     },
     "schema": {
-      "default": "service_v1",
+      "default": "offering_v1",
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
@@ -1295,7 +1289,6 @@
   },
   "required": [
     "name",
-    "display_name",
     "description",
     "details",
     "upstream_access_interface",

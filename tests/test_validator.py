@@ -28,7 +28,7 @@ def test_validator_loads_schemas(schema_dir, example_data_dir):
     assert len(validator.schemas) > 0
     assert "base" in validator.schemas
     assert "provider_v1" in validator.schemas
-    assert "service_v1" in validator.schemas
+    assert "offering_v1" in validator.schemas
     assert "listing_v1" in validator.schemas
 
 
@@ -66,7 +66,7 @@ def test_validate_service_toml(schema_dir, example_data_dir):
     """Test validation of service TOML file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    service_file = example_data_dir / "provider1" / "services" / "service1" / "service.toml"
+    service_file = example_data_dir / "provider1" / "services" / "service1" / "offering.toml"
     is_valid, errors = validator.validate_data_file(service_file)
 
     if not is_valid:
@@ -81,7 +81,7 @@ def test_validate_service_json(schema_dir, example_data_dir):
     """Test validation of service JSON file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    service_file = example_data_dir / "provider2" / "services" / "service2" / "service.json"
+    service_file = example_data_dir / "provider2" / "services" / "service2" / "offering.json"
     is_valid, errors = validator.validate_data_file(service_file)
 
     if not is_valid:

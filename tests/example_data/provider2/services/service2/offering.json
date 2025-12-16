@@ -13,9 +13,8 @@
     "supportsImageInput": false,
     "supportsTools": false
   },
-  "display_name": "FLUX Pro Ultra",
   "name": "service2",
-  "schema": "service_v1",
+  "schema": "offering_v1",
   "service_type": "image_generation",
   "time_created": "2024-03-15T10:30:00.000Z",
   "upstream_access_interface": {

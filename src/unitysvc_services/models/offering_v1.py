@@ -10,12 +10,12 @@ from .base import (
     TagEnum,
     validate_name,
 )
-from .service_data import ServiceOfferingData
+from .offering_data import ServiceOfferingData
 
 
 class ServiceV1(ServiceOfferingData):
     """
-    Service offering model for file-based definitions (service_v1 schema).
+    Service offering model for file-based definitions (offering_v1 schema).
 
     Extends ServiceOfferingData with:
     - schema_version: Schema identifier for file validation
@@ -25,22 +25,17 @@ class ServiceV1(ServiceOfferingData):
     - Typed models (AccessInterface, Document, Pricing) instead of dicts
     - Field validators for name format
 
-    This model is used for validating service.json/service.toml files
+    This model is used for validating offering.json/offering.toml files
     created by the CLI tool.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     # File-specific fields for validation
-    schema_version: str = Field(default="service_v1", description="Schema identifier", alias="schema")
+    schema_version: str = Field(default="offering_v1", description="Schema identifier", alias="schema")
     time_created: datetime
 
     # Override to make required in file validation (base has Optional for API flexibility)
-    display_name: str = Field(  # type: ignore[assignment]
-        max_length=150,
-        description="Human-friendly common name (e.g., 'GPT-4 Turbo')",
-    )
-
     description: str = Field(  # type: ignore[assignment]
         description="Service description",
     )

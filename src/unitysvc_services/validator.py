@@ -199,8 +199,8 @@ class DataValidator:
                     f"Expected directory name to match normalized provider name: '{self._normalize_name(name_value)}'"
                 )
 
-        elif file_path.name in ["service.json", "service.toml"]:
-            # For service.json, the service directory should match the service name
+        elif file_path.name in ["offering.json", "offering.toml"]:
+            # For offering.json, the service directory should match the service name
             service_directory_name = file_path.parent.name
             if self._normalize_name(name_value) != self._normalize_name(service_directory_name):
                 normalized_name = self._normalize_name(name_value)
@@ -244,7 +244,7 @@ class DataValidator:
         # Map schema names to Pydantic model classes
         model_map: dict[str, type[BaseModel]] = {
             "provider_v1": ProviderV1,
-            "service_v1": ServiceV1,
+            "offering_v1": ServiceV1,
             "listing_v1": ListingV1,
         }
 
@@ -464,7 +464,7 @@ class DataValidator:
         """Validate data files in a directory for consistency.
 
         Validation rules:
-        1. All service_v1 files in same directory must have unique names
+        1. All offering_v1 files in same directory must have unique names
         2. All listing_v1 files must reference a service name that exists in the same directory
         3. If service_name is defined in listing_v1, it must match a service in the directory
 
@@ -491,7 +491,7 @@ class DataValidator:
 
                 schema = data.get("schema")
 
-                if schema == "service_v1":
+                if schema == "offering_v1":
                     service_name = data.get("name")
                     if not service_name:
                         raise DataValidationError(f"Service file {file_path} missing 'name' field")
@@ -566,7 +566,7 @@ class DataValidator:
                         continue
 
                     schema = data.get("schema")
-                    if schema in ["service_v1", "listing_v1"]:
+                    if schema in ["offering_v1", "listing_v1"]:
                         directories_to_validate.add(file_path.parent)
                 except Exception:
                     continue

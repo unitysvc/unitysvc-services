@@ -24,10 +24,10 @@ from .base import (
 )
 from .listing_data import ServiceListingData
 from .listing_v1 import ListingV1
+from .offering_data import ServiceOfferingData
+from .offering_v1 import ServiceV1
 from .provider_data import ProviderData
 from .provider_v1 import ProviderV1
-from .service_data import ServiceOfferingData
-from .service_v1 import ServiceV1
 
 __all__ = [
     # V1 models (for file validation)

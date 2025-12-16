@@ -66,9 +66,8 @@ class ServiceListingData(BaseModel):
         description="Name identifier for the service listing (defaults to 'default' if not provided)",
     )
 
-    # Display name for UI
-    display_name: str | None = Field(
-        default=None,
+    # Display name for UI (required)
+    display_name: str = Field(
         max_length=200,
         description="Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
     )
