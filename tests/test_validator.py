@@ -96,7 +96,7 @@ def test_validate_listing_toml(schema_dir, example_data_dir):
     """Test validation of listing TOML file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    listing_file = example_data_dir / "provider1" / "services" / "service1" / "svcreseller.toml"
+    listing_file = example_data_dir / "provider1" / "services" / "service1" / "listing.toml"
     is_valid, errors = validator.validate_data_file(listing_file)
 
     if not is_valid:
@@ -111,7 +111,7 @@ def test_validate_listing_json(schema_dir, example_data_dir):
     """Test validation of listing JSON file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    listing_file = example_data_dir / "provider2" / "services" / "service2" / "svcreseller.json"
+    listing_file = example_data_dir / "provider2" / "services" / "service2" / "listing.json"
     is_valid, errors = validator.validate_data_file(listing_file)
 
     if not is_valid:
