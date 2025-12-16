@@ -55,7 +55,7 @@ class UnitySvcAPI:
         """Make HTTP GET request using curl fallback (async).
 
         Args:
-            endpoint: API endpoint path (e.g., "/publish/sellers")
+            endpoint: API endpoint path (e.g., "/publish/providers")
             params: Query parameters
 
         Returns:
@@ -202,7 +202,7 @@ class UnitySvcAPI:
         with conda Python).
 
         Args:
-            endpoint: API endpoint path (e.g., "/publish/sellers", "/admin/documents")
+            endpoint: API endpoint path (e.g., "/publish/providers", "/admin/documents")
             params: Query parameters
 
         Returns:

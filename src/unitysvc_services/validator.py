@@ -199,8 +199,8 @@ class DataValidator:
                     f"Expected directory name to match normalized provider name: '{self._normalize_name(name_value)}'"
                 )
 
-        elif file_path.name in ["service.json", "service.toml"]:
-            # For service.json, the service directory should match the service name
+        elif file_path.name in ["offering.json", "offering.toml"]:
+            # For offering.json, the service directory should match the service name
             service_directory_name = file_path.parent.name
             if self._normalize_name(name_value) != self._normalize_name(service_directory_name):
                 normalized_name = self._normalize_name(name_value)
@@ -237,15 +237,14 @@ class DataValidator:
         """
         from pydantic import BaseModel
 
-        from unitysvc_services.models import ListingV1, ProviderV1, SellerV1, ServiceV1
+        from unitysvc_services.models import ListingV1, OfferingV1, ProviderV1
 
         errors: list[str] = []
 
         # Map schema names to Pydantic model classes
         model_map: dict[str, type[BaseModel]] = {
             "provider_v1": ProviderV1,
-            "seller_v1": SellerV1,
-            "service_v1": ServiceV1,
+            "offering_v1": OfferingV1,
             "listing_v1": ListingV1,
         }
 
@@ -365,45 +364,6 @@ class DataValidator:
         except Exception as e:
             return False, [f"Failed to read template file: {e}"]
 
-    def validate_seller_uniqueness(self) -> tuple[bool, list[str]]:
-        """
-        Validate that there is exactly one seller_v1 file in the data directory.
-
-        Each repository should have one and only one seller.json file using the seller_v1 schema.
-        """
-        errors: list[str] = []
-        seller_files: list[Path] = []
-
-        if not self.data_dir.exists():
-            return True, []
-
-        # Find all data files with seller_v1 schema
-        for file_path in self.data_dir.rglob("*"):
-            # Skip hidden directories (those starting with .)
-            if any(part.startswith(".") for part in file_path.parts):
-                continue
-
-            if file_path.is_file() and file_path.suffix in [".json", ".toml"]:
-                try:
-                    data, load_errors = self.load_data_file(file_path)
-                    if data and "schema" in data and data["schema"] == "seller_v1":
-                        seller_files.append(file_path.relative_to(self.data_dir))
-                except Exception:
-                    # Skip files that can't be loaded (they'll be caught by other validation)
-                    continue
-
-        # Check count
-        if len(seller_files) == 0:
-            errors.append(
-                "No seller file found. Each repository must have exactly one data file using the 'seller_v1' schema."
-            )
-        elif len(seller_files) > 1:
-            errors.append(f"Found {len(seller_files)} seller files, but only one is allowed per repository:")
-            for seller_file in seller_files:
-                errors.append(f"  - {seller_file}")
-
-        return len(errors) == 0, errors
-
     def validate_provider_status(self) -> tuple[bool, list[str]]:
         """
         Validate provider status and warn about services under disabled/draft providers.
@@ -452,60 +412,12 @@ class DataValidator:
         # Return True (valid) but with warnings
         return True, warnings
 
-    def validate_seller_status(self) -> tuple[bool, list[str]]:
-        """
-        Validate seller status and warn if seller is disabled/draft.
-
-        Returns tuple of (is_valid, warnings) where warnings indicate seller issues.
-        """
-        from unitysvc_services.models.base import SellerStatusEnum
-        from unitysvc_services.models.seller_v1 import SellerV1
-
-        warnings: list[str] = []
-
-        # Find all seller files (skip hidden files)
-        seller_files = [f for f in self.data_dir.glob("seller.*") if not f.name.startswith(".")]
-
-        for seller_file in seller_files:
-            try:
-                # Load seller data using existing helper method
-                data, load_errors = self.load_data_file(seller_file)
-                if load_errors or data is None:
-                    warnings.append(f"Failed to load seller file {seller_file}: {load_errors}")
-                    continue
-
-                # Parse as SellerV1
-                seller = SellerV1.model_validate(data)
-                seller_name = seller.name
-
-                # Check if seller is not active
-                if seller.status != SellerStatusEnum.active:
-                    warnings.append(
-                        f"Seller '{seller_name}' has status '{seller.status}'. Seller will not be published to backend."
-                    )
-
-            except Exception as e:
-                warnings.append(f"Error checking seller status in {seller_file}: {e}")
-
-        # Return True (valid) but with warnings
-        return True, warnings
-
     def validate_all(self) -> dict[str, tuple[bool, list[str]]]:
         """Validate all files in the data directory."""
         results: dict[str, tuple[bool, list[str]]] = {}
 
         if not self.data_dir.exists():
             return results
-
-        # First, validate seller uniqueness (repository-level validation)
-        seller_valid, seller_errors = self.validate_seller_uniqueness()
-        if not seller_valid:
-            results["_seller_uniqueness"] = (False, seller_errors)
-
-        # Validate seller status
-        seller_status_valid, seller_warnings = self.validate_seller_status()
-        if seller_warnings:
-            results["_seller_status"] = (True, seller_warnings)  # Warnings, not errors
 
         # Validate provider status and check for affected services
         provider_status_valid, provider_warnings = self.validate_provider_status()
@@ -552,7 +464,7 @@ class DataValidator:
         """Validate data files in a directory for consistency.
 
         Validation rules:
-        1. All service_v1 files in same directory must have unique names
+        1. All offering_v1 files in same directory must have unique names
         2. All listing_v1 files must reference a service name that exists in the same directory
         3. If service_name is defined in listing_v1, it must match a service in the directory
 
@@ -579,7 +491,7 @@ class DataValidator:
 
                 schema = data.get("schema")
 
-                if schema == "service_v1":
+                if schema == "offering_v1":
                     service_name = data.get("name")
                     if not service_name:
                         raise DataValidationError(f"Service file {file_path} missing 'name' field")
@@ -654,7 +566,7 @@ class DataValidator:
                         continue
 
                     schema = data.get("schema")
-                    if schema in ["service_v1", "listing_v1"]:
+                    if schema in ["offering_v1", "listing_v1"]:
                         directories_to_validate.add(file_path.parent)
                 except Exception:
                     continue

@@ -33,8 +33,8 @@ Requires Python 3.11+
 ```bash
 # Initialize provider and service (using short alias 'usvc')
 usvc init provider my-provider
-usvc init offering my-service
-usvc init seller my-marketplace
+usvc init offering my-offering
+usvc init service my-listing
 
 # Validate and format
 usvc validate
@@ -86,7 +86,6 @@ See [Workflows Documentation](https://unitysvc-services.readthedocs.io/en/latest
 
 ```
 data/
-├── seller.json                    # One seller per repo
 ├── ${provider_name}/
 │   ├── provider.json              # Provider metadata
 │   ├── docs/                      # Shared documentation

@@ -51,7 +51,7 @@ def update_offering(
     """
     Update fields in a service offering's local data file.
 
-    Searches for files with schema 'service_v1' by offering name and updates the specified fields.
+    Searches for files with schema 'offering_v1' by offering name and updates the specified fields.
 
     Allowed upstream_status values:
       - uploading: Service is being uploaded (not ready)
@@ -95,7 +95,7 @@ def update_offering(
     console.print(f"[blue]In directory:[/blue] {data_dir}\n")
 
     # Find the matching offering file
-    result = find_file_by_schema_and_name(data_dir, "service_v1", "name", name)
+    result = find_file_by_schema_and_name(data_dir, "offering_v1", "name", name)
 
     if not result:
         console.print(

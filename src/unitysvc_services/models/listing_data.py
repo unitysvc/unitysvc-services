@@ -44,7 +44,7 @@ class ServiceListingData(BaseModel):
     service_name: str | None = Field(
         default=None,
         description=(
-            "Name of the service (ServiceV1.name), optional if only one service is defined under the same directory."
+            "Name of the service (OfferingV1.name), optional if only one service is defined under the same directory."
         ),
     )
     service_version: str | None = Field(
@@ -56,11 +56,8 @@ class ServiceListingData(BaseModel):
         description="Provider name (resolved from directory structure if not specified)",
     )
 
-    # Seller info
-    seller_name: str | None = Field(
-        default=None,
-        description="Name of the seller offering this service listing",
-    )
+    # Note: seller_name is no longer specified here. The seller is derived from the API key
+    # used during publishing. Create your seller account on the UnitySVC platform.
 
     # Listing identification
     name: str | None = Field(
@@ -69,9 +66,8 @@ class ServiceListingData(BaseModel):
         description="Name identifier for the service listing (defaults to 'default' if not provided)",
     )
 
-    # Display name for UI
-    display_name: str | None = Field(
-        default=None,
+    # Display name for UI (required)
+    display_name: str = Field(
         max_length=200,
         description="Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
     )

@@ -70,7 +70,7 @@ def test_resolve_provider_name_from_service_offering(example_data_dir: Path) -> 
     from unitysvc_services.utils import find_files_by_schema
 
     # Find a service offering file
-    service_files = find_files_by_schema(example_data_dir, "service_v1")
+    service_files = find_files_by_schema(example_data_dir, "offering_v1")
 
     # Find the provider1 service file
     for file_path, _format, _data in service_files:
@@ -301,13 +301,13 @@ def test_load_data_file_json_with_override(tmp_path: Path) -> None:
     import json
 
     # Create base JSON file
-    base_file = tmp_path / "service.json"
-    base_data = {"schema": "service_v1", "name": "my-service", "status": "draft", "version": 1}
+    base_file = tmp_path / "offering.json"
+    base_data = {"schema": "offering_v1", "name": "my-service", "status": "draft", "version": 1}
     with open(base_file, "w", encoding="utf-8") as f:
         json.dump(base_data, f)
 
     # Create override JSON file
-    override_file = tmp_path / "service.override.json"
+    override_file = tmp_path / "offering.override.json"
     override_data = {"status": "active", "logo_url": "https://example.com/logo.png"}
     with open(override_file, "w", encoding="utf-8") as f:
         json.dump(override_data, f)
@@ -316,7 +316,7 @@ def test_load_data_file_json_with_override(tmp_path: Path) -> None:
 
     assert file_format == "json"
     assert data == {
-        "schema": "service_v1",
+        "schema": "offering_v1",
         "name": "my-service",
         "status": "active",  # overridden
         "version": 1,

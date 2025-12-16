@@ -27,6 +27,16 @@ You should see the command-line interface help output.
 
 **Note:** The command `unitysvc_services` can be invoked using the shorter alias `usvc`. All examples below use the shorter `usvc` alias.
 
+## Prerequisites: Create Your Seller Account
+
+Before publishing services, you need a seller account on the UnitySVC platform:
+
+1. **Sign up** at [https://unitysvc.com](https://unitysvc.com)
+2. **Create your seller account** from the dashboard
+3. **Generate a seller API key** - this key contains your seller identity
+
+The seller API key is used for all publishing operations. The platform automatically associates your providers, offerings, and listings with your seller account.
+
 ## Quick Start: Create Your First Service
 
 ### Step 1: Initialize Your Data Directory
@@ -76,39 +86,18 @@ data/
     └── services/
         └── my-first-service/
             ├── service.toml
-            └── listing-svcreseller.toml
+            └── listing.toml
 ```
 
-### Step 4: Create a Seller
-
-Create a seller file at the root of your data directory:
-
-```bash
-usvc init seller my-marketplace
-```
-
-This creates:
-
-```
-data/
-├── seller.toml
-└── my-provider/
-    └── services/
-        └── my-first-service/
-            ├── service.toml
-            └── listing-svcreseller.toml
-```
-
-### Step 5: Edit Your Files
+### Step 4: Edit Your Files
 
 Open the generated files and fill in your service details:
 
 -   **provider.toml** - Provider information (name, display name, contact)
--   **seller.toml** - Seller business information
 -   **service.toml** - Service offering details (pricing, API endpoints)
--   **listing-svcreseller.toml** - User-facing service information
+-   **listing.toml** - User-facing service information
 
-### Step 6: Validate Your Data
+### Step 5: Validate Your Data
 
 ```bash
 usvc validate
@@ -116,7 +105,7 @@ usvc validate
 
 Fix any validation errors reported.
 
-### Step 7: Format Your Files
+### Step 6: Format Your Files
 
 ```bash
 usvc format
@@ -124,16 +113,16 @@ usvc format
 
 This ensures consistent formatting (2-space JSON indentation, proper line endings, etc.).
 
-### Step 8: Publish to UnitySVC Platform
+### Step 7: Publish to UnitySVC Platform
 
-Set your credentials:
+Set your credentials using your **seller API key**:
 
 ```bash
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
-export UNITYSVC_API_KEY="your-api-key"
+export UNITYSVC_API_KEY="svcpass_your_seller_api_key"
 ```
 
-Publish your data (publishes all types in correct order: sellers → providers → offerings → listings):
+Publish your data (publishes all types in correct order: providers → offerings → listings):
 
 ```bash
 # From data directory
@@ -145,47 +134,48 @@ usvc publish --data-path ./data
 
 # Or publish specific types
 usvc publish providers
-usvc publish sellers
+usvc publish offerings
+usvc publish listings
 ```
 
 #### What Gets Published?
 
-When you run `usvc publish`, you're submitting two types of data to UnitySVC:
+When you run `usvc publish`, you're submitting your service data to UnitySVC:
 
 ```mermaid
 flowchart TD
-    subgraph Seller["Seller Publishes"]
-        A[ServiceOffering<br/>What seller offers TO UnitySVC]
-        B[ServiceListing<br/>What seller offers TO Users]
+    subgraph Local["Your Local Data"]
+        A[Provider<br/>Who provides the service]
+        B[ServiceOffering<br/>What you offer TO UnitySVC]
+        C[ServiceListing<br/>What you offer TO Users]
     end
 
-    subgraph Agreement["Agreement"]
-        C{UnitySVC Reviews<br/>& Approves}
+    subgraph Platform["UnitySVC Platform"]
+        D{Reviews & Approves}
+        E[Service goes live]
+        F[Usage tracked per request]
+        G[Monthly payout generated]
     end
 
-    subgraph Active["Active Service"]
-        D[Service goes live]
-        E[Usage tracked per request]
-        F[Monthly invoice generated]
-    end
-
-    A --> C
-    B --> C
-    C -->|Approved| D
-    D --> E
+    A --> D
+    B --> D
+    C --> D
+    D -->|Approved| E
     E --> F
+    F --> G
 ```
 
 | Data Type           | Purpose                    | Key Fields                                        |
 | ------------------- | -------------------------- | ------------------------------------------------- |
-| **ServiceOffering** | What you offer TO UnitySVC | Provider info, API endpoints, seller pricing      |
+| **Provider**        | Who provides the service   | Provider name, contact info                       |
+| **ServiceOffering** | What you offer TO UnitySVC | API endpoints, seller pricing                     |
 | **ServiceListing**  | What you offer TO Users    | User-facing info, customer pricing, documentation |
 
 After UnitySVC reviews and approves your submission:
 
 1. **Service goes live** - Available to customers on the platform
 2. **Usage tracked** - Every API request is metered and logged
-3. **Monthly invoicing** - You receive payouts based on usage × seller price
+3. **Monthly payouts** - You receive payouts based on usage × seller price
 
 See [Seller Lifecycle](seller-lifecycle.md) for details on invoicing, disputes, and payouts.
 
@@ -220,6 +210,8 @@ usvc list providers
 usvc list offerings
 usvc list listings
 ```
+
+Note: Sellers are managed on the UnitySVC platform, not in local files.
 
 ### Update Local Files
 

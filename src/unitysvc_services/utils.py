@@ -45,7 +45,7 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
     <base_name>.override.<extension>
 
     For example:
-    - service.json -> service.override.json
+    - offering.json -> service.override.json
     - provider.toml -> provider.override.toml
 
     If an override file exists, it will be deep-merged with the base file,
@@ -74,7 +74,7 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
 
     # Check for override file
     # Pattern: <stem>.override.<suffix>
-    # Example: service.json -> service.override.json
+    # Example: offering.json -> offering.override.json
     override_path = file_path.with_stem(f"{file_path.stem}.override")
 
     if override_path.exists():
@@ -149,7 +149,7 @@ def find_file_by_schema_and_name(
 
     Args:
         data_dir: Directory to search
-        schema: Schema identifier (e.g., "service_v1", "listing_v1")
+        schema: Schema identifier (e.g., "offering_v1", "listing_v1")
         name_field: Field name to match (e.g., "name", "seller_name")
         name_value: Value to match in the name field
 
@@ -182,7 +182,7 @@ def find_files_by_schema(
 
     Args:
         data_dir: Directory to search
-        schema: Schema identifier (e.g., "service_v1", "listing_v1")
+        schema: Schema identifier (e.g., "offering_v1", "listing_v1")
         path_filter: Optional string that must be in the file path
         field_filter: Optional tuple of (key, value) pairs to filter by
 
@@ -297,7 +297,7 @@ def resolve_service_name_for_listing(listing_file: Path, listing_data: dict[str,
     for data_file in find_data_files(listing_dir):
         try:
             data, file_format = load_data_file(data_file)
-            if data.get("schema") == "service_v1":
+            if data.get("schema") == "offering_v1":
                 service_files.append((data_file, file_format, data))
         except Exception:
             continue
