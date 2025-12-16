@@ -5,7 +5,7 @@ for service offering data that is shared between:
 - unitysvc-services (CLI): Used for file-based service definitions
 - unitysvc (backend): Used for API payloads and database operations
 
-The `ServiceV1` model extends this with file-specific fields like `schema_version`
+The `OfferingV1` model extends this with file-specific fields like `schema_version`
 and `time_created` for data file validation.
 """
 
@@ -23,7 +23,7 @@ class ServiceOfferingData(BaseModel):
     This model contains the core fields needed to describe a service offering,
     without file-specific validation fields. It serves as:
 
-    1. The base class for `ServiceV1` in unitysvc-services (with additional
+    1. The base class for `OfferingV1` in unitysvc-services (with additional
        schema_version and time_created fields for file validation)
 
     2. The data structure imported by unitysvc backend for:
@@ -42,12 +42,6 @@ class ServiceOfferingData(BaseModel):
     name: str = Field(
         description="Technical service name (e.g., 'gpt-4')",
         max_length=100,
-    )
-
-    display_name: str | None = Field(
-        default=None,
-        max_length=150,
-        description="Human-friendly common name (e.g., 'GPT-4 Turbo')",
     )
 
     version: str | None = Field(

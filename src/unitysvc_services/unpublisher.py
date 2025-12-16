@@ -190,7 +190,7 @@ def unpublish_offerings(
 
     # Find all offering files
     offering_files = []
-    for result in find_files_by_schema(data_dir, "service_v1"):
+    for result in find_files_by_schema(data_dir, "offering_v1"):
         file_path, _format, _data = result
         offering_files.append((file_path, _format))
 

@@ -111,15 +111,15 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
     }
 
     try:
-        # Find offering file (service.json in same directory as listing) using find_files_by_schema
-        offering_results = find_files_by_schema(listing_file.parent, "service_v1")
+        # Find offering file (offering.json in same directory as listing) using find_files_by_schema
+        offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
         if offering_results:
             # Unpack tuple: (file_path, format, data)
             # Data is already loaded by find_files_by_schema
             _file_path, _format, offering_data = offering_results[0]
             result["offering"] = offering_data
         else:
-            console.print(f"[yellow]Warning: No service_v1 file found in {listing_file.parent}[/yellow]")
+            console.print(f"[yellow]Warning: No offering_v1 file found in {listing_file.parent}[/yellow]")
 
         # Find provider file using find_files_by_schema
         # Structure: data/{provider}/services/{service}/listing.json
@@ -322,8 +322,8 @@ def update_offering_override_status(listing_file: Path, status: UpstreamStatusEn
     import json
 
     try:
-        # Find the offering file (service.json) in the same directory
-        offering_results = find_files_by_schema(listing_file.parent, "service_v1")
+        # Find the offering file (offering.json) in the same directory
+        offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
         if not offering_results:
             console.print(f"[yellow]⚠ No service offering file found in {listing_file.parent}[/yellow]")
             return

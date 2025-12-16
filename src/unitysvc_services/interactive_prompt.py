@@ -24,7 +24,6 @@ console = Console()
 # =============================================================================
 
 
-
 def prompt_for_pricing() -> dict[str, Any]:
     """Interactively prompt for pricing information (for seller_price).
 
@@ -220,7 +219,7 @@ def prompt_for_document(listing_dir: Path) -> dict[str, Any]:
 
 
 def find_service_name(service_dir: Path | None = None) -> str | None:
-    """Find service name from service.json or service.toml in service directory.
+    """Find service name from offering.json or offering.toml in service directory.
 
     Args:
         service_dir: Directory to search for service file (defaults to search common locations)
@@ -245,7 +244,7 @@ def find_service_name(service_dir: Path | None = None) -> str | None:
 
     # Look for service file in each search directory
     for search_dir in search_dirs:
-        for filename in ["service.json", "service.toml"]:
+        for filename in ["offering.json", "offering.toml"]:
             service_file = search_dir / filename
             if service_file.exists():
                 try:
@@ -841,11 +840,11 @@ LISTING_GROUPS = [
         fields=[
             FieldDef(
                 name="service_name",
-                prompt_text="Service name (must match service.json)",
+                prompt_text="Service name (must match offering.json)",
                 field_type="string",
                 required=False,
                 default=lambda ctx, data: find_service_name(),
-                description="Auto-detected from service.json in current directory",
+                description="Auto-detected from offering.json in current directory",
             ),
             FieldDef(
                 name="name",
@@ -1009,7 +1008,7 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
 
     # Create base data
     data = {
-        "schema": "service_v1",
+        "schema": "offering_v1",
         "time_created": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "upstream_access_interface": upstream_access_interface,
         "details": {},  # Required field, user can add details manually later

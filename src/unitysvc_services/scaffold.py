@@ -964,5 +964,3 @@ def init_provider(
         except Exception as e:
             console.print(f"[red]✗[/red] Failed to create provider: {e}", style="bold red")
             raise typer.Exit(code=1)
-
-

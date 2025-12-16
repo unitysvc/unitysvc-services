@@ -128,7 +128,7 @@ def list_offerings(
     console.print(f"[blue]Searching for service offerings in:[/blue] {data_dir}\n")
 
     # Find service files by schema
-    service_files = find_files_by_schema(data_dir, "service_v1")
+    service_files = find_files_by_schema(data_dir, "offering_v1")
 
     if not service_files:
         console.print("[yellow]No service offering files found.[/yellow]")
