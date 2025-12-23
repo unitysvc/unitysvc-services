@@ -8,7 +8,7 @@ from unitysvc_services.models.base import UsageData, validate_pricing
 
 
 class TestExprPriceData:
-    """Tests for expression-based pricing (seller_price only)."""
+    """Tests for expression-based pricing (payout_price only)."""
 
     def test_simple_constant_expression(self) -> None:
         """Test simple constant expression."""

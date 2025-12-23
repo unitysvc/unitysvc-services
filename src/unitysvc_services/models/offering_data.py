@@ -84,9 +84,9 @@ class ServiceOfferingData(BaseModel):
     )
 
     # Pricing
-    seller_price: dict[str, Any] | None = Field(
+    payout_price: dict[str, Any] | None = Field(
         default=None,
-        description="Seller pricing: The agreed rate between seller and UnitySVC",
+        description="Payout pricing: How to calculate seller payout",
     )
 
     # Access interface
@@ -101,8 +101,8 @@ class ServiceOfferingData(BaseModel):
         description="List of documents associated with the service",
     )
 
-    # Currency for seller_price
+    # Currency for payout_price
     currency: CurrencyEnum = Field(
         default=CurrencyEnum.USD,
-        description="Currency for seller_price",
+        description="Currency for payout_price",
     )

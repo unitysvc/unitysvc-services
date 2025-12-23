@@ -267,7 +267,7 @@ class PricingTypeEnum(StrEnum):
     # Tiered pricing types
     tiered = "tiered"  # Volume-based tiers (all units at one tier's price)
     graduated = "graduated"  # Graduated tiers (each tier's units at that rate)
-    # Expression-based pricing (seller_price only)
+    # Expression-based pricing (payout_price only)
     expr = "expr"  # Arbitrary expression using usage metrics
 
 
@@ -506,11 +506,11 @@ PercentageStr = Annotated[str, BeforeValidator(_validate_percentage_string)]
 
 class RevenueSharePriceData(BasePriceData):
     """
-    Price data for revenue share pricing (seller_price only).
+    Price data for revenue share pricing (payout_price only).
 
-    This pricing type is used exclusively for seller_price when the seller
+    This pricing type is used exclusively for payout_price when the seller
     receives a percentage of what the customer pays. It cannot be used for
-    customer_price since the customer price must be a concrete amount.
+    list_price since the list price must be a concrete amount.
 
     The percentage represents the seller's share of the customer charge.
     For example, if percentage is "70" and the customer pays $10, the seller
@@ -761,13 +761,13 @@ class ExprPriceData(BasePriceData):
     """
     Expression-based pricing that evaluates an arithmetic expression using usage metrics.
 
-    **IMPORTANT: This pricing type should only be used for `seller_price`.**
-    It is NOT suitable for `customer_price` because:
-    1. Customer pricing should be predictable and transparent
+    **IMPORTANT: This pricing type should only be used for `payout_price`.**
+    It is NOT suitable for `list_price` because:
+    1. List pricing should be predictable and transparent
     2. Expression-based pricing can lead to confusing or unexpected charges
     3. Customers should be able to easily calculate their costs before using a service
 
-    For seller pricing, expressions are useful when the cost from an upstream provider
+    For payout pricing, expressions are useful when the cost from an upstream provider
     involves complex calculations that can't be expressed with basic pricing types.
 
     The expression can use any available metrics and arithmetic operators (+, -, *, /).
@@ -972,8 +972,8 @@ class GraduatedPriceData(BasePriceData):
 
 
 # Discriminated union of all pricing types
-# This is the type used for seller_price and customer_price fields
-# Note: ExprPriceData should only be used for seller_price
+# This is the type used for payout_price and list_price fields
+# Note: ExprPriceData should only be used for payout_price
 Pricing = Annotated[
     TokenPriceData
     | TimePriceData

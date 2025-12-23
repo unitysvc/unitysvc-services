@@ -25,7 +25,7 @@ console = Console()
 
 
 def prompt_for_pricing() -> dict[str, Any]:
-    """Interactively prompt for pricing information (for seller_price).
+    """Interactively prompt for pricing information (for payout_price).
 
     Returns:
         Dictionary with pricing data
@@ -33,7 +33,7 @@ def prompt_for_pricing() -> dict[str, Any]:
     console.print("\n[bold cyan]Adding pricing information[/bold cyan]")
 
     # Required field: pricing type (now inside price_data)
-    # Note: revenue_share is only valid for seller_price, which is the only context
+    # Note: revenue_share is only valid for payout_price, which is the only context
     # where this function is called
     pricing_type = Prompt.ask(
         "[bold blue]Pricing type[/bold blue] [red]*[/red]",
@@ -802,14 +802,14 @@ OFFERING_GROUPS = [
     ),
     FieldGroup(
         name="pricing",
-        title="Seller Pricing (Optional)",
+        title="Payout Pricing (Optional)",
         fields=[
             FieldDef(
-                name="add_seller_pricing",
-                prompt_text="Add seller pricing information?",
+                name="add_payout_pricing",
+                prompt_text="Add payout pricing information?",
                 field_type="boolean",
                 default=False,
-                description="The agreed rate between seller and UnitySVC",
+                description="How to calculate seller payout",
             ),
         ],
     ),
@@ -1001,10 +1001,10 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         if documents:
             upstream_access_interface["documents"] = documents
 
-    # Handle seller pricing if user wants to add it
-    seller_price = None
-    if user_input.get("add_seller_pricing"):
-        seller_price = prompt_for_pricing()
+    # Handle payout pricing if user wants to add it
+    payout_price = None
+    if user_input.get("add_payout_pricing"):
+        payout_price = prompt_for_pricing()
 
     # Create base data
     data = {
@@ -1014,12 +1014,12 @@ def create_offering_data(user_input: dict[str, Any], offering_dir: Path | None =
         "details": {},  # Required field, user can add details manually later
     }
 
-    # Add seller price if provided
-    if seller_price:
-        data["seller_price"] = seller_price
+    # Add payout price if provided
+    if payout_price:
+        data["payout_price"] = payout_price
 
-    # Add non-upstream fields (exclude add_upstream_documents and add_seller_pricing which are just flags)
-    excluded_fields = upstream_fields + ["add_seller_pricing"]
+    # Add non-upstream fields (exclude add_upstream_documents and add_payout_pricing which are just flags)
+    excluded_fields = upstream_fields + ["add_payout_pricing"]
     for key, value in user_input.items():
         if key not in excluded_fields and value is not None:
             data[key] = value
@@ -1041,7 +1041,7 @@ def create_listing_data(user_input: dict[str, Any], listing_dir: Path | None = N
         "schema": "listing_v1",
         "time_created": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "user_access_interfaces": [],  # Required field, user must add interfaces manually
-        "customer_price": None,  # Optional, can be added later
+        "list_price": None,  # Optional, can be added later
     }
 
     # Handle documents if user wants to add them

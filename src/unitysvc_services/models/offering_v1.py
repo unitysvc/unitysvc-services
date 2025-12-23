@@ -64,9 +64,9 @@ class OfferingV1(ServiceOfferingData):
         description="List of documents associated with the service (e.g. tech spec.)",
     )
 
-    seller_price: Pricing | None = Field(  # type: ignore[assignment]
+    payout_price: Pricing | None = Field(  # type: ignore[assignment]
         default=None,
-        description="Seller pricing information",
+        description="Payout pricing: How to calculate seller payout",
     )
 
     @field_validator("name")

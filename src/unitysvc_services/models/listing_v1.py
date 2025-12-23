@@ -37,9 +37,9 @@ class ListingV1(ServiceListingData):
         description="List of user access interfaces for the listing"
     )
 
-    customer_price: Pricing | None = Field(  # type: ignore[assignment]
+    list_price: Pricing | None = Field(  # type: ignore[assignment]
         default=None,
-        description="Customer pricing information",
+        description="List price: Listed price for customers",
     )
 
     documents: list[Document] | None = Field(  # type: ignore[assignment]

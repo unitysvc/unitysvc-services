@@ -35,7 +35,7 @@
     "name": "Fireworks Image API"
   },
   "currency": "USD",
-  "seller_price": {
+  "payout_price": {
     "type": "image",
     "price": "0.04",
     "description": "Pricing Per Image"

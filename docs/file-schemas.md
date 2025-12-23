@@ -158,15 +158,15 @@ Service files define the service offering from the upstream provider's perspecti
 
 ### Optional Fields
 
-| Field             | Type              | Description                                                     |
-| ----------------- | ----------------- | --------------------------------------------------------------- |
-| `version`         | string            | Service version                                                 |
-| `logo`            | string/URL        | Path to logo or URL (converted to document)                     |
-| `tagline`         | string            | Short elevator pitch                                            |
-| `tags`            | array of enum     | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
-| `upstream_status` | enum              | Service status: `uploading`, `ready` (default), or `deprecated` |
-| `seller_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
-| `documents`       | array of Document | Technical specs, documentation                                  |
+| Field             | Type                  | Description                                                     |
+| ----------------- | --------------------- | --------------------------------------------------------------- |
+| `version`         | string                | Service version                                                 |
+| `logo`            | string/URL            | Path to logo or URL (converted to document)                     |
+| `tagline`         | string                | Short elevator pitch                                            |
+| `tags`            | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
+| `upstream_status` | enum                  | Service status: `uploading`, `ready` (default), or `deprecated` |
+| `payout_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
+| `documents`       | array of Document     | Technical specs, documentation                                  |
 
 ### ServiceType Enum Values
 
@@ -206,10 +206,10 @@ supports_vision = true
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 
-[seller_price]
+[payout_price]
 currency = "USD"
 
-[seller_price.price_data]
+[payout_price.price_data]
 type = "one_million_tokens"
 input = "30.00"
 output = "60.00"
@@ -229,17 +229,17 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Optional Fields
 
-| Field                       | Type              | Description                                                                |
-| --------------------------- | ----------------- | -------------------------------------------------------------------------- |
-| `name`                      | string            | Listing identifier (defaults to filename without extension, max 255 chars) |
-| `service_name`              | string            | Service identifier (required if multiple services in directory)            |
-| `seller_name`               | string            | Seller identifier (references seller file)                                 |
-| `display_name`              | string            | Customer-facing name (max 200 chars)                                       |
-| `listing_status`            | enum              | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
-| `customer_price`            | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
-| `documents`                 | array of Document | SLAs, documentation, guides                                                |
-| `user_parameters_schema`    | object            | JSON schema for user configuration                                         |
-| `user_parameters_ui_schema` | object            | UI schema for user configuration                                           |
+| Field                       | Type                  | Description                                                                |
+| --------------------------- | --------------------- | -------------------------------------------------------------------------- |
+| `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
+| `service_name`              | string                | Service identifier (required if multiple services in directory)            |
+| `seller_name`               | string                | Seller identifier (references seller file)                                 |
+| `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
+| `listing_status`            | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
+| `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
+| `documents`                 | array of Document     | SLAs, documentation, guides                                                |
+| `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
+| `user_parameters_ui_schema` | object                | UI schema for user configuration                                           |
 
 ### Listing Name Field
 
@@ -272,10 +272,10 @@ name = "OpenAI API Access"
 [user_access_interfaces.routing_key]
 model = "gpt-4"
 
-[customer_price]
+[list_price]
 currency = "USD"
 
-[customer_price.price_data]
+[list_price.price_data]
 type = "one_million_tokens"
 input = "35.00"
 output = "70.00"
@@ -337,26 +337,26 @@ When a request arrives at `/p/openai` with `{"model": "gpt-4", "messages": [...]
 
 ### Pricing Object
 
-Flexible pricing structure for both upstream (`seller_price`) and user-facing (`customer_price`) prices.
+Flexible pricing structure for both upstream (`payout_price`) and user-facing (`list_price`) prices.
 
 > **Full documentation:** See [Pricing Specification](pricing.md) for complete details on pricing types, validation rules, and examples.
 
-| Field         | Type         | Description                                                               |
-| ------------- | ------------ | ------------------------------------------------------------------------- |
-| `currency`    | string       | ISO currency code (e.g., "USD", "EUR")                                    |
+| Field         | Type         | Description                                                                      |
+| ------------- | ------------ | -------------------------------------------------------------------------------- |
+| `currency`    | string       | ISO currency code (e.g., "USD", "EUR")                                           |
 | `price_data`  | object       | Type-specific price structure (see [Pricing Types](pricing.md#price-data-types)) |
-| `description` | string       | Pricing model description                                                 |
-| `reference`   | string (URL) | Reference URL to upstream pricing page                                    |
+| `description` | string       | Pricing model description                                                        |
+| `reference`   | string (URL) | Reference URL to upstream pricing page                                           |
 
 **price_data types:**
 
-| Type                  | Description                              | Example Fields                    |
-| --------------------- | ---------------------------------------- | --------------------------------- |
-| `one_million_tokens`  | Per million tokens (for LLMs)            | `price` or `input`/`output`       |
-| `one_second`          | Per second of usage                      | `price`                           |
-| `image`               | Per image generated                      | `price`                           |
-| `step`                | Per step/iteration                       | `price`                           |
-| `revenue_share`       | Percentage of customer charge (seller_price only) | `percentage`             |
+| Type                 | Description                                       | Example Fields              |
+| -------------------- | ------------------------------------------------- | --------------------------- |
+| `one_million_tokens` | Per million tokens (for LLMs)                     | `price` or `input`/`output` |
+| `one_second`         | Per second of usage                               | `price`                     |
+| `image`              | Per image generated                               | `price`                     |
+| `step`               | Per step/iteration                                | `price`                     |
+| `revenue_share`      | Percentage of customer charge (payout_price only) | `percentage`                |
 
 **Quick examples:**
 

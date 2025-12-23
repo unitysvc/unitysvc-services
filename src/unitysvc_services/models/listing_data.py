@@ -78,16 +78,16 @@ class ServiceListingData(BaseModel):
         description="Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)",
     )
 
-    # Customer pricing
-    customer_price: dict[str, Any] | None = Field(
+    # List pricing
+    list_price: dict[str, Any] | None = Field(
         default=None,
-        description="Customer pricing: What the customer pays for each unit of service usage",
+        description="List price: Listed price for customers per unit of service usage",
     )
 
-    # Currency for customer_price
+    # Currency for list_price
     currency: CurrencyEnum = Field(
         default=CurrencyEnum.USD,
-        description="Currency for customer_price (indexed for filtering)",
+        description="Currency for list_price (indexed for filtering)",
     )
 
     # Access interfaces

@@ -1,13 +1,13 @@
 # Pricing Specification
 
-This document describes the pricing structure used for `seller_price` (in service files) and `customer_price` (in listing files).
+This document describes the pricing structure used for `payout_price` (in service files) and `list_price` (in listing files).
 
 ## Overview
 
 UnitySVC uses a two-tier pricing model:
 
--   **Seller Price** (`seller_price` in `service_v1`): The agreed rate between the seller and UnitySVC. This is what the seller charges UnitySVC for each unit of service usage.
--   **Customer Price** (`customer_price` in `listing_v1`): The price shown to customers on the marketplace. This is what the customer pays for each unit of service usage.
+-   **Seller Price** (`payout_price` in `service_v1`): The agreed rate between the seller and UnitySVC. This is what the seller charges UnitySVC for each unit of service usage.
+-   **Customer Price** (`list_price` in `listing_v1`): The price shown to customers on the marketplace. This is what the customer pays for each unit of service usage.
 
 Both use the same `Pricing` structure, which supports multiple pricing types through a discriminated union based on the `type` field.
 
@@ -19,29 +19,29 @@ Both use the same `Pricing` structure, which supports multiple pricing types thr
 
 Currency is specified at the **service/listing level**, not inside the pricing object:
 
--   **Service** (ServiceOffering): Has ONE `seller_price` with ONE currency
--   **Listing** (ServiceListing): Has ONE `customer_price` with ONE currency
+-   **Service** (ServiceOffering): Has ONE `payout_price` with ONE currency
+-   **Listing** (ServiceListing): Has ONE `list_price` with ONE currency
 -   **Multiple currencies**: Create multiple listings pointing to the same service
 
 ```
 ServiceOffering (gpt-4-turbo)
-├── seller_price (USD)
+├── payout_price (USD)
 
 ServiceListing (gpt-4-turbo-usd)
 ├── currency: USD
-└── customer_price
+└── list_price
 
 ServiceListing (gpt-4-turbo-eur)
 ├── currency: EUR
-└── customer_price
+└── list_price
 ```
 
 ### Currency Field Location
 
-| Level           | Field      | Description                                         |
-| --------------- | ---------- | --------------------------------------------------- |
-| ServiceOffering | `currency` | Currency for seller_price                           |
-| ServiceListing  | `currency` | Currency for customer_price (indexed for filtering) |
+| Level           | Field      | Description                                     |
+| --------------- | ---------- | ----------------------------------------------- |
+| ServiceOffering | `currency` | Currency for payout_price                       |
+| ServiceListing  | `currency` | Currency for list_price (indexed for filtering) |
 
 ## Pricing Object Structure
 
@@ -67,7 +67,7 @@ Pricing
 
 ## Per-Request Pricing Types
 
-These pricing types calculate cost based on usage data from a single API request. They are suitable for both `customer_price` and `seller_price`.
+These pricing types calculate cost based on usage data from a single API request. They are suitable for both `list_price` and `payout_price`.
 
 **Available metrics for per-request pricing:**
 
@@ -122,7 +122,7 @@ For LLM and text-based services. Prices are per million tokens.
 **TOML Example:**
 
 ```toml
-[customer_price]
+[list_price]
 type = "one_million_tokens"
 input = "12.00"
 output = "36.00"
@@ -196,7 +196,7 @@ For diffusion models, iterative processes, and other step-based services.
 
 A fixed amount per request that doesn't depend on usage metrics.
 
-> **Note:** When used for `customer_price`, this amount is charged **per API request**. For example, `"amount": "0.01"` means the customer pays $0.01 for each request they make.
+> **Note:** When used for `list_price`, this amount is charged **per API request**. For example, `"amount": "0.01"` means the customer pays $0.01 for each request they make.
 
 **Fields:**
 
@@ -219,9 +219,9 @@ A fixed amount per request that doesn't depend on usage metrics.
 
 ## Volume Pricing Types
 
-These pricing types are designed for `seller_price` to handle volume-based billing over a billing period. They use aggregate metrics like `request_count` (total requests in billing period) or combine multiple pricing components.
+These pricing types are designed for `payout_price` to handle volume-based billing over a billing period. They use aggregate metrics like `request_count` (total requests in billing period) or combine multiple pricing components.
 
-> **Note:** While `add` and `multiply` can technically be used for `customer_price` when wrapping per-request types, `tiered` and `graduated` with `based_on: "request_count"` are seller-only.
+> **Note:** While `add` and `multiply` can technically be used for `list_price` when wrapping per-request types, `tiered` and `graduated` with `based_on: "request_count"` are seller-only.
 
 **Additional metrics available for volume pricing:**
 
@@ -517,9 +517,9 @@ Invalid expressions will raise errors at calculation time:
 
 ## Seller-Only Pricing Types
 
-These pricing types use `customer_charge`, which is only available for `seller_price` calculations. This metric represents what the customer was charged and is used for revenue-sharing arrangements.
+These pricing types use `customer_charge`, which is only available for `payout_price` calculations. This metric represents what the customer was charged and is used for revenue-sharing arrangements.
 
-> **Important:** These pricing types should **only** be used for `seller_price`. Using them for `customer_price` will result in errors or undefined behavior.
+> **Important:** These pricing types should **only** be used for `payout_price`. Using them for `list_price` will result in errors or undefined behavior.
 
 **Additional metrics available for seller pricing:**
 
@@ -558,7 +558,7 @@ The `percentage` field represents the seller's share of whatever the customer pa
 **TOML Example:**
 
 ```toml
-[seller_price]
+[payout_price]
 type = "revenue_share"
 percentage = "70.00"
 description = "70% revenue share"
@@ -641,7 +641,7 @@ Expression-based pricing that evaluates an arbitrary arithmetic expression using
 **TOML Example:**
 
 ```toml
-[seller_price]
+[payout_price]
 type = "expr"
 expr = "input_tokens / 1000000 * 0.50 + output_tokens / 1000000 * 1.50"
 description = "Custom token pricing for seller"
@@ -731,7 +731,7 @@ Composite pricing types can be nested for complex scenarios:
         "access_method": "http",
         "base_url": "https://api.openai.com/v1/chat/completions"
     },
-    "seller_price": {
+    "payout_price": {
         "type": "one_million_tokens",
         "input": "10.00",
         "output": "30.00",
@@ -756,7 +756,7 @@ time_created = "2024-01-15T10:00:00Z"
 access_method = "http"
 base_url = "https://api.openai.com/v1/audio/transcriptions"
 
-[seller_price]
+[payout_price]
 type = "one_second"
 price = "0.006"
 description = "Per second of audio"
@@ -782,7 +782,7 @@ name = "Chat Completions API"
 [user_access_interfaces.routing_key]
 model = "gpt-4-turbo"
 
-[customer_price]
+[list_price]
 type = "one_million_tokens"
 input = "12.00"
 output = "36.00"
@@ -808,7 +808,7 @@ description = "Premium access with priority support"
         "access_method": "http",
         "base_url": "https://api.provider.com/v1/images/generate"
     },
-    "seller_price": {
+    "payout_price": {
         "type": "image",
         "price": "0.04",
         "description": "Per image pricing"
@@ -820,7 +820,7 @@ description = "Premium access with priority support"
 
 ## Pricing Type Selection Guide
 
-### Per-Request Pricing Types (for `customer_price` and `seller_price`)
+### Per-Request Pricing Types (for `list_price` and `payout_price`)
 
 | Service Type                | Recommended Pricing Type | Example Use Cases              |
 | --------------------------- | ------------------------ | ------------------------------ |
@@ -834,7 +834,7 @@ description = "Premium access with priority support"
 | Diffusion with Step Control | `step`                   | Custom diffusion pipelines     |
 | Per-request fees/discounts  | `constant`               | Fixed fee per API request      |
 
-### Volume Pricing Types (for `seller_price` - uses `request_count`)
+### Volume Pricing Types (for `payout_price` - uses `request_count`)
 
 | Use Case                | Recommended Type | Description                          |
 | ----------------------- | ---------------- | ------------------------------------ |
@@ -844,7 +844,7 @@ description = "Premium access with priority support"
 | Request-based tiers     | `tiered`         | Tiers based on `request_count`       |
 | Request-based graduated | `graduated`      | Graduated pricing by `request_count` |
 
-### Seller-Only Pricing Types (for `seller_price` - uses `customer_charge`)
+### Seller-Only Pricing Types (for `payout_price` - uses `customer_charge`)
 
 | Use Case            | Recommended Type | Description                      |
 | ------------------- | ---------------- | -------------------------------- |
