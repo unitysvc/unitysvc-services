@@ -166,6 +166,7 @@ class DocumentContextEnum(StrEnum):
     # Backend-specific contexts
     seller = "seller"  # Documents belong to Seller
     provider = "provider"  # Documents belong to Provider
+    blog_post = "blog_post"  # Documents belong to BlogPost
     #
     customer_statement = "customer_statement"
     seller_invoice = "seller_invoice"
@@ -188,6 +189,9 @@ class DocumentCategoryEnum(StrEnum):
     invoice = "invoice"
     logo = "logo"
     avatar = "avatar"
+    blog_content = "blog_content"  # Main content for blog posts
+    blog_banner = "blog_banner"  # Banner/cover image for blog posts
+    attachment = "attachment"  # Attachments for markdown documents
     other = "other"
 
 
