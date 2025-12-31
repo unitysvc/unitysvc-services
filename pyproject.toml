@@ -22,7 +22,7 @@ dependencies = [
   "rich",
   "httpx",
   "tomli-w",
-  "mistune>=3.0",  # Markdown parsing for attachment extraction
+  "mistune>=3.0",    # Markdown parsing for attachment extraction
 ]
 requires-python = ">= 3.11"
 

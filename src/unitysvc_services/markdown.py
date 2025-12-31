@@ -3,10 +3,10 @@
 This module provides utilities for:
 - Parsing markdown to identify local file attachments (images, links)
 - Computing content-based object keys locally (no network calls)
-- Revising markdown content to use $UNITYSVC_DOCUMENT_URL placeholder
+- Revising markdown content to use $UNITYSVC_S3_BASE_URL placeholder
 - Batch uploading attachments when ready to publish
 
-The $UNITYSVC_DOCUMENT_URL placeholder is replaced at retrieval time with the
+The $UNITYSVC_S3_BASE_URL placeholder is replaced at retrieval time with the
 actual S3 base URL, making content environment-agnostic.
 """
 
@@ -47,7 +47,7 @@ class Attachment:
 class MarkdownProcessingResult:
     """Result of processing markdown content."""
 
-    content: str  # Revised markdown content with $UNITYSVC_DOCUMENT_URL placeholders
+    content: str  # Revised markdown content with $UNITYSVC_S3_BASE_URL placeholders
     attachments: list[Attachment] = field(default_factory=list)  # Attachments to upload
 
 
@@ -61,7 +61,7 @@ class AttachmentExtractor(MarkdownRenderer):
     def image(self, token: dict[str, Any], state: Any) -> str:
         """Extract image references."""
         src = token.get("src", "")
-        if src and not src.startswith(("http://", "https://", "$UNITYSVC_DOCUMENT_URL")):
+        if src and not src.startswith(("http://", "https://", "$UNITYSVC_S3_BASE_URL")):
             self.attachments.append({
                 "path": src,
                 "is_image": True,
@@ -71,7 +71,7 @@ class AttachmentExtractor(MarkdownRenderer):
     def link(self, token: dict[str, Any], state: Any) -> str:
         """Extract link references to local files."""
         href = token.get("link", "")
-        if href and not href.startswith(("http://", "https://", "#", "mailto:", "$UNITYSVC_DOCUMENT_URL")):
+        if href and not href.startswith(("http://", "https://", "#", "mailto:", "$UNITYSVC_S3_BASE_URL")):
             # Check if it looks like a file reference (has extension or is a path)
             if "." in Path(href).name or "/" in href:
                 self.attachments.append({
@@ -104,10 +104,10 @@ def process_markdown_content(
     This function:
     1. Parses markdown to find local file attachments
     2. Computes content-based object_key for each attachment (no network calls)
-    3. Replaces local paths with $UNITYSVC_DOCUMENT_URL/{object_key}
+    3. Replaces local paths with $UNITYSVC_S3_BASE_URL/{object_key}
     4. Returns the revised content and list of attachments for later upload
 
-    The $UNITYSVC_DOCUMENT_URL placeholder is replaced at retrieval time with
+    The $UNITYSVC_S3_BASE_URL placeholder is replaced at retrieval time with
     the actual S3 base URL, making the content environment-agnostic.
 
     Args:
@@ -121,7 +121,7 @@ def process_markdown_content(
     Example:
         Input:  "![Logo](./images/logo.png)"
         Output: MarkdownProcessingResult(
-            content="![Logo]($UNITYSVC_DOCUMENT_URL/abc123def.png)",
+            content="![Logo]($UNITYSVC_S3_BASE_URL/abc123def.png)",
             attachments=[Attachment(...)]
         )
     """
@@ -176,7 +176,7 @@ def process_markdown_content(
     for original_path, attachment in path_to_attachment.items():
         escaped_path = re.escape(original_path)
         pattern = rf'(!?\[[^\]]*\]\()({escaped_path})(\))'
-        new_url = f"$UNITYSVC_DOCUMENT_URL/{attachment.object_key}"
+        new_url = f"$UNITYSVC_S3_BASE_URL/{attachment.object_key}"
         result = re.sub(pattern, rf'\g<1>{new_url}\g<3>', result)
 
     return MarkdownProcessingResult(content=result, attachments=unique_attachments)
@@ -188,7 +188,8 @@ async def upload_attachments(
 ) -> dict[str, bool]:
     """Upload attachments to the backend.
 
-    Only uploads if the object doesn't already exist (checked by backend).
+    Checks if each object already exists before uploading to save bandwidth.
+    Only uploads files that don't already exist in storage.
 
     Args:
         publisher: ServiceDataPublisher instance for making API calls
@@ -205,7 +206,21 @@ async def upload_attachments(
     results: dict[str, bool] = {}
 
     for attachment in attachments:
-        # Read file content
+        # First check if the object already exists (saves bandwidth)
+        try:
+            check_response = await publisher.client.get(
+                f"{publisher.base_url}/documents/{attachment.object_key}/exists",
+            )
+            if check_response.status_code == 200:
+                check_data = check_response.json()
+                if check_data.get("exists", False):
+                    # Object already exists, skip upload
+                    results[attachment.object_key] = False
+                    continue
+        except httpx.ConnectError:
+            raise ValueError(f"Failed to connect to backend for checking '{attachment.absolute_path.name}'")
+
+        # Object doesn't exist, proceed with upload
         with open(attachment.absolute_path, "rb") as f:
             file_content = f.read()
 
