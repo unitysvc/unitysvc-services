@@ -15,6 +15,7 @@ from rich.table import Table
 import unitysvc_services
 
 from .api import UnitySvcAPI
+from .markdown import Attachment, process_markdown_content, upload_attachments
 from .models.base import ListingStatusEnum, ProviderStatusEnum
 from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
 from .validator import DataValidator
@@ -60,11 +61,17 @@ class ServiceDataPublisher(UnitySvcAPI):
         seller: dict[str, Any] | None = None,
         listing_filename: str | None = None,
         interface: dict[str, Any] | None = None,
+        collected_attachments: list[Attachment] | None = None,
     ) -> dict[str, Any]:
         """Recursively resolve file references and include content in data.
 
         For Jinja2 template files (.j2), renders the template with provided context
         and strips the .j2 extension from file_path.
+
+        For markdown files, processes attachments (images, linked files) by:
+        1. Computing content-based object keys locally (no network calls)
+        2. Replacing local paths with $UNITYSVC_S3_BASE_URL/{object_key}
+        3. Collecting attachments for later batch upload
 
         Args:
             data: Data dictionary potentially containing file_path references
@@ -75,6 +82,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             seller: Seller data for template rendering (optional)
             listing_filename: Listing filename for constructing output filenames (optional)
             interface: AccessInterface data for template rendering (optional, for interface documents)
+            collected_attachments: List to collect attachments for later upload (optional)
 
         Returns:
             Data with file references resolved and content loaded
@@ -99,26 +107,29 @@ class ServiceDataPublisher(UnitySvcAPI):
                     seller=seller,
                     listing_filename=listing_filename,
                     interface=current_interface,
+                    collected_attachments=collected_attachments,
                 )
             elif isinstance(value, list):
                 # Process lists
-                result[key] = [
-                    (
-                        self.resolve_file_references(
-                            item,
-                            base_path,
-                            listing=listing,
-                            offering=offering,
-                            provider=provider,
-                            seller=seller,
-                            listing_filename=listing_filename,
-                            interface=current_interface,
+                processed_items = []
+                for item in value:
+                    if isinstance(item, dict):
+                        processed_items.append(
+                            self.resolve_file_references(
+                                item,
+                                base_path,
+                                listing=listing,
+                                offering=offering,
+                                provider=provider,
+                                seller=seller,
+                                listing_filename=listing_filename,
+                                interface=current_interface,
+                                collected_attachments=collected_attachments,
+                            )
                         )
-                        if isinstance(item, dict)
-                        else item
-                    )
-                    for item in value
-                ]
+                    else:
+                        processed_items.append(item)
+                result[key] = processed_items
             elif key == "file_path" and isinstance(value, str):
                 # This is a file reference - load the content and render if template
                 full_path = base_path / value if not Path(value).is_absolute() else Path(value)
@@ -136,6 +147,21 @@ class ServiceDataPublisher(UnitySvcAPI):
                         seller=seller,
                         interface=current_interface,
                     )
+
+                    # Check if this is a markdown file - process attachments
+                    is_markdown = actual_filename.endswith(".md") or data.get("mime_type") == "markdown"
+                    if is_markdown:
+                        # Process markdown to compute object keys and revise paths (no network calls)
+                        md_result = process_markdown_content(
+                            content,
+                            full_path.parent,  # Base path for resolving relative paths in markdown
+                            is_public=data.get("is_public", True),
+                        )
+                        content = md_result.content
+                        # Collect attachments for later upload
+                        if collected_attachments is not None:
+                            collected_attachments.extend(md_result.attachments)
+
                     result["file_content"] = content
 
                     # Update file_path to remove .j2 extension if it was a template
@@ -424,6 +450,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # NOW resolve file references with all context (listing, offering, provider)
         base_path = listing_file.parent
+        collected_attachments: list[Attachment] = []
         data_with_content = self.resolve_file_references(
             data,
             base_path,
@@ -432,7 +459,12 @@ class ServiceDataPublisher(UnitySvcAPI):
             provider=provider_data,
             seller=None,
             listing_filename=listing_file.name,
+            collected_attachments=collected_attachments,
         )
+
+        # Upload collected attachments before publishing
+        if collected_attachments:
+            await upload_attachments(self, collected_attachments)
 
         # Post to the endpoint using retry helper
         context_info = (
@@ -499,6 +531,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             provider_data = {}
 
         # NOW resolve file references with all context (offering, provider)
+        collected_attachments: list[Attachment] = []
         data_with_content = self.resolve_file_references(
             data,
             base_path,
@@ -506,7 +539,12 @@ class ServiceDataPublisher(UnitySvcAPI):
             offering=data,
             provider=provider_data,
             seller=None,
+            collected_attachments=collected_attachments,
         )
+
+        # Upload collected attachments before publishing
+        if collected_attachments:
+            await upload_attachments(self, collected_attachments)
 
         # Post to the endpoint using retry helper
         context_info = f"provider: {data_with_content.get('provider_name')}"
@@ -547,6 +585,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         )
 
         # Resolve file references and include content with provider context
+        collected_attachments: list[Attachment] = []
         data_with_content = self.resolve_file_references(
             data,
             base_path,
@@ -554,7 +593,12 @@ class ServiceDataPublisher(UnitySvcAPI):
             offering=None,
             provider=data,
             seller=None,
+            collected_attachments=collected_attachments,
         )
+
+        # Upload collected attachments before publishing
+        if collected_attachments:
+            await upload_attachments(self, collected_attachments)
 
         # Post to the endpoint using retry helper
         return await self._post_with_retry(

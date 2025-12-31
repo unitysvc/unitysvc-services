@@ -1,6 +1,15 @@
-"""Utility functions for file handling and data operations."""
+"""Utility functions for file handling and data operations.
 
+This module contains shared utilities used by both unitysvc-services SDK
+and unitysvc backend, including:
+- Content hashing and content-addressable storage key generation
+- File extension and MIME type utilities
+- Data file loading and merging
+"""
+
+import hashlib
 import json
+import os
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -8,6 +17,136 @@ from typing import Any
 
 import tomli_w
 from jinja2 import Template
+
+# =============================================================================
+# Content Hashing and File Utilities
+# These functions are shared with unitysvc backend for content-addressable storage
+# =============================================================================
+
+
+def compute_file_hash(content: bytes) -> str:
+    """Compute SHA256 hash of file content.
+
+    Args:
+        content: File content as bytes
+
+    Returns:
+        Hexadecimal hash string
+    """
+    return hashlib.sha256(content).hexdigest()
+
+
+def generate_content_based_key(content: bytes, extension: str | None = None) -> str:
+    """Generate content-based object key using file hash.
+
+    This creates a content-addressable storage key that ensures:
+    - Automatic deduplication (same content = same object_key)
+    - Optimal caching (content-addressable URLs)
+
+    Args:
+        content: File content as bytes
+        extension: File extension (without dot)
+
+    Returns:
+        Content-based object key (hash.extension or just hash)
+    """
+    file_hash = compute_file_hash(content)
+
+    if extension:
+        # Remove leading dot if present
+        extension = extension.lstrip(".")
+        return f"{file_hash}.{extension}"
+
+    return file_hash
+
+
+def get_file_extension(filename: str) -> str | None:
+    """Extract file extension from filename.
+
+    Args:
+        filename: Filename with or without path
+
+    Returns:
+        Extension without dot, or None if no extension
+    """
+    if not filename:
+        return None
+
+    # Get basename first (remove path)
+    basename = os.path.basename(filename)
+
+    # Split extension
+    _, ext = os.path.splitext(basename)
+
+    # Return without the dot
+    return ext.lstrip(".") if ext else None
+
+
+def get_basename(filename: str) -> str:
+    """Get basename from filename (removes path).
+
+    Args:
+        filename: Filename with or without path
+
+    Returns:
+        Basename without path
+    """
+    return os.path.basename(filename) if filename else ""
+
+
+def mime_type_to_extension(mime_type: str) -> str:
+    """Convert MIME type to file extension.
+
+    Args:
+        mime_type: MIME type string
+
+    Returns:
+        File extension without dot
+    """
+    # Common MIME type to extension mappings
+    mime_map = {
+        "text": "txt",
+        "plain": "txt",
+        "text/plain": "txt",
+        "text/html": "html",
+        "text/markdown": "md",
+        "text/csv": "csv",
+        "application/json": "json",
+        "application/pdf": "pdf",
+        "application/xml": "xml",
+        "application/x-yaml": "yaml",
+        "application/octet-stream": "bin",
+        "image/png": "png",
+        "image/jpeg": "jpg",
+        "image/gif": "gif",
+        "markdown": "md",
+        "html": "html",
+        "json": "json",
+        "pdf": "pdf",
+        "xml": "xml",
+        "yaml": "yaml",
+        "csv": "csv",
+        "url": "url",
+    }
+
+    # Try exact match first
+    mime_lower = mime_type.lower()
+    if mime_lower in mime_map:
+        return mime_map[mime_lower]
+
+    # Try to extract from mime type parts
+    if "/" in mime_lower:
+        _, subtype = mime_lower.split("/", 1)
+        if subtype in mime_map:
+            return mime_map[subtype]
+
+    # Default to txt
+    return "txt"
+
+
+# =============================================================================
+# Data File Operations
+# =============================================================================
 
 
 def deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
