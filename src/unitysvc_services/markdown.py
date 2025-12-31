@@ -62,10 +62,12 @@ class AttachmentExtractor(MarkdownRenderer):
         """Extract image references."""
         src = token.get("src", "")
         if src and not src.startswith(("http://", "https://", "$UNITYSVC_S3_BASE_URL")):
-            self.attachments.append({
-                "path": src,
-                "is_image": True,
-            })
+            self.attachments.append(
+                {
+                    "path": src,
+                    "is_image": True,
+                }
+            )
         return super().image(token, state)
 
     def link(self, token: dict[str, Any], state: Any) -> str:
@@ -74,10 +76,12 @@ class AttachmentExtractor(MarkdownRenderer):
         if href and not href.startswith(("http://", "https://", "#", "mailto:", "$UNITYSVC_S3_BASE_URL")):
             # Check if it looks like a file reference (has extension or is a path)
             if "." in Path(href).name or "/" in href:
-                self.attachments.append({
-                    "path": href,
-                    "is_image": False,
-                })
+                self.attachments.append(
+                    {
+                        "path": href,
+                        "is_image": False,
+                    }
+                )
         return super().link(token, state)
 
 
@@ -175,9 +179,9 @@ def process_markdown_content(
     result = markdown_content
     for original_path, attachment in path_to_attachment.items():
         escaped_path = re.escape(original_path)
-        pattern = rf'(!?\[[^\]]*\]\()({escaped_path})(\))'
+        pattern = rf"(!?\[[^\]]*\]\()({escaped_path})(\))"
         new_url = f"$UNITYSVC_S3_BASE_URL/{attachment.object_key}"
-        result = re.sub(pattern, rf'\g<1>{new_url}\g<3>', result)
+        result = re.sub(pattern, rf"\g<1>{new_url}\g<3>", result)
 
     return MarkdownProcessingResult(content=result, attachments=unique_attachments)
 

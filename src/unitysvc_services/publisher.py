@@ -17,8 +17,7 @@ import unitysvc_services
 from .api import UnitySvcAPI
 from .markdown import Attachment, process_markdown_content, upload_attachments
 from .models.base import ListingStatusEnum, ProviderStatusEnum
-from .utils import (convert_convenience_fields_to_documents,
-                    find_files_by_schema, load_data_file, render_template_file)
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
 from .validator import DataValidator
 
 
@@ -150,10 +149,7 @@ class ServiceDataPublisher(UnitySvcAPI):
                     )
 
                     # Check if this is a markdown file - process attachments
-                    is_markdown = (
-                        actual_filename.endswith(".md")
-                        or data.get("mime_type") == "markdown"
-                    )
+                    is_markdown = actual_filename.endswith(".md") or data.get("mime_type") == "markdown"
                     if is_markdown:
                         # Process markdown to compute object keys and revise paths (no network calls)
                         md_result = process_markdown_content(
