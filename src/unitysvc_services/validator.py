@@ -508,7 +508,7 @@ class DataValidator:
             raise DataValidationError(
                 f"Multiple offering_v1 files found in directory {directory}:\n"
                 f"  - " + "\n  - ".join(offering_files) + "\n"
-                f"Each service directory must have exactly one offering file."
+                "Each service directory must have exactly one offering file."
             )
 
         # Validate: listings require an offering in the same directory
