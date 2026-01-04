@@ -622,7 +622,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         Publish a complete service (provider, offering, and listing) together.
 
         This method loads all three data files, resolves file references,
-        and posts them to the unified /seller/listings/service endpoint.
+        and posts them to the unified /seller/services endpoint.
 
         Args:
             provider_file: Path to provider data file
@@ -696,7 +696,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Post to the unified service endpoint
         return await self._post_with_retry(
-            endpoint="/seller/listings/service",
+            endpoint="/seller/services",
             data=service_data,
             entity_type="service",
             entity_name=f"{provider_name}/{service_name}",
