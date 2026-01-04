@@ -200,25 +200,18 @@ Publish services to UnitySVC backend. The publish command uses a **listing-centr
 A **Service** in UnitySVC consists of three data components that are published together:
 
 ```mermaid
-flowchart LR
-    subgraph Service["SERVICE DATA (Published Together)"]
-        direction LR
-        subgraph Provider["Provider Data<br/>(provider_v1)"]
-            P["WHO provides"]
-        end
-        subgraph Offering["Offering Data<br/>(offering_v1)"]
-            O["WHAT is provided"]
-        end
-        subgraph Listing["Listing Data<br/>(listing_v1)"]
-            L["HOW it's sold"]
-        end
+flowchart TB
+    subgraph Service["Published Together"]
+        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
+        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
+        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
     end
 
-    Provider --> Offering --> Listing
+    P --> O --> L
 
-    style Provider fill:#e3f2fd
-    style Offering fill:#fff3e0
-    style Listing fill:#e8f5e9
+    style P fill:#e3f2fd
+    style O fill:#fff3e0
+    style L fill:#e8f5e9
 ```
 
 When you run `usvc publish`:

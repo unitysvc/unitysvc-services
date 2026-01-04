@@ -14,28 +14,18 @@ The SDK follows a **local-first, version-controlled workflow**. All service data
 A **Service** in UnitySVC consists of three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
 
 ```mermaid
-flowchart LR
-    subgraph Service["SERVICE DATA (Published Together)"]
-        direction LR
-        subgraph Provider["Provider Data<br/>(provider_v1)"]
-            P1["WHO provides"]
-            P2["• Provider identity<br/>• Contact info<br/>• Terms of service<br/>• Branding/logo"]
-        end
-        subgraph Offering["Offering Data<br/>(offering_v1)"]
-            O1["WHAT is provided"]
-            O2["• Service metadata<br/>• API endpoints<br/>• Upstream pricing<br/>• Access interfaces"]
-        end
-        subgraph Listing["Listing Data<br/>(listing_v1)"]
-            L1["HOW it's sold"]
-            L2["• Customer-facing info<br/>• Pricing for customers<br/>• Documentation<br/>• User interfaces"]
-        end
+flowchart TB
+    subgraph Service["Published Together"]
+        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
+        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
+        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
     end
 
-    Provider --> Offering --> Listing
+    P --> O --> L
 
-    style Provider fill:#e3f2fd
-    style Offering fill:#fff3e0
-    style Listing fill:#e8f5e9
+    style P fill:#e3f2fd
+    style O fill:#fff3e0
+    style L fill:#e8f5e9
 ```
 
 ### Component Details
