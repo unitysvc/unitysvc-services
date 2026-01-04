@@ -54,11 +54,8 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
     """
     code_examples = []
 
-    # Get service name for display - use directory name as fallback
-    service_name = listing_data.get("service_name")
-    if not service_name:
-        # Use service directory name as fallback
-        service_name = extract_service_directory_name(listing_file) or "unknown"
+    # Get service name from directory structure
+    service_name = extract_service_directory_name(listing_file) or "unknown"
 
     # Check user_access_interfaces
     interfaces = listing_data.get("user_access_interfaces", [])

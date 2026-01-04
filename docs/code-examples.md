@@ -61,12 +61,12 @@ Your code examples should **always** read credentials from these environment var
 
 ### 3. Add to Service Listing Documents
 
-Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array:
+Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array. The listing automatically belongs to the offering in the same directory:
 
 ```json
 {
     "schema": "listing_v1",
-    "service_name": "gpt-4",
+    "name": "listing-default",
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
@@ -395,15 +395,14 @@ if response.status_code == 200 and "choices" in response.json():
 
 ### Step 4: Add to Listing Documentation
 
-Reference the code example in your `listing.json` file.
+Reference the code example in your `listing.json` file. The listing automatically belongs to the offering in the same directory.
 
 **Example: `listing.json`**
 
 ```json
 {
     "schema": "listing_v1",
-    "service_name": "llama-3-1-405b-instruct",
-    "listing_type": "svcreseller",
+    "name": "listing-default",
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
@@ -639,17 +638,17 @@ Templates have access to four data structures:
 
 The listing data structure (Listing_v1 schema)
 
--   `listing.service_name` - Service name
--   `listing.listing_type` - Listing type (svcreseller, byop, etc.)
--   `listing.status` - Listing status
+-   `listing.name` - Listing identifier
+-   `listing.display_name` - Customer-facing name
+-   `listing.listing_status` - Listing status (draft, ready, deprecated)
 -   All other fields from the listing schema
 
 ### offering
 
 Service offering data (Offering_v1 schema)
 
--   `offering.name` - Service/model name
--   `offering.offering_id` - Unique offering ID
+-   `offering.name` - Service/model name (use this for service name)
+-   `offering.display_name` - Human-readable service name
 -   `offering.service_type` - Service type (llm, embedding, etc.)
 -   All other fields from the offering schema
 
@@ -657,7 +656,8 @@ Service offering data (Offering_v1 schema)
 
 Provider metadata (Provider_v1 schema)
 
--   `provider.provider_name` - Provider name
+-   `provider.name` - Provider name (use this for provider name)
+-   `provider.display_name` - Human-readable provider name
 -   `provider.provider_access_info` - Access credentials and endpoints
     -   `provider.provider_access_info.base_url` - API endpoint URL
     -   `provider.provider_access_info.api_key` - API key
@@ -665,9 +665,10 @@ Provider metadata (Provider_v1 schema)
 
 ### seller
 
-Seller metadata (Seller_v1 schema)
+Seller metadata (Seller_v1 schema) - seller is derived from API key during publishing
 
--   `seller.seller_name` - Seller name
+-   `seller.name` - Seller name
+-   `seller.display_name` - Human-readable seller name
 -   `seller.contact_email` - Contact email
 -   All other fields from the seller schema
 

@@ -219,6 +219,8 @@ output = "60.00"
 
 Listing files define how a seller presents/sells a service to end users.
 
+**Relationship by Location**: Listings automatically belong to the single offering in the same directory. The provider is determined by the parent directory structure. No explicit linking fields are needed.
+
 ### Required Fields
 
 | Field                    | Type                     | Description                        |
@@ -232,8 +234,6 @@ Listing files define how a seller presents/sells a service to end users.
 | Field                       | Type                  | Description                                                                |
 | --------------------------- | --------------------- | -------------------------------------------------------------------------- |
 | `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
-| `service_name`              | string                | Service identifier (required if multiple services in directory)            |
-| `seller_name`               | string                | Seller identifier (references seller file)                                 |
 | `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
 | `listing_status`            | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
@@ -256,10 +256,12 @@ Listing files define how a seller presents/sells a service to end users.
 ### Example (TOML)
 
 ```toml
+# File: data/openai/services/gpt-4/listing-premium.toml
+# This listing automatically belongs to the gpt-4 offering in the same directory
+# and the openai provider in the parent directory.
+
 schema = "listing_v1"
 name = "listing-premium"
-seller_name = "acme-corp"
-service_name = "gpt-4"
 display_name = "GPT-4 Premium Access"
 listing_status = "ready"
 time_created = "2024-01-25T16:00:00Z"

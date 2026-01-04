@@ -32,10 +32,11 @@ class ServiceOfferingData(BaseModel):
        - Publish operations from CLI
 
     Key characteristics:
-    - Uses string identifiers (provider_name) that get resolved to database IDs
     - upstream_status maps to database 'status' field
     - Contains all user-provided data without system-generated IDs
     - Does not include permission/audit fields (handled by backend CRUD layer)
+    - Provider relationship is determined by file location (SDK mode) or
+      by being published together in a single API call (API mode)
     """
 
     # Service identification
@@ -63,12 +64,6 @@ class ServiceOfferingData(BaseModel):
     tagline: str | None = Field(
         default=None,
         description="Short elevator pitch or description for the service",
-    )
-
-    # Provider info (resolved by publish layer)
-    provider_name: str | None = Field(
-        default=None,
-        description="Provider name (resolved from directory structure if not specified)",
     )
 
     # Status

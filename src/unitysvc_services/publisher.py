@@ -392,22 +392,21 @@ class ServiceDataPublisher(UnitySvcAPI):
         if "name" not in listing_data or not listing_data.get("name"):
             listing_data["name"] = listing_file.stem
 
-        # Extract provider_name from directory structure (needed before loading provider data)
+        # Extract provider directory from path structure
+        # Expected: .../provider_name/services/service_name/listing.json
         parts = listing_file.parts
         try:
             services_idx = parts.index("services")
-            provider_name = parts[services_idx - 1]
-            listing_data["provider_name"] = provider_name
-
             # Find provider directory to load provider data
             provider_dir = Path(*parts[:services_idx])
         except (ValueError, IndexError):
             raise ValueError(
-                f"Cannot extract provider_name from path: {listing_file}. "
-                f"Expected path to contain .../{{provider_name}}/services/..."
+                f"Cannot extract provider directory from path: {listing_file}. "
+                f"Expected path to contain .../provider_name/services/..."
             )
 
         # Find offering file in the same directory as the listing
+        # Each service directory must have exactly one offering file
         offering_files = find_files_by_schema(listing_file.parent, "offering_v1")
         if len(offering_files) == 0:
             raise ValueError(
@@ -415,23 +414,11 @@ class ServiceDataPublisher(UnitySvcAPI):
                 f"Listing files must be in the same directory as an offering definition."
             )
         elif len(offering_files) > 1:
-            # Check if listing specifies which offering to use
-            if "service_name" in listing_data and listing_data["service_name"]:
-                service_name = listing_data["service_name"]
-                offering_files = find_files_by_schema(
-                    listing_file.parent, "offering_v1", field_filter=(("name", service_name),)
-                )
-                if not offering_files:
-                    raise ValueError(
-                        f"Offering '{service_name}' specified in {listing_file.name} not found in {listing_file.parent}."
-                    )
-            else:
-                offering_names = [off_data.get("name", "unknown") for _, _, off_data in offering_files]
-                raise ValueError(
-                    f"Multiple offerings found in {listing_file.parent}: {', '.join(offering_names)}. "
-                    f"Please add 'service_name' field to {listing_file.name} to specify which "
-                    f"offering this listing belongs to."
-                )
+            offering_names = [off_data.get("name", "unknown") for _, _, off_data in offering_files]
+            raise ValueError(
+                f"Multiple offerings found in {listing_file.parent}: {', '.join(offering_names)}. "
+                f"Each service directory must have exactly one offering file."
+            )
 
         offering_file, _format, offering_data = offering_files[0]
 
@@ -439,14 +426,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         # e.g., data/fireworks/services/qwen3-vl-235b-a22b-instruct/ -> qwen3-vl-235b-a22b-instruct
         if "name" not in offering_data or not offering_data.get("name"):
             offering_data["name"] = parts[services_idx + 1]
-
-        # Set provider_name on offering_data (backend expects this)
-        offering_data["provider_name"] = provider_name
-
-        # Set service_name and service_version from the offering
-        if "service_name" not in listing_data or not listing_data["service_name"]:
-            listing_data["service_name"] = offering_data.get("name")
-        listing_data["service_version"] = offering_data.get("version")
 
         # Find provider file in the parent directory
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
@@ -548,7 +527,7 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Add local metadata to result for display purposes
         result["listing_name"] = listing_name
-        result["service_name"] = listing_data_resolved.get("service_name")
+        result["service_name"] = offering_data_resolved.get("name")
         result["provider_name"] = provider_name_str
 
         return result

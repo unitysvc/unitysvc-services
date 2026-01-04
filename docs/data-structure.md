@@ -2,26 +2,30 @@
 
 ## Overview
 
-The UnitySVC services data management follows a **local-first, version-controlled workflow**. All service data is created and maintained in a local directory (typically called `data/`) that is version-controlled with git.
+UnitySVC provides two ways to manage service data:
+
+1. **Web Interface** ([unitysvc.com](https://unitysvc.com)) - Create and edit data visually, then export for SDK use
+2. **SDK** (this tool) - Manage data locally with version control, automation, and CI/CD integration
+
+The SDK follows a **local-first, version-controlled workflow**. All service data is maintained in a local directory (typically called `data/`) that is version-controlled with git. Data can be created via the web interface and exported, or created manually following the schemas.
 
 ## The Service Data Model
 
 A **Service** in UnitySVC consists of three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SERVICE DATA                                   │
-├─────────────────────┬─────────────────────┬─────────────────────────────────┤
-│   Provider Data     │   Offering Data     │         Listing Data            │
-│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
-├─────────────────────┼─────────────────────┼─────────────────────────────────┤
-│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
-│                     │                     │                                 │
-│ • Provider identity │ • Service metadata  │ • Customer-facing info          │
-│ • Contact info      │ • API endpoints     │ • Pricing for customers         │
-│ • Terms of service  │ • Upstream pricing  │ • Documentation                 │
-│ • Branding/logo     │ • Access interfaces │ • User access interfaces        │
-└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Service["Published Together"]
+        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
+        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
+        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
+    end
+
+    P --> O --> L
+
+    style P fill:#e3f2fd
+    style O fill:#fff3e0
+    style L fill:#e8f5e9
 ```
 
 ### Component Details
@@ -29,7 +33,7 @@ A **Service** in UnitySVC consists of three complementary data components. These
 | Component | Schema | Location | Purpose |
 |-----------|--------|----------|---------|
 | **Provider Data** | `provider_v1` | `{provider}/provider.json` | Identity of the service provider |
-| **Offering Data** | `offering_v1` | `{provider}/services/{service}/service.json` | Technical service definition |
+| **Offering Data** | `offering_v1` | `{provider}/services/{service}/offering.json` | Technical service definition |
 | **Listing Data** | `listing_v1` | `{provider}/services/{service}/listing-*.json` | Customer-facing presentation |
 
 ### Why Three Parts?
@@ -48,9 +52,14 @@ This separation enables:
 When you run `usvc publish`, the SDK uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory tree
-2. For each listing, locates the offering file (`offering_v1`) in the same directory
+2. For each listing, locates the **single** offering file (`offering_v1`) in the same directory
 3. Locates the provider file (`provider_v1`) in the parent directory
 4. Publishes all three together as a unified service to `/seller/services`
+
+**Relationship by Location**: The relationship between providers, offerings, and listings is determined entirely by file location:
+- A listing belongs to the offering in the same directory
+- An offering belongs to the provider in the parent directory
+- No explicit linking fields (like `service_name` or `provider_name`) are needed in the data files
 
 ```mermaid
 graph TD
@@ -74,11 +83,11 @@ data/
 │   │   └── api-guide.md                # Shared across services
 │   └── services/                        # Required: Services directory
 │       ├── ${service_name}/             # Service directory (matches service name)
-│       │   ├── service.json or service.toml      # Required: Offering Data
+│       │   ├── offering.json or offering.toml     # Required: Offering Data
 │       │   ├── listing-${variant}.json or .toml  # Required: Listing Data
 │       │   └── specific-example.md      # Optional: Service-specific docs
 │       └── ${another_service}/
-│           ├── service.json
+│           ├── offering.json
 │           └── listing-premium.json     # Can reference ../../docs/code-example.py
 └── ${another_provider}/
     ├── provider.toml
@@ -102,18 +111,20 @@ data/
 
 ### 3. Service Directory (`${service_name}/`)
 
--   **Must match** the `name` field in `service.json`/`service.toml`
+-   **Must match** the `name` field in `offering.json`/`offering.toml`
 -   Name is normalized: lowercase with hyphens
 -   Example: Service name `"GPT-4"` → directory `gpt-4/`
 -   Located under: `${provider_name}/services/${service_name}/`
 
 ### 4. Offering Files (Offering Data)
 
--   **service.json** or **service.toml**: Service offering metadata (required)
+-   **offering.json** or **offering.toml**: Service offering metadata (required)
 -   Schema must be `"offering_v1"`
+-   **Exactly one** offering file per service directory
 -   Contains upstream service details, pricing, access interfaces
 -   Defines what the provider offers
--   Location: `${provider_name}/services/${service_name}/service.json`
+-   Location: `${provider_name}/services/${service_name}/offering.json`
+-   The offering automatically belongs to the provider in the parent directory
 
 ### 5. Listing Files (Listing Data)
 
@@ -124,6 +135,7 @@ data/
 -   Contains user-facing information, downstream pricing, documentation
 -   Defines how the seller presents/sells the service
 -   Location: `${provider_name}/services/${service_name}/listing-*.json`
+-   Automatically belongs to the single offering in the same directory
 
 #### Multiple Listings Per Service
 
@@ -173,7 +185,7 @@ Override files follow the pattern: `<base_name>.override.<extension>`
 
 Examples:
 
--   `service.json` → `service.override.json`
+-   `offering.json` → `service.override.json`
 -   `provider.toml` → `provider.override.toml`
 -   `listing-premium.json` → `listing-premium.override.json`
 
@@ -195,7 +207,7 @@ This merge happens automatically and transparently - you don't need to do anythi
 **Example**:
 
 ```json
-// Base: service.json
+// Base: offering.json
 {
   "name": "my-service",
   "config": {
@@ -230,7 +242,7 @@ This merge happens automatically and transparently - you don't need to do anythi
 **Lists and Primitives**: Completely replaced (not merged)
 
 ```json
-// Base: service.json
+// Base: offering.json
 {
   "tags": ["python", "web", "api"],
   "version": 1
@@ -255,7 +267,7 @@ This replacement behavior for lists is intentional and predictable - if you want
 **1. Manual curation of auto-generated data**
 
 ```json
-// service.json (auto-generated by script)
+// offering.json (auto-generated by script)
 {
   "schema": "offering_v1",
   "name": "gpt-4",
@@ -315,19 +327,18 @@ Override files must be in the same directory as their corresponding base files, 
 Each file must include a `schema` field identifying its type:
 
 -   **provider.json/toml**: `schema = "provider_v1"`
--   **service.json/toml**: `schema = "offering_v1"`
+-   **offering.json/toml**: `schema = "offering_v1"`
 -   **listing-\*.json/toml**: `schema = "listing_v1"`
 
 ## Validation Rules
 
 The validator enforces these structure rules:
 
-1. **Service name uniqueness**: Service names must be unique within each provider's `services/` directory
-2. **Listing references**: Each listing file must be in the same directory as a valid offering file
-3. **Single offering convenience**: If a service directory contains only one offering file, listing files can omit the `service_name` field (it will be inferred)
-4. **Multiple offerings requirement**: If a service directory contains multiple offerings, listing files **must** explicitly specify `service_name`
-5. **Provider name matching**: Provider directory name must match the normalized `name` field in provider file
-6. **Service name matching**: Service directory name must match the normalized `name` field in offering file
+1. **Single offering per directory**: Each service directory must have exactly **one** offering file (`offering_v1` schema)
+2. **Listing location**: Each listing file must be in the same directory as a valid offering file
+3. **Provider name matching**: Provider directory name must match the normalized `name` field in provider file
+4. **Service name matching**: Service directory name must match the normalized `name` field in offering file
+5. **Relationship by location**: Listings automatically belong to the offering in their directory—no explicit `service_name` or `provider_name` fields needed
 
 ## Shared Documentation Pattern
 
@@ -344,10 +355,10 @@ data/
 │   │   └── api-guide.md
 │   └── services/
 │       ├── gpt-4/
-│       │   ├── service.json
+│       │   ├── offering.json
 │       │   └── listing.json       # References: ../../docs/code-example.py
 │       └── gpt-3.5-turbo/
-│           ├── service.json
+│           ├── offering.json
 │           └── listing.json       # References: ../../docs/code-example.py (same file!)
 ```
 
@@ -385,17 +396,17 @@ data/
 │   ├── provider.toml                    # Provider Data: name = "openai"
 │   └── services/
 │       ├── gpt-4/                       # Service: "gpt-4"
-│       │   ├── service.json             # Offering Data: name = "gpt-4"
+│       │   ├── offering.json             # Offering Data: name = "gpt-4"
 │       │   ├── listing-premium.json     # Listing Data (premium tier)
 │       │   └── listing-basic.json       # Listing Data (basic tier)
 │       └── gpt-3.5-turbo/              # Service: "gpt-3.5-turbo"
-│           ├── service.json             # Offering Data
+│           ├── offering.json             # Offering Data
 │           └── listing-default.json     # Listing Data
 └── anthropic/                           # Provider: "anthropic"
     ├── provider.json                    # Provider Data: name = "anthropic"
     └── services/
         └── claude-3-opus/               # Service: "claude-3-opus"
-            ├── service.toml             # Offering Data
+            ├── offering.toml            # Offering Data
             ├── listing-standard.toml    # Listing Data (standard tier)
             └── docs/
                 └── usage-guide.md

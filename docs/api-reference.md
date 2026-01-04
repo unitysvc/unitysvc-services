@@ -171,36 +171,30 @@ provider_name = resolve_provider_name(
 
 #### resolve_service_name_for_listing()
 
-Resolve the service name for a listing file.
+Resolve the service name for a listing file by finding the offering in the same directory.
 
 ```python
 from pathlib import Path
-from unitysvc_services.utils import (
-    load_data_file,
-    resolve_service_name_for_listing
-)
+from unitysvc_services.utils import resolve_service_name_for_listing
 
 listing_file = Path("data/fireworks/services/llama-3-1/listing.json")
-listing_data, _ = load_data_file(listing_file)
 
-service_name = resolve_service_name_for_listing(listing_file, listing_data)
-# Returns: service name from listing or from co-located service.json
+service_name = resolve_service_name_for_listing(listing_file)
+# Returns: service name from co-located offering file
 ```
 
 **Parameters:**
 
 -   `listing_file` (Path): Path to the listing file
--   `listing_data` (dict): Listing data dictionary
+-   `listing_data` (dict | None): Unused, kept for backwards compatibility
 
 **Returns:**
 
 -   `str | None`: Service name if found, None otherwise
 
-**Resolution Rules:**
+**How it works:**
 
-1. If `service_name` is defined in listing_data, return it
-2. Otherwise, find the only service offering in the same directory and return its name
-3. Return None if multiple or no service offerings found
+Finds the single offering file (`offering_v1` schema) in the same directory as the listing and returns its `name` field. Each service directory must have exactly one offering file.
 
 #### convert_convenience_fields_to_documents()
 
@@ -252,10 +246,10 @@ from unitysvc_services.utils import render_template_file
 
 rendered_content, new_filename = render_template_file(
     Path("test.py.j2"),
-    listing={"service_name": "gpt-4"},
-    offering={"name": "gpt-4-turbo"},
-    provider={"provider_name": "openai"},
-    seller={"seller_name": "marketplace"}
+    listing={"name": "listing-default", "display_name": "GPT-4 Access"},
+    offering={"name": "gpt-4-turbo", "display_name": "GPT-4 Turbo"},
+    provider={"name": "openai", "display_name": "OpenAI"},
+    seller={"name": "marketplace", "display_name": "Marketplace"}
 )
 # rendered_content: Template rendered with data
 # new_filename: "test.py" (without .j2 extension)

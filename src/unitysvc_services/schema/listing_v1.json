@@ -447,6 +447,9 @@
         "invoice",
         "logo",
         "avatar",
+        "blog_content",
+        "blog_banner",
+        "attachment",
         "other"
       ],
       "title": "DocumentCategoryEnum",
@@ -1572,50 +1575,11 @@
       "description": "Name identifier for the service listing (defaults to 'default' if not provided)",
       "title": "Name"
     },
-    "provider_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Provider name (resolved from directory structure if not specified)",
-      "title": "Provider Name"
-    },
     "schema": {
       "default": "listing_v1",
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
-    },
-    "service_name": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Name of the service (OfferingV1.name), optional if only one service is defined under the same directory.",
-      "title": "Service Name"
-    },
-    "service_version": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Version of the service offering",
-      "title": "Service Version"
     },
     "time_created": {
       "format": "date-time",

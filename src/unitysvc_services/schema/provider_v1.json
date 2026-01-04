@@ -323,6 +323,9 @@
         "invoice",
         "logo",
         "avatar",
+        "blog_content",
+        "blog_banner",
+        "attachment",
         "other"
       ],
       "title": "DocumentCategoryEnum",

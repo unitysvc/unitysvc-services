@@ -32,32 +32,18 @@ class ServiceListingData(BaseModel):
        - Publish operations from CLI
 
     Key characteristics:
-    - Uses string identifiers (service_name, provider_name, seller_name)
-      that get resolved to database IDs by the backend
     - Contains all user-provided data without system-generated IDs
     - Does not include permission/audit fields (handled by backend CRUD layer)
     - Uses dict types for nested structures to maintain flexibility between
       file definitions and database operations
+    - Service/provider relationships are determined by file location (SDK mode) or
+      by being published together in a single API call (API mode)
     """
 
-    # Reference to service offering - required for backend resolution
-    service_name: str | None = Field(
-        default=None,
-        description=(
-            "Name of the service (OfferingV1.name), optional if only one service is defined under the same directory."
-        ),
-    )
-    service_version: str | None = Field(
-        default=None,
-        description="Version of the service offering",
-    )
-    provider_name: str | None = Field(
-        default=None,
-        description="Provider name (resolved from directory structure if not specified)",
-    )
-
-    # Note: seller_name is no longer specified here. The seller is derived from the API key
-    # used during publishing. Create your seller account on the UnitySVC platform.
+    # Note: service/provider relationships are no longer specified here.
+    # - SDK mode: Determined by file location (services/$name/ directory structure)
+    # - API mode: Determined by publishing all three entities together
+    # - Seller is derived from the API key used during publishing
 
     # Listing identification
     name: str | None = Field(
