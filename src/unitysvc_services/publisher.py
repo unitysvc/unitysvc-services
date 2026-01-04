@@ -610,6 +610,100 @@ class ServiceDataPublisher(UnitySvcAPI):
             dryrun=dryrun,
         )
 
+    async def post_service_async(
+        self,
+        provider_file: Path,
+        offering_file: Path,
+        listing_file: Path,
+        max_retries: int = 3,
+        dryrun: bool = False,
+    ) -> dict[str, Any]:
+        """
+        Publish a complete service (provider, offering, and listing) together.
+
+        This method loads all three data files, resolves file references,
+        and posts them to the unified /seller/listings/service endpoint.
+
+        Args:
+            provider_file: Path to provider data file
+            offering_file: Path to offering data file
+            listing_file: Path to listing data file
+            max_retries: Maximum number of retry attempts
+            dryrun: If True, runs in dry run mode (no actual changes)
+
+        Returns:
+            Response JSON from successful API call containing results for all three entities
+        """
+        collected_attachments: list[Attachment] = []
+
+        # Load and process provider data
+        provider_data, _ = load_data_file(provider_file)
+        provider_base_path = provider_file.parent
+        provider_data = convert_convenience_fields_to_documents(
+            provider_data, provider_base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+        provider_data_resolved = self.resolve_file_references(
+            provider_data,
+            provider_base_path,
+            provider=provider_data,
+            collected_attachments=collected_attachments,
+        )
+
+        # Load and process offering data
+        offering_data, _ = load_data_file(offering_file)
+        offering_base_path = offering_file.parent
+        offering_data = convert_convenience_fields_to_documents(
+            offering_data, offering_base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+        offering_data_resolved = self.resolve_file_references(
+            offering_data,
+            offering_base_path,
+            offering=offering_data,
+            provider=provider_data,
+            collected_attachments=collected_attachments,
+        )
+
+        # Load and process listing data
+        listing_data, _ = load_data_file(listing_file)
+        listing_base_path = listing_file.parent
+        listing_data = convert_convenience_fields_to_documents(
+            listing_data, listing_base_path, logo_field="logo", terms_field="terms_of_service"
+        )
+        listing_data_resolved = self.resolve_file_references(
+            listing_data,
+            listing_base_path,
+            listing=listing_data,
+            offering=offering_data,
+            provider=provider_data,
+            listing_filename=listing_file.stem,
+            collected_attachments=collected_attachments,
+        )
+
+        # Upload collected attachments before publishing
+        if collected_attachments:
+            await upload_attachments(self, collected_attachments)
+
+        # Combine all data into ServiceData format
+        service_data = {
+            "provider_data": provider_data_resolved,
+            "offering_data": offering_data_resolved,
+            "listing_data": listing_data_resolved,
+        }
+
+        # Get entity names for error messages
+        provider_name = provider_data.get("name", "unknown")
+        service_name = listing_data.get("service_name", "unknown")
+
+        # Post to the unified service endpoint
+        return await self._post_with_retry(
+            endpoint="/seller/listings/service",
+            data=service_data,
+            entity_type="service",
+            entity_name=f"{provider_name}/{service_name}",
+            max_retries=max_retries,
+            dryrun=dryrun,
+        )
+
     def find_offering_files(self, data_dir: Path) -> list[Path]:
         """Find all service offering files in a directory tree."""
         files = find_files_by_schema(data_dir, "offering_v1")
