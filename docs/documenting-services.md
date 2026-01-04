@@ -181,7 +181,7 @@ Full access to the listing data structure:
 
 ### 2. `offering` - Service Offering Data (Offering_v1)
 
-Service offering metadata from `service.json`:
+Service offering metadata from `offering.json`:
 
 ```jinja2
 {{ offering.name }}                     # Service/offering name (use this for service name)
@@ -384,10 +384,10 @@ data/
     │   └── quickstart.md.j2       # Shared quickstart
     └── services/
         ├── llama-3-1-405b/
-        │   ├── service.json
+        │   ├── offering.json
         │   └── listing.json       # References ../docs/
         └── llama-3-1-70b/
-            ├── service.json
+            ├── offering.json
             └── listing.json       # References ../docs/
 ```
 
@@ -402,7 +402,7 @@ data/
 └── fireworks/
     └── services/
         └── llama-3-1-405b/
-            ├── service.json
+            ├── offering.json
             ├── listing.json
             ├── description.md.j2      # Service-specific description
             └── examples/
@@ -426,7 +426,7 @@ data/
     │   └── quickstart.md.j2
     └── services/
         └── llama-3-1-405b/
-            ├── service.json
+            ├── offering.json
             ├── listing.json           # References both
             ├── model-specific.md      # Service-specific doc
             └── examples/

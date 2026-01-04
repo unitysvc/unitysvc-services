@@ -108,7 +108,7 @@ data/
     ├── provider.json          # Provider Data
     └── services/
         └── my-service/
-            ├── service.json   # Offering Data
+            ├── offering.json  # Offering Data
             └── listing.json   # Listing Data
 ```
 

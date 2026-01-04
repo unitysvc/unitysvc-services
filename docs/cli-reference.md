@@ -901,77 +901,16 @@ usvc --show-completion
 
 ## Common Workflows
 
-### Creating Data from Scratch (Interactive)
+### Creating Data
 
-Create a complete data structure interactively:
+Create data using the web interface at [unitysvc.com](https://unitysvc.com), then export for SDK use:
 
-```bash
-# 1. Create seller (will prompt for contact info, etc.)
-usvc init seller acme-corp
-# Follow prompts: enter email, homepage, etc.
+1. Sign in to unitysvc.com
+2. Create your Provider, Offerings, and Listings using the visual editor
+3. Export your data as JSON/TOML files
+4. Place files in the expected directory structure
 
-# 2. Create provider (will prompt for API endpoint, etc.)
-cd data/acme-corp
-usvc init provider openai
-# Follow prompts: API endpoint, contact, optional services_populator
-
-# 3. Create service offering (will prompt for service details)
-cd openai
-usvc init offering gpt-4
-# Follow prompts: description, upstream API, optional pricing
-
-# 4. Create listing (auto-detects seller and service!)
-cd gpt-4
-usvc init listing standard
-# Auto-fills seller from data/seller.json and service from service.json
-# Add optional documents
-
-# 5. Validate everything
-cd ../../../..  # Back to project root
-usvc validate
-
-# 6. Format files
-usvc format
-
-# 7. Preview before publishing
-cd data
-usvc publish --dryrun
-
-# 8. Publish if everything looks good
-usvc publish
-```
-
-**Note**: The interactive prompts include:
-
--   ✅ Auto-discovery of seller/service names
--   ✅ Validation of emails, URLs, and required fields
--   ✅ Smart defaults (e.g., display name from ID)
--   ✅ Optional document and pricing support
-
-### Copying from Existing Data
-
-Quickly create new data by copying from existing structures:
-
-```bash
-# Copy an existing service offering to create a similar one
-usvc init offering gpt-4-turbo --source ./data/acme-corp/openai/gpt-4
-
-# Copy a listing
-usvc init listing premium --source ./data/acme-corp/openai/gpt-4/standard
-
-# Copy a provider
-usvc init provider anthropic --source ./data/acme-corp/openai
-
-# Copy a seller
-usvc init seller new-seller --source ./data/acme-corp
-```
-
-**Benefits of copy mode:**
-
--   🚀 Skip interactive prompts for similar services
--   📋 Preserves structure and documents
--   ⚡ Faster than manual entry for bulk creation
--   🔄 Updates names and IDs automatically
+Alternatively, create files manually following the [File Schemas](file-schemas.md) documentation.
 
 ### Full Publish Flow
 

@@ -60,15 +60,13 @@ asyncio.run(publish_single_service())
 ### Basic Workflow
 
 ```bash
-# 1. Initialize your data structure
-usvc init provider my-provider
-usvc init offering my-service
-usvc init listing my-listing
+# 1. Create data via web interface at unitysvc.com, then export
+#    Or create files manually following the file schemas
 
-# 2. Edit the generated files with your service details
-# - data/my-provider/provider.toml
-# - data/my-provider/services/my-service/service.toml
-# - data/my-provider/services/my-service/listing.toml
+# 2. Place files in the expected structure:
+#    data/my-provider/provider.toml
+#    data/my-provider/services/my-service/offering.toml
+#    data/my-provider/services/my-service/listing.toml
 
 # 3. Validate your data
 usvc validate
@@ -108,7 +106,7 @@ data/
     ├── provider.toml          # Provider Data
     └── services/
         └── my-service/
-            ├── service.toml   # Offering Data
+            ├── offering.toml  # Offering Data
             └── listing.toml   # Listing Data ← publish entry point
 ```
 
@@ -130,7 +128,7 @@ data/
 └── my-provider/
     └── services/
         └── my-service/
-            ├── service.toml           # One offering
+            ├── offering.toml          # One offering
             ├── listing-basic.toml     # Basic tier listing
             ├── listing-premium.toml   # Premium tier listing
             └── listing-enterprise.toml # Enterprise tier listing

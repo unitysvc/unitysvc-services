@@ -14,10 +14,11 @@ UnitySVC provides two complementary approaches for managing your seller service 
 ### 1. Web Interface (unitysvc.com)
 
 The [UnitySVC web platform](https://unitysvc.com) provides a user-friendly interface to:
-- Create, edit, and manage providers, offerings, and listings
-- Validate data with instant feedback
-- Preview how services appear to customers
-- Export data for use with the SDK
+
+-   Create, edit, and manage providers, offerings, and listings
+-   Validate data with instant feedback
+-   Preview how services appear to customers
+-   Export data for use with the SDK
 
 **Best for**: Initial setup, visual editing, and teams preferring a graphical interface.
 
@@ -25,11 +26,11 @@ The [UnitySVC web platform](https://unitysvc.com) provides a user-friendly inter
 
 The SDK enables a **local-first, version-controlled workflow** with key advantages:
 
-- **Version Control** - Track all changes in git, review diffs, roll back mistakes
-- **Script-Based Generation** - Programmatically generate services from provider APIs
-- **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
-- **Offline Work** - Edit locally, validate without network, publish when ready
-- **Code Review** - Use pull requests to review service changes before publishing
+-   **Version Control** - Track all changes in git, review diffs, roll back mistakes
+-   **Script-Based Generation** - Programmatically generate services from provider APIs
+-   **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
+-   **Offline Work** - Edit locally, validate without network, publish when ready
+-   **Code Review** - Use pull requests to review service changes before publishing
 
 **Best for**: Large catalogs, dynamic services, automation, and teams with developer workflows.
 
@@ -75,9 +76,10 @@ flowchart TB
 3. **Listing Data** - Defines how each service variant is presented to customers
 
 This separation enables:
-- **Reusability**: One provider can have many offerings; one offering can have multiple listings
-- **Maintainability**: Update provider info once, affects all services
-- **Flexibility**: Different pricing tiers, marketplaces, or customer segments per listing
+
+-   **Reusability**: One provider can have many offerings; one offering can have multiple listings
+-   **Maintainability**: Update provider info once, affects all services
+-   **Flexibility**: Different pricing tiers, marketplaces, or customer segments per listing
 
 ## Quick Example
 
@@ -97,7 +99,7 @@ usvc test run --provider my-provider --services "my-*"
 usvc populate
 
 # 5. Publish to platform (publishes provider + offering + listing together)
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
 usvc publish
 
@@ -114,11 +116,12 @@ data/
 │   ├── docs/                      # Shared documentation
 │   └── services/
 │       └── ${service_name}/
-│           ├── service.json       # Offering Data (offering_v1)
+│           ├── offering.json      # Offering Data (offering_v1)
 │           └── listing-*.json     # Listing Data (listing_v1) ← publish entry point
 ```
 
 **Publishing is listing-centric**: When you run `usvc publish`, the SDK:
+
 1. Finds all listing files (`listing_v1` schema)
 2. For each listing, locates the **single** offering file in the same directory
 3. Locates the provider file in the parent directory

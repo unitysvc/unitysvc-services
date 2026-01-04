@@ -67,7 +67,7 @@ data/
     ├── provider.json
     └── services/
         └── my-service/
-            ├── service.json
+            ├── offering.json
             └── listing.json
 ```
 
@@ -107,7 +107,7 @@ data/
     ├── provider.json          # See provider_v1 schema
     └── services/
         └── my-service/
-            ├── service.json   # See offering_v1 schema
+            ├── offering.json  # See offering_v1 schema
             └── listing.json   # See listing_v1 schema
 ```
 
@@ -264,14 +264,14 @@ def fetch_services():
     return response.json()["services"]
 
 def create_service_files(service_data):
-    """Create service.json and listing.json files."""
+    """Create offering.json and listing.json files."""
     service_name = service_data["name"].lower().replace(" ", "-")
     service_dir = Path(f"services/{service_name}")
     service_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create service.json
-    service = {
-        "schema": "service_v1",
+    # Create offering.json
+    offering = {
+        "schema": "offering_v1",
         "name": service_name,
         "display_name": service_data["display_name"],
         "description": service_data["description"],
@@ -280,8 +280,8 @@ def create_service_files(service_data):
         # ... map other fields
     }
 
-    with open(service_dir / "service.json", "w") as f:
-        json.dump(service, f, indent=2, sort_keys=True)
+    with open(service_dir / "offering.json", "w") as f:
+        json.dump(offering, f, indent=2, sort_keys=True)
         f.write("\n")
 
     # Create listing.json
