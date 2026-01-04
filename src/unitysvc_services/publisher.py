@@ -364,23 +364,40 @@ class ServiceDataPublisher(UnitySvcAPI):
             raise last_exception
         raise ValueError("Unexpected error in retry logic")
 
-    async def post_service_listing_async(
-        self, listing_file: Path, max_retries: int = 3, dryrun: bool = False
+    async def post_service_async(
+        self,
+        listing_file: Path,
+        max_retries: int = 3,
+        dryrun: bool = False,
     ) -> dict[str, Any]:
-        """Async version of post_service_listing for concurrent publishing with retry logic."""
+        """
+        Publish a complete service (provider, offering, and listing) together.
+
+        This method takes a listing file and automatically finds the associated
+        offering (same directory) and provider (parent directory) files, loads them,
+        resolves file references, and posts to the unified /seller/services endpoint.
+
+        Args:
+            listing_file: Path to listing data file (listing_v1 schema)
+            max_retries: Maximum number of retry attempts
+            dryrun: If True, runs in dry run mode (no actual changes)
+
+        Returns:
+            Response JSON from successful API call containing results for all three entities
+        """
         # Load the listing data file
-        data, _ = load_data_file(listing_file)
+        listing_data, _ = load_data_file(listing_file)
 
         # If name is not provided, use filename (without extension)
-        if "name" not in data or not data.get("name"):
-            data["name"] = listing_file.stem
+        if "name" not in listing_data or not listing_data.get("name"):
+            listing_data["name"] = listing_file.stem
 
         # Extract provider_name from directory structure (needed before loading provider data)
         parts = listing_file.parts
         try:
             services_idx = parts.index("services")
             provider_name = parts[services_idx - 1]
-            data["provider_name"] = provider_name
+            listing_data["provider_name"] = provider_name
 
             # Find provider directory to load provider data
             provider_dir = Path(*parts[:services_idx])
@@ -390,254 +407,76 @@ class ServiceDataPublisher(UnitySvcAPI):
                 f"Expected path to contain .../{{provider_name}}/services/..."
             )
 
-        # If service_name is not in listing data, find it from service files in the same directory
-        if "service_name" not in data or not data["service_name"]:
-            # Find all service files in the same directory
-            service_files = find_files_by_schema(listing_file.parent, "offering_v1")
-
-            if len(service_files) == 0:
-                raise ValueError(
-                    f"Cannot find any offering_v1 files in {listing_file.parent}. "
-                    f"Listing files must be in the same directory as a service definition."
-                )
-            elif len(service_files) > 1:
-                service_names = [svc_data.get("name", "unknown") for _, _, svc_data in service_files]
-                raise ValueError(
-                    f"Multiple services found in {listing_file.parent}: {', '.join(service_names)}. "
-                    f"Please add 'service_name' field to {listing_file.name} to specify which "
-                    f"service this listing belongs to."
-                )
-            else:
-                # Exactly one service found - use it
-                _service_file, _format, service_data = service_files[0]
-                data["service_name"] = service_data.get("name")
-                data["service_version"] = service_data.get("version")
-        else:
-            # service_name is provided in listing data, find the matching service to get version
-            service_name = data["service_name"]
-            service_files = find_files_by_schema(
-                listing_file.parent, "offering_v1", field_filter=(("name", service_name),)
+        # Find offering file in the same directory as the listing
+        offering_files = find_files_by_schema(listing_file.parent, "offering_v1")
+        if len(offering_files) == 0:
+            raise ValueError(
+                f"Cannot find any offering_v1 files in {listing_file.parent}. "
+                f"Listing files must be in the same directory as an offering definition."
             )
-
-            if not service_files:
+        elif len(offering_files) > 1:
+            # Check if listing specifies which offering to use
+            if "service_name" in listing_data and listing_data["service_name"]:
+                service_name = listing_data["service_name"]
+                offering_files = find_files_by_schema(
+                    listing_file.parent, "offering_v1", field_filter=(("name", service_name),)
+                )
+                if not offering_files:
+                    raise ValueError(
+                        f"Offering '{service_name}' specified in {listing_file.name} not found in {listing_file.parent}."
+                    )
+            else:
+                offering_names = [off_data.get("name", "unknown") for _, _, off_data in offering_files]
                 raise ValueError(
-                    f"Service '{service_name}' specified in {listing_file.name} not found in {listing_file.parent}."
+                    f"Multiple offerings found in {listing_file.parent}: {', '.join(offering_names)}. "
+                    f"Please add 'service_name' field to {listing_file.name} to specify which "
+                    f"offering this listing belongs to."
                 )
 
-            # Get version from the found service
-            _service_file, _format, service_data = service_files[0]
-            data["service_version"] = service_data.get("version")
+        offering_file, _format, offering_data = offering_files[0]
 
-        # Load provider data for template rendering
+        # Set provider_name on offering_data (backend expects this)
+        offering_data["provider_name"] = provider_name
+
+        # Set service_name and service_version from the offering
+        if "service_name" not in listing_data or not listing_data["service_name"]:
+            listing_data["service_name"] = offering_data.get("name")
+        listing_data["service_version"] = offering_data.get("version")
+
+        # Find provider file in the parent directory
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
-        if provider_files:
-            _provider_file, _format, provider_data = provider_files[0]
-        else:
-            provider_data = {}
+        if not provider_files:
+            raise ValueError(
+                f"Cannot find any provider_v1 files in {provider_dir}. "
+                f"Provider file must exist in the parent directory of services."
+            )
+        provider_file, _format, provider_data = provider_files[0]
+
+        # Check provider status - skip if draft
+        provider_status = provider_data.get("status", ProviderStatusEnum.active)
+        if provider_status == ProviderStatusEnum.draft:
+            return {
+                "skipped": True,
+                "reason": f"Provider status is '{provider_status}' - not publishing to backend (still in draft)",
+                "name": listing_data.get("name", "unknown"),
+            }
 
         # Map listing_status to status if present
-        if "listing_status" in data:
-            data["status"] = data.pop("listing_status")
+        if "listing_status" in listing_data:
+            listing_data["status"] = listing_data.pop("listing_status")
 
         # Check listing status - skip if draft
-        listing_status = data.get("status", ListingStatusEnum.ready)
+        listing_status = listing_data.get("status", ListingStatusEnum.ready)
         if listing_status == ListingStatusEnum.draft:
             return {
                 "skipped": True,
                 "reason": f"Listing status is '{listing_status}' - not publishing to backend (still in draft)",
-                "name": data.get("name", "unknown"),
+                "name": listing_data.get("name", "unknown"),
             }
 
-        # NOW resolve file references with all context (listing, offering, provider)
-        base_path = listing_file.parent
-        collected_attachments: list[Attachment] = []
-        data_with_content = self.resolve_file_references(
-            data,
-            base_path,
-            listing=data,
-            offering=service_data,
-            provider=provider_data,
-            seller=None,
-            listing_filename=listing_file.name,
-            collected_attachments=collected_attachments,
-        )
-
-        # Upload collected attachments before publishing
-        if collected_attachments:
-            await upload_attachments(self, collected_attachments)
-
-        # Post to the endpoint using retry helper
-        context_info = (
-            f"service: {data_with_content.get('service_name')}, provider: {data_with_content.get('provider_name')}"
-        )
-        result = await self._post_with_retry(
-            endpoint="/seller/listings",
-            data=data_with_content,
-            entity_type="listing",
-            entity_name=data.get("name", "unknown"),
-            context_info=context_info,
-            max_retries=max_retries,
-            dryrun=dryrun,
-        )
-
-        # Add local metadata to result for display purposes
-        result["service_name"] = data_with_content.get("service_name")
-        result["provider_name"] = data_with_content.get("provider_name")
-
-        return result
-
-    async def post_service_offering_async(
-        self, data_file: Path, max_retries: int = 3, dryrun: bool = False
-    ) -> dict[str, Any]:
-        """Async version of post_service_offering for concurrent publishing with retry logic."""
-        # Load the data file
-        data, _ = load_data_file(data_file)
-
-        # Convert convenience fields first
-        base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field="terms_of_service"
-        )
-
-        # Extract provider_name from directory structure
-        # Find the 'services' directory and use its parent as provider_name
-        parts = data_file.parts
-        try:
-            services_idx = parts.index("services")
-            provider_name = parts[services_idx - 1]
-            data["provider_name"] = provider_name
-
-            # Find provider directory to check status and load data
-            provider_dir = Path(*parts[:services_idx])
-        except (ValueError, IndexError):
-            raise ValueError(
-                f"Cannot extract provider_name from path: {data_file}. "
-                f"Expected path to contain .../{{provider_name}}/services/..."
-            )
-
-        # Load provider data for status check and template rendering
-        provider_files = find_files_by_schema(provider_dir, "provider_v1")
-        if provider_files:
-            # Should only be one provider file in the directory
-            _provider_file, _format, provider_data = provider_files[0]
-            provider_status = provider_data.get("status", ProviderStatusEnum.active)
-            if provider_status == ProviderStatusEnum.draft:
-                return {
-                    "skipped": True,
-                    "reason": f"Provider status is '{provider_status}' - not publishing offering to backend",
-                    "name": data.get("name", "unknown"),
-                }
-        else:
-            provider_data = {}
-
-        # NOW resolve file references with all context (offering, provider)
-        collected_attachments: list[Attachment] = []
-        data_with_content = self.resolve_file_references(
-            data,
-            base_path,
-            listing=None,
-            offering=data,
-            provider=provider_data,
-            seller=None,
-            collected_attachments=collected_attachments,
-        )
-
-        # Upload collected attachments before publishing
-        if collected_attachments:
-            await upload_attachments(self, collected_attachments)
-
-        # Post to the endpoint using retry helper
-        context_info = f"provider: {data_with_content.get('provider_name')}"
-        result = await self._post_with_retry(
-            endpoint="/seller/offerings",
-            data=data_with_content,
-            entity_type="offering",
-            entity_name=data.get("name", "unknown"),
-            context_info=context_info,
-            max_retries=max_retries,
-            dryrun=dryrun,
-        )
-
-        # Add local metadata to result for display purposes
-        result["provider_name"] = data_with_content.get("provider_name")
-
-        return result
-
-    async def post_provider_async(self, data_file: Path, max_retries: int = 3, dryrun: bool = False) -> dict[str, Any]:
-        """Async version of post_provider for concurrent publishing with retry logic."""
-        # Load the data file
-        data, _ = load_data_file(data_file)
-
-        # Check provider status - skip if draft
-        provider_status = data.get("status", ProviderStatusEnum.active)
-        if provider_status == ProviderStatusEnum.draft:
-            # Return success without publishing - provider is incomplete
-            return {
-                "skipped": True,
-                "reason": f"Provider status is '{provider_status}' - not publishing to backend",
-                "name": data.get("name", "unknown"),
-            }
-
-        # Convert convenience fields (logo, terms_of_service) to documents
-        base_path = data_file.parent
-        data = convert_convenience_fields_to_documents(
-            data, base_path, logo_field="logo", terms_field="terms_of_service"
-        )
-
-        # Resolve file references and include content with provider context
-        collected_attachments: list[Attachment] = []
-        data_with_content = self.resolve_file_references(
-            data,
-            base_path,
-            listing=None,
-            offering=None,
-            provider=data,
-            seller=None,
-            collected_attachments=collected_attachments,
-        )
-
-        # Upload collected attachments before publishing
-        if collected_attachments:
-            await upload_attachments(self, collected_attachments)
-
-        # Post to the endpoint using retry helper
-        return await self._post_with_retry(
-            endpoint="/seller/providers",
-            data=data_with_content,
-            entity_type="provider",
-            entity_name=data.get("name", "unknown"),
-            max_retries=max_retries,
-            dryrun=dryrun,
-        )
-
-    async def post_service_async(
-        self,
-        provider_file: Path,
-        offering_file: Path,
-        listing_file: Path,
-        max_retries: int = 3,
-        dryrun: bool = False,
-    ) -> dict[str, Any]:
-        """
-        Publish a complete service (provider, offering, and listing) together.
-
-        This method loads all three data files, resolves file references,
-        and posts them to the unified /seller/services endpoint.
-
-        Args:
-            provider_file: Path to provider data file
-            offering_file: Path to offering data file
-            listing_file: Path to listing data file
-            max_retries: Maximum number of retry attempts
-            dryrun: If True, runs in dry run mode (no actual changes)
-
-        Returns:
-            Response JSON from successful API call containing results for all three entities
-        """
         collected_attachments: list[Attachment] = []
 
-        # Load and process provider data
-        provider_data, _ = load_data_file(provider_file)
+        # Process provider data
         provider_base_path = provider_file.parent
         provider_data = convert_convenience_fields_to_documents(
             provider_data, provider_base_path, logo_field="logo", terms_field="terms_of_service"
@@ -649,8 +488,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             collected_attachments=collected_attachments,
         )
 
-        # Load and process offering data
-        offering_data, _ = load_data_file(offering_file)
+        # Process offering data
         offering_base_path = offering_file.parent
         offering_data = convert_convenience_fields_to_documents(
             offering_data, offering_base_path, logo_field="logo", terms_field="terms_of_service"
@@ -663,8 +501,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             collected_attachments=collected_attachments,
         )
 
-        # Load and process listing data
-        listing_data, _ = load_data_file(listing_file)
+        # Process listing data
         listing_base_path = listing_file.parent
         listing_data = convert_convenience_fields_to_documents(
             listing_data, listing_base_path, logo_field="logo", terms_field="terms_of_service"
@@ -675,7 +512,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             listing=listing_data,
             offering=offering_data,
             provider=provider_data,
-            listing_filename=listing_file.stem,
+            listing_filename=listing_file.name,
             collected_attachments=collected_attachments,
         )
 
@@ -691,32 +528,29 @@ class ServiceDataPublisher(UnitySvcAPI):
         }
 
         # Get entity names for error messages
-        provider_name = provider_data.get("name", "unknown")
-        service_name = listing_data.get("service_name", "unknown")
+        provider_name_str = provider_data.get("name", "unknown")
+        listing_name = listing_data.get("name", "unknown")
 
         # Post to the unified service endpoint
-        return await self._post_with_retry(
+        result = await self._post_with_retry(
             endpoint="/seller/services",
             data=service_data,
             entity_type="service",
-            entity_name=f"{provider_name}/{service_name}",
+            entity_name=f"{provider_name_str}/{listing_name}",
             max_retries=max_retries,
             dryrun=dryrun,
         )
 
-    def find_offering_files(self, data_dir: Path) -> list[Path]:
-        """Find all service offering files in a directory tree."""
-        files = find_files_by_schema(data_dir, "offering_v1")
-        return sorted([f[0] for f in files])
+        # Add local metadata to result for display purposes
+        result["listing_name"] = listing_name
+        result["service_name"] = listing_data_resolved.get("service_name")
+        result["provider_name"] = provider_name_str
+
+        return result
 
     def find_listing_files(self, data_dir: Path) -> list[Path]:
         """Find all service listing files in a directory tree."""
         files = find_files_by_schema(data_dir, "listing_v1")
-        return sorted([f[0] for f in files])
-
-    def find_provider_files(self, data_dir: Path) -> list[Path]:
-        """Find all provider files in a directory tree."""
-        files = find_files_by_schema(data_dir, "provider_v1")
         return sorted([f[0] for f in files])
 
     @staticmethod
@@ -731,114 +565,45 @@ class ServiceDataPublisher(UnitySvcAPI):
         }
         return status_map.get(status, ("[green]✓[/green]", "green"))
 
-    async def _publish_offering_task(
-        self, offering_file: Path, console: Console, semaphore: asyncio.Semaphore, dryrun: bool = False
-    ) -> tuple[Path, dict[str, Any] | Exception]:
+    @staticmethod
+    def _derive_effective_status(result: dict[str, Any]) -> str:
         """
-        Async task to publish a single offering with concurrency control.
+        Derive effective status from nested provider/offering/listing results.
 
-        Returns tuple of (offering_file, result_or_exception).
+        The backend returns individual statuses for each entity. This method
+        combines them into a single effective status:
+        - If any entity was created -> "created"
+        - If any entity was updated (none created) -> "updated"
+        - If all entities are unchanged -> "unchanged"
         """
-        async with semaphore:  # Limit concurrent requests
-            try:
-                # Load offering data to get the name
-                data, _ = load_data_file(offering_file)
-                offering_name = data.get("name", offering_file.stem)
+        statuses = []
+        for key in ["provider", "offering", "listing"]:
+            nested = result.get(key, {})
+            if isinstance(nested, dict):
+                statuses.append(nested.get("status", ""))
 
-                # Publish the offering
-                result = await self.post_service_offering_async(offering_file, dryrun=dryrun)
+        # Dryrun statuses
+        if "create" in statuses:
+            return "create"
+        if "update" in statuses:
+            return "update"
 
-                # Print complete statement after publication
-                if result.get("skipped"):
-                    reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped offering: [cyan]{offering_name}[/cyan] - {reason}")
-                else:
-                    provider_name = result.get("provider_name")
-                    status = result.get("status", "created")
-                    symbol, color = self._get_status_display(status)
-                    console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] offering: [cyan]{offering_name}[/cyan] "
-                        f"(provider: {provider_name})"
-                    )
+        # Normal statuses
+        if "created" in statuses:
+            return "created"
+        if "updated" in statuses:
+            return "updated"
+        if all(s == "unchanged" for s in statuses if s):
+            return "unchanged"
 
-                return (offering_file, result)
-            except Exception as e:
-                data, _ = load_data_file(offering_file)
-                offering_name = data.get("name", offering_file.stem)
-                console.print(f"  [red]✗[/red] Failed to publish offering: [cyan]{offering_name}[/cyan] - {str(e)}")
-                return (offering_file, e)
+        # Fallback
+        return "created"
 
-    async def publish_all_offerings(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
-        """
-        Publish all service offerings found in a directory tree concurrently.
-
-        Validates data consistency before publishing.
-        Returns a summary of successes and failures.
-
-        Args:
-            data_dir: Directory to search for offering files
-            dryrun: If True, runs in dry run mode (no actual changes)
-        """
-        # Validate all service directories first
-        schema_dir = Path(unitysvc_services.__file__).parent / "schema"
-        validator = DataValidator(data_dir, schema_dir)
-        validation_errors = validator.validate_all_service_directories(data_dir)
-        if validation_errors:
-            return {
-                "total": 0,
-                "success": 0,
-                "failed": 0,
-                "errors": [{"file": "validation", "error": error} for error in validation_errors],
-            }
-
-        offering_files = self.find_offering_files(data_dir)
-        results: dict[str, Any] = {
-            "total": len(offering_files),
-            "success": 0,
-            "failed": 0,
-            "created": 0,
-            "updated": 0,
-            "unchanged": 0,
-            "errors": [],
-        }
-
-        if not offering_files:
-            return results
-
-        console = Console()
-
-        # Run all offering publications concurrently with rate limiting
-        # Create semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-        tasks = [
-            self._publish_offering_task(offering_file, console, semaphore, dryrun=dryrun)
-            for offering_file in offering_files
-        ]
-        task_results = await asyncio.gather(*tasks)
-
-        # Process results
-        for offering_file, result in task_results:
-            if isinstance(result, Exception):
-                results["failed"] += 1
-                results["errors"].append({"file": str(offering_file), "error": str(result)})
-            else:
-                results["success"] += 1
-                # Track status counts (handle both normal and dryrun statuses)
-                status = result.get("status", "created")
-                if status in ("created", "create"):  # "create" is dryrun mode
-                    results["created"] += 1
-                elif status in ("updated", "update"):  # "update" is dryrun mode
-                    results["updated"] += 1
-                elif status == "unchanged":
-                    results["unchanged"] += 1
-
-        return results
-
-    async def _publish_listing_task(
+    async def _publish_service_task(
         self, listing_file: Path, console: Console, semaphore: asyncio.Semaphore, dryrun: bool = False
     ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Async task to publish a single listing with concurrency control.
+        Async task to publish a single service (provider + offering + listing) with concurrency control.
 
         Returns tuple of (listing_file, result_or_exception).
         """
@@ -848,36 +613,50 @@ class ServiceDataPublisher(UnitySvcAPI):
                 data, _ = load_data_file(listing_file)
                 listing_name = data.get("name", listing_file.stem)
 
-                # Publish the listing
-                result = await self.post_service_listing_async(listing_file, dryrun=dryrun)
+                # Publish the service (provider + offering + listing together)
+                result = await self.post_service_async(listing_file, dryrun=dryrun)
 
                 # Print complete statement after publication
                 if result.get("skipped"):
                     reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped listing: [cyan]{listing_name}[/cyan] - {reason}")
+                    console.print(f"  [yellow]⊘[/yellow] Skipped service: [cyan]{listing_name}[/cyan] - {reason}")
                 else:
                     service_name = result.get("service_name")
                     provider_name = result.get("provider_name")
-                    status = result.get("status", "created")
+                    # Derive effective status from nested results
+                    # Backend returns provider/offering/listing each with their own status
+                    status = self._derive_effective_status(result)
                     symbol, color = self._get_status_display(status)
                     console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] listing: [cyan]{listing_name}[/cyan] "
-                        f"(service: {service_name}, provider: {provider_name})"
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{listing_name}[/cyan] "
+                        f"(offering: {service_name}, provider: {provider_name})"
                     )
+                    # Update result with derived status for summary tracking
+                    result["status"] = status
 
                 return (listing_file, result)
             except Exception as e:
-                data, _ = load_data_file(listing_file)
-                listing_name = data.get("name", listing_file.stem)
-                console.print(f"  [red]✗[/red] Failed to publish listing: [cyan]{listing_file}[/cyan] - {str(e)}")
+                try:
+                    data, _ = load_data_file(listing_file)
+                    listing_name = data.get("name", listing_file.stem)
+                except Exception:
+                    listing_name = listing_file.stem
+                console.print(f"  [red]✗[/red] Failed to publish service: [cyan]{listing_name}[/cyan] - {str(e)}")
                 return (listing_file, e)
 
-    async def publish_all_listings(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
+    async def publish_all_services(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
         """
-        Publish all service listings found in a directory tree concurrently.
+        Publish all services found in a directory tree concurrently.
+
+        Each listing file triggers a unified publish of provider + offering + listing
+        to the /seller/services endpoint.
 
         Validates data consistency before publishing.
         Returns a summary of successes and failures.
+
+        Args:
+            data_dir: Directory to search for listing files
+            dryrun: If True, runs in dry run mode (no actual changes)
         """
         # Validate all service directories first
         schema_dir = Path(unitysvc_services.__file__).parent / "schema"
@@ -896,6 +675,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             "total": len(listing_files),
             "success": 0,
             "failed": 0,
+            "skipped": 0,
             "created": 0,
             "updated": 0,
             "unchanged": 0,
@@ -907,11 +687,11 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         console = Console()
 
-        # Run all listing publications concurrently with rate limiting
+        # Run all service publications concurrently with rate limiting
         # Create semaphore to limit concurrent requests
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
         tasks = [
-            self._publish_listing_task(listing_file, console, semaphore, dryrun=dryrun)
+            self._publish_service_task(listing_file, console, semaphore, dryrun=dryrun)
             for listing_file in listing_files
         ]
         task_results = await asyncio.gather(*tasks)
@@ -921,6 +701,9 @@ class ServiceDataPublisher(UnitySvcAPI):
             if isinstance(result, Exception):
                 results["failed"] += 1
                 results["errors"].append({"file": str(listing_file), "error": str(result)})
+            elif result.get("skipped"):
+                results["skipped"] += 1
+                results["success"] += 1  # Skipped is still a success (intentional skip)
             else:
                 results["success"] += 1
                 # Track status counts (handle both normal and dryrun statuses)
@@ -933,145 +716,6 @@ class ServiceDataPublisher(UnitySvcAPI):
                     results["unchanged"] += 1
 
         return results
-
-    async def _publish_provider_task(
-        self, provider_file: Path, console: Console, semaphore: asyncio.Semaphore, dryrun: bool = False
-    ) -> tuple[Path, dict[str, Any] | Exception]:
-        """
-        Async task to publish a single provider with concurrency control.
-
-        Returns tuple of (provider_file, result_or_exception).
-        """
-        async with semaphore:  # Limit concurrent requests
-            try:
-                # Load provider data to get the name
-                data, _ = load_data_file(provider_file)
-                provider_name = data.get("name", provider_file.stem)
-
-                # Publish the provider
-                result = await self.post_provider_async(provider_file, dryrun=dryrun)
-
-                # Print complete statement after publication
-                if result.get("skipped"):
-                    reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped provider: [cyan]{provider_name}[/cyan] - {reason}")
-                else:
-                    status = result.get("status", "created")
-                    symbol, color = self._get_status_display(status)
-                    console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] provider: [cyan]{provider_name}[/cyan]"
-                    )
-
-                return (provider_file, result)
-            except Exception as e:
-                data, _ = load_data_file(provider_file)
-                provider_name = data.get("name", provider_file.stem)
-                console.print(f"  [red]✗[/red] Failed to publish provider: [cyan]{provider_name}[/cyan] - {str(e)}")
-                return (provider_file, e)
-
-    async def publish_all_providers(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
-        """
-        Publish all providers found in a directory tree concurrently.
-
-        Returns a summary of successes and failures.
-        """
-        provider_files = self.find_provider_files(data_dir)
-        results: dict[str, Any] = {
-            "total": len(provider_files),
-            "success": 0,
-            "failed": 0,
-            "created": 0,
-            "updated": 0,
-            "unchanged": 0,
-            "errors": [],
-        }
-
-        if not provider_files:
-            return results
-
-        console = Console()
-
-        # Run all provider publications concurrently with rate limiting
-        # Create semaphore to limit concurrent requests
-        semaphore = asyncio.Semaphore(self.max_concurrent_requests)
-        tasks = [
-            self._publish_provider_task(provider_file, console, semaphore, dryrun=dryrun)
-            for provider_file in provider_files
-        ]
-        task_results = await asyncio.gather(*tasks)
-
-        # Process results
-        for provider_file, result in task_results:
-            if isinstance(result, Exception):
-                results["failed"] += 1
-                results["errors"].append({"file": str(provider_file), "error": str(result)})
-            else:
-                results["success"] += 1
-                # Track status counts (handle both normal and dryrun statuses)
-                status = result.get("status", "created")
-                if status in ("created", "create"):  # "create" is dryrun mode
-                    results["created"] += 1
-                elif status in ("updated", "update"):  # "update" is dryrun mode
-                    results["updated"] += 1
-                elif status == "unchanged":
-                    results["unchanged"] += 1
-
-        return results
-
-    async def publish_all_models(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
-        """
-        Publish all data types in the correct order.
-
-        Publishing order:
-        1. Providers - Must exist before offerings
-        2. Service Offerings - Must exist before listings
-        3. Service Listings - Depends on providers and offerings
-
-        Note: Sellers are no longer published from local files. Sellers must be created
-        on the UnitySVC platform, and the seller context is derived from the API key.
-
-        Returns a dict with results for each data type and overall summary.
-        """
-        all_results: dict[str, Any] = {
-            "providers": {},
-            "offerings": {},
-            "listings": {},
-            "total_success": 0,
-            "total_failed": 0,
-            "total_found": 0,
-            "total_created": 0,
-            "total_updated": 0,
-            "total_unchanged": 0,
-        }
-
-        # Publish in order: providers -> offerings -> listings
-        publish_order = [
-            ("providers", self.publish_all_providers),
-            ("offerings", self.publish_all_offerings),
-            ("listings", self.publish_all_listings),
-        ]
-
-        for data_type, publish_method in publish_order:
-            try:
-                results = await publish_method(data_dir, dryrun=dryrun)
-                all_results[data_type] = results
-                all_results["total_success"] += results["success"]
-                all_results["total_failed"] += results["failed"]
-                all_results["total_found"] += results["total"]
-                all_results["total_created"] += results.get("created", 0)
-                all_results["total_updated"] += results.get("updated", 0)
-                all_results["total_unchanged"] += results.get("unchanged", 0)
-            except Exception as e:
-                # If a publish method fails catastrophically, record the error
-                all_results[data_type] = {
-                    "total": 0,
-                    "success": 0,
-                    "failed": 1,
-                    "errors": [{"file": "N/A", "error": str(e)}],
-                }
-                all_results["total_failed"] += 1
-
-        return all_results
 
 
 # CLI commands for publishing
@@ -1081,12 +725,11 @@ console = Console()
 
 @app.callback(invoke_without_command=True)
 def publish_callback(
-    ctx: typer.Context,
     data_path: Path | None = typer.Option(
         None,
         "--data-path",
         "-d",
-        help="Path to data directory (default: current directory)",
+        help="Path to data directory or listing file (default: current directory)",
     ),
     dryrun: bool = typer.Option(
         False,
@@ -1095,15 +738,13 @@ def publish_callback(
     ),
 ):
     """
-    Publish data to backend.
+    Publish services to backend.
 
-    When called without a subcommand, publishes all data types in order:
-    providers → offerings → listings.
+    Finds all listing files (listing_v1 schema) in the directory tree, then for each
+    listing automatically discovers the associated offering (same directory) and
+    provider (parent directory), and publishes all three together to /seller/services.
 
-    Use subcommands to publish specific data types:
-    - providers: Publish only providers
-    - offerings: Publish only service offerings
-    - listings: Publish only service listings
+    When given a single listing file, publishes only that service.
 
     Note: Sellers are no longer published from local files. Create your seller
     account on the UnitySVC platform and use your seller API key for publishing.
@@ -1112,11 +753,6 @@ def publish_callback(
     - UNITYSVC_BASE_URL: Backend API URL
     - UNITYSVC_API_KEY: API key for authentication (seller API key)
     """
-    # If a subcommand was invoked, skip this callback logic
-    if ctx.invoked_subcommand is not None:
-        return
-
-    # No subcommand - publish all
     # Set data path
     if data_path is None:
         data_path = Path.cwd()
@@ -1128,381 +764,90 @@ def publish_callback(
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
 
-    console.print(f"[bold blue]Publishing all data from:[/bold blue] {data_path}")
+    # Handle single file vs directory
+    is_single_file = data_path.is_file()
+
+    if is_single_file:
+        console.print(f"[bold blue]Publishing service from:[/bold blue] {data_path}")
+    else:
+        console.print(f"[bold blue]Publishing services from:[/bold blue] {data_path}")
     console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
 
-    async def _publish_all_async():
+    async def _publish_async():
         async with ServiceDataPublisher() as publisher:
-            return await publisher.publish_all_models(data_path, dryrun=dryrun)
+            if is_single_file:
+                # Publish single service from listing file
+                result = await publisher.post_service_async(data_path, dryrun=dryrun)
+                return result, True
+            else:
+                # Publish all services from directory
+                results = await publisher.publish_all_services(data_path, dryrun=dryrun)
+                return results, False
 
     try:
-        all_results = asyncio.run(_publish_all_async())
-
-        # Create summary table
-        console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
-
-        table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-        table.add_column("Type", style="cyan", no_wrap=True)
-        table.add_column("Found", justify="right")
-        table.add_column("Success", justify="right", style="green")
-        table.add_column("Failed", justify="right", style="red")
-        table.add_column("Created", justify="right", style="green")
-        table.add_column("Updated", justify="right", style="blue")
-        table.add_column("Unchanged", justify="right", style="dim")
-
-        data_type_display_names = {
-            "providers": "Providers",
-            "offerings": "Offerings",
-            "listings": "Listings",
-        }
-
-        # Add rows for each data type
-        for data_type in ["providers", "offerings", "listings"]:
-            display_name = data_type_display_names[data_type]
-            results = all_results[data_type]
-
-            table.add_row(
-                display_name,
-                str(results["total"]),
-                str(results["success"]),
-                str(results["failed"]) if results["failed"] > 0 else "",
-                str(results.get("created", 0)) if results.get("created", 0) > 0 else "",
-                str(results.get("updated", 0)) if results.get("updated", 0) > 0 else "",
-                str(results.get("unchanged", 0)) if results.get("unchanged", 0) > 0 else "",
-            )
-
-        # Add separator and total row
-        table.add_section()
-        table.add_row(
-            "[bold]Total[/bold]",
-            f"[bold]{all_results['total_found']}[/bold]",
-            f"[bold green]{all_results['total_success']}[/bold green]",
-            f"[bold red]{all_results['total_failed']}[/bold red]" if all_results["total_failed"] > 0 else "",
-            f"[bold green]{all_results['total_created']}[/bold green]" if all_results["total_created"] > 0 else "",
-            f"[bold blue]{all_results['total_updated']}[/bold blue]" if all_results["total_updated"] > 0 else "",
-            f"[bold]{all_results['total_unchanged']}[/bold]" if all_results["total_unchanged"] > 0 else "",
-        )
-
-        console.print(table)
-
-        # Display errors if any
-        has_errors = False
-        for data_type in ["providers", "offerings", "listings"]:
-            display_name = data_type_display_names[data_type]
-            results = all_results[data_type]
-
-            if results.get("errors"):
-                if not has_errors:
-                    console.print("\n[bold red]Errors:[/bold red]")
-                    has_errors = True
-
-                console.print(f"\n  [bold red]{display_name}:[/bold red]")
-                for error in results["errors"]:
-                    # Check if this is a skipped item
-                    if isinstance(error, dict) and error.get("error", "").startswith("skipped"):
-                        continue
-                    console.print(f"    [red]✗[/red] {error.get('file', 'unknown')}")
-                    console.print(f"      {error.get('error', 'unknown error')}")
-
-        if all_results["total_failed"] > 0:
-            console.print(
-                f"\n[yellow]⚠[/yellow]  Completed with {all_results['total_failed']} failure(s)",
-                style="bold yellow",
-            )
-            raise typer.Exit(code=1)
-        else:
-            if dryrun:
-                console.print(
-                    "\n[green]✓[/green] Dry run completed successfully - no changes made!",
-                    style="bold green",
-                )
-            else:
-                console.print(
-                    "\n[green]✓[/green] All data published successfully!",
-                    style="bold green",
-                )
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish all data: {e}", style="bold red")
-        raise typer.Exit(code=1)
-
-
-@app.command("providers")
-def publish_providers(
-    data_path: Path | None = typer.Option(
-        None,
-        "--data-path",
-        "-d",
-        help="Path to provider file or directory (default: current directory)",
-    ),
-    dryrun: bool = typer.Option(
-        False,
-        "--dryrun",
-        help="Run in dry run mode (no actual changes)",
-    ),
-):
-    """Publish provider(s) from a file or directory."""
-
-    # Set data path
-    if data_path is None:
-        data_path = Path.cwd()
-
-    if not data_path.is_absolute():
-        data_path = Path.cwd() / data_path
-
-    if not data_path.exists():
-        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
-        raise typer.Exit(code=1)
-
-    # Handle single file
-    if data_path.is_file():
-        console.print(f"[blue]Publishing provider:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-    else:
-        console.print(f"[blue]Scanning for providers in:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-
-    async def _publish_providers_async():
-        async with ServiceDataPublisher() as publisher:
-            # Handle single file
-            if data_path.is_file():
-                return await publisher.post_provider_async(data_path, dryrun=dryrun), True
-            # Handle directory
-            else:
-                return await publisher.publish_all_providers(data_path, dryrun=dryrun), False
-
-    try:
-        result, is_single = asyncio.run(_publish_providers_async())
+        result, is_single = asyncio.run(_publish_async())
 
         if is_single:
-            console.print("[green]✓[/green] Provider published successfully!")
-            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
+            # Single file result
+            if result.get("skipped"):
+                console.print(f"[yellow]⊘[/yellow] Skipped: {result.get('reason', 'unknown')}")
+            else:
+                console.print("[green]✓[/green] Service published successfully!")
+                console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
         else:
-            # Display summary
+            # Directory results - create summary table
             console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
+
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Type", style="cyan")
+            table.add_column("Type", style="cyan", no_wrap=True)
             table.add_column("Found", justify="right")
-            table.add_column("Success", justify="right")
-            table.add_column("Failed", justify="right")
-            table.add_column("Created", justify="right")
-            table.add_column("Updated", justify="right")
-            table.add_column("Unchanged", justify="right")
+            table.add_column("Success", justify="right", style="green")
+            table.add_column("Skipped", justify="right", style="yellow")
+            table.add_column("Failed", justify="right", style="red")
+            table.add_column("Created", justify="right", style="green")
+            table.add_column("Updated", justify="right", style="blue")
+            table.add_column("Unchanged", justify="right", style="dim")
 
             table.add_row(
-                "Providers",
+                "Services",
                 str(result["total"]),
-                f"[green]{result['success']}[/green]",
-                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
-                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
-                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
-                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
+                str(result["success"]),
+                str(result.get("skipped", 0)) if result.get("skipped", 0) > 0 else "",
+                str(result["failed"]) if result["failed"] > 0 else "",
+                str(result.get("created", 0)) if result.get("created", 0) > 0 else "",
+                str(result.get("updated", 0)) if result.get("updated", 0) > 0 else "",
+                str(result.get("unchanged", 0)) if result.get("unchanged", 0) > 0 else "",
             )
 
             console.print(table)
 
             # Display errors if any
-            if result["errors"]:
+            if result.get("errors"):
                 console.print("\n[bold red]Errors:[/bold red]")
                 for error in result["errors"]:
-                    console.print(f"  [red]✗[/red] {error['file']}")
-                    console.print(f"    {error['error']}")
+                    console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
+                    console.print(f"    {error.get('error', 'unknown error')}")
 
             if result["failed"] > 0:
+                console.print(
+                    f"\n[yellow]⚠[/yellow]  Completed with {result['failed']} failure(s)",
+                    style="bold yellow",
+                )
                 raise typer.Exit(code=1)
             else:
                 if dryrun:
-                    console.print("\n[green]✓[/green] Dry run completed successfully - no changes made!")
+                    console.print(
+                        "\n[green]✓[/green] Dry run completed successfully - no changes made!",
+                        style="bold green",
+                    )
                 else:
-                    console.print("\n[green]✓[/green] All providers published successfully!")
+                    console.print(
+                        "\n[green]✓[/green] All services published successfully!",
+                        style="bold green",
+                    )
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish providers: {e}", style="bold red")
-        raise typer.Exit(code=1)
-
-
-@app.command("offerings")
-def publish_offerings(
-    data_path: Path | None = typer.Option(
-        None,
-        "--data-path",
-        "-d",
-        help="Path to service offering file or directory (default: current directory)",
-    ),
-    dryrun: bool = typer.Option(
-        False,
-        "--dryrun",
-        help="Run in dry run mode (no actual changes)",
-    ),
-):
-    """Publish service offering(s) from a file or directory."""
-    # Set data path
-    if data_path is None:
-        data_path = Path.cwd()
-
-    if not data_path.is_absolute():
-        data_path = Path.cwd() / data_path
-
-    if not data_path.exists():
-        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
-        raise typer.Exit(code=1)
-
-    # Handle single file
-    if data_path.is_file():
-        console.print(f"[blue]Publishing service offering:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-    else:
-        console.print(f"[blue]Scanning for service offerings in:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-
-    async def _publish_offerings_async():
-        async with ServiceDataPublisher() as publisher:
-            # Handle single file
-            if data_path.is_file():
-                return await publisher.post_service_offering_async(data_path, dryrun=dryrun), True
-            # Handle directory
-            else:
-                return await publisher.publish_all_offerings(data_path, dryrun=dryrun), False
-
-    try:
-        result, is_single = asyncio.run(_publish_offerings_async())
-
-        if is_single:
-            console.print("[green]✓[/green] Service offering published successfully!")
-            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
-        else:
-            console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
-            table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Type", style="cyan")
-            table.add_column("Found", justify="right")
-            table.add_column("Success", justify="right")
-            table.add_column("Failed", justify="right")
-            table.add_column("Created", justify="right")
-            table.add_column("Updated", justify="right")
-            table.add_column("Unchanged", justify="right")
-
-            table.add_row(
-                "Offerings",
-                str(result["total"]),
-                f"[green]{result['success']}[/green]",
-                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
-                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
-                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
-                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
-            )
-
-            console.print(table)
-
-            if result["errors"]:
-                console.print("\n[bold red]Errors:[/bold red]")
-                for error in result["errors"]:
-                    console.print(f"  [red]✗[/red] {error['file']}")
-                    console.print(f"    {error['error']}")
-                raise typer.Exit(code=1)
-            else:
-                if dryrun:
-                    console.print("\n[green]✓[/green] Dry run completed successfully - no changes made!")
-                else:
-                    console.print("\n[green]✓[/green] All service offerings published successfully!")
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish service offerings: {e}", style="bold red")
-        raise typer.Exit(code=1)
-
-
-@app.command("listings")
-def publish_listings(
-    data_path: Path | None = typer.Option(
-        None,
-        "--data-path",
-        "-d",
-        help="Path to service listing file or directory (default: current directory)",
-    ),
-    dryrun: bool = typer.Option(
-        False,
-        "--dryrun",
-        help="Run in dry run mode (no actual changes)",
-    ),
-):
-    """Publish service listing(s) from a file or directory."""
-
-    # Set data path
-    if data_path is None:
-        data_path = Path.cwd()
-
-    if not data_path.is_absolute():
-        data_path = Path.cwd() / data_path
-
-    if not data_path.exists():
-        console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
-        raise typer.Exit(code=1)
-
-    # Handle single file
-    if data_path.is_file():
-        console.print(f"[blue]Publishing service listing:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-    else:
-        console.print(f"[blue]Scanning for service listings in:[/blue] {data_path}")
-        console.print(f"[blue]Backend URL:[/blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
-
-    async def _publish_listings_async():
-        async with ServiceDataPublisher() as publisher:
-            # Handle single file
-            if data_path.is_file():
-                return await publisher.post_service_listing_async(data_path, dryrun=dryrun), True
-            # Handle directory
-            else:
-                return await publisher.publish_all_listings(data_path, dryrun=dryrun), False
-
-    try:
-        result, is_single = asyncio.run(_publish_listings_async())
-
-        if is_single:
-            console.print("[green]✓[/green] Service listing published successfully!")
-            console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
-        else:
-            console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
-            table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
-            table.add_column("Type", style="cyan")
-            table.add_column("Found", justify="right")
-            table.add_column("Success", justify="right")
-            table.add_column("Failed", justify="right")
-            table.add_column("Created", justify="right")
-            table.add_column("Updated", justify="right")
-            table.add_column("Unchanged", justify="right")
-
-            table.add_row(
-                "Listings",
-                str(result["total"]),
-                f"[green]{result['success']}[/green]",
-                f"[red]{result['failed']}[/red]" if result["failed"] > 0 else "",
-                f"[green]{result['created']}[/green]" if result["created"] > 0 else "",
-                f"[blue]{result['updated']}[/blue]" if result["updated"] > 0 else "",
-                f"[dim]{result['unchanged']}[/dim]" if result["unchanged"] > 0 else "",
-            )
-
-            console.print(table)
-
-            if result["errors"]:
-                console.print("\n[bold red]Errors:[/bold red]")
-                for error in result["errors"]:
-                    console.print(f"  [red]✗[/red] {error['file']}")
-                    console.print(f"    {error['error']}")
-                raise typer.Exit(code=1)
-            else:
-                if dryrun:
-                    console.print("\n[green]✓[/green] Dry run completed successfully - no changes made!")
-                else:
-                    console.print("\n[green]✓[/green] All service listings published successfully!")
-
-    except typer.Exit:
-        raise
-    except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish service listings: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to publish services: {e}", style="bold red")
         raise typer.Exit(code=1)
