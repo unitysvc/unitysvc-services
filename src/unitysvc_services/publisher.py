@@ -435,6 +435,11 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         offering_file, _format, offering_data = offering_files[0]
 
+        # Derive offering name from directory structure if not specified
+        # e.g., data/fireworks/services/qwen3-vl-235b-a22b-instruct/ -> qwen3-vl-235b-a22b-instruct
+        if "name" not in offering_data or not offering_data.get("name"):
+            offering_data["name"] = parts[services_idx + 1]
+
         # Set provider_name on offering_data (backend expects this)
         offering_data["provider_name"] = provider_name
 
