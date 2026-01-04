@@ -37,6 +37,29 @@ Before publishing services, you need a seller account on the UnitySVC platform:
 
 The seller API key is used for all publishing operations. The platform automatically associates your providers, offerings, and listings with your seller account.
 
+## Understanding the Service Data Model
+
+Before creating your first service, understand how UnitySVC structures service data:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SERVICE DATA                                   │
+├─────────────────────┬─────────────────────┬─────────────────────────────────┤
+│   Provider Data     │   Offering Data     │         Listing Data            │
+│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
+├─────────────────────┼─────────────────────┼─────────────────────────────────┤
+│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
+└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```
+
+These three parts are **organized separately** for reusability but **published together** as a unified service:
+
+| Component | Purpose | Reusability |
+|-----------|---------|-------------|
+| **Provider Data** | Identity, contact info, terms of service | One per provider, shared by all offerings |
+| **Offering Data** | Service definition, API endpoints, upstream pricing | One per service, can have multiple listings |
+| **Listing Data** | Customer-facing info, documentation, pricing | One per pricing tier or marketplace |
+
 ## Quick Start: Create Your First Service
 
 ### Step 1: Initialize Your Data Directory
@@ -52,7 +75,7 @@ This creates:
 ```
 data/
 └── my-provider/
-    ├── provider.toml
+    ├── provider.toml      # Provider Data
     └── services/
 ```
 
@@ -69,7 +92,7 @@ data/
 └── my-provider/
     └── services/
         └── my-first-service/
-            └── service.toml
+            └── service.toml   # Offering Data
 ```
 
 ### Step 3: Create a Service Listing
@@ -85,8 +108,8 @@ data/
 └── my-provider/
     └── services/
         └── my-first-service/
-            ├── service.toml
-            └── listing.toml
+            ├── service.toml   # Offering Data
+            └── listing.toml   # Listing Data
 ```
 
 ### Step 4: Edit Your Files
@@ -95,7 +118,7 @@ Open the generated files and fill in your service details:
 
 -   **provider.toml** - Provider information (name, display name, contact)
 -   **service.toml** - Service offering details (pricing, API endpoints)
--   **listing.toml** - User-facing service information
+-   **listing.toml** - User-facing service information (documentation, customer pricing)
 
 ### Step 5: Validate Your Data
 
@@ -122,7 +145,7 @@ export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="svcpass_your_seller_api_key"
 ```
 
-Publish your data (publishes all types in correct order: providers → offerings → listings):
+Publish your services:
 
 ```bash
 # From data directory
@@ -132,54 +155,52 @@ usvc publish
 # Or specify path
 usvc publish --data-path ./data
 
-# Or publish specific types
-usvc publish providers
-usvc publish offerings
-usvc publish listings
+# Or publish a single listing file
+usvc publish --data-path ./data/my-provider/services/my-service/listing.toml
 ```
 
-#### What Gets Published?
+#### How Publishing Works
 
-When you run `usvc publish`, you're submitting your service data to UnitySVC:
+The `usvc publish` command uses a **listing-centric** approach:
+
+1. Finds all listing files (`listing_v1` schema) in the directory
+2. For each listing, locates the offering file in the same directory
+3. Locates the provider file in the parent directory
+4. Publishes all three together to `/seller/services`
 
 ```mermaid
 flowchart TD
     subgraph Local["Your Local Data"]
-        A[Provider<br/>Who provides the service]
-        B[ServiceOffering<br/>What you offer TO UnitySVC]
-        C[ServiceListing<br/>What you offer TO Users]
+        A[Provider Data<br/>WHO provides]
+        B[Offering Data<br/>WHAT you offer]
+        C[Listing Data<br/>HOW it's sold]
+    end
+
+    subgraph Publish["usvc publish"]
+        D{Finds listings}
+        E[Bundles provider + offering + listing]
     end
 
     subgraph Platform["UnitySVC Platform"]
-        D{Reviews & Approves}
-        E[Service goes live]
-        F[Usage tracked per request]
-        G[Monthly payout generated]
+        F{Reviews & Approves}
+        G[Service goes live]
     end
 
-    A --> D
-    B --> D
     C --> D
-    D -->|Approved| E
+    D --> E
+    A --> E
+    B --> E
     E --> F
-    F --> G
+    F -->|Approved| G
 ```
 
-| Data Type           | Purpose                    | Key Fields                                        |
-| ------------------- | -------------------------- | ------------------------------------------------- |
-| **Provider**        | Who provides the service   | Provider name, contact info                       |
-| **ServiceOffering** | What you offer TO UnitySVC | API endpoints, seller pricing                     |
-| **ServiceListing**  | What you offer TO Users    | User-facing info, customer pricing, documentation |
+| Data Type | Purpose | Key Fields |
+|-----------|---------|------------|
+| **Provider Data** | Who provides the service | Provider name, contact info, terms |
+| **Offering Data** | What you offer to UnitySVC | API endpoints, upstream pricing |
+| **Listing Data** | What you offer to customers | Documentation, customer pricing |
 
-After UnitySVC reviews and approves your submission:
-
-1. **Service goes live** - Available to customers on the platform
-2. **Usage tracked** - Every API request is metered and logged
-3. **Monthly payouts** - You receive payouts based on usage × seller price
-
-See [Seller Lifecycle](seller-lifecycle.md) for details on invoicing, disputes, and payouts.
-
-### Step 9: Verify Your Published Data
+### Step 8: Verify Your Published Data
 
 ```bash
 # Query with default fields
@@ -197,7 +218,7 @@ usvc query offerings --format json
 
 ## Next Steps
 
--   **[Data Structure](data-structure.md)** - Learn about file organization and naming rules
+-   **[Data Structure](data-structure.md)** - Learn about the Service Data model and file organization
 -   **[Workflows](workflows.md)** - Explore manual and automated workflows
 -   **[CLI Reference](cli-reference.md)** - Browse all available commands
 
@@ -211,8 +232,6 @@ usvc list offerings
 usvc list listings
 ```
 
-Note: Sellers are managed on the UnitySVC platform, not in local files.
-
 ### Update Local Files
 
 ```bash
@@ -220,7 +239,7 @@ Note: Sellers are managed on the UnitySVC platform, not in local files.
 usvc update offering --name my-service --status ready
 
 # Update listing status
-usvc update listing --services my-service --status in_service
+usvc update listing --services my-service --status ready
 ```
 
 ### Automated Service Generation
@@ -244,9 +263,15 @@ See [Workflows](workflows.md#automated-workflow) for details.
 ### Publishing Errors
 
 -   Verify API credentials are set correctly
--   Use `usvc publish` (without subcommand) to publish all types in the correct order automatically
 -   Ensure backend URL is accessible
+-   Check that listing files have corresponding offering and provider files
 -   Check that you're running from the correct directory or using `--data-path`
+
+### "Provider not found" Errors
+
+This typically means:
+-   The provider file is missing or not in the expected location (parent of `services/`)
+-   The provider file has `status: draft` (draft providers are skipped)
 
 ### Format Issues
 

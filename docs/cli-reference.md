@@ -431,125 +431,135 @@ usvc query listings --limit 1000
 usvc query sellers --skip 50 --limit 50 --fields id,name,contact_email
 ```
 
-## publish - Publish to Backend
+## publish - Publish Services to Backend
 
-Publish local data files to UnitySVC backend.
+Publish services to UnitySVC backend. The publish command uses a **listing-centric** approach where each listing file triggers a unified publish of provider + offering + listing together.
 
-**Default Behavior:** When called without a subcommand, publishes all data types in the correct order: sellers → providers → offerings → listings.
+### How Publishing Works
+
+A **Service** in UnitySVC consists of three data components that are published together:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              SERVICE DATA                                   │
+├─────────────────────┬─────────────────────┬─────────────────────────────────┤
+│   Provider Data     │   Offering Data     │         Listing Data            │
+│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
+├─────────────────────┼─────────────────────┼─────────────────────────────────┤
+│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
+└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```
+
+When you run `usvc publish`:
+
+1. **Finds** all listing files (`listing_v1` schema) in the directory tree
+2. For each listing, **locates** the offering file (`offering_v1`) in the same directory
+3. **Locates** the provider file (`provider_v1`) in the parent directory
+4. **Publishes** all three together to the `/seller/services` endpoint
+
+This ensures atomic publishing - all three components are validated and published as a single unit.
 
 **Usage:**
 
 ```bash
-# Publish all data types (default)
 unitysvc_services publish [OPTIONS]
-
-# Or publish specific data types
-unitysvc_services publish COMMAND [OPTIONS]
 ```
 
-**Common Options:**
+**Options:**
 
--   `--data-path, -d PATH` - Data directory path (default: current directory)
+-   `--data-path, -d PATH` - Data directory or single listing file (default: current directory)
 -   `--dryrun` - Preview what would be created/updated without making actual changes
 
 **Required Environment Variables:**
 
 -   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication
+-   `UNITYSVC_API_KEY` - API key for authentication (seller API key)
 
 **Examples:**
 
 ```bash
-# Publish all data from current directory
+# Publish all services from current directory
 usvc publish
 
-# Publish all data from custom directory
+# Publish all services from custom directory
 usvc publish --data-path ./data
 
-# Publish only providers
-usvc publish providers
+# Publish a single service (specific listing file)
+usvc publish --data-path ./data/my-provider/services/my-service/listing.json
 
 # Preview changes before publishing (dryrun mode)
 usvc publish --dryrun
-
-# Preview specific type
-usvc publish providers --dryrun
 ```
 
 **Dryrun Mode:**
 
 The `--dryrun` option allows you to preview what would happen during publish without making actual changes to the backend. This is useful for:
 
--   Verifying which entities would be created vs updated
--   Checking that all dependencies exist before publishing
+-   Verifying which services would be created vs updated
+-   Checking that all required files exist (provider, offering, listing)
 -   Confirming changes before committing them
 
 In dryrun mode:
 
 -   No actual data is sent to the backend
--   Backend returns what action would be taken (create/update)
--   Missing dependencies are reported but don't cause errors
+-   Backend returns what action would be taken (create/update/unchanged)
+-   Missing files are reported as errors
 -   Summary shows what would happen if published
 
-**Dryrun Output Format:**
+**Output Format:**
 
-Dryrun mode displays a summary table showing what actions would be taken:
+Publishing displays progress for each service and a summary table:
 
 ```bash
-$ usvc publish --dryrun
+$ usvc publish
+Publishing services from: /path/to/data
+Backend URL: https://api.unitysvc.com/api/v1
 
-Publishing Sellers...
-╭──────────┬─────────┬─────────┬────────╮
-│ Type     │ Created │ Updated │ Failed │
-├──────────┼─────────┼─────────┼────────┤
-│ Sellers  │ 1       │ 0       │        │
-╰──────────┴─────────┴─────────┴────────╯
+  + Created service: listing-premium (offering: gpt-4, provider: openai)
+  ~ Updated service: listing-basic (offering: gpt-4, provider: openai)
+  = Unchanged service: listing-default (offering: claude-3, provider: anthropic)
 
-Publishing Providers...
-╭───────────┬─────────┬─────────┬────────╮
-│ Type      │ Created │ Updated │ Failed │
-├───────────┼─────────┼─────────┼────────┤
-│ Providers │ 2       │ 0       │        │
-╰───────────┴─────────┴─────────┴────────╯
+Publishing Summary
+╭──────────┬───────┬─────────┬─────────┬────────┬─────────┬─────────┬───────────╮
+│ Type     │ Found │ Success │ Skipped │ Failed │ Created │ Updated │ Unchanged │
+├──────────┼───────┼─────────┼─────────┼────────┼─────────┼─────────┼───────────┤
+│ Services │ 3     │ 3       │         │        │ 1       │ 1       │ 1         │
+╰──────────┴───────┴─────────┴─────────┴────────┴─────────┴─────────┴───────────╯
 
-Publishing Offerings...
-╭───────────┬─────────┬─────────┬────────╮
-│ Type      │ Created │ Updated │ Failed │
-├───────────┼─────────┼─────────┼────────┤
-│ Offerings │ 5       │ 3       │        │
-╰───────────┴─────────┴─────────┴────────╯
-
-Publishing Listings...
-╭──────────┬─────────┬─────────┬────────╮
-│ Type     │ Created │ Updated │ Failed │
-├──────────┼─────────┼─────────┼────────┤
-│ Listings │ 8       │ 0       │        │
-╰──────────┴─────────┴─────────┴────────╯
-
-Summary
-╭───────────┬─────────┬─────────┬────────╮
-│ Type      │ Created │ Updated │ Failed │
-├───────────┼─────────┼─────────┼────────┤
-│ Sellers   │ 1       │ 0       │        │
-│ Providers │ 2       │ 0       │        │
-│ Offerings │ 5       │ 3       │        │
-│ Listings  │ 8       │ 0       │        │
-╰───────────┴─────────┴─────────┴────────╯
+✓ All services published successfully!
 ```
 
-Notes:
+**Status Indicators:**
 
--   Created: Entities that would be created (don't exist on backend)
--   Updated: Entities that would be updated (exist but have changes)
--   Failed: Entities that encountered errors (shown in red if > 0, blank if 0)
--   Blank cells indicate zero count for easier reading
+| Symbol | Status | Meaning |
+|--------|--------|---------|
+| `+` | Created | New service published for the first time |
+| `~` | Updated | Existing service updated with changes |
+| `=` | Unchanged | Service already exists and is identical |
+| `⊘` | Skipped | Service has draft status, not published |
+| `✗` | Failed | Error during publishing |
 
-**Publishing Order (when publishing all):**
+**Skipped Services:**
 
-1. Sellers - Must exist before listings
-2. Providers - Must exist before offerings
-3. Service Offerings - Must exist before listings
-4. Service Listings - Depends on sellers, providers, and offerings
+Services are skipped (not published) when:
+
+-   Provider has `status: draft` - still being configured
+-   Listing has `status: draft` - still being configured
+
+This allows you to work on services locally without publishing incomplete data.
+
+**Error Handling:**
+
+If publishing fails for a service, the error is displayed and publishing continues with remaining services. Common errors:
+
+-   Missing offering file in the same directory as the listing
+-   Missing provider file in the parent directory
+-   Invalid data that fails schema validation
+-   Network/authentication errors
+
+**Idempotent Publishing:**
+
+Publishing is idempotent - running `usvc publish` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently
 
 ## unpublish - Unpublish from Backend
 
@@ -744,81 +754,6 @@ Shows deletion summary including counts of:
 -   Cascade deletions are permanent and cannot be undone
 -   Active subscriptions will block deletion unless `--force` is used
 -   Use `--yes` flag in automated scripts to skip interactive confirmation
-
-### publish providers
-
-Publish only providers (ignoring other types).
-
-```bash
-unitysvc_services publish providers [OPTIONS]
-```
-
-**Options:**
-
--   `--data-path, -d PATH` - File or directory path (default: current directory)
--   `--dryrun` - Preview what would be created/updated without making actual changes
-
-**Examples:**
-
-```bash
-# Publish all providers in current directory
-usvc publish providers
-
-# Publish specific file
-usvc publish providers --data-path ./data/my-provider/provider.json
-
-# Publish from custom directory
-usvc publish providers --data-path ./custom-data
-
-# Preview provider changes
-usvc publish providers --dryrun
-```
-
-### publish sellers
-
-Publish only sellers (ignoring other types).
-
-```bash
-unitysvc_services publish sellers [OPTIONS]
-```
-
-**Options:**
-
--   `--data-path, -d PATH` - File or directory path (default: current directory)
--   `--dryrun` - Preview what would be created/updated without making actual changes
-
-### publish offerings
-
-Publish only service offerings (ignoring other types).
-
-```bash
-unitysvc_services publish offerings [OPTIONS]
-```
-
-**Options:**
-
--   `--data-path, -d PATH` - File or directory path (default: current directory)
--   `--dryrun` - Preview what would be created/updated without making actual changes
-
-### publish listings
-
-Publish only service listings (ignoring other types).
-
-```bash
-unitysvc_services publish listings [OPTIONS]
-```
-
-**Options:**
-
--   `--data-path, -d PATH` - File or directory path (default: current directory)
--   `--dryrun` - Preview what would be created/updated without making actual changes
-
-**Publishing Order:**
-
-1. Providers (required first)
-2. Sellers (required before listings)
-3. Offerings (required before listings)
-4. Listings (last)
 
 ## update - Update Local Files
 
