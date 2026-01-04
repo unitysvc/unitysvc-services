@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .api import UnitySvcAPI
-from .utils import find_files_by_schema, load_data_file
+from .utils import find_files_by_schema, load_data_file, resolve_provider_name
 
 app = typer.Typer(help="Unpublish (delete) data from backend")
 console = Console()
@@ -204,7 +204,7 @@ def unpublish_offerings(
         data, _ = load_data_file(file_path)
         service_name = data.get("name", "Unknown")
         offering_id = data.get("id")
-        provider = data.get("provider_name", "Unknown")
+        provider = resolve_provider_name(file_path) or "Unknown"
 
         # Apply filters
         if services:

@@ -464,9 +464,8 @@ class DataValidator:
         """Validate data files in a directory for consistency.
 
         Validation rules:
-        1. All offering_v1 files in same directory must have unique names
-        2. All listing_v1 files must reference a service name that exists in the same directory
-        3. If service_name is defined in listing_v1, it must match a service in the directory
+        1. Each service directory must have exactly one offering_v1 file
+        2. Listings in the directory automatically belong to that single offering
 
         Args:
             directory: Directory containing data files to validate
@@ -480,8 +479,8 @@ class DataValidator:
             data_files.extend(directory.glob(pattern))
 
         # Load all files and categorize by schema
-        services: dict[str, Path] = {}  # name -> file_path
-        listings: list[tuple[Path, dict[str, Any]]] = []  # list of (file_path, data)
+        offerings: list[tuple[Path, dict[str, Any]]] = []  # list of (file_path, data)
+        listings: list[Path] = []  # list of listing file paths
 
         for file_path in data_files:
             try:
@@ -492,22 +491,10 @@ class DataValidator:
                 schema = data.get("schema")
 
                 if schema == "offering_v1":
-                    service_name = data.get("name")
-                    if not service_name:
-                        raise DataValidationError(f"Service file {file_path} missing 'name' field")
-
-                    # Check for duplicate service names in same directory
-                    if service_name in services:
-                        raise DataValidationError(
-                            f"Duplicate service name '{service_name}' found in directory {directory}:\n"
-                            f"  - {services[service_name]}\n"
-                            f"  - {file_path}"
-                        )
-
-                    services[service_name] = file_path
+                    offerings.append((file_path, data))
 
                 elif schema == "listing_v1":
-                    listings.append((file_path, data))
+                    listings.append(file_path)
 
             except Exception as e:
                 # Skip files that can't be loaded or don't have schema
@@ -515,33 +502,21 @@ class DataValidator:
                     raise
                 continue
 
-        # Validate listings reference valid services
-        for listing_file, listing_data in listings:
-            service_name = listing_data.get("service_name")
+        # Validate: each service directory must have exactly one offering
+        if len(offerings) > 1:
+            offering_files = [str(f) for f, _ in offerings]
+            raise DataValidationError(
+                f"Multiple offering_v1 files found in directory {directory}:\n"
+                f"  - " + "\n  - ".join(offering_files) + "\n"
+                f"Each service directory must have exactly one offering file."
+            )
 
-            if service_name:
-                # If service_name is explicitly defined, it must match a service in the directory
-                if service_name not in services:
-                    available_services = ", ".join(services.keys()) if services else "none"
-                    raise DataValidationError(
-                        f"Listing file {listing_file} references service_name '{service_name}' "
-                        f"which does not exist in the same directory.\n"
-                        f"Available services: {available_services}"
-                    )
-            else:
-                # If service_name not defined, there should be exactly one service in the directory
-                if len(services) == 0:
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"and no service files found in the same directory."
-                    )
-                elif len(services) > 1:
-                    available_services = ", ".join(services.keys())
-                    raise DataValidationError(
-                        f"Listing file {listing_file} does not specify 'service_name' "
-                        f"but multiple services exist in the same directory: {available_services}. "
-                        f"Please add 'service_name' field to the listing to specify which service it belongs to."
-                    )
+        # Validate: listings require an offering in the same directory
+        if listings and len(offerings) == 0:
+            raise DataValidationError(
+                f"Listing files found in {directory} but no offering_v1 file exists. "
+                f"Each service directory must have exactly one offering file."
+            )
 
     def validate_all_service_directories(self, data_dir: Path) -> list[str]:
         """
@@ -597,9 +572,8 @@ def validate(
     Validate data consistency in service and listing files.
 
     Checks:
-    1. Service names are unique within each directory
-    2. Listing files reference valid service names
-    3. Multiple services in a directory require explicit service_name in listings
+    1. Each service directory has exactly one offering_v1 file
+    2. Listing files exist in directories with a valid offering file
     """
     # Determine data directory
     if data_dir is None:

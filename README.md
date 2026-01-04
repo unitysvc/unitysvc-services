@@ -7,16 +7,37 @@ Client library and CLI tools for sellers and providers of digital services to in
 
 **[Full Documentation](https://unitysvc-services.readthedocs.io)** | **[Getting Started](https://unitysvc-services.readthedocs.io/en/latest/getting-started/)** | **[CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/)**
 
-## Overview
+## Two Ways to Manage Service Data
 
-UnitySVC Services SDK enables digital service sellers and providers to manage their service offerings through a **local-first, version-controlled workflow**:
+UnitySVC provides two complementary approaches for managing your seller service data:
 
--   **Define** service data using schema-validated files (JSON/TOML)
--   **Manage** everything locally in git-controlled directories
--   **Validate** data against schemas
--   **Test** code examples using provider credentials
--   **Publish** to UnitySVC platform when ready
--   **Automate** with populate scripts for dynamic catalogs
+### 1. Web Interface (unitysvc.com)
+
+The [UnitySVC web platform](https://unitysvc.com) provides a user-friendly interface to:
+- Create, edit, and manage providers, offerings, and listings
+- Validate data with instant feedback
+- Preview how services appear to customers
+- Export data for use with the SDK
+
+**Best for**: Initial setup, visual editing, and teams preferring a graphical interface.
+
+### 2. SDK (this package)
+
+The SDK enables a **local-first, version-controlled workflow** with key advantages:
+
+- **Version Control** - Track all changes in git, review diffs, roll back mistakes
+- **Script-Based Generation** - Programmatically generate services from provider APIs
+- **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
+- **Offline Work** - Edit locally, validate without network, publish when ready
+- **Code Review** - Use pull requests to review service changes before publishing
+
+**Best for**: Large catalogs, dynamic services, automation, and teams with developer workflows.
+
+### Recommended Workflow
+
+1. **Start with the web interface** at [unitysvc.com](https://unitysvc.com) to create your initial service data
+2. **Export your data** to local files for version control
+3. **Use the SDK** for ongoing management, automation, and CI/CD integration
 
 ## Installation
 
@@ -32,20 +53,29 @@ Requires Python 3.11+
 
 A **Service** in UnitySVC consists of three complementary data components that are organized separately for reuse but **published together** as a single unit:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SERVICE DATA                                   │
-├─────────────────────┬─────────────────────┬─────────────────────────────────┤
-│   Provider Data     │   Offering Data     │         Listing Data            │
-│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
-├─────────────────────┼─────────────────────┼─────────────────────────────────┤
-│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
-│                     │                     │                                 │
-│ • Provider identity │ • Service metadata  │ • Customer-facing info          │
-│ • Contact info      │ • API endpoints     │ • Pricing for customers         │
-│ • Terms of service  │ • Upstream pricing  │ • Documentation                 │
-│ • Branding/logo     │ • Access interfaces │ • User access interfaces        │
-└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Service["SERVICE DATA (Published Together)"]
+        direction LR
+        subgraph Provider["Provider Data<br/>(provider_v1)"]
+            P1["WHO provides"]
+            P2["• Provider identity<br/>• Contact info<br/>• Terms of service<br/>• Branding/logo"]
+        end
+        subgraph Offering["Offering Data<br/>(offering_v1)"]
+            O1["WHAT is provided"]
+            O2["• Service metadata<br/>• API endpoints<br/>• Upstream pricing<br/>• Access interfaces"]
+        end
+        subgraph Listing["Listing Data<br/>(listing_v1)"]
+            L1["HOW it's sold"]
+            L2["• Customer-facing info<br/>• Pricing for customers<br/>• Documentation<br/>• User interfaces"]
+        end
+    end
+
+    Provider --> Offering --> Listing
+
+    style Provider fill:#e3f2fd
+    style Offering fill:#fff3e0
+    style Listing fill:#e8f5e9
 ```
 
 ### Why Three Parts?
@@ -62,28 +92,26 @@ This separation enables:
 ## Quick Example
 
 ```bash
-# Initialize provider and service (using short alias 'usvc')
-usvc init provider my-provider
-usvc init offering my-offering
-usvc init listing my-listing
+# 1. Export data from unitysvc.com or create files manually
+#    Place files in: data/{provider}/services/{service}/
 
-# Validate and format
+# 2. Validate and format your local data
 usvc validate
 usvc format
 
-# Test code examples with upstream credentials
+# 3. Test code examples with upstream credentials
 usvc test list --provider my-provider
 usvc test run --provider my-provider --services "my-*"
 
-# If you write a script to manage services
+# 4. For dynamic catalogs, use populate scripts
 usvc populate
 
-# Publish to platform (publishes provider + offering + listing together)
+# 5. Publish to platform (publishes provider + offering + listing together)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
 usvc publish
 
-# Query unitysvc backend to verify data
+# 6. Query backend to verify published data
 usvc query providers --fields id,name,contact_email
 ```
 
@@ -102,9 +130,11 @@ data/
 
 **Publishing is listing-centric**: When you run `usvc publish`, the SDK:
 1. Finds all listing files (`listing_v1` schema)
-2. For each listing, locates the offering file in the same directory
+2. For each listing, locates the **single** offering file in the same directory
 3. Locates the provider file in the parent directory
 4. Publishes all three together as a unified service
+
+**Key constraint**: Each service directory must have exactly **one** offering file. Listings automatically belong to this offering based on their file location—no explicit linking required.
 
 See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/latest/data-structure/) for complete details.
 
@@ -121,16 +151,22 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## Workflows
 
-### Manual Workflow (small catalogs)
+### Getting Started
 
 ```bash
-init → edit files → validate → test → format → publish → verify
+web interface (create data) → export → validate → publish
+```
+
+### Ongoing Management
+
+```bash
+edit files → validate → format → test → commit → publish
 ```
 
 ### Automated Workflow (large/dynamic catalogs)
 
 ```bash
-init → configure populate script → populate → validate → publish
+configure populate script → populate → validate → publish (via CI/CD)
 ```
 
 See [Workflows Documentation](https://unitysvc-services.readthedocs.io/en/latest/workflows/) for details.
@@ -139,7 +175,6 @@ See [Workflows Documentation](https://unitysvc-services.readthedocs.io/en/latest
 
 | Command     | Description                                      |
 | ----------- | ------------------------------------------------ |
-| `init`      | Initialize new data files from schemas           |
 | `list`      | List local data files                            |
 | `query`     | Query backend API for published data             |
 | `publish`   | Publish services to backend                      |

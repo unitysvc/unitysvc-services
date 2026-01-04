@@ -22,7 +22,6 @@ usvc [OPTIONS] COMMAND [ARGS]...
 
 | Command     | Description                                      |
 | ----------- | ------------------------------------------------ |
-| `init`      | Initialize new data files from schemas           |
 | `list`      | List data files in directory                     |
 | `query`     | Query backend API for data                       |
 | `publish`   | Publish data to backend                          |
@@ -33,246 +32,7 @@ usvc [OPTIONS] COMMAND [ARGS]...
 | `populate`  | Execute provider populate scripts                |
 | `test`      | Test code examples with upstream API credentials |
 
-## init - Initialize Data Files
-
-Create new data files through **interactive prompts** or by **copying from existing data**.
-
-All `init` commands support two modes:
-
-1. **Interactive Mode** (default): Prompts you step-by-step for field values with validation and smart defaults
-2. **Copy Mode**: Uses `--source` to copy structure from an existing directory
-
-### Key Features
-
-**Interactive Mode Features:**
-
--   ✅ **Auto-discovery**: Automatically detects seller and service names from existing files
--   ✅ **Validation**: Email format, URI validation, integer checks, and more
--   ✅ **Smart defaults**: Computed defaults based on previous inputs or filesystem discovery
--   ✅ **Skip optional fields**: Press Enter to skip any optional field
--   ✅ **Complex objects**: Add documents and pricing information interactively
--   ✅ **File validation**: Checks document file paths exist before saving
--   ✅ **Cancellation**: Press Ctrl+C to cancel at any time
-
-### init seller
-
-Create a new seller file interactively or copy from existing.
-
-```bash
-usvc init seller <name> [OPTIONS]
-```
-
-**Arguments:**
-
--   `<name>` - Seller identifier (URL-friendly name)
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: json)
--   `--source PATH` - Copy from existing seller directory (skips interactive prompts)
--   `--output-dir PATH` - Output directory (default: ./data)
-
-**Interactive Mode** prompts for:
-
--   **Basic Information**: seller type (individual/organization/partnership/corporation), display name, description
--   **Contact Information**: primary email, secondary email, homepage URL
--   **Additional Details**: business registration, tax ID, account manager
--   **Status & Verification**: status (active/pending/disabled), KYC verification
-
-**Examples:**
-
-```bash
-# Interactive mode - will prompt for all fields
-usvc init seller acme-corp
-
-# Interactive mode with JSON format
-usvc init seller acme-corp --format json
-
-# Copy from existing seller
-usvc init seller new-seller --source ./data/acme-corp
-```
-
-### init provider
-
-Create a new provider file interactively or copy from existing.
-
-```bash
-usvc init provider <name> [OPTIONS]
-```
-
-**Arguments:**
-
--   `<name>` - Provider identifier (e.g., 'openai', 'fireworks')
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: json)
--   `--source PATH` - Copy from existing provider directory
--   `--output-dir PATH` - Output directory (default: ./data)
-
-**Interactive Mode** prompts for:
-
--   **Basic Information**: display name, description
--   **Contact & Web**: contact email, secondary email, homepage URL
--   **Provider Access**: API endpoint, API key, access method (http/websocket/grpc)
--   **Status**: provider status
--   **Service Population** (optional): Command to auto-generate service offerings via `usvc populate`
-
-**Examples:**
-
-```bash
-# Interactive mode
-usvc init provider openai
-
-# Copy mode
-usvc init provider new-provider --source ./data/openai
-```
-
-**Auto-Population Feature:**
-
-If you enable the services populator, you can create a script that automatically generates service offerings:
-
-```bash
-# During init, answer "yes" to "Enable automated service population?"
-# Provide command: python scripts/populate_openai.py
-
-# Later, run populate to generate services
-usvc populate
-```
-
-### init offering
-
-Create a new service offering file interactively or copy from existing.
-
-```bash
-usvc init offering <name> [OPTIONS]
-```
-
-**Arguments:**
-
--   `<name>` - Service name (e.g., 'gpt-4', 'llama-3-1-405b')
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: json)
--   `--source PATH` - Copy from existing offering directory
--   `--output-dir PATH` - Output directory (default: ./data)
-
-**Interactive Mode** prompts for:
-
--   **Basic Information**: service name, display name, version, description
--   **Classification**: service type (llm/embedding/vision/audio/image/video), upstream status
--   **Upstream Access Interface**: API endpoint, API key, documents (optional)
--   **Upstream Pricing** (optional): pricing type, currency, price structure
--   **Additional Information**: tagline
-
-**Pricing Types:**
-
--   `one_million_tokens` - Per million tokens (LLMs)
--   `one_second` - Per second of usage (audio/video)
--   `image` - Per image generated
--   `step` - Per step/iteration
--   `revenue_share` - Percentage of customer charge (seller only)
-
-**Pricing Structures:**
-
-When adding pricing, you can choose from three structures:
-
-1. **Simple**: `{"type": "one_million_tokens", "price": "10.00"}`
-2. **Input/Output** (for LLMs): `{"type": "one_million_tokens", "input": "5.00", "output": "15.00"}`
-3. **Custom JSON**: any structure with required "type" field
-
-**Examples:**
-
-```bash
-# Interactive mode - will create data/gpt-4/service.json
-usvc init offering gpt-4
-
-# Interactive with TOML format
-usvc init offering gpt-4 --format toml
-
-# Copy from existing offering
-usvc init offering gpt-4-turbo --source ./data/gpt-4
-```
-
-### init listing
-
-Create a new service listing file interactively or copy from existing.
-
-```bash
-usvc init listing <name> [OPTIONS]
-```
-
-**Arguments:**
-
--   `<name>` - Listing identifier
-
-**Options:**
-
--   `--format {json|toml}` - Output format (default: json)
--   `--source PATH` - Copy from existing listing directory
--   `--output-dir PATH` - Output directory (default: ./data)
-
-**Interactive Mode** prompts for:
-
--   **Basic Information**: service name (auto-detected), listing name, display name
--   **Seller Information**: seller name (auto-detected from seller.json)
--   **Status**: listing status (draft/ready/deprecated)
--   **Documents** (optional): Add multiple documents interactively
-
-**Auto-Discovery:**
-
-The listing workflow automatically discovers:
-
--   **seller_name**: Searches ./data, ./, ../data, ../ for seller.json/seller.toml
--   **service_name**: Searches ./, ../ for service.json/service.toml
-
-This means you don't need to manually type names - they're auto-filled!
-
-**Document Support:**
-
-When adding documents, you can specify:
-
--   **Required**: title, MIME type, category
--   **Optional**: description, file path (relative to listing dir), external URL, public flag
--   **Validation**: File existence checks, at least one of file_path or external_URL required
-
-**Examples:**
-
-```bash
-# Interactive mode from project root
-usvc init listing premium-gpt4
-# Auto-detects seller from ./data/seller.json
-
-# From inside service directory
-cd data/my-provider/gpt-4
-usvc init listing standard
-# Auto-detects service from ./service.json and seller from ../../data/seller.json
-
-# Copy mode
-usvc init listing new-listing --source ./data/old-listing
-```
-
-### Important Notes
-
-**The `init` command provides a starting point but does not handle all fields and validate all input values.**
-
-The interactive mode and copy mode are designed to:
-
--   Generate basic file structure according to the schema
--   Populate fields with reasonable default values
--   Validate common field formats (emails, URLs, etc.)
--   Ensure required fields are populated
-
-However, **users are expected to manually review and modify the generated spec files** to ensure:
-
--   Business logic correctness (pricing, terms, policies)
--   Accurate service descriptions and metadata
--   Proper document references and paths
--   Compliance with organizational standards
--   Semantic correctness beyond schema validation
-
-Always run `usvc validate` after manual modifications and before publishing to production.
+**Note:** To create initial service data, use the [UnitySVC web interface](https://unitysvc.com) which provides a visual editor with validation. You can export your data for use with this SDK.
 
 ## list - List Local Files
 
@@ -439,15 +199,26 @@ Publish services to UnitySVC backend. The publish command uses a **listing-centr
 
 A **Service** in UnitySVC consists of three data components that are published together:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SERVICE DATA                                   │
-├─────────────────────┬─────────────────────┬─────────────────────────────────┤
-│   Provider Data     │   Offering Data     │         Listing Data            │
-│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
-├─────────────────────┼─────────────────────┼─────────────────────────────────┤
-│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
-└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Service["SERVICE DATA (Published Together)"]
+        direction LR
+        subgraph Provider["Provider Data<br/>(provider_v1)"]
+            P["WHO provides"]
+        end
+        subgraph Offering["Offering Data<br/>(offering_v1)"]
+            O["WHAT is provided"]
+        end
+        subgraph Listing["Listing Data<br/>(listing_v1)"]
+            L["HOW it's sold"]
+        end
+    end
+
+    Provider --> Offering --> Listing
+
+    style Provider fill:#e3f2fd
+    style Offering fill:#fff3e0
+    style Listing fill:#e8f5e9
 ```
 
 When you run `usvc publish`:

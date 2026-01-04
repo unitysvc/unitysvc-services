@@ -2,26 +2,40 @@
 
 ## Overview
 
-The UnitySVC services data management follows a **local-first, version-controlled workflow**. All service data is created and maintained in a local directory (typically called `data/`) that is version-controlled with git.
+UnitySVC provides two ways to manage service data:
+
+1. **Web Interface** ([unitysvc.com](https://unitysvc.com)) - Create and edit data visually, then export for SDK use
+2. **SDK** (this tool) - Manage data locally with version control, automation, and CI/CD integration
+
+The SDK follows a **local-first, version-controlled workflow**. All service data is maintained in a local directory (typically called `data/`) that is version-controlled with git. Data can be created via the web interface and exported, or created manually following the schemas.
 
 ## The Service Data Model
 
 A **Service** in UnitySVC consists of three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SERVICE DATA                                   │
-├─────────────────────┬─────────────────────┬─────────────────────────────────┤
-│   Provider Data     │   Offering Data     │         Listing Data            │
-│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
-├─────────────────────┼─────────────────────┼─────────────────────────────────┤
-│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
-│                     │                     │                                 │
-│ • Provider identity │ • Service metadata  │ • Customer-facing info          │
-│ • Contact info      │ • API endpoints     │ • Pricing for customers         │
-│ • Terms of service  │ • Upstream pricing  │ • Documentation                 │
-│ • Branding/logo     │ • Access interfaces │ • User access interfaces        │
-└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Service["SERVICE DATA (Published Together)"]
+        direction LR
+        subgraph Provider["Provider Data<br/>(provider_v1)"]
+            P1["WHO provides"]
+            P2["• Provider identity<br/>• Contact info<br/>• Terms of service<br/>• Branding/logo"]
+        end
+        subgraph Offering["Offering Data<br/>(offering_v1)"]
+            O1["WHAT is provided"]
+            O2["• Service metadata<br/>• API endpoints<br/>• Upstream pricing<br/>• Access interfaces"]
+        end
+        subgraph Listing["Listing Data<br/>(listing_v1)"]
+            L1["HOW it's sold"]
+            L2["• Customer-facing info<br/>• Pricing for customers<br/>• Documentation<br/>• User interfaces"]
+        end
+    end
+
+    Provider --> Offering --> Listing
+
+    style Provider fill:#e3f2fd
+    style Offering fill:#fff3e0
+    style Listing fill:#e8f5e9
 ```
 
 ### Component Details
@@ -48,9 +62,14 @@ This separation enables:
 When you run `usvc publish`, the SDK uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory tree
-2. For each listing, locates the offering file (`offering_v1`) in the same directory
+2. For each listing, locates the **single** offering file (`offering_v1`) in the same directory
 3. Locates the provider file (`provider_v1`) in the parent directory
 4. Publishes all three together as a unified service to `/seller/services`
+
+**Relationship by Location**: The relationship between providers, offerings, and listings is determined entirely by file location:
+- A listing belongs to the offering in the same directory
+- An offering belongs to the provider in the parent directory
+- No explicit linking fields (like `service_name` or `provider_name`) are needed in the data files
 
 ```mermaid
 graph TD
@@ -111,9 +130,11 @@ data/
 
 -   **service.json** or **service.toml**: Service offering metadata (required)
 -   Schema must be `"offering_v1"`
+-   **Exactly one** offering file per service directory
 -   Contains upstream service details, pricing, access interfaces
 -   Defines what the provider offers
 -   Location: `${provider_name}/services/${service_name}/service.json`
+-   The offering automatically belongs to the provider in the parent directory
 
 ### 5. Listing Files (Listing Data)
 
@@ -124,6 +145,7 @@ data/
 -   Contains user-facing information, downstream pricing, documentation
 -   Defines how the seller presents/sells the service
 -   Location: `${provider_name}/services/${service_name}/listing-*.json`
+-   Automatically belongs to the single offering in the same directory
 
 #### Multiple Listings Per Service
 
@@ -322,12 +344,11 @@ Each file must include a `schema` field identifying its type:
 
 The validator enforces these structure rules:
 
-1. **Service name uniqueness**: Service names must be unique within each provider's `services/` directory
-2. **Listing references**: Each listing file must be in the same directory as a valid offering file
-3. **Single offering convenience**: If a service directory contains only one offering file, listing files can omit the `service_name` field (it will be inferred)
-4. **Multiple offerings requirement**: If a service directory contains multiple offerings, listing files **must** explicitly specify `service_name`
-5. **Provider name matching**: Provider directory name must match the normalized `name` field in provider file
-6. **Service name matching**: Service directory name must match the normalized `name` field in offering file
+1. **Single offering per directory**: Each service directory must have exactly **one** offering file (`offering_v1` schema)
+2. **Listing location**: Each listing file must be in the same directory as a valid offering file
+3. **Provider name matching**: Provider directory name must match the normalized `name` field in provider file
+4. **Service name matching**: Service directory name must match the normalized `name` field in offering file
+5. **Relationship by location**: Listings automatically belong to the offering in their directory—no explicit `service_name` or `provider_name` fields needed
 
 ## Shared Documentation Pattern
 

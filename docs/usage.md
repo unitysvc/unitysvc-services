@@ -162,7 +162,7 @@ usvc query providers
 usvc query offerings
 
 # List all listings with specific fields
-usvc query listings --fields id,name,service_name,status
+usvc query listings --fields id,name,display_name,status
 
 # Output as JSON
 usvc query listings --format json

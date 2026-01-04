@@ -6,15 +6,26 @@ This guide explains the different workflows for managing service data with the U
 
 ## Overview
 
-The SDK supports two primary workflows:
+UnitySVC provides two ways to create and manage service data:
 
-1. **Manual Workflow** - For small catalogs or one-time setup
-2. **Automated Workflow** - For large or dynamic catalogs
+1. **Web Interface** ([unitysvc.com](https://unitysvc.com)) - Create and edit data visually
+2. **SDK** (this tool) - Manage data locally with version control and automation
+
+The SDK supports these workflows:
+
+1. **Web-to-SDK Workflow** - Start with web interface, export to SDK for version control
+2. **Manual Workflow** - Create/edit files locally for small catalogs
+3. **Automated Workflow** - Script-based generation for large or dynamic catalogs
 
 ```mermaid
 flowchart TB
-    subgraph Manual["Manual Workflow"]
-        A1[usvc init] --> A2[Edit Files]
+    subgraph WebStart["Getting Started"]
+        W1[Web Interface] --> W2[Export Data]
+        W2 --> W3[Local Files]
+    end
+
+    subgraph Manual["Manual/Ongoing"]
+        W3 --> A2[Edit Files]
         A2 --> A3[usvc validate]
         A3 --> A4[usvc format]
         A4 --> A5[usvc publish]
@@ -34,38 +45,77 @@ flowchart TB
     end
 ```
 
-## Manual Workflow
+## Web-to-SDK Workflow
 
-Best for providers with:
-
--   Small number of services (< 20)
--   Infrequently changing catalogs
--   One-time service setup
+**Recommended for getting started.** Use the web interface for initial setup, then transition to SDK for version control.
 
 ### Step-by-Step Process
 
-#### 1. Initialize Data Structure
+#### 1. Create Data via Web Interface
 
-```bash
-# Create provider
-usvc init provider my-provider
+1. Go to [unitysvc.com](https://unitysvc.com) and sign in
+2. Create your Provider, Offerings, and Listings using the visual editor
+3. Export your data as JSON/TOML files
 
-# Create seller
-usvc init seller my-marketplace
+#### 2. Set Up Local Directory
 
-# Create service offering
-usvc init offering my-service
+Place exported files in the expected structure:
 
-# Create service listing
-usvc init listing my-listing
+```
+data/
+└── my-provider/
+    ├── provider.json
+    └── services/
+        └── my-service/
+            ├── service.json
+            └── listing.json
 ```
 
-#### 2. Edit Generated Files
+#### 3. Validate and Publish
 
-Open files in `./data/` and fill in your service details:
+```bash
+usvc validate
+usvc format
+usvc publish
+```
+
+#### 4. Ongoing Management
+
+After initial setup, manage changes locally:
+- Edit files directly
+- Use `usvc validate` to check changes
+- Commit to git for version control
+- Use CI/CD for automated publishing
+
+## Manual Workflow
+
+Best for:
+
+-   Small number of services (< 20)
+-   Teams comfortable editing JSON/TOML directly
+-   Situations where web interface isn't preferred
+
+### Step-by-Step Process
+
+#### 1. Create Files Manually
+
+Create files following the [File Schemas](file-schemas.md) documentation:
+
+```
+data/
+└── my-provider/
+    ├── provider.json          # See provider_v1 schema
+    └── services/
+        └── my-service/
+            ├── service.json   # See offering_v1 schema
+            └── listing.json   # See listing_v1 schema
+```
+
+#### 2. Edit Your Files
+
+Fill in your service details:
 
 -   Provider information (name, contact, metadata)
--   Seller business information
 -   Service offering details (API endpoints, pricing, capabilities)
 -   Service listing details (user-facing info, documentation)
 
@@ -134,7 +184,7 @@ usvc query listings
 
 # Or query with custom fields for focused output
 usvc query providers --fields id,name,status
-usvc query listings --fields id,service_name,listing_type,status
+usvc query listings --fields id,name,listing_type,status
 ```
 
 ### Version Control Integration
@@ -168,15 +218,9 @@ Best for providers with:
 
 ### Step-by-Step Process
 
-#### 1. Initialize Provider with Populate Configuration
+#### 1. Create Provider with Populate Configuration
 
-```bash
-usvc init provider my-provider
-```
-
-#### 2. Configure services_populator
-
-Edit `data/my-provider/provider.toml`:
+Create `data/my-provider/provider.toml` (via web interface export or manually):
 
 ```toml
 name = "my-provider"
@@ -191,7 +235,7 @@ BASE_URL = "https://api.provider.com/v1"
 REGION = "us-east-1"
 ```
 
-#### 3. Create Populate Script
+#### 2. Create Populate Script
 
 Create `data/my-provider/populate_services.py`:
 
@@ -241,10 +285,10 @@ def create_service_files(service_data):
         f.write("\n")
 
     # Create listing.json
+    # Note: No service_name or provider_name needed - relationships determined by file location
     listing = {
         "schema": "listing_v1",
-        "seller_name": "svcreseller",
-        "listing_status": "upstream_ready",
+        "listing_status": "ready",
         # ... map other fields
     }
 
@@ -261,7 +305,7 @@ if __name__ == "__main__":
     print(f"Generated {len(services)} services")
 ```
 
-#### 4. Run Populate Command
+#### 3. Run Populate Command
 
 ```bash
 # Generate all services
@@ -274,14 +318,14 @@ usvc populate --provider my-provider
 usvc populate --dry-run
 ```
 
-#### 5. Validate and Format
+#### 4. Validate and Format
 
 ```bash
 usvc validate
 usvc format
 ```
 
-#### 6. Review Changes
+#### 5. Review Changes
 
 ```bash
 git diff
@@ -289,21 +333,21 @@ git add data/
 git commit -m "Update service catalog from API"
 ```
 
-#### 7. Publish
+#### 6. Publish
 
 ```bash
 cd data
 usvc publish
 ```
 
-#### 8. Verify
+#### 7. Verify
 
 ```bash
 # Query with default fields
 usvc query offerings
 
 # Or query with custom fields
-usvc query offerings --fields id,service_name,status
+usvc query offerings --fields id,name,status
 ```
 
 ### Automation with CI/CD
@@ -359,18 +403,18 @@ jobs:
 
 ## Hybrid Workflow
 
-Combine manual and automated approaches:
+Combine web interface and automated approaches:
 
 1. Use automated populate for most services
-2. Manually create special/custom services
+2. Use web interface or manual files for special/custom services
 3. Use update commands to adjust individual services
 
 ```bash
-# Generate bulk of services
+# Generate bulk of services from provider API
 usvc populate
 
-# Manually create premium service
-usvc init offering premium-service
+# Create premium service via web interface and export, or create files manually
+# Place in: data/my-provider/services/premium-service/
 
 # Update specific service
 usvc update offering --name premium-service --status ready

@@ -85,13 +85,14 @@ Documents are added to listings through the `user_access_interfaces` field in yo
 
 ### Basic Document Structure
 
+Documents are defined in your listing files. The listing automatically belongs to the offering in the same directory.
+
 **Example: `listing.json`**
 
 ```json
 {
     "schema": "listing_v1",
-    "service_name": "gpt-4",
-    "listing_type": "svcreseller",
+    "name": "listing-default",
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
@@ -171,11 +172,11 @@ Templates have access to four main data structures:
 Full access to the listing data structure:
 
 ```jinja2
-{{ listing.service_name }}              # Service name
-{{ listing.listing_type }}              # e.g., "svcreseller", "byop"
-{{ listing.seller_name }}               # Seller name
-{{ listing.status }}                    # Listing status
+{{ listing.name }}                      # Listing identifier
+{{ listing.display_name }}              # Customer-facing name
+{{ listing.listing_status }}            # Listing status (draft, ready, deprecated)
 {{ listing.user_access_interfaces }}    # Array of interfaces
+{{ listing.list_price }}                # Customer-facing pricing
 ```
 
 ### 2. `offering` - Service Offering Data (Offering_v1)
@@ -183,11 +184,11 @@ Full access to the listing data structure:
 Service offering metadata from `service.json`:
 
 ```jinja2
-{{ offering.offering_id }}              # Offering ID
-{{ offering.provider_id }}              # Provider ID
+{{ offering.name }}                     # Service/offering name (use this for service name)
+{{ offering.display_name }}             # Human-readable service name
 {{ offering.service_type }}             # e.g., "llm", "embedding"
-{{ offering.name }}                     # Model/service name
-{{ offering.service_info }}             # Service information
+{{ offering.description }}              # Service description
+{{ offering.details }}                  # Technical details
 {{ interface.signature.model }}         # model of a LLM request
 ```
 
@@ -196,19 +197,20 @@ Service offering metadata from `service.json`:
 Provider metadata from `provider.toml` or `provider.json`:
 
 ```jinja2
-{{ provider.provider_id }}              # Provider ID
-{{ provider.provider_name }}            # Provider name
+{{ provider.name }}                     # Provider name (use this for provider name)
+{{ provider.display_name }}             # Human-readable provider name
+{{ provider.contact_email }}            # Contact email
 {{ provider.provider_access_info }}     # Access information
 {{ provider.provider_access_info.base_url }}  # API endpoint URL
 ```
 
 ### 4. `seller` - Seller Data (Seller_v1)
 
-Seller metadata from `seller.json`:
+Seller metadata from `seller.json` (seller is derived from API key during publishing):
 
 ```jinja2
-{{ seller.seller_id }}                  # Seller ID
-{{ seller.seller_name }}                # Seller name
+{{ seller.name }}                       # Seller name
+{{ seller.display_name }}               # Human-readable seller name
 {{ seller.contact_email }}              # Contact email
 ```
 
@@ -267,12 +269,12 @@ GPT-4 is a large multimodal model that can solve complex problems with greater a
 ```markdown
 # {{ offering.name }} Overview
 
-{{ offering.name }} is available through {{ provider.provider_name }} on the {{ seller.seller_name }} platform.
+{{ offering.name }} is available through {{ provider.name }} on the {{ seller.name }} platform.
 
 ## Service Details
 
--   **Service Name**: {{ listing.service_name }}
--   **Provider**: {{ provider.provider_name }}
+-   **Service Name**: {{ offering.name }}
+-   **Provider**: {{ provider.name }}
 -   **Type**: {{ offering.service_type }}
 -   **Listing Type**: {{ listing.listing_type }}
 
@@ -307,13 +309,13 @@ For support inquiries, contact {{ seller.contact_email }}.
 **File: `quickstart.md.j2`**
 
 ````markdown
-# Quick Start: {{ listing.service_name }}
+# Quick Start: {{ offering.name }}
 
-This guide helps you get started with {{ listing.service_name }} from {{ provider.provider_name }}.
+This guide helps you get started with {{ offering.name }} from {{ provider.name }}.
 
 ## Prerequisites
 
--   API key from {{ provider.provider_name }}
+-   API key from {{ provider.name }}
 -   HTTP client library (curl, httpx, etc.)
 
 ## Basic Usage
@@ -607,7 +609,7 @@ Use `.j2` templates when content varies by service, provider, or listing:
 
 ```jinja2
 # Good: Uses template for dynamic content
-Service {{ offering.name }} from {{ provider.provider_name }}
+Service {{ offering.name }} from {{ provider.name }}
 
 # Bad: Static content that requires manual updates per service
 Service gpt-4 from OpenAI

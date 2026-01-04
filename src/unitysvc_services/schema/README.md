@@ -38,10 +38,9 @@ This directory contains **JSON schemas** automatically generated from Pydantic m
   - Upstream interfaces and pricing
 
 - **`listing_v1.json`** - Validates service listing marketplace data
-  - Service reference (service_name, service_version)
-  - Provider and seller information
   - User-facing pricing and access interfaces
   - Listing status and metadata
+  - Service/provider relationships determined by file location
 
 ## 🔧 Schema Generation
 

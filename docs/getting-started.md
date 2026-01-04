@@ -1,6 +1,30 @@
 # Getting Started
 
-This guide will help you get started with the UnitySVC Seller SDK.
+This guide will help you get started with managing your UnitySVC seller service data.
+
+## Two Ways to Manage Service Data
+
+UnitySVC provides two complementary approaches:
+
+### 1. Web Interface (Recommended for Getting Started)
+
+The [UnitySVC web platform](https://unitysvc.com) provides a user-friendly interface to:
+- Create, edit, and manage providers, offerings, and listings
+- Validate data with instant feedback
+- Preview how services appear to customers
+- Export data for use with the SDK
+
+### 2. SDK (This Package)
+
+The SDK enables a **local-first, version-controlled workflow** with key advantages:
+
+- **Version Control** - Track all changes in git, review diffs, roll back mistakes
+- **Script-Based Generation** - Programmatically generate services from provider APIs
+- **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
+- **Offline Work** - Edit locally, validate without network, publish when ready
+- **Code Review** - Use pull requests to review service changes before publishing
+
+**Recommended workflow**: Start with the web interface to create initial data, then use the SDK for ongoing management and automation.
 
 ## Installation
 
@@ -41,15 +65,26 @@ The seller API key is used for all publishing operations. The platform automatic
 
 Before creating your first service, understand how UnitySVC structures service data:
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              SERVICE DATA                                   │
-├─────────────────────┬─────────────────────┬─────────────────────────────────┤
-│   Provider Data     │   Offering Data     │         Listing Data            │
-│   (provider_v1)     │   (offering_v1)     │         (listing_v1)            │
-├─────────────────────┼─────────────────────┼─────────────────────────────────┤
-│ WHO provides        │ WHAT is provided    │ HOW it's sold to customers      │
-└─────────────────────┴─────────────────────┴─────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Service["SERVICE DATA (Published Together)"]
+        direction LR
+        subgraph Provider["Provider Data<br/>(provider_v1)"]
+            P["WHO provides"]
+        end
+        subgraph Offering["Offering Data<br/>(offering_v1)"]
+            O["WHAT is provided"]
+        end
+        subgraph Listing["Listing Data<br/>(listing_v1)"]
+            L["HOW it's sold"]
+        end
+    end
+
+    Provider --> Offering --> Listing
+
+    style Provider fill:#e3f2fd
+    style Offering fill:#fff3e0
+    style Listing fill:#e8f5e9
 ```
 
 These three parts are **organized separately** for reusability but **published together** as a unified service:
@@ -60,67 +95,33 @@ These three parts are **organized separately** for reusability but **published t
 | **Offering Data** | Service definition, API endpoints, upstream pricing | One per service, can have multiple listings |
 | **Listing Data** | Customer-facing info, documentation, pricing | One per pricing tier or marketplace |
 
-## Quick Start: Create Your First Service
+## Quick Start: Your First Service
 
-### Step 1: Initialize Your Data Directory
+### Step 1: Create Data via Web Interface
 
-Create a new provider:
+1. Go to [unitysvc.com](https://unitysvc.com) and sign in
+2. Create your **Provider** (your company/organization info)
+3. Create an **Offering** (the service you're providing)
+4. Create a **Listing** (how customers see and purchase your service)
+5. **Export** your data as JSON/TOML files
 
-```bash
-usvc init provider my-provider
-```
+### Step 2: Set Up Your Local Directory
 
-This creates:
-
-```
-data/
-└── my-provider/
-    ├── provider.toml      # Provider Data
-    └── services/
-```
-
-### Step 2: Create a Service Offering
-
-```bash
-usvc init offering my-first-service
-```
-
-This creates:
+Place the exported files in the expected directory structure:
 
 ```
 data/
 └── my-provider/
+    ├── provider.json          # Provider Data
     └── services/
-        └── my-first-service/
-            └── service.toml   # Offering Data
+        └── my-service/
+            ├── service.json   # Offering Data
+            └── listing.json   # Listing Data
 ```
 
-### Step 3: Create a Service Listing
+**Alternative**: You can also create files manually following the [File Schemas](file-schemas.md) documentation.
 
-```bash
-usvc init listing my-first-listing
-```
-
-This creates:
-
-```
-data/
-└── my-provider/
-    └── services/
-        └── my-first-service/
-            ├── service.toml   # Offering Data
-            └── listing.toml   # Listing Data
-```
-
-### Step 4: Edit Your Files
-
-Open the generated files and fill in your service details:
-
--   **provider.toml** - Provider information (name, display name, contact)
--   **service.toml** - Service offering details (pricing, API endpoints)
--   **listing.toml** - User-facing service information (documentation, customer pricing)
-
-### Step 5: Validate Your Data
+### Step 3: Validate Your Data
 
 ```bash
 usvc validate
@@ -128,7 +129,7 @@ usvc validate
 
 Fix any validation errors reported.
 
-### Step 6: Format Your Files
+### Step 4: Format Your Files
 
 ```bash
 usvc format
@@ -136,7 +137,7 @@ usvc format
 
 This ensures consistent formatting (2-space JSON indentation, proper line endings, etc.).
 
-### Step 7: Publish to UnitySVC Platform
+### Step 5: Publish to UnitySVC Platform
 
 Set your credentials using your **seller API key**:
 
@@ -200,7 +201,7 @@ flowchart TD
 | **Offering Data** | What you offer to UnitySVC | API endpoints, upstream pricing |
 | **Listing Data** | What you offer to customers | Documentation, customer pricing |
 
-### Step 8: Verify Your Published Data
+### Step 6: Verify Your Published Data
 
 ```bash
 # Query with default fields
@@ -210,7 +211,7 @@ usvc query listings
 
 # Query with custom fields - show only specific columns
 usvc query providers --fields id,name,contact_email
-usvc query listings --fields id,service_name,listing_type,status
+usvc query listings --fields id,name,listing_type,status
 
 # Query as JSON for programmatic use
 usvc query offerings --format json
