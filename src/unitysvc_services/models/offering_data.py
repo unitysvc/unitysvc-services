@@ -68,8 +68,8 @@ class ServiceOfferingData(BaseModel):
 
     # Status
     upstream_status: UpstreamStatusEnum = Field(
-        default=UpstreamStatusEnum.ready,
-        description="Status of the service from upstream service provider",
+        default=UpstreamStatusEnum.draft,
+        description="Offering status: draft (skip publish), ready (for review), or deprecated (retired)",
     )
 
     # Technical details

@@ -68,8 +68,8 @@ class ProviderData(BaseModel):
 
     # Status
     status: ProviderStatusEnum = Field(
-        default=ProviderStatusEnum.active,
-        description="Provider status: active, disabled, or draft (skip publish)",
+        default=ProviderStatusEnum.draft,
+        description="Provider status: draft (skip publish), ready (for review), or deprecated (retired)",
     )
 
     # Documents (as dicts for flexibility)
