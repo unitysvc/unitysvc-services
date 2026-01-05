@@ -16,8 +16,8 @@ import unitysvc_services
 
 from .api import UnitySvcAPI
 from .markdown import Attachment, process_markdown_content, upload_attachments
-from .models.base import ListingStatusEnum, ProviderStatusEnum
-from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file
+from .models.base import ListingStatusEnum, ProviderStatusEnum, UpstreamStatusEnum
+from .utils import convert_convenience_fields_to_documents, find_files_by_schema, load_data_file, render_template_file, write_override_file
 from .validator import DataValidator
 
 
@@ -437,11 +437,20 @@ class ServiceDataPublisher(UnitySvcAPI):
         provider_file, _format, provider_data = provider_files[0]
 
         # Check provider status - skip if draft
-        provider_status = provider_data.get("status", ProviderStatusEnum.active)
+        provider_status = provider_data.get("status", ProviderStatusEnum.draft)
         if provider_status == ProviderStatusEnum.draft:
             return {
                 "skipped": True,
                 "reason": f"Provider status is '{provider_status}' - not publishing to backend (still in draft)",
+                "name": listing_data.get("name", "unknown"),
+            }
+
+        # Check offering status - skip if draft
+        offering_status = offering_data.get("upstream_status", UpstreamStatusEnum.draft)
+        if offering_status == UpstreamStatusEnum.draft:
+            return {
+                "skipped": True,
+                "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
                 "name": listing_data.get("name", "unknown"),
             }
 
@@ -450,7 +459,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             listing_data["status"] = listing_data.pop("listing_status")
 
         # Check listing status - skip if draft
-        listing_status = listing_data.get("status", ListingStatusEnum.ready)
+        listing_status = listing_data.get("status", ListingStatusEnum.draft)
         if listing_status == ListingStatusEnum.draft:
             return {
                 "skipped": True,
@@ -529,6 +538,14 @@ class ServiceDataPublisher(UnitySvcAPI):
         result["listing_name"] = listing_name
         result["service_name"] = offering_data_resolved.get("name")
         result["provider_name"] = provider_name_str
+
+        # Save listing_id to override file for future updates (not in dryrun mode)
+        if not dryrun:
+            listing_result = result.get("listing", {})
+            listing_id = listing_result.get("id")
+            if listing_id:
+                override_path = write_override_file(listing_file, {"listing_id": listing_id})
+                result["override_file"] = str(override_path)
 
         return result
 
