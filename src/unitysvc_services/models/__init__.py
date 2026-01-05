@@ -11,7 +11,6 @@ from .base import (
     PricingTypeEnum,
     ProviderStatusEnum,
     RevenueSharePriceData,
-    SellerStatusEnum,
     SellerTypeEnum,
     ServiceTypeEnum,
     StepPriceData,
@@ -41,7 +40,6 @@ __all__ = [
     # Enums
     "ListingStatusEnum",
     "ProviderStatusEnum",
-    "SellerStatusEnum",
     "SellerTypeEnum",
     "ServiceTypeEnum",
     "UpstreamStatusEnum",

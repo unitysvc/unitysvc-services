@@ -258,6 +258,103 @@ def write_data_file(file_path: Path, data: dict[str, Any], format: str) -> None:
         raise ValueError(f"Unsupported format: {format}")
 
 
+def write_override_file(
+    base_file: Path,
+    override_data: dict[str, Any],
+    delete_if_empty: bool = False,
+) -> Path | None:
+    """
+    Write or update an override file for a data file.
+
+    Override files follow the pattern: <stem>.override.<suffix>
+    For example: listing.json -> listing.override.json
+
+    If the override file exists, the new data is deep-merged with existing data.
+    If it doesn't exist, a new file is created.
+
+    Args:
+        base_file: Path to the base data file (e.g., listing.json)
+        override_data: Data to write/merge into the override file
+        delete_if_empty: If True, delete the override file when data is empty
+
+    Returns:
+        Path to the override file, or None if deleted
+
+    Example:
+        >>> write_override_file(Path("listing.json"), {"listing_id": "abc-123"})
+        PosixPath('listing.override.json')
+    """
+    # Determine override file path
+    override_path = base_file.with_stem(f"{base_file.stem}.override")
+
+    # Determine format from base file extension
+    if base_file.suffix == ".json":
+        file_format = "json"
+    elif base_file.suffix == ".toml":
+        file_format = "toml"
+    else:
+        # Default to JSON for unknown formats
+        file_format = "json"
+        override_path = base_file.parent / f"{base_file.stem}.override.json"
+
+    # Load existing override data if file exists
+    if override_path.exists():
+        if file_format == "json":
+            with open(override_path, encoding="utf-8") as f:
+                existing_data = json.load(f)
+        else:
+            with open(override_path, "rb") as f:
+                existing_data = tomllib.load(f)
+
+        # Deep merge new data into existing
+        merged_data = deep_merge_dicts(existing_data, override_data)
+    else:
+        merged_data = override_data
+
+    # Handle empty data case
+    if delete_if_empty and not merged_data:
+        if override_path.exists():
+            override_path.unlink()
+        return None
+
+    # Write the override file
+    write_data_file(override_path, merged_data, file_format)
+
+    return override_path
+
+
+def read_override_file(base_file: Path) -> dict[str, Any]:
+    """
+    Read an override file for a data file if it exists.
+
+    Args:
+        base_file: Path to the base data file (e.g., listing.json)
+
+    Returns:
+        Override data dict, or empty dict if no override file exists
+    """
+    # Determine override file path
+    override_path = base_file.with_stem(f"{base_file.stem}.override")
+
+    if not override_path.exists():
+        return {}
+
+    # Determine format from base file extension
+    if base_file.suffix == ".json":
+        with open(override_path, encoding="utf-8") as f:
+            return json.load(f)
+    elif base_file.suffix == ".toml":
+        with open(override_path, "rb") as f:
+            return tomllib.load(f)
+    else:
+        # Try JSON first for unknown formats
+        try:
+            with open(override_path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {}
+
+
 @lru_cache(maxsize=128)
 def find_data_files(data_dir: Path, extensions: tuple[str, ...] | None = None) -> list[Path]:
     """

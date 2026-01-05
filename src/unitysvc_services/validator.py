@@ -394,8 +394,8 @@ class DataValidator:
                 provider_dir = provider_file.parent
                 provider_name = provider.name
 
-                # Check if provider is not active
-                if provider.status != ProviderStatusEnum.active:
+                # Check if provider is not ready
+                if provider.status != ProviderStatusEnum.ready:
                     # Find all services under this provider
                     services_dir = provider_dir / "services"
                     if services_dir.exists():

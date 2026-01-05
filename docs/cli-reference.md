@@ -305,12 +305,13 @@ Publishing Summary
 
 **Skipped Services:**
 
-Services are skipped (not published) when:
+Services are skipped (not published) when any of these conditions are true:
 
--   Provider has `status: draft` - still being configured
--   Listing has `status: draft` - still being configured
+-   Provider has `status: draft` - provider still being configured
+-   Offering has `upstream_status: draft` - offering still being configured
+-   Listing has `listing_status: draft` - listing still being configured
 
-This allows you to work on services locally without publishing incomplete data.
+This allows you to work on services locally without publishing incomplete data. Set status to `ready` when you're ready to publish.
 
 **Error Handling:**
 
@@ -323,7 +324,69 @@ If publishing fails for a service, the error is displayed and publishing continu
 
 **Idempotent Publishing:**
 
-Publishing is idempotent - running `usvc publish` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently
+Publishing is idempotent - running `usvc publish` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
+
+**Override Files and Listing ID Persistence:**
+
+After a successful publish, the SDK automatically saves the `listing_id` to an override file:
+
+```
+listing.json       →  listing.override.json
+listing.toml       →  listing.override.toml
+```
+
+Example override file content:
+```json
+{
+  "listing_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+On subsequent publishes, the `listing_id` is automatically loaded from the override file and included in the publish request, ensuring the existing listing is **updated** rather than creating a new one.
+
+**Publishing as New (Remove Existing Listing ID):**
+
+If you need to publish a service as a completely new listing (ignoring any existing `listing_id`), delete the override file before publishing:
+
+```bash
+# Remove override file to publish as new
+rm listing.override.json
+
+# Publish - will create a new listing
+usvc publish --data-path ./my-provider/services/my-service/listing.json
+```
+
+Use cases for publishing as new:
+- Accidentally deleted the listing from the backend and need to recreate it
+- Testing in a different environment
+- Backend data was reset
+
+**Cloning a Service:**
+
+To create a variant or copy of an existing service (e.g., different pricing tier, different region):
+
+```bash
+# 1. Copy the listing file with a new name
+cp listing.json listing-enterprise.json
+
+# 2. Edit the new file to change name/configuration
+#    - Change "name" field to a unique value (e.g., "enterprise")
+#    - Modify pricing, parameters, etc. as needed
+
+# 3. Publish the new listing (no override file exists, so creates new)
+usvc publish --data-path ./my-provider/services/my-service/listing-enterprise.json
+```
+
+**Important:** Each listing file should have a unique `name` field. The new listing will get its own `listing_id` saved to `listing-enterprise.override.json`.
+
+For multiple environment deployments, you can use different override files:
+```bash
+# Production override
+listing.override.json          # listing_id for production
+
+# Staging override (manually managed or gitignored)
+listing.staging.override.json  # listing_id for staging
+```
 
 ## unpublish - Unpublish from Backend
 

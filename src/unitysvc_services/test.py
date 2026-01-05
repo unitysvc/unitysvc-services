@@ -12,7 +12,13 @@ from rich.console import Console
 from rich.table import Table
 
 from .models.base import DocumentCategoryEnum, UpstreamStatusEnum
-from .utils import determine_interpreter, find_files_by_schema, render_template_file
+from .utils import (
+    determine_interpreter,
+    find_files_by_schema,
+    read_override_file,
+    render_template_file,
+    write_override_file,
+)
 
 app = typer.Typer(help="Test code examples with upstream credentials")
 console = Console()
@@ -316,8 +322,6 @@ def update_offering_override_status(listing_file: Path, status: UpstreamStatusEn
         listing_file: Path to the listing file (offering is in same directory)
         status: Status to set (e.g., UpstreamStatusEnum.deprecated), or None to remove status field
     """
-    import json
-
     try:
         # Find the offering file (offering.json) in the same directory
         offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
@@ -326,26 +330,10 @@ def update_offering_override_status(listing_file: Path, status: UpstreamStatusEn
             return
 
         # Get the base offering file path
-        offering_file_path, offering_format, _offering_data = offering_results[0]
+        offering_file_path, _offering_format, _offering_data = offering_results[0]
 
-        # Construct override file path
-        override_path = offering_file_path.with_stem(f"{offering_file_path.stem}.override")
-
-        # Load existing override file if it exists
-        if override_path.exists():
-            try:
-                with open(override_path, encoding="utf-8") as f:
-                    if offering_format == "json":
-                        override_data = json.load(f)
-                    else:  # toml
-                        import tomli
-
-                        override_data = tomli.loads(f.read())
-            except Exception as e:
-                console.print(f"[yellow]⚠ Failed to read override file {override_path}: {e}[/yellow]")
-                override_data = {}
-        else:
-            override_data = {}
+        # Load existing override data
+        override_data = read_override_file(offering_file_path)
 
         # Update or remove upstream_status field
         if status is None:
@@ -359,22 +347,11 @@ def update_offering_override_status(listing_file: Path, status: UpstreamStatusEn
             console.print(f"  [dim]→ Set upstream_status to {status.value} in override file[/dim]")
 
         # Write override file (or delete if empty)
-        if override_data:
-            # Write the override file
-            with open(override_path, "w", encoding="utf-8") as f:
-                if offering_format == "json":
-                    json.dump(override_data, f, indent=2)
-                    f.write("\n")  # Add trailing newline
-                else:  # toml
-                    import tomli_w
-
-                    f.write(tomli_w.dumps(override_data))
-            console.print(f"  [dim]→ Updated override file: {override_path}[/dim]")
-        else:
-            # Delete override file if it's now empty
-            if override_path.exists():
-                override_path.unlink()
-                console.print(f"  [dim]→ Removed empty override file: {override_path}[/dim]")
+        result = write_override_file(offering_file_path, override_data, delete_if_empty=True)
+        if result:
+            console.print(f"  [dim]→ Updated override file: {result}[/dim]")
+        elif override_data == {}:
+            console.print("  [dim]→ Removed empty override file[/dim]")
 
     except Exception as e:
         console.print(f"[yellow]⚠ Failed to update override file: {e}[/yellow]")

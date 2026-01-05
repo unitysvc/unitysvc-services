@@ -10,6 +10,7 @@ and `time_created` for data file validation.
 """
 
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -44,6 +45,13 @@ class ServiceListingData(BaseModel):
     # - SDK mode: Determined by file location (services/$name/ directory structure)
     # - API mode: Determined by publishing all three entities together
     # - Seller is derived from the API key used during publishing
+
+    # Listing ID for updates (set by SDK after first publish)
+    listing_id: UUID | None = Field(
+        default=None,
+        description="Listing ID from previous publish. If provided, updates existing listing. "
+        "Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
+    )
 
     # Listing identification
     name: str | None = Field(

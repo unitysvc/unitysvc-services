@@ -1104,30 +1104,33 @@ class TimeWindowEnum(StrEnum):
 
 
 class UpstreamStatusEnum(StrEnum):
-    # uploading (not ready)
-    uploading = "uploading"
-    # upstream is ready to be used
+    """
+    Unified seller status for service offerings.
+
+    Seller-accessible statuses:
+    - draft: Work in progress, skipped during publish
+    - ready: Complete and ready for admin review
+    - deprecated: Service is retired/end of life
+    """
+
+    draft = "draft"
     ready = "ready"
-    # service is deprecated from upstream
     deprecated = "deprecated"
 
 
 class ProviderStatusEnum(StrEnum):
-    """Provider status enum."""
+    """
+    Unified seller status for providers.
 
-    active = "active"
-    pending = "pending"
-    disabled = "disabled"
-    draft = "draft"  # Provider information is incomplete, skip during publish
+    Seller-accessible statuses:
+    - draft: Work in progress, skipped during publish
+    - ready: Complete and ready for admin review
+    - deprecated: Provider is retired/end of life
+    """
 
-
-class SellerStatusEnum(StrEnum):
-    """Seller status enum."""
-
-    active = "active"
-    pending = "pending"
-    disabled = "disabled"
-    draft = "draft"  # Seller information is incomplete, skip during publish
+    draft = "draft"
+    ready = "ready"
+    deprecated = "deprecated"
 
 
 class Document(BaseModel):
