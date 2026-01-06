@@ -1595,20 +1595,19 @@
       "title": "Schema",
       "type": "string"
     },
-    "subscription_code_length": {
+    "service_options": {
       "anyOf": [
         {
-          "maximum": 16,
-          "minimum": 4,
-          "type": "integer"
+          "additionalProperties": true,
+          "type": "object"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "description": "If set, generate a random alphanumeric code of this length for each subscription. The code is stored in service_credentials and used for routing.",
-      "title": "Subscription Code Length"
+      "description": "Service-specific options that modify backend behavior. Keys are option names, values are option configurations. The backend decides which options it supports.",
+      "title": "Service Options"
     },
     "time_created": {
       "format": "date-time",

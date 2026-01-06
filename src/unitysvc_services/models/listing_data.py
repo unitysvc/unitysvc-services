@@ -107,11 +107,10 @@ class ServiceListingData(BaseModel):
         description="UI schema for user parameters form rendering",
     )
 
-    # Subscription code generation
-    subscription_code_length: int | None = Field(
+    # Service-specific options
+    service_options: dict[str, Any] | None = Field(
         default=None,
-        ge=4,
-        le=16,
-        description="If set, generate a random alphanumeric code of this length for each subscription. "
-        "The code is stored in service_credentials and used for routing.",
+        description="Service-specific options that modify backend behavior. "
+        "Keys are option names, values are option configurations. "
+        "The backend decides which options it supports.",
     )
