@@ -1480,8 +1480,9 @@
       "type": "object"
     },
     "UpstreamStatusEnum": {
+      "description": "Unified seller status for service offerings.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Service is retired/end of life",
       "enum": [
-        "uploading",
+        "draft",
         "ready",
         "deprecated"
       ],
@@ -1662,8 +1663,8 @@
     },
     "upstream_status": {
       "$ref": "#/$defs/UpstreamStatusEnum",
-      "default": "ready",
-      "description": "Status of the service from upstream service provider"
+      "default": "draft",
+      "description": "Offering status: draft (skip publish), ready (for review), or deprecated (retired)"
     },
     "version": {
       "anyOf": [

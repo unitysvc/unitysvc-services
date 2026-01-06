@@ -106,3 +106,11 @@ class ServiceListingData(BaseModel):
         default=None,
         description="UI schema for user parameters form rendering",
     )
+
+    # Service-specific options
+    service_options: dict[str, Any] | None = Field(
+        default=None,
+        description="Service-specific options that modify backend behavior. "
+        "Keys are option names, values are option configurations. "
+        "The backend decides which options it supports.",
+    )

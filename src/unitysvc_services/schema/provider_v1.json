@@ -359,12 +359,11 @@
       "type": "string"
     },
     "ProviderStatusEnum": {
-      "description": "Provider status enum.",
+      "description": "Unified seller status for providers.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Provider is retired/end of life",
       "enum": [
-        "active",
-        "pending",
-        "disabled",
-        "draft"
+        "draft",
+        "ready",
+        "deprecated"
       ],
       "title": "ProviderStatusEnum",
       "type": "string"
@@ -915,8 +914,8 @@
     },
     "status": {
       "$ref": "#/$defs/ProviderStatusEnum",
-      "default": "active",
-      "description": "Provider status: active, disabled, or draft (skip publish)"
+      "default": "draft",
+      "description": "Provider status: draft (skip publish), ready (for review), or deprecated (retired)"
     },
     "terms_of_service": {
       "anyOf": [

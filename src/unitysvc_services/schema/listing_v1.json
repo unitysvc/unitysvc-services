@@ -1556,6 +1556,20 @@
       "description": "List price: Listed price for customers",
       "title": "List Price"
     },
+    "listing_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Listing ID from previous publish. If provided, updates existing listing. Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
+      "title": "Listing Id"
+    },
     "listing_status": {
       "$ref": "#/$defs/ListingStatusEnum",
       "default": "draft",
@@ -1580,6 +1594,20 @@
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
+    },
+    "service_options": {
+      "anyOf": [
+        {
+          "additionalProperties": true,
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Service-specific options that modify backend behavior. Keys are option names, values are option configurations. The backend decides which options it supports.",
+      "title": "Service Options"
     },
     "time_created": {
       "format": "date-time",
