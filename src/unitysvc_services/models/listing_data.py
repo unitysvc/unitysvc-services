@@ -106,3 +106,12 @@ class ServiceListingData(BaseModel):
         default=None,
         description="UI schema for user parameters form rendering",
     )
+
+    # Subscription code generation
+    subscription_code_length: int | None = Field(
+        default=None,
+        ge=4,
+        le=16,
+        description="If set, generate a random alphanumeric code of this length for each subscription. "
+        "The code is stored in service_credentials and used for routing.",
+    )

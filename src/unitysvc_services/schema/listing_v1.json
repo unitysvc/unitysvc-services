@@ -1556,6 +1556,20 @@
       "description": "List price: Listed price for customers",
       "title": "List Price"
     },
+    "listing_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Listing ID from previous publish. If provided, updates existing listing. Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
+      "title": "Listing Id"
+    },
     "listing_status": {
       "$ref": "#/$defs/ListingStatusEnum",
       "default": "draft",
@@ -1580,6 +1594,21 @@
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
+    },
+    "subscription_code_length": {
+      "anyOf": [
+        {
+          "maximum": 16,
+          "minimum": 4,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "If set, generate a random alphanumeric code of this length for each subscription. The code is stored in service_credentials and used for routing.",
+      "title": "Subscription Code Length"
     },
     "time_created": {
       "format": "date-time",
