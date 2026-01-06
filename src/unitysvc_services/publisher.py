@@ -16,7 +16,7 @@ import unitysvc_services
 
 from .api import UnitySvcAPI
 from .markdown import Attachment, process_markdown_content, upload_attachments
-from .models.base import ListingStatusEnum, ProviderStatusEnum, UpstreamStatusEnum
+from .models.base import ListingStatusEnum, OfferingStatusEnum, ProviderStatusEnum
 from .utils import (
     convert_convenience_fields_to_documents,
     find_files_by_schema,
@@ -452,17 +452,13 @@ class ServiceDataPublisher(UnitySvcAPI):
             }
 
         # Check offering status - skip if draft
-        offering_status = offering_data.get("upstream_status", UpstreamStatusEnum.draft)
-        if offering_status == UpstreamStatusEnum.draft:
+        offering_status = offering_data.get("status", OfferingStatusEnum.draft)
+        if offering_status == OfferingStatusEnum.draft:
             return {
                 "skipped": True,
                 "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
                 "name": listing_data.get("name", "unknown"),
             }
-
-        # Map listing_status to status if present
-        if "listing_status" in listing_data:
-            listing_data["status"] = listing_data.pop("listing_status")
 
         # Check listing status - skip if draft
         listing_status = listing_data.get("status", ListingStatusEnum.draft)

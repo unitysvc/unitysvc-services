@@ -63,7 +63,7 @@ unitysvc_services validate-data tests/example_data
 - `service_type`: From ServiceTypeEnum (llm, embedding, image_generation, etc.)
 - `display_name`: Human-readable name
 - `description`: Service description
-- `upstream_status`: ready/deprecated/uploading
+- `status`: draft/ready/deprecated
 - `static_info`: Technical specifications
 - `upstream_access_interface`: API connection details
 - `upstream_pricing_info`: Pricing structure

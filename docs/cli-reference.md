@@ -308,8 +308,8 @@ Publishing Summary
 Services are skipped (not published) when any of these conditions are true:
 
 -   Provider has `status: draft` - provider still being configured
--   Offering has `upstream_status: draft` - offering still being configured
--   Listing has `listing_status: draft` - listing still being configured
+-   Offering has `status: draft` - offering still being configured
+-   Listing has `status: draft` - listing still being configured
 
 This allows you to work on services locally without publishing incomplete data. Set status to `ready` when you're ready to publish.
 
@@ -595,7 +595,7 @@ unitysvc_services update offering --name <name> [OPTIONS]
 **Options:**
 
 -   `--name, -n NAME` - Service offering name (required)
--   `--status, -s STATUS` - New upstream_status (uploading|ready|deprecated)
+-   `--status, -s STATUS` - New status (draft|ready|deprecated)
 -   `--display-name NAME` - New display name
 -   `--description TEXT` - New description
 -   `--version VERSION` - New version
@@ -623,7 +623,7 @@ unitysvc_services update listing --services <name> [OPTIONS]
 **Options:**
 
 -   `--services, -n NAME` - Service name (required)
--   `--status, -s STATUS` - New listing_status
+-   `--status, -s STATUS` - New status (draft|ready|deprecated)
 -   `--seller SELLER` - Filter by seller name
 -   `--data-dir, -d PATH` - Data directory (default: current directory)
 

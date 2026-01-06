@@ -224,23 +224,20 @@ class SellerTypeEnum(StrEnum):
 
 class ListingStatusEnum(StrEnum):
     """
-    Listing status values that sellers can set locally.
+    Status values that sellers can set for listings.
 
     Seller-accessible statuses:
-    - draft: Listing is being worked on, skipped during publish (won't be sent to backend)
-    - ready: Listing is complete and ready for admin review/testing
-    - deprecated: Seller marks service as retired/replaced
+    - draft: Work in progress, skipped during publish (won't be sent to backend)
+    - ready: Complete and ready for admin review/testing
+    - deprecated: Retired/end of life, no longer offered
 
     Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)
     are set by the backend admin after testing and validation. These are not included in this
     enum since sellers cannot set them through the CLI tool.
     """
 
-    # Still being worked on - skip during publish
     draft = "draft"
-    # Ready for admin review and testing
     ready = "ready"
-    # No longer offered
     deprecated = "deprecated"
 
 
@@ -1103,9 +1100,9 @@ class TimeWindowEnum(StrEnum):
     month = "month"
 
 
-class UpstreamStatusEnum(StrEnum):
+class OfferingStatusEnum(StrEnum):
     """
-    Unified seller status for service offerings.
+    Status values that sellers can set for service offerings.
 
     Seller-accessible statuses:
     - draft: Work in progress, skipped during publish
@@ -1118,9 +1115,13 @@ class UpstreamStatusEnum(StrEnum):
     deprecated = "deprecated"
 
 
+# Backwards compatibility alias
+UpstreamStatusEnum = OfferingStatusEnum
+
+
 class ProviderStatusEnum(StrEnum):
     """
-    Unified seller status for providers.
+    Status values that sellers can set for providers.
 
     Seller-accessible statuses:
     - draft: Work in progress, skipped during publish
@@ -1256,7 +1257,7 @@ class AccessInterface(BaseModel):
         default=None,
         description="Rate limit",
     )
-    constraint: ServiceConstraints | None = Field(default=None, description="Service constraints and conditions")
+    constraints: ServiceConstraints | None = Field(default=None, description="Service constraints and conditions")
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")

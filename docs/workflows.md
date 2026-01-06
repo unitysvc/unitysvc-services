@@ -276,7 +276,7 @@ def create_service_files(service_data):
         "display_name": service_data["display_name"],
         "description": service_data["description"],
         "service_type": "llm",
-        "upstream_status": "ready",
+        "status": "ready",
         # ... map other fields
     }
 
@@ -288,7 +288,7 @@ def create_service_files(service_data):
     # Note: No service_name or provider_name needed - relationships determined by file location
     listing = {
         "schema": "listing_v1",
-        "listing_status": "ready",
+        "status": "ready",
         # ... map other fields
     }
 

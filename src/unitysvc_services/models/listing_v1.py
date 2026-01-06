@@ -32,7 +32,7 @@ class ListingV1(ServiceListingData):
     time_created: datetime
 
     # Override with typed models instead of dicts for file validation
-    # (listing_status, user_parameters_schema, user_parameters_ui_schema are inherited from ServiceListingData)
+    # (status, user_parameters_schema, user_parameters_ui_schema are inherited from ServiceListingData)
     user_access_interfaces: list[AccessInterface] = Field(  # type: ignore[assignment]
         description="List of user access interfaces for the listing"
     )

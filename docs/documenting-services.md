@@ -174,7 +174,7 @@ Full access to the listing data structure:
 ```jinja2
 {{ listing.name }}                      # Listing identifier
 {{ listing.display_name }}              # Customer-facing name
-{{ listing.listing_status }}            # Listing status (draft, ready, deprecated)
+{{ listing.status }}                    # Listing status (draft, ready, deprecated)
 {{ listing.user_access_interfaces }}    # Array of interfaces
 {{ listing.list_price }}                # Customer-facing pricing
 ```

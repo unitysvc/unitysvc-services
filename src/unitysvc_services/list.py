@@ -149,7 +149,7 @@ def list_offerings(
             provider_name,
             data.get("name", "N/A"),
             data.get("display_name", "N/A"),
-            data.get("upstream_status", "N/A"),
+            data.get("status", "N/A"),
         )
 
     console.print(table)
@@ -209,7 +209,7 @@ def list_listings(
             provider_name,
             service_name,
             seller_info.get("name", "N/A"),
-            data.get("listing_status", "N/A"),
+            data.get("status", "N/A"),
         )
 
     console.print(table)

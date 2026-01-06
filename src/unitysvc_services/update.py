@@ -24,7 +24,7 @@ def update_offering(
         None,
         "--status",
         "-s",
-        help="New upstream_status (uploading, ready, deprecated)",
+        help="New status (draft, ready, deprecated)",
     ),
     display_name: str | None = typer.Option(
         None,
@@ -53,14 +53,14 @@ def update_offering(
 
     Searches for files with schema 'offering_v1' by offering name and updates the specified fields.
 
-    Allowed upstream_status values:
-      - uploading: Service is being uploaded (not ready)
-      - ready: Service is ready to be used
-      - deprecated: Service is deprecated from upstream
+    Allowed status values:
+      - draft: Work in progress, skipped during publish
+      - ready: Complete and ready for admin review
+      - deprecated: Service is retired/end of life
     """
     # Validate status if provided
     if status:
-        valid_statuses = ["uploading", "ready", "deprecated"]
+        valid_statuses = ["draft", "ready", "deprecated"]
         if status not in valid_statuses:
             console.print(
                 f"[red]✗[/red] Invalid status: {status}",
@@ -111,8 +111,8 @@ def update_offering(
         updates: dict[str, tuple[Any, Any]] = {}  # field: (old_value, new_value)
 
         if status:
-            updates["upstream_status"] = (data.get("upstream_status", "unknown"), status)
-            data["upstream_status"] = status
+            updates["status"] = (data.get("status", "unknown"), status)
+            data["status"] = status
 
         if display_name:
             updates["display_name"] = (data.get("display_name", ""), display_name)
@@ -162,10 +162,7 @@ def update_listing(
         None,
         "--status",
         "-s",
-        help=(
-            "New listing_status (unknown, upstream_ready, downstream_ready, "
-            "ready, in_service, upstream_deprecated, deprecated)"
-        ),
+        help="New status (draft, ready, deprecated)",
     ),
     seller: str | None = typer.Option(
         None,
@@ -184,26 +181,14 @@ def update_listing(
 
     Searches for files with schema 'listing_v1' in the service directory and updates the specified fields.
 
-    Allowed listing_status values:
-      - unknown: Not yet determined
-      - upstream_ready: Upstream is ready to be used
-      - downstream_ready: Downstream is ready with proper routing, logging, and billing
-      - ready: Operationally ready (with docs, metrics, and pricing)
-      - in_service: Service is in service
-      - upstream_deprecated: Service is deprecated from upstream
-      - deprecated: Service is no longer offered to users
+    Allowed status values:
+      - draft: Work in progress, skipped during publish
+      - ready: Complete and ready for admin review
+      - deprecated: Listing is retired/no longer offered
     """
     # Validate status if provided
     if status:
-        valid_statuses = [
-            "unknown",
-            "upstream_ready",
-            "downstream_ready",
-            "ready",
-            "in_service",
-            "upstream_deprecated",
-            "deprecated",
-        ]
+        valid_statuses = ["draft", "ready", "deprecated"]
         if status not in valid_statuses:
             console.print(
                 f"[red]✗[/red] Invalid status: {status}",
@@ -259,9 +244,9 @@ def update_listing(
     updated_count = 0
     for listing_file, file_format, data in listing_files:
         try:
-            old_status = data.get("listing_status", "unknown")
+            old_status = data.get("status", "unknown")
             if status:
-                data["listing_status"] = status
+                data["status"] = status
 
             # Write back in same format
             write_data_file(listing_file, data, file_format)

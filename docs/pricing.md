@@ -770,7 +770,7 @@ schema = "listing_v1"
 name = "gpt-4-turbo-premium-usd"
 service_name = "gpt-4-turbo"
 display_name = "GPT-4 Turbo Premium Access"
-listing_status = "ready"
+status = "ready"
 currency = "USD"
 time_created = "2024-02-01T12:00:00Z"
 

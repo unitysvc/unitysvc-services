@@ -67,7 +67,7 @@ class ServiceListingData(BaseModel):
     )
 
     # Status - seller-accessible statuses
-    listing_status: ListingStatusEnum = Field(
+    status: ListingStatusEnum = Field(
         default=ListingStatusEnum.draft,
         description="Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)",
     )

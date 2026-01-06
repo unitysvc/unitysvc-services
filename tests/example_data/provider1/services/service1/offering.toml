@@ -4,7 +4,7 @@ name = "service1"
 service_type = "llm"
 version = ""
 description = "(chronos-13b-v2 + Nous-Hermes-Llama2-13b) 75/25 merge. This offers the imaginative writing style of chronos while still retaining coherency and being capable. Outputs are long and utilize exceptional prose."
-upstream_status = "ready"
+status = "ready"
 currency = "USD"
 
 [details]

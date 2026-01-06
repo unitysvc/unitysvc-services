@@ -91,7 +91,7 @@ from unitysvc_services.utils import find_files_by_schema
 service_files = find_files_by_schema(
     Path("data"),
     schema="service_v1",
-    field_filter={"upstream_status": "ready"}
+    field_filter={"status": "ready"}
 )
 # Returns list of (Path, dict) tuples
 ```
@@ -551,7 +551,7 @@ service = ServiceOffering(
     display_name="My Service",
     description="A high-performance service",
     service_type="api",
-    upstream_status="ready"
+    status="ready"
 )
 ```
 
@@ -564,7 +564,7 @@ listing = ServiceListing(
     schema="listing_v1",
     seller_name="my-marketplace",
     service_name="my-service",
-    listing_status="in_service"
+    status="ready"
 )
 ```
 
@@ -594,12 +594,12 @@ data_dir = Path("data")
 services = find_files_by_schema(
     data_dir,
     schema="service_v1",
-    field_filter={"upstream_status": "ready"}
+    field_filter={"status": "ready"}
 )
 
 # Update to deprecated
 for file_path, data in services:
-    data["upstream_status"] = "deprecated"
+    data["status"] = "deprecated"
     # Preserve original format
     file_format = "json" if file_path.suffix == ".json" else "toml"
     write_data_file(file_path, data, file_format)
@@ -657,7 +657,7 @@ def generate_service_report(data_dir: Path) -> dict:
         report["by_type"][svc_type] = report["by_type"].get(svc_type, 0) + 1
 
         # By status
-        status = data.get("upstream_status", "unknown")
+        status = data.get("status", "unknown")
         report["by_status"][status] = report["by_status"].get(status, 0) + 1
 
         # By provider (from file path)
