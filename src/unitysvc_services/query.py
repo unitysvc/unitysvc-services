@@ -343,13 +343,13 @@ def query_listings(
         help="Output format: table, json",
     ),
     fields: str = typer.Option(
-        "id,service_name,service_type,seller_name,listing_type,status",
+        "id,service_name,service_type,listing_type,status,ops_status",
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
-            "id, offering_id, offering_status, seller_id, status, created_at, updated_at, "
+            "id, offering_id, offering_status, seller_id, status, ops_status, created_at, updated_at, "
             "parameters_schema, parameters_ui_schema, tags, service_name, "
-            "service_type, provider_name, seller_name, listing_type"
+            "service_type, provider_name, listing_type"
         ),
     ),
     skip: int = typer.Option(
@@ -438,6 +438,7 @@ def query_listings(
         "offering_status",
         "seller_id",
         "status",
+        "ops_status",
         "created_at",
         "updated_at",
         "parameters_schema",

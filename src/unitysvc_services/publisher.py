@@ -630,9 +630,16 @@ class ServiceDataPublisher(UnitySvcAPI):
                     # Backend returns provider/offering/listing each with their own status
                     status = self._derive_effective_status(result)
                     symbol, color = self._get_status_display(status)
+
+                    # Get listing status and ops_status from the listing result
+                    listing_result = result.get("listing", {})
+                    listing_status = listing_result.get("listing_status", "unknown")
+                    ops_status = listing_result.get("ops_status", "unknown")
+
                     console.print(
                         f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{listing_name}[/cyan] "
-                        f"(offering: {service_name}, provider: {provider_name})"
+                        f"(offering: {service_name}, provider: {provider_name}) "
+                        f"[dim]status={listing_status}, ops_status={ops_status}[/dim]"
                     )
                     # Update result with derived status for summary tracking
                     result["status"] = status
