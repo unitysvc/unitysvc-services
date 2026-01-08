@@ -51,12 +51,6 @@ class ServiceOfferingData(BaseModel):
         description="Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
     )
 
-    version: str | None = Field(
-        default=None,
-        max_length=50,
-        description="Service version if applicable",
-    )
-
     service_type: ServiceTypeEnum = Field(
         default=ServiceTypeEnum.llm,
         description="Category for grouping/comparison",
