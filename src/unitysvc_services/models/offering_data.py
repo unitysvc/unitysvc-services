@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .base import CurrencyEnum, ServiceTypeEnum, UpstreamStatusEnum
+from .base import CurrencyEnum, OfferingStatusEnum, ServiceTypeEnum
 
 
 class ServiceOfferingData(BaseModel):
@@ -32,7 +32,7 @@ class ServiceOfferingData(BaseModel):
        - Publish operations from CLI
 
     Key characteristics:
-    - upstream_status maps to database 'status' field
+    - status maps to database 'status' field
     - Contains all user-provided data without system-generated IDs
     - Does not include permission/audit fields (handled by backend CRUD layer)
     - Provider relationship is determined by file location (SDK mode) or
@@ -45,10 +45,10 @@ class ServiceOfferingData(BaseModel):
         max_length=100,
     )
 
-    version: str | None = Field(
+    display_name: str | None = Field(
         default=None,
-        max_length=50,
-        description="Service version if applicable",
+        max_length=200,
+        description="Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
     )
 
     service_type: ServiceTypeEnum = Field(
@@ -67,8 +67,8 @@ class ServiceOfferingData(BaseModel):
     )
 
     # Status
-    upstream_status: UpstreamStatusEnum = Field(
-        default=UpstreamStatusEnum.draft,
+    status: OfferingStatusEnum = Field(
+        default=OfferingStatusEnum.draft,
         description="Offering status: draft (skip publish), ready (for review), or deprecated (retired)",
     )
 

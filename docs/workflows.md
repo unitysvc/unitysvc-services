@@ -82,10 +82,11 @@ usvc publish
 #### 4. Ongoing Management
 
 After initial setup, manage changes locally:
-- Edit files directly
-- Use `usvc validate` to check changes
-- Commit to git for version control
-- Use CI/CD for automated publishing
+
+-   Edit files directly
+-   Use `usvc validate` to check changes
+-   Commit to git for version control
+-   Use CI/CD for automated publishing
 
 ## Manual Workflow
 
@@ -152,8 +153,7 @@ usvc update offering --name my-service --status ready
 # Update multiple fields
 usvc update offering --name my-service \
   --status ready \
-  --display-name "My Updated Service" \
-  --version "2.0"
+  --display-name "My Updated Service"
 
 # Update listing status
 usvc update listing --services my-service --status in_service
@@ -276,7 +276,7 @@ def create_service_files(service_data):
         "display_name": service_data["display_name"],
         "description": service_data["description"],
         "service_type": "llm",
-        "upstream_status": "ready",
+        "status": "ready",
         # ... map other fields
     }
 
@@ -288,7 +288,7 @@ def create_service_files(service_data):
     # Note: No service_name or provider_name needed - relationships determined by file location
     listing = {
         "schema": "listing_v1",
-        "listing_status": "ready",
+        "status": "ready",
         # ... map other fields
     }
 
@@ -371,7 +371,7 @@ jobs:
             - name: Set up Python
               uses: actions/setup-python@v4
               with:
-                  python-version: "3.11"
+                  python-: "3.11"
 
             - name: Install dependencies
               run: pip install unitysvc-services requests

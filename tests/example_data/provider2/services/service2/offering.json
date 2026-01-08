@@ -40,6 +40,5 @@
     "price": "0.04",
     "description": "Pricing Per Image"
   },
-  "upstream_status": "ready",
-  "version": "1.0"
+  "status": "ready"
 }

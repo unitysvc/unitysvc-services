@@ -28,7 +28,7 @@
           "title": "Base Url",
           "type": "string"
         },
-        "constraint": {
+        "constraints": {
           "anyOf": [
             {
               "$ref": "#/$defs/ServiceConstraints"
@@ -639,7 +639,7 @@
       "type": "object"
     },
     "ListingStatusEnum": {
-      "description": "Listing status values that sellers can set locally.\n\nSeller-accessible statuses:\n- draft: Listing is being worked on, skipped during publish (won't be sent to backend)\n- ready: Listing is complete and ready for admin review/testing\n- deprecated: Seller marks service as retired/replaced\n\nNote: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)\nare set by the backend admin after testing and validation. These are not included in this\nenum since sellers cannot set them through the CLI tool.",
+      "description": "Status values that sellers can set for listings.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish (won't be sent to backend)\n- ready: Complete and ready for admin review/testing\n- deprecated: Retired/end of life, no longer offered\n\nNote: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service)\nare set by the backend admin after testing and validation. These are not included in this\nenum since sellers cannot set them through the CLI tool.",
       "enum": [
         "draft",
         "ready",
@@ -1570,11 +1570,6 @@
       "description": "Listing ID from previous publish. If provided, updates existing listing. Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
       "title": "Listing Id"
     },
-    "listing_status": {
-      "$ref": "#/$defs/ListingStatusEnum",
-      "default": "draft",
-      "description": "Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)"
-    },
     "name": {
       "anyOf": [
         {
@@ -1608,6 +1603,11 @@
       "default": null,
       "description": "Service-specific options that modify backend behavior. Keys are option names, values are option configurations. The backend decides which options it supports.",
       "title": "Service Options"
+    },
+    "status": {
+      "$ref": "#/$defs/ListingStatusEnum",
+      "default": "draft",
+      "description": "Listing status: draft (skip publish), ready (ready for admin review), or deprecated (retired)"
     },
     "time_created": {
       "format": "date-time",

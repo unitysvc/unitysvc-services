@@ -640,7 +640,7 @@ The listing data structure (Listing_v1 schema)
 
 -   `listing.name` - Listing identifier
 -   `listing.display_name` - Customer-facing name
--   `listing.listing_status` - Listing status (draft, ready, deprecated)
+-   `listing.status` - Listing status (draft, ready, deprecated)
 -   All other fields from the listing schema
 
 ### offering

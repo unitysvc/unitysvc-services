@@ -16,7 +16,7 @@ import unitysvc_services
 
 from .api import UnitySvcAPI
 from .markdown import Attachment, process_markdown_content, upload_attachments
-from .models.base import ListingStatusEnum, ProviderStatusEnum, UpstreamStatusEnum
+from .models.base import ListingStatusEnum, OfferingStatusEnum, ProviderStatusEnum
 from .utils import (
     convert_convenience_fields_to_documents,
     find_files_by_schema,
@@ -452,17 +452,13 @@ class ServiceDataPublisher(UnitySvcAPI):
             }
 
         # Check offering status - skip if draft
-        offering_status = offering_data.get("upstream_status", UpstreamStatusEnum.draft)
-        if offering_status == UpstreamStatusEnum.draft:
+        offering_status = offering_data.get("status", OfferingStatusEnum.draft)
+        if offering_status == OfferingStatusEnum.draft:
             return {
                 "skipped": True,
                 "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
                 "name": listing_data.get("name", "unknown"),
             }
-
-        # Map listing_status to status if present
-        if "listing_status" in listing_data:
-            listing_data["status"] = listing_data.pop("listing_status")
 
         # Check listing status - skip if draft
         listing_status = listing_data.get("status", ListingStatusEnum.draft)
@@ -634,9 +630,16 @@ class ServiceDataPublisher(UnitySvcAPI):
                     # Backend returns provider/offering/listing each with their own status
                     status = self._derive_effective_status(result)
                     symbol, color = self._get_status_display(status)
+
+                    # Get listing status and ops_status from the listing result
+                    listing_result = result.get("listing", {})
+                    listing_status = listing_result.get("listing_status", "unknown")
+                    ops_status = listing_result.get("ops_status", "unknown")
+
                     console.print(
                         f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{listing_name}[/cyan] "
-                        f"(offering: {service_name}, provider: {provider_name})"
+                        f"(offering: {service_name}, provider: {provider_name}) "
+                        f"[dim]status={listing_status}, ops_status={ops_status}[/dim]"
                     )
                     # Update result with derived status for summary tracking
                     result["status"] = status

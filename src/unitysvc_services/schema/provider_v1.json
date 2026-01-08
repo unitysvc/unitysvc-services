@@ -28,7 +28,7 @@
           "title": "Base Url",
           "type": "string"
         },
-        "constraint": {
+        "constraints": {
           "anyOf": [
             {
               "$ref": "#/$defs/ServiceConstraints"
@@ -359,7 +359,7 @@
       "type": "string"
     },
     "ProviderStatusEnum": {
-      "description": "Unified seller status for providers.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Provider is retired/end of life",
+      "description": "Status values that sellers can set for providers.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Provider is retired/end of life",
       "enum": [
         "draft",
         "ready",

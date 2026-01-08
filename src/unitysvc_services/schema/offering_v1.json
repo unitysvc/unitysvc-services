@@ -28,7 +28,7 @@
           "title": "Base Url",
           "type": "string"
         },
-        "constraint": {
+        "constraints": {
           "anyOf": [
             {
               "$ref": "#/$defs/ServiceConstraints"
@@ -709,6 +709,16 @@
       ],
       "title": "MultiplyPriceData",
       "type": "object"
+    },
+    "OfferingStatusEnum": {
+      "description": "Status values that sellers can set for service offerings.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Service is retired/end of life",
+      "enum": [
+        "draft",
+        "ready",
+        "deprecated"
+      ],
+      "title": "OfferingStatusEnum",
+      "type": "string"
     },
     "OveragePolicyEnum": {
       "enum": [
@@ -1478,16 +1488,6 @@
       },
       "title": "TokenPriceData",
       "type": "object"
-    },
-    "UpstreamStatusEnum": {
-      "description": "Unified seller status for service offerings.\n\nSeller-accessible statuses:\n- draft: Work in progress, skipped during publish\n- ready: Complete and ready for admin review\n- deprecated: Service is retired/end of life",
-      "enum": [
-        "draft",
-        "ready",
-        "deprecated"
-      ],
-      "title": "UpstreamStatusEnum",
-      "type": "string"
     }
   },
   "additionalProperties": false,
@@ -1508,6 +1508,20 @@
       "description": "Dictionary of static features and information",
       "title": "Details",
       "type": "object"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
+      "title": "Display Name"
     },
     "documents": {
       "anyOf": [
@@ -1623,6 +1637,11 @@
       "default": "llm",
       "description": "Category for grouping/comparison"
     },
+    "status": {
+      "$ref": "#/$defs/OfferingStatusEnum",
+      "default": "draft",
+      "description": "Offering status: draft (skip publish), ready (for review), or deprecated (retired)"
+    },
     "tagline": {
       "anyOf": [
         {
@@ -1660,25 +1679,6 @@
     "upstream_access_interface": {
       "$ref": "#/$defs/AccessInterface",
       "description": "Dictionary of upstream access interface"
-    },
-    "upstream_status": {
-      "$ref": "#/$defs/UpstreamStatusEnum",
-      "default": "draft",
-      "description": "Offering status: draft (skip publish), ready (for review), or deprecated (retired)"
-    },
-    "version": {
-      "anyOf": [
-        {
-          "maxLength": 50,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Service version if applicable",
-      "title": "Version"
     }
   },
   "required": [

@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .models.base import DocumentCategoryEnum, UpstreamStatusEnum
+from .models.base import DocumentCategoryEnum, OfferingStatusEnum
 from .utils import (
     determine_interpreter,
     find_files_by_schema,
@@ -315,12 +315,12 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
     return result
 
 
-def update_offering_override_status(listing_file: Path, status: UpstreamStatusEnum | None) -> None:
+def update_offering_override_status(listing_file: Path, status: OfferingStatusEnum | None) -> None:
     """Update or remove the status field in the offering override file.
 
     Args:
         listing_file: Path to the listing file (offering is in same directory)
-        status: Status to set (e.g., UpstreamStatusEnum.deprecated), or None to remove status field
+        status: Status to set (e.g., OfferingStatusEnum.deprecated), or None to remove status field
     """
     try:
         # Find the offering file (offering.json) in the same directory
@@ -335,16 +335,16 @@ def update_offering_override_status(listing_file: Path, status: UpstreamStatusEn
         # Load existing override data
         override_data = read_override_file(offering_file_path)
 
-        # Update or remove upstream_status field
+        # Update or remove status field
         if status is None:
-            # Remove upstream_status field if it exists and equals deprecated
-            if override_data.get("upstream_status") == UpstreamStatusEnum.deprecated:
-                del override_data["upstream_status"]
-                console.print("  [dim]→ Removed deprecated upstream_status from override file[/dim]")
+            # Remove status field if it exists and equals deprecated
+            if override_data.get("status") == OfferingStatusEnum.deprecated:
+                del override_data["status"]
+                console.print("  [dim]→ Removed deprecated status from override file[/dim]")
         else:
-            # Set upstream_status field
-            override_data["upstream_status"] = status.value
-            console.print(f"  [dim]→ Set upstream_status to {status.value} in override file[/dim]")
+            # Set status field
+            override_data["status"] = status.value
+            console.print(f"  [dim]→ Set status to {status.value} in override file[/dim]")
 
         # Write override file (or delete if empty)
         result = write_override_file(offering_file_path, override_data, delete_if_empty=True)
@@ -888,7 +888,7 @@ def run(
 
             # If any test failed, set to deprecated
             if failed > 0:
-                update_offering_override_status(listing_file, UpstreamStatusEnum.deprecated)
+                update_offering_override_status(listing_file, OfferingStatusEnum.deprecated)
             # If all tests passed, remove deprecated status
             elif passed > 0 and failed == 0:
                 update_offering_override_status(listing_file, None)

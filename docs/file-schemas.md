@@ -147,24 +147,23 @@ Service files define the service offering from the upstream provider's perspecti
 
 | Field                       | Type                | Description                                                                  |
 | --------------------------- | ------------------- | ---------------------------------------------------------------------------- |
-| `schema`                    | string              | Must be `"service_v1"`                                                       |
+| `schema`                    | string              | Must be `"offering_v1"`                                                      |
 | `name`                      | string              | Service identifier (must match directory name, allows slashes for hierarchy) |
-| `display_name`              | string              | Human-readable service name                                                  |
-| `description`               | string              | Service description                                                          |
 | `service_type`              | enum                | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
-| `details`                   | object              | Service-specific features and information                                    |
 | `upstream_access_interface` | AccessInterface     | How to access the upstream service                                           |
-| `time_created`              | datetime (ISO 8601) | Timestamp when service was created                                           |
+| `time_created`              | datetime (ISO 8601) | Timestamp when offering was created                                          |
 
 ### Optional Fields
 
 | Field             | Type                  | Description                                                     |
 | ----------------- | --------------------- | --------------------------------------------------------------- |
-| `version`         | string                | Service version                                                 |
+| `display_name`    | string                | Human-readable service name for display (e.g., 'GPT-4 Turbo')   |
+| `description`     | string                | Service description                                             |
 | `logo`            | string/URL            | Path to logo or URL (converted to document)                     |
 | `tagline`         | string                | Short elevator pitch                                            |
 | `tags`            | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
-| `upstream_status` | enum                  | Service status: `uploading`, `ready` (default), or `deprecated` |
+| `status`          | enum                  | Offering status: `draft` (default), `ready`, or `deprecated`    |
+| `details`         | object                | Service-specific features and information                       |
 | `payout_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
 | `documents`       | array of Document     | Technical specs, documentation                                  |
 
@@ -192,8 +191,7 @@ name = "gpt-4"
 display_name = "GPT-4"
 description = "Most capable GPT-4 model for complex reasoning tasks"
 service_type = "llm"
-upstream_status = "ready"
-version = "2024-01"
+status = "ready"
 time_created = "2024-01-20T14:00:00Z"
 
 [details]
@@ -235,7 +233,7 @@ Listing files define how a seller presents/sells a service to end users.
 | --------------------------- | --------------------- | -------------------------------------------------------------------------- |
 | `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
 | `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
-| `listing_status`            | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
+| `status`                    | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
 | `documents`                 | array of Document     | SLAs, documentation, guides                                                |
 | `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
@@ -247,7 +245,7 @@ Listing files define how a seller presents/sells a service to end users.
 -   **Multiple listings**: Use descriptive filenames for different tiers/marketplaces
 -   **Example**: `listing-premium.json` → `name = "listing-premium"`
 
-### listing_status Values
+### status Values (Listing)
 
 -   `draft` - Work in progress, skipped during publish (default)
 -   `ready` - Ready for admin review and testing
@@ -263,7 +261,7 @@ Listing files define how a seller presents/sells a service to end users.
 schema = "listing_v1"
 name = "listing-premium"
 display_name = "GPT-4 Premium Access"
-listing_status = "ready"
+status = "ready"
 time_created = "2024-01-25T16:00:00Z"
 
 [[user_access_interfaces]]
@@ -305,7 +303,7 @@ The `AccessInterface` object defines how to access a service (used in providers,
 | `request_transformer` | object             | Request transformation config (keys: `proxy_rewrite`, `body_transformer`) |
 | `routing_key`         | object             | Optional routing key for request matching                                 |
 | `rate_limits`         | array of RateLimit | Rate limiting rules                                                       |
-| `constraint`          | ServiceConstraints | Service constraints                                                       |
+| `constraints`         | ServiceConstraints | Service constraints                                                       |
 | `documents`           | array of Document  | Interface documentation                                                   |
 | `is_active`           | boolean            | Whether interface is active (default: true)                               |
 | `is_primary`          | boolean            | Whether this is primary interface (default: false)                        |

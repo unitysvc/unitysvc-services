@@ -7,6 +7,7 @@ from .base import (
     ImagePriceData,
     ListingStatusEnum,
     MultiplyPriceData,
+    OfferingStatusEnum,
     Pricing,
     PricingTypeEnum,
     ProviderStatusEnum,
@@ -17,7 +18,7 @@ from .base import (
     TieredPriceData,
     TimePriceData,
     TokenPriceData,
-    UpstreamStatusEnum,
+    UpstreamStatusEnum,  # Backwards compatibility alias for OfferingStatusEnum
     UsageData,
     validate_pricing,
 )
@@ -39,10 +40,11 @@ __all__ = [
     "ServiceListingData",
     # Enums
     "ListingStatusEnum",
+    "OfferingStatusEnum",
     "ProviderStatusEnum",
     "SellerTypeEnum",
     "ServiceTypeEnum",
-    "UpstreamStatusEnum",
+    "UpstreamStatusEnum",  # Backwards compatibility alias for OfferingStatusEnum
     # Pricing - Basic types
     "Pricing",
     "PricingTypeEnum",
