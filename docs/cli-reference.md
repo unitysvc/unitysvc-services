@@ -598,7 +598,6 @@ unitysvc_services update offering --name <name> [OPTIONS]
 -   `--status, -s STATUS` - New status (draft|ready|deprecated)
 -   `--display-name NAME` - New display name
 -   `--description TEXT` - New description
--   `--version VERSION` - New version
 -   `--data-dir, -d PATH` - Data directory (default: current directory)
 
 **Examples:**
@@ -610,8 +609,7 @@ usvc update offering --name my-service --status ready
 # Update multiple fields
 usvc update offering --name my-service \
   --status ready \
-  --display-name "My Updated Service" \
-  --version "2.0"
+  --display-name "My Updated Service"
 ```
 
 ### update listing

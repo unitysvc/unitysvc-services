@@ -36,11 +36,6 @@ def update_offering(
         "--description",
         help="New description for the offering",
     ),
-    version: str | None = typer.Option(
-        None,
-        "--version",
-        help="New version for the offering",
-    ),
     data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
@@ -70,11 +65,11 @@ def update_offering(
             raise typer.Exit(code=1)
 
     # Check if any update field is provided
-    if not any([status, display_name, description, version]):
+    if not any([status, display_name, description]):
         console.print(
             (
                 "[red]✗[/red] No fields to update. Provide at least one of: "
-                "--status, --display-name, --description, --version"
+                "--status, --display-name, --description"
             ),
             style="bold red",
         )
@@ -121,10 +116,6 @@ def update_offering(
         if description:
             updates["description"] = (data.get("description", ""), description)
             data["description"] = description
-
-        if version:
-            updates["version"] = (data.get("version", ""), version)
-            data["version"] = version
 
         # Write back in same format
         write_data_file(matching_file, data, matching_format)

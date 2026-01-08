@@ -153,8 +153,7 @@ usvc update offering --name my-service --status ready
 # Update multiple fields
 usvc update offering --name my-service \
   --status ready \
-  --display-name "My Updated Service" \
-  --version "2.0"
+  --display-name "My Updated Service"
 
 # Update listing status
 usvc update listing --services my-service --status in_service

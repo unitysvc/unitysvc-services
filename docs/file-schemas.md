@@ -159,7 +159,6 @@ Service files define the service offering from the upstream provider's perspecti
 | ----------------- | --------------------- | --------------------------------------------------------------- |
 | `display_name`    | string                | Human-readable service name for display (e.g., 'GPT-4 Turbo')   |
 | `description`     | string                | Service description                                             |
-| `version`         | string                | Service version                                                 |
 | `logo`            | string/URL            | Path to logo or URL (converted to document)                     |
 | `tagline`         | string                | Short elevator pitch                                            |
 | `tags`            | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
@@ -193,7 +192,6 @@ display_name = "GPT-4"
 description = "Most capable GPT-4 model for complex reasoning tasks"
 service_type = "llm"
 status = "ready"
-version = "2024-01"
 time_created = "2024-01-20T14:00:00Z"
 
 [details]
