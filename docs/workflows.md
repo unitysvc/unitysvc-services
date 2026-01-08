@@ -82,10 +82,11 @@ usvc publish
 #### 4. Ongoing Management
 
 After initial setup, manage changes locally:
-- Edit files directly
-- Use `usvc validate` to check changes
-- Commit to git for version control
-- Use CI/CD for automated publishing
+
+-   Edit files directly
+-   Use `usvc validate` to check changes
+-   Commit to git for version control
+-   Use CI/CD for automated publishing
 
 ## Manual Workflow
 
@@ -371,7 +372,7 @@ jobs:
             - name: Set up Python
               uses: actions/setup-python@v4
               with:
-                  python-version: "3.11"
+                  python-: "3.11"
 
             - name: Install dependencies
               run: pip install unitysvc-services requests
