@@ -1679,20 +1679,6 @@
     "upstream_access_interface": {
       "$ref": "#/$defs/AccessInterface",
       "description": "Dictionary of upstream access interface"
-    },
-    "version": {
-      "anyOf": [
-        {
-          "maxLength": 50,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Service version if applicable",
-      "title": "Version"
     }
   },
   "required": [
