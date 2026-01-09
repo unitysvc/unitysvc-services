@@ -52,22 +52,40 @@ Requires Python 3.11+
 
 ## Service Data Model
 
-A **Service** in UnitySVC consists of three complementary data components that are organized separately for reuse but **published together** as a single unit:
+A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These components are organized separately for reuse but **published together** as a single unit:
 
 ```mermaid
 flowchart TB
-    subgraph Service["Published Together"]
+    subgraph Service["Service (Identity Layer)"]
+        direction TB
+        S["<b>Service</b><br/>name, display_name, status<br/><i>derived from components</i>"]
+    end
+
+    subgraph Content["Content Entities (Published Together)"]
         P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
         O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
         L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
     end
 
+    S --> P & O & L
     P --> O --> L
 
+    style S fill:#f3e5f5
     style P fill:#e3f2fd
     style O fill:#fff3e0
     style L fill:#e8f5e9
 ```
+
+### Service Identity
+
+When you publish provider, offering, and listing data together, the platform creates a **Service** record that:
+
+-   **Links** the seller to the content (provider, offering, listing)
+-   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
+-   **Derives its display_name** from `listing.display_name`, `offering.display_name`, `listing.name`, or `offering.name` (first non-empty value)
+-   **Derives its status** from the component statuses - a service is considered `draft` if any component is draft
+
+The Service provides a stable identity that subscriptions reference, while the content entities (Provider, Offering, Listing) are immutable and content-addressed.
 
 ### Why Three Parts?
 
@@ -80,6 +98,7 @@ This separation enables:
 -   **Reusability**: One provider can have many offerings; one offering can have multiple listings
 -   **Maintainability**: Update provider info once, affects all services
 -   **Flexibility**: Different pricing tiers, marketplaces, or customer segments per listing
+-   **Immutability**: Content entities are content-addressed; same content = same ID
 
 ## Quick Example
 

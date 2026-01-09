@@ -326,9 +326,9 @@ If publishing fails for a service, the error is displayed and publishing continu
 
 Publishing is idempotent - running `usvc publish` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
 
-**Override Files and Listing ID Persistence:**
+**Override Files and Service ID Persistence:**
 
-After a successful publish, the SDK automatically saves the `listing_id` to an override file:
+After a successful first publish, the SDK automatically saves the `service_id` to an override file:
 
 ```
 listing.json       →  listing.override.json
@@ -338,27 +338,29 @@ listing.toml       →  listing.override.toml
 Example override file content:
 ```json
 {
-  "listing_id": "550e8400-e29b-41d4-a716-446655440000"
+  "service_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
-On subsequent publishes, the `listing_id` is automatically loaded from the override file and included in the publish request, ensuring the existing listing is **updated** rather than creating a new one.
+**Important:** The `service_id` is the stable identifier that subscriptions reference. When you first publish from a new repository or data directory, a **new Service is always created**, even if the content is identical to an existing service. The `service_id` in the override file ensures subsequent publishes update this specific service.
 
-**Publishing as New (Remove Existing Listing ID):**
+On subsequent publishes, the `service_id` is automatically loaded from the override file and included in the publish request, ensuring the existing service is **updated** rather than creating a new one.
 
-If you need to publish a service as a completely new listing (ignoring any existing `listing_id`), delete the override file before publishing:
+**Publishing as New (Remove Existing Service ID):**
+
+If you need to publish as a completely new service (ignoring any existing `service_id`), delete the override file before publishing:
 
 ```bash
-# Remove override file to publish as new
+# Remove override file to publish as new service
 rm listing.override.json
 
-# Publish - will create a new listing
+# Publish - will create a new service with a new service_id
 usvc publish --data-path ./my-provider/services/my-service/listing.json
 ```
 
 Use cases for publishing as new:
-- Accidentally deleted the listing from the backend and need to recreate it
-- Testing in a different environment
+- Accidentally deleted the service from the backend and need to recreate it
+- Deploying to a different environment (staging vs production)
 - Backend data was reset
 
 **Cloning a Service:**
@@ -373,19 +375,19 @@ cp listing.json listing-enterprise.json
 #    - Change "name" field to a unique value (e.g., "enterprise")
 #    - Modify pricing, parameters, etc. as needed
 
-# 3. Publish the new listing (no override file exists, so creates new)
+# 3. Publish the new listing (no override file exists, so creates new service)
 usvc publish --data-path ./my-provider/services/my-service/listing-enterprise.json
 ```
 
-**Important:** Each listing file should have a unique `name` field. The new listing will get its own `listing_id` saved to `listing-enterprise.override.json`.
+**Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
 
 For multiple environment deployments, you can use different override files:
 ```bash
 # Production override
-listing.override.json          # listing_id for production
+listing.override.json          # service_id for production
 
 # Staging override (manually managed or gitignored)
-listing.staging.override.json  # listing_id for staging
+listing.staging.override.json  # service_id for staging
 ```
 
 ## unpublish - Unpublish from Backend

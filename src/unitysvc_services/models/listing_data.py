@@ -39,41 +39,28 @@ class ServiceListingData(BaseModel):
       file definitions and database operations
     - Service/provider relationships are determined by file location (SDK mode) or
       by being published together in a single API call (API mode)
-
-    Note: extra="ignore" allows deprecated fields like offering_id to be passed
-    for backward compatibility without validation errors.
     """
 
     model_config = {"extra": "ignore"}
 
-    # DEPRECATED: offering_id is no longer used - ServiceListing is pure content
-    # This field is kept for backward compatibility with existing code
-    offering_id: UUID | None = Field(
+    # Service ID for updates (set by SDK after first publish)
+    # When provided, updates the existing service. When absent, creates a new service.
+    service_id: UUID | None = Field(
         default=None,
-        description="DEPRECATED - ignored. Offering relationship is now in Service model.",
-    )
-
-    # Note: service/provider relationships are no longer specified here.
-    # - SDK mode: Determined by file location (services/$name/ directory structure)
-    # - API mode: Determined by publishing all three entities together
-    # - Seller is derived from the API key used during publishing
-
-    # Listing ID for updates (set by SDK after first publish)
-    listing_id: UUID | None = Field(
-        default=None,
-        description="Listing ID from previous publish. If provided, updates existing listing. "
-        "Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
+        description="Service ID from previous publish. If provided, updates existing service. "
+        "Stored in override file (e.g., listing.override.json) by SDK after first publish.",
     )
 
     # Listing identification
     name: str | None = Field(
         default=None,
         max_length=255,
-        description="Name identifier for the service listing (defaults to 'default' if not provided)",
+        description="Name identifier for the service listing (defaults to offering name if not provided)",
     )
 
-    # Display name for UI (required)
-    display_name: str = Field(
+    # Display name for UI (optional - falls back to Service.name derived from offering/listing name)
+    display_name: str | None = Field(
+        default=None,
         max_length=200,
         description="Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
     )

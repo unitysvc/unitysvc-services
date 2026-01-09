@@ -10,7 +10,6 @@ and `time_created` for data file validation.
 """
 
 from typing import Any
-from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -38,19 +37,9 @@ class ServiceOfferingData(BaseModel):
     - Does not include permission/audit fields (handled by backend CRUD layer)
     - Provider relationship is determined by file location (SDK mode) or
       by being published together in a single API call (API mode)
-
-    Note: extra="ignore" allows deprecated fields like provider_id to be passed
-    for backward compatibility without validation errors.
     """
 
     model_config = {"extra": "ignore"}
-
-    # DEPRECATED: provider_id is no longer used - ServiceOffering is pure content
-    # This field is kept for backward compatibility with existing code
-    provider_id: UUID | None = Field(
-        default=None,
-        description="DEPRECATED - ignored. Provider relationship is now in Service model.",
-    )
 
     # Service identification
     name: str = Field(

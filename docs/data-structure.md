@@ -11,22 +11,40 @@ The SDK follows a **local-first, version-controlled workflow**. All service data
 
 ## The Service Data Model
 
-A **Service** in UnitySVC consists of three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
+A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
 
 ```mermaid
 flowchart TB
-    subgraph Service["Published Together"]
+    subgraph Service["Service (Identity Layer)"]
+        direction TB
+        S["<b>Service</b><br/>name, display_name, status<br/><i>derived from components</i>"]
+    end
+
+    subgraph Content["Content Entities (Published Together)"]
         P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
         O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
         L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
     end
 
+    S --> P & O & L
     P --> O --> L
 
+    style S fill:#f3e5f5
     style P fill:#e3f2fd
     style O fill:#fff3e0
     style L fill:#e8f5e9
 ```
+
+### Service Identity
+
+When you publish provider, offering, and listing data together, the platform creates a **Service** record that:
+
+-   **Links** the seller to the content (provider, offering, listing)
+-   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
+-   **Derives its display_name** from `listing.display_name`, `offering.display_name`, `listing.name`, or `offering.name` (first non-empty value)
+-   **Derives its status** from the component statuses - a service is considered `draft` if any component is draft
+
+The Service provides a stable identity that subscriptions reference, while the content entities (Provider, Offering, Listing) are immutable and content-addressed.
 
 ### Component Details
 
@@ -46,6 +64,7 @@ This separation enables:
 - **Reusability**: Update provider info once, affects all services
 - **Flexibility**: One offering can have basic/premium/enterprise listings
 - **Maintainability**: Clear separation of concerns
+- **Immutability**: Content entities are content-addressed; same content = same ID
 
 ### Publishing Model
 
@@ -66,6 +85,102 @@ graph TD
     A[Listing File] -->|same directory| B[Offering File]
     A -->|parent directory| C[Provider File]
     A & B & C -->|published together| D[/seller/services API]
+```
+
+### Service Publishing Lifecycle
+
+Understanding how services are created and updated is essential for managing your service catalog:
+
+#### First Publish: New Service Creation
+
+When you publish a listing file for the first time (from a new repository or data directory), **a new Service is always created**, even if the content is identical to an existing service. This is because:
+
+- Each listing file represents a distinct service identity
+- The Service ID is the stable identifier that subscriptions reference
+- Content entities (provider, offering, listing) are content-addressed and may be shared, but the Service itself is unique
+
+```mermaid
+flowchart LR
+    subgraph First["First Publish"]
+        L1["listing.json<br/><i>no service_id</i>"] --> API1[Backend API]
+        API1 --> S1["Creates NEW Service<br/><i>service_id: abc-123</i>"]
+        S1 --> O1["listing.override.json<br/><i>service_id saved</i>"]
+    end
+
+    style L1 fill:#fff3e0
+    style S1 fill:#e8f5e9
+    style O1 fill:#e3f2fd
+```
+
+#### Service ID Persistence
+
+After a successful first publish, the SDK automatically saves the `service_id` to an override file:
+
+```
+listing.json       →  listing.override.json
+listing.toml       →  listing.override.toml
+listing-premium.json → listing-premium.override.json
+```
+
+Example override file content:
+```json
+{
+  "service_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+This override file should be:
+- **Committed to version control** - preserves the service identity across team members and CI/CD
+- **Never manually edited** (except when intentionally publishing as new)
+- **Environment-specific** if deploying to multiple environments (staging, production)
+
+#### Subsequent Publishes: Service Updates
+
+On subsequent publishes, the SDK automatically loads the `service_id` from the override file and includes it in the publish request. This ensures the existing service is **updated** rather than creating a new one:
+
+```mermaid
+flowchart LR
+    subgraph Update["Subsequent Publish"]
+        O2["listing.override.json<br/><i>service_id: abc-123</i>"] --> L2["listing.json"]
+        L2 --> API2[Backend API]
+        API2 --> S2["Updates EXISTING Service<br/><i>service_id: abc-123</i>"]
+    end
+
+    style O2 fill:#e3f2fd
+    style L2 fill:#fff3e0
+    style S2 fill:#e8f5e9
+```
+
+When updating:
+- The Service ID remains stable (subscriptions continue to work)
+- Content entities are updated or created as needed
+- If content is unchanged, the publish returns "unchanged" status
+
+#### Publishing as New (Ignoring Existing Service)
+
+To publish a service as completely new (ignoring any existing `service_id`), delete the override file before publishing:
+
+```bash
+# Remove override file to publish as new service
+rm listing.override.json
+
+# Publish - will create a NEW service with a new service_id
+usvc publish --data-path ./my-provider/services/my-service/listing.json
+```
+
+Common use cases for publishing as new:
+- The service was accidentally deleted from the backend
+- Deploying to a different environment (staging vs production)
+- Creating a variant/copy of an existing service
+
+#### Multiple Environments
+
+For deploying the same service to multiple environments, manage separate override files:
+
+```
+listing.json                     # Base listing data
+listing.override.json            # Production service_id
+listing.staging.override.json    # Staging service_id (gitignored or separate branch)
 ```
 
 ## Required File Structure

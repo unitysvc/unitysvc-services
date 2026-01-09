@@ -1472,10 +1472,18 @@
       "description": "Currency for list_price (indexed for filtering)"
     },
     "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "Human-readable listing name (e.g., 'Premium GPT-4 Access', 'Enterprise AI Services')",
-      "maxLength": 200,
-      "title": "Display Name",
-      "type": "string"
+      "title": "Display Name"
     },
     "documents": {
       "anyOf": [
@@ -1556,20 +1564,6 @@
       "description": "List price: Listed price for customers",
       "title": "List Price"
     },
-    "listing_id": {
-      "anyOf": [
-        {
-          "format": "uuid",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Listing ID from previous publish. If provided, updates existing listing. Typically stored in override file (e.g., listing.override.json) by SDK after first publish.",
-      "title": "Listing Id"
-    },
     "name": {
       "anyOf": [
         {
@@ -1581,7 +1575,7 @@
         }
       ],
       "default": null,
-      "description": "Name identifier for the service listing (defaults to 'default' if not provided)",
+      "description": "Name identifier for the service listing (defaults to offering name if not provided)",
       "title": "Name"
     },
     "schema": {
@@ -1589,6 +1583,20 @@
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
+    },
+    "service_id": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Service ID from previous publish. If provided, updates existing service. Stored in override file (e.g., listing.override.json) by SDK after first publish.",
+      "title": "Service Id"
     },
     "service_options": {
       "anyOf": [
@@ -1652,7 +1660,6 @@
     }
   },
   "required": [
-    "display_name",
     "user_access_interfaces",
     "time_created"
   ],

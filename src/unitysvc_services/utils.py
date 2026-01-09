@@ -281,7 +281,7 @@ def write_override_file(
         Path to the override file, or None if deleted
 
     Example:
-        >>> write_override_file(Path("listing.json"), {"listing_id": "abc-123"})
+        >>> write_override_file(Path("listing.json"), {"service_id": "abc-123"})
         PosixPath('listing.override.json')
     """
     # Determine override file path

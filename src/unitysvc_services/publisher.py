@@ -541,12 +541,12 @@ class ServiceDataPublisher(UnitySvcAPI):
         result["service_name"] = offering_data_resolved.get("name")
         result["provider_name"] = provider_name_str
 
-        # Save listing_id to override file for future updates (not in dryrun mode)
+        # Save service_id to override file for future updates (not in dryrun mode)
         if not dryrun:
-            listing_result = result.get("listing", {})
-            listing_id = listing_result.get("id")
-            if listing_id:
-                override_path = write_override_file(listing_file, {"listing_id": listing_id})
+            service_result = result.get("service", {})
+            service_id = service_result.get("id")
+            if service_id:
+                override_path = write_override_file(listing_file, {"service_id": service_id})
                 result["override_file"] = str(override_path)
 
         return result
