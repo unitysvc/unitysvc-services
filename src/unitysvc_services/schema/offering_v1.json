@@ -1668,7 +1668,7 @@
         }
       ],
       "default": null,
-      "description": "List of tags for the service, e.g., bring your own API key",
+      "description": "List of tags for the service, e.g., 'byop' for bring your own API key",
       "title": "Tags"
     },
     "time_created": {

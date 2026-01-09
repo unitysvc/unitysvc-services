@@ -13,7 +13,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from .base import CurrencyEnum, OfferingStatusEnum, ServiceTypeEnum
+from .base import CurrencyEnum, OfferingStatusEnum, ServiceTypeEnum, TagEnum
 
 
 class ServiceOfferingData(BaseModel):
@@ -102,4 +102,10 @@ class ServiceOfferingData(BaseModel):
     currency: CurrencyEnum = Field(
         default=CurrencyEnum.USD,
         description="Currency for payout_price",
+    )
+
+    # Tags for the service (e.g., bring your own API key)
+    tags: list[TagEnum] | None = Field(
+        default=None,
+        description="List of tags for the service, e.g., 'byop' for bring your own API key",
     )

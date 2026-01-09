@@ -7,7 +7,6 @@ from .base import (
     AccessInterface,
     Document,
     Pricing,
-    TagEnum,
     validate_name,
 )
 from .offering_data import ServiceOfferingData
@@ -47,12 +46,6 @@ class OfferingV1(ServiceOfferingData):
 
     # Convenience field for logo (converted to documents during import)
     logo: str | HttpUrl | None = None
-
-    # Tags for the service
-    tags: list[TagEnum] | None = Field(
-        default=None,
-        description="List of tags for the service, e.g., bring your own API key",
-    )
 
     # Override with typed models for file validation
     upstream_access_interface: AccessInterface = Field(  # type: ignore[assignment]
