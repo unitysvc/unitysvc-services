@@ -361,18 +361,13 @@ def query_services(
         "--limit",
         help="Maximum number of records to return (default: 100)",
     ),
-    seller_id: str | None = typer.Option(
-        None,
-        "--seller-id",
-        help="Filter by seller ID (UUID)",
-    ),
     status: str | None = typer.Option(
         None,
         "--status",
         help="Filter by status (draft, pending, testing, active, rejected, suspended)",
     ),
 ):
-    """Query all services from UnitySVC backend (admin only).
+    """Query services for the current seller.
 
     Services are the identity layer that connects sellers to content versions
     (Provider, ServiceOffering, ServiceListing).
@@ -383,9 +378,6 @@ def query_services(
 
         # Show only specific fields
         usvc query services --fields id,name,status
-
-        # Filter by seller
-        usvc query services --seller-id 123e4567-e89b-12d3-a456-426614174000
 
         # Filter by status
         usvc query services --status active
@@ -429,12 +421,10 @@ def query_services(
     async def _query_services_async():
         async with ServiceDataQuery() as query:
             params: dict[str, Any] = {"skip": skip, "limit": limit}
-            if seller_id:
-                params["seller_id"] = seller_id
             if status:
                 params["status"] = status
 
-            services = await query.get("/admin/services", params)
+            services = await query.get("/seller/services", params)
             return services.get("data", services) if isinstance(services, dict) else services
 
     try:
