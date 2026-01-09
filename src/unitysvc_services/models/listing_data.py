@@ -39,7 +39,19 @@ class ServiceListingData(BaseModel):
       file definitions and database operations
     - Service/provider relationships are determined by file location (SDK mode) or
       by being published together in a single API call (API mode)
+
+    Note: extra="ignore" allows deprecated fields like offering_id to be passed
+    for backward compatibility without validation errors.
     """
+
+    model_config = {"extra": "ignore"}
+
+    # DEPRECATED: offering_id is no longer used - ServiceListing is pure content
+    # This field is kept for backward compatibility with existing code
+    offering_id: UUID | None = Field(
+        default=None,
+        description="DEPRECATED - ignored. Offering relationship is now in Service model.",
+    )
 
     # Note: service/provider relationships are no longer specified here.
     # - SDK mode: Determined by file location (services/$name/ directory structure)
