@@ -484,13 +484,15 @@ data/
     "schema": "listing_v1",
     "user_access_interfaces": [
         {
-            "documents": [
-                {
-                    "title": "Python Code Example",
-                    "file_path": "../../docs/code-example.py",
-                    "category": "code_examples"
-                }
-            ]
+            "access_method": "http",
+            "base_url": "${GATEWAY_BASE_URL}/p/openai"
+        }
+    ],
+    "documents": [
+        {
+            "title": "Python Code Example",
+            "file_path": "../../docs/code-example.py",
+            "category": "code_examples"
         }
     ]
 }

@@ -1,7 +1,7 @@
 {
   "$defs": {
     "AccessInterface": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "access_method": {
           "$ref": "#/$defs/AccessMethodEnum",
@@ -53,22 +53,6 @@
           "default": null,
           "description": "Interface description",
           "title": "Description"
-        },
-        "documents": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/Document"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of documents associated with the interface",
-          "title": "Documents"
         },
         "is_active": {
           "default": true,
@@ -436,6 +420,7 @@
         "tutorial",
         "code_example",
         "code_example_output",
+        "connectivity_test",
         "use_case",
         "troubleshooting",
         "changelog",

@@ -85,7 +85,7 @@ usvc publish --dryrun
 usvc publish
 
 # 8. Verify published data
-usvc query listings
+usvc query
 ```
 
 ### Understanding the Service Data Model
@@ -153,17 +153,17 @@ This shows:
 ### Querying Published Data
 
 ```bash
-# List all providers
-usvc query providers
+# List your services
+usvc query
 
-# List all offerings
-usvc query offerings
+# List services with specific fields
+usvc query --fields id,name,status
 
-# List all listings with specific fields
-usvc query listings --fields id,name,display_name,status
+# Filter by status
+usvc query --status active
 
 # Output as JSON
-usvc query listings --format json
+usvc query --format json
 ```
 
 ## Environment Variables

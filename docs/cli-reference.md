@@ -83,77 +83,23 @@ unitysvc_services list listings [DATA_DIR]
 
 ## query - Query Backend
 
-Query data from UnitySVC backend API.
-
-All query commands support field selection to customize output columns and pagination options.
-
-### query providers
+Query services for the current seller from UnitySVC backend API. Services are the identity layer that connects sellers to content versions (Provider, ServiceOffering, ServiceListing).
 
 ```bash
-unitysvc_services query providers [OPTIONS]
+unitysvc_services query [OPTIONS]
 ```
 
 **Options:**
 
 -   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,status)
+-   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
 -   `--skip SKIP` - Number of records to skip for pagination (default: 0)
 -   `--limit LIMIT` - Maximum number of records to return (default: 100)
+-   `--status STATUS` - Filter by status (draft, pending, testing, active, rejected, suspended)
 
 **Available Fields:**
 
-id, name, display_name, contact_email, secondary_contact_email, homepage, description, status, created_at, updated_at
-
-### query sellers
-
-```bash
-unitysvc_services query sellers [OPTIONS]
-```
-
-**Options:**
-
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,display_name,seller_type)
--   `--skip SKIP` - Number of records to skip for pagination (default: 0)
--   `--limit LIMIT` - Maximum number of records to return (default: 100)
-
-**Available Fields:**
-
-id, name, display_name, seller_type, contact_email, secondary_contact_email, homepage, description, business_registration, tax_id, account_manager_id, created_at, updated_at, status
-
-### query offerings
-
-```bash
-unitysvc_services query offerings [OPTIONS]
-```
-
-**Options:**
-
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,provider_name,status)
--   `--skip SKIP` - Number of records to skip for pagination (default: 0)
--   `--limit LIMIT` - Maximum number of records to return (default: 100)
-
-**Available Fields:**
-
-id, provider_id, status, price, service_name, service_type, provider_name
-
-### query listings
-
-```bash
-unitysvc_services query listings [OPTIONS]
-```
-
-**Options:**
-
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,service_name,service_type,seller_name,listing_type,status)
--   `--skip SKIP` - Number of records to skip for pagination (default: 0)
--   `--limit LIMIT` - Maximum number of records to return (default: 100)
-
-**Available Fields:**
-
-id, offering_id, seller_id, status, created_at, updated_at, parameters_schema, parameters_ui_schema, tags, service_name, service_type, provider_name, seller_name, listing_type
+id, name, display_name, status, seller_id, provider_id, offering_id, listing_id, revision_of, created_by_id, updated_by_id, created_at, updated_at
 
 **Required Environment Variables:**
 
@@ -164,31 +110,22 @@ id, offering_id, seller_id, status, created_at, updated_at, parameters_schema, p
 
 ```bash
 # Table output with default fields
-usvc query providers
+usvc query
 
 # JSON output
-usvc query offerings --format json
+usvc query --format json
 
 # Custom fields - show only specific columns
-usvc query providers --fields id,name,contact_email
+usvc query --fields id,name,status
 
-# Show all available fields for sellers
-usvc query sellers --fields id,name,display_name,seller_type,contact_email,homepage,created_at,updated_at
-
-# Custom fields for listings
-usvc query listings --fields id,service_name,listing_type,status
+# Filter by status
+usvc query --status active
 
 # Retrieve more than 100 records
-usvc query providers --limit 500
+usvc query --limit 500
 
 # Pagination: get second page of 100 records
-usvc query offerings --skip 100 --limit 100
-
-# Large dataset retrieval
-usvc query listings --limit 1000
-
-# Combine pagination with custom fields
-usvc query sellers --skip 50 --limit 50 --fields id,name,contact_email
+usvc query --skip 100 --limit 100
 ```
 
 ## publish - Publish Services to Backend
@@ -994,7 +931,7 @@ usvc publish --dryrun
 usvc publish
 
 # Verify
-usvc query offerings
+usvc query
 ```
 
 ### Update and Republish

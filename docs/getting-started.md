@@ -197,17 +197,17 @@ flowchart TD
 ### Step 6: Verify Your Published Data
 
 ```bash
-# Query with default fields
-usvc query providers
-usvc query offerings
-usvc query listings
+# Query your services
+usvc query
 
 # Query with custom fields - show only specific columns
-usvc query providers --fields id,name,contact_email
-usvc query listings --fields id,name,listing_type,status
+usvc query --fields id,name,status
+
+# Filter by status
+usvc query --status active
 
 # Query as JSON for programmatic use
-usvc query offerings --format json
+usvc query --format json
 ```
 
 ## Next Steps

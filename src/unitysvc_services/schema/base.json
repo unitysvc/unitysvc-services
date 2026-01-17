@@ -153,6 +153,7 @@
         "tutorial",
         "code_example",
         "code_example_output",
+        "connectivity_test",
         "use_case",
         "troubleshooting",
         "changelog",
@@ -709,22 +710,6 @@
       "default": null,
       "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
       "title": "Routing Key"
-    },
-    "documents": {
-      "anyOf": [
-        {
-          "items": {
-            "$ref": "#/$defs/Document"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "List of documents associated with the interface",
-      "title": "Documents"
     },
     "rate_limits": {
       "anyOf": [

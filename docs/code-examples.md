@@ -61,7 +61,7 @@ Your code examples should **always** read credentials from these environment var
 
 ### 3. Add to Service Listing Documents
 
-Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array. The listing automatically belongs to the offering in the same directory:
+Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array at the listing level (not inside interfaces). The listing automatically belongs to the offering in the same directory:
 
 ```json
 {
@@ -70,19 +70,20 @@ Code examples are referenced in your `listing.json` or `listing.toml` file under
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
-            "documents": [
-                {
-                    "category": "code_examples",
-                    "title": "Python Example",
-                    "file_path": "../../docs/example.py.j2",
-                    "mime_type": "python",
-                    "is_public": true,
-                    "meta": {
-                        "requirements": ["httpx"],
-                        "expect": "✓ Test passed"
-                    }
-                }
-            ]
+            "base_url": "https://api.example.com/v1"
+        }
+    ],
+    "documents": [
+        {
+            "category": "code_examples",
+            "title": "Python Example",
+            "file_path": "../../docs/example.py.j2",
+            "mime_type": "python",
+            "is_public": true,
+            "meta": {
+                "requirements": ["httpx"],
+                "expect": "✓ Test passed"
+            }
         }
     ]
 }
@@ -90,11 +91,13 @@ Code examples are referenced in your `listing.json` or `listing.toml` file under
 
 **Required Fields:**
 
--   **`category`**: Must be `"code_examples"` for test framework to discover it
+-   **`category`**: Must be `"code_examples"` or `"connectivity_test"` for test framework to discover it
+    -   `code_examples` - User-visible examples shown in documentation
+    -   `connectivity_test` - Internal tests for connectivity and performance metrics (not visible to users)
 -   **`title`**: Descriptive name (e.g., "Python Example", "cURL Example")
 -   **`file_path`**: Path to the code file (relative to the listing file)
 -   **`mime_type`**: File type (`python`, `javascript`, `shell`, etc.)
--   **`is_public`**: Should be `true` for code examples
+-   **`is_public`**: `true` for code examples, `false` for connectivity tests
 
 **Optional but Recommended Fields (in `meta` object):**
 
@@ -395,7 +398,7 @@ if response.status_code == 200 and "choices" in response.json():
 
 ### Step 4: Add to Listing Documentation
 
-Reference the code example in your `listing.json` file. The listing automatically belongs to the offering in the same directory.
+Reference the code example in your `listing.json` file at the listing level (not inside interfaces). The listing automatically belongs to the offering in the same directory.
 
 **Example: `listing.json`**
 
@@ -406,19 +409,20 @@ Reference the code example in your `listing.json` file. The listing automaticall
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
-            "documents": [
-                {
-                    "category": "code_examples",
-                    "title": "Python code example",
-                    "file_path": "../../docs/test.py.j2",
-                    "mime_type": "python",
-                    "is_public": true,
-                    "meta": {
-                        "requirements": ["httpx"],
-                        "expect": "✓ Test passed"
-                    }
-                }
-            ]
+            "base_url": "https://api.example.com/v1"
+        }
+    ],
+    "documents": [
+        {
+            "category": "code_examples",
+            "title": "Python code example",
+            "file_path": "../../docs/test.py.j2",
+            "mime_type": "python",
+            "is_public": true,
+            "meta": {
+                "requirements": ["httpx"],
+                "expect": "✓ Test passed"
+            }
         }
     ]
 }
@@ -629,6 +633,68 @@ if (data.choices) {
     }
 }
 ```
+
+### Pattern 4: Connectivity Test (Internal)
+
+Connectivity tests verify API connectivity and gather performance metrics. They run during testing but are **not visible to users**.
+
+**File: `connectivity-test.py.j2`**
+
+```python
+#!/usr/bin/env python3
+"""Connectivity and performance test for {{ offering.name }}"""
+import httpx
+import os
+import time
+
+API_KEY = os.environ.get("API_KEY")
+BASE_URL = os.environ.get("BASE_URL")
+
+# Measure response time
+start = time.time()
+response = httpx.post(
+    f"{BASE_URL}/chat/completions",
+    headers={"Authorization": f"Bearer {API_KEY}"},
+    json={
+        "model": "{{ offering.name }}",
+        "messages": [{"role": "user", "content": "ping"}],
+        "max_tokens": 5
+    },
+    timeout=30.0
+)
+elapsed = time.time() - start
+
+# Output metrics
+print(f"Status: {response.status_code}")
+print(f"Response Time: {elapsed:.3f}s")
+
+if response.status_code == 200:
+    data = response.json()
+    if "choices" in data:
+        print("✓ Connectivity OK")
+```
+
+**In `listing.json`:**
+
+```json
+{
+    "category": "connectivity_test",
+    "title": "API Connectivity Test",
+    "file_path": "connectivity-test.py.j2",
+    "mime_type": "python",
+    "is_public": false,
+    "meta": {
+        "requirements": ["httpx"],
+        "expect": "✓ Connectivity OK"
+    }
+}
+```
+
+**Key differences from code_examples:**
+
+-   `category`: `"connectivity_test"` instead of `"code_examples"`
+-   `is_public`: `false` - not shown to users in documentation
+-   Purpose: Internal testing and monitoring, not user education
 
 ## Template Variables Reference
 

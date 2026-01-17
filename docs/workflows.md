@@ -177,14 +177,14 @@ usvc publish --data-path ./data
 #### 7. Verify on Platform
 
 ```bash
-# Query with default fields
-usvc query providers
-usvc query offerings
-usvc query listings
+# Query your services
+usvc query
 
 # Or query with custom fields for focused output
-usvc query providers --fields id,name,status
-usvc query listings --fields id,name,listing_type,status
+usvc query --fields id,name,status
+
+# Filter by status
+usvc query --status active
 ```
 
 ### Version Control Integration
@@ -343,11 +343,11 @@ usvc publish
 #### 7. Verify
 
 ```bash
-# Query with default fields
-usvc query offerings
+# Query your services
+usvc query
 
 # Or query with custom fields
-usvc query offerings --fields id,name,status
+usvc query --fields id,name,status
 ```
 
 ### Automation with CI/CD
@@ -638,16 +638,14 @@ For scheduled cleanup of deprecated services:
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
 export UNITYSVC_API_KEY="${UNITYSVC_API_KEY}"
 
-# Query for deprecated offerings
+# Query for suspended services
 # (assumes you have jq installed for JSON processing)
-deprecated_services=$(usvc query offerings --format json | jq -r '.[] | select(.status == "deprecated") | .service_name' | tr '\n' ',')
+suspended_services=$(usvc query --status suspended --format json | jq -r '.[].name' | tr '\n' ',')
 
 # Preview what would be deleted
-echo "Deprecated services to remove: $deprecated_services"
-usvc unpublish offerings --services "$deprecated_services" --dryrun
+echo "Suspended services to remove: $suspended_services"
 
-# Uncomment to actually delete (after manual review)
-# usvc unpublish offerings --services "$deprecated_services" --yes
+# Note: Use the unpublish command to delete specific offerings/listings
 ```
 
 ### Best Practices for Unpublishing

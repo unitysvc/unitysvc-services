@@ -571,19 +571,23 @@ class ServiceDataPublisher(UnitySvcAPI):
     @staticmethod
     def _derive_effective_status(result: dict[str, Any]) -> str:
         """
-        Derive effective status from nested provider/offering/listing results.
+        Derive effective status from nested provider/offering/listing/service results.
 
         The backend returns individual statuses for each entity. This method
         combines them into a single effective status:
-        - If any entity was created -> "created"
+        - If any entity was created (including Service record) -> "created"
         - If any entity was updated (none created) -> "updated"
         - If all entities are unchanged -> "unchanged"
         """
         statuses = []
-        for key in ["provider", "offering", "listing"]:
+        for key in ["provider", "offering", "listing", "service"]:
             nested = result.get(key, {})
             if isinstance(nested, dict):
-                statuses.append(nested.get("status", ""))
+                status = nested.get("status", "")
+                # Map service-specific statuses to generic ones
+                if status == "revision_created":
+                    status = "created"
+                statuses.append(status)
 
         # Dryrun statuses
         if "create" in statuses:
