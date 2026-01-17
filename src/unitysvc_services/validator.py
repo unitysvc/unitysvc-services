@@ -177,6 +177,27 @@ class DataValidator:
         check_field(data, str(file_path))
         return errors
 
+    def validate_duplicate_document_titles(self, data: dict[str, Any], file_path: Path) -> list[str]:
+        """Validate that document titles are unique within an entity.
+
+        The backend tracks documents by title, so duplicate titles will cause
+        publish failures.
+        """
+        errors: list[str] = []
+
+        # Check documents array at top level
+        documents = data.get("documents", [])
+        if documents:
+            titles = [doc.get("title") for doc in documents if doc.get("title")]
+            duplicates = [title for title in set(titles) if titles.count(title) > 1]
+            if duplicates:
+                errors.append(
+                    f"Duplicate document titles found: {duplicates}. "
+                    f"Document titles must be unique within an entity."
+                )
+
+        return errors
+
     def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
         """Validate that the name field matches the directory name."""
         errors: list[str] = []
@@ -330,6 +351,10 @@ class DataValidator:
         # Validate name consistency with directory name
         name_errors = self.validate_name_consistency(data, file_path, schema_name)
         errors.extend(name_errors)
+
+        # Validate duplicate document titles
+        dup_title_errors = self.validate_duplicate_document_titles(data, file_path)
+        errors.extend(dup_title_errors)
 
         return len(errors) == 0, errors
 

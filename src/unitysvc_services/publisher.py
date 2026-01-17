@@ -501,6 +501,8 @@ class ServiceDataPublisher(UnitySvcAPI):
         listing_data = convert_convenience_fields_to_documents(
             listing_data, listing_base_path, logo_field="logo", terms_field="terms_of_service"
         )
+        # Note: interface is intentionally NOT passed here - code examples should be
+        # interface-independent and use offering.details for service-specific values
         listing_data_resolved = self.resolve_file_references(
             listing_data,
             listing_base_path,
