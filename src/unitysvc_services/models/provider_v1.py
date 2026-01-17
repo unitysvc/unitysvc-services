@@ -1,9 +1,8 @@
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
-from .base import AccessInterface, Document, validate_name
+from .base import Document, validate_name
 from .provider_data import ProviderData
 
 
