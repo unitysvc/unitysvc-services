@@ -49,51 +49,59 @@ def extract_service_directory_name(listing_file: Path) -> str | None:
 
 
 def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_file: Path) -> list[dict[str, Any]]:
-    """Extract code example documents from a listing file.
+    """Extract code example and connectivity test documents from a listing file.
 
     Args:
         listing_data: Parsed listing data
         listing_file: Path to the listing file for resolving relative paths
 
     Returns:
-        List of code example documents with resolved file paths
+        List of code example/test documents with resolved file paths
     """
     code_examples = []
 
     # Get service name from directory structure
     service_name = extract_service_directory_name(listing_file) or "unknown"
 
-    # Check user_access_interfaces
+    # Categories that are testable (executable code)
+    testable_categories = {
+        DocumentCategoryEnum.code_example,
+        DocumentCategoryEnum.connectivity_test,
+    }
+
+    # Get documents from listing level (new location)
+    documents = listing_data.get("documents", [])
+
+    # Get first interface for template context (if any)
     interfaces = listing_data.get("user_access_interfaces", [])
+    first_interface = interfaces[0] if interfaces else {}
 
-    for interface in interfaces:
-        documents = interface.get("documents", [])
+    for doc in documents:
+        # Check if this is a testable document (code_example or connectivity_test)
+        category = doc.get("category", "")
+        if category in testable_categories:
+            # Resolve file path relative to listing file
+            file_path = doc.get("file_path")
+            if file_path:
+                # Resolve relative path
+                absolute_path = (listing_file.parent / file_path).resolve()
 
-        for doc in documents:
-            # Check if this is a code example document
-            category = doc.get("category", "")
-            if category == DocumentCategoryEnum.code_example:
-                # Resolve file path relative to listing file
-                file_path = doc.get("file_path")
-                if file_path:
-                    # Resolve relative path
-                    absolute_path = (listing_file.parent / file_path).resolve()
+                # Extract meta fields for code examples (expect, requirements, etc.)
+                meta = doc.get("meta", {}) or {}
 
-                    # Extract meta fields for code examples (expect, requirements, etc.)
-                    meta = doc.get("meta", {}) or {}
-
-                    code_example = {
-                        "service_name": service_name,
-                        "title": doc.get("title", "Untitled"),
-                        "mime_type": doc.get("mime_type", "python"),
-                        "file_path": str(absolute_path),
-                        "listing_data": listing_data,  # Full listing data for templates
-                        "listing_file": listing_file,  # Path to listing file for loading related data
-                        "interface": interface,  # Interface data for templates (base_url, routing_key, etc.)
-                        "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
-                        "requirements": meta.get("requirements"),  # Required packages (from meta)
-                    }
-                    code_examples.append(code_example)
+                code_example = {
+                    "service_name": service_name,
+                    "title": doc.get("title", "Untitled"),
+                    "mime_type": doc.get("mime_type", "python"),
+                    "file_path": str(absolute_path),
+                    "listing_data": listing_data,  # Full listing data for templates
+                    "listing_file": listing_file,  # Path to listing file for loading related data
+                    "interface": first_interface,  # First interface for templates (base_url, routing_key, etc.)
+                    "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
+                    "requirements": meta.get("requirements"),  # Required packages (from meta)
+                    "category": category,  # Track which category this is
+                }
+                code_examples.append(code_example)
 
     return code_examples
 

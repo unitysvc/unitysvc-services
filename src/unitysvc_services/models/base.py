@@ -177,6 +177,7 @@ class DocumentCategoryEnum(StrEnum):
     tutorial = "tutorial"
     code_example = "code_example"
     code_example_output = "code_example_output"
+    connectivity_test = "connectivity_test"  # Test connectivity & performance (not visible to users)
     use_case = "use_case"
     troubleshooting = "troubleshooting"
     changelog = "changelog"

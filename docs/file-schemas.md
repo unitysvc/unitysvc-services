@@ -397,8 +397,9 @@ Documents associated with entities (providers, offerings, listings).
 -   `getting_started` - Getting started guides
 -   `api_reference` - API reference documentation
 -   `tutorial` - Step-by-step tutorials
--   `code_example` - Code examples
+-   `code_example` - Code examples (visible to users)
 -   `code_example_output` - Expected output from code examples
+-   `connectivity_test` - Connectivity and performance tests (not visible to users, `is_public: false`)
 -   `use_case` - Use case descriptions
 -   `troubleshooting` - Troubleshooting guides
 -   `changelog` - Version changelogs
