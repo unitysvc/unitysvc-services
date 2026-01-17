@@ -1,10 +1,23 @@
 from datetime import datetime
-from typing import Any
 
-from pydantic import ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
-from .base import AccessInterface, Document, validate_name
+from .base import Document, validate_name
 from .provider_data import ProviderData
+
+
+class ServicesPopulator(BaseModel):
+    """Configuration for automatically populating service data."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    command: str | list[str] = Field(
+        description="Command to execute for populating services (string or list of arguments)"
+    )
+    envs: dict[str, str] | None = Field(
+        default=None,
+        description="Environment variables to set when executing the command",
+    )
 
 
 class ProviderV1(ProviderData):
@@ -14,8 +27,7 @@ class ProviderV1(ProviderData):
     Extends ProviderData with:
     - schema_version: Schema identifier for file validation
     - time_created: Timestamp for file creation
-    - services_populator: How to automatically populate service data
-    - provider_access_info: Parameters for accessing service provider
+    - services_populator: How to automatically populate service data (with envs)
     - logo, terms_of_service: Convenience fields (converted to documents during import)
     - Typed Document model instead of dict for file validation
     - Field validators for name format
@@ -28,10 +40,7 @@ class ProviderV1(ProviderData):
     time_created: datetime
 
     # How to automatically populate service data, if available
-    services_populator: dict[str, Any] | None = None
-
-    # Parameters for accessing service provider (base_url, api_key)
-    provider_access_info: AccessInterface = Field(description="Dictionary of upstream access interface")
+    services_populator: ServicesPopulator | None = None
 
     # Convenience fields for logo and terms of service (converted to documents during import)
     logo: str | HttpUrl | None = None

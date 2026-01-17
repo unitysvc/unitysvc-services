@@ -229,7 +229,7 @@ display_name = "My Service Provider"
 [services_populator]
 command = "populate_services.py"
 
-[provider_access_info]
+[services_populator.envs]
 API_KEY = "your-provider-api-key"
 BASE_URL = "https://api.provider.com/v1"
 REGION = "us-east-1"
@@ -248,7 +248,7 @@ import json
 from pathlib import Path
 import requests
 
-# Get environment variables from provider_access_info
+# Get environment variables from services_populator.envs
 api_key = os.getenv("API_KEY")
 base_url = os.getenv("BASE_URL")
 region = os.getenv("REGION")
@@ -705,7 +705,7 @@ echo "Suspended services to remove: $suspended_services"
 
 ### Populate Script Fails
 
--   Check API credentials in `provider_access_info`
+-   Check API credentials in `services_populator.envs`
 -   Verify script has execute permissions
 -   Test script manually: `python3 populate_services.py`
 

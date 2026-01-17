@@ -52,10 +52,10 @@ BASE_URL = os.environ.get("BASE_URL")
 
 **Standard Environment Variables:**
 
-The test framework automatically sets these environment variables when running code examples:
+The test framework automatically sets these environment variables when running code examples from `services_populator.envs`:
 
--   `API_KEY` - Provider API key from `provider.provider_access_info.api_key`
--   `BASE_URL` - Provider API endpoint from `provider.provider_access_info.base_url`
+-   `API_KEY` - Provider API key
+-   `BASE_URL` - Provider API endpoint
 
 Your code examples should **always** read credentials from these environment variables.
 
@@ -724,10 +724,9 @@ Provider metadata (Provider_v1 schema)
 
 -   `provider.name` - Provider name (use this for provider name)
 -   `provider.display_name` - Human-readable provider name
--   `provider.provider_access_info` - Access credentials and endpoints
-    -   `provider.provider_access_info.base_url` - API endpoint URL
-    -   `provider.provider_access_info.api_key` - API key
 -   All other fields from the provider schema
+
+Note: For API credentials (`API_KEY`, `BASE_URL`), use environment variables instead of template variables. These are set from `services_populator.envs` during testing.
 
 ### seller
 
