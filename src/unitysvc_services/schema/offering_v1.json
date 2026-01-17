@@ -54,22 +54,6 @@
           "description": "Interface description",
           "title": "Description"
         },
-        "documents": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/Document"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "List of documents associated with the interface",
-          "title": "Documents"
-        },
         "is_active": {
           "default": true,
           "description": "Whether interface is active",
@@ -436,6 +420,7 @@
         "tutorial",
         "code_example",
         "code_example_output",
+        "connectivity_test",
         "use_case",
         "troubleshooting",
         "changelog",
