@@ -1228,7 +1228,7 @@ class ServiceConstraints(BaseModel):
 
 
 class AccessInterface(BaseModel):
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid")
 
     access_method: AccessMethodEnum = Field(default=AccessMethodEnum.http, description="Type of access method")
 

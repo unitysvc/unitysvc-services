@@ -1,7 +1,7 @@
 {
   "$defs": {
     "AccessInterface": {
-      "additionalProperties": true,
+      "additionalProperties": false,
       "properties": {
         "access_method": {
           "$ref": "#/$defs/AccessMethodEnum",
