@@ -123,7 +123,7 @@ export UNITYSVC_API_KEY="your-seller-api-key"
 usvc publish
 
 # 6. Query backend to verify published data
-usvc query providers --fields id,name,contact_email
+usvc query
 ```
 
 ## Data Structure
