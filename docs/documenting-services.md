@@ -81,11 +81,11 @@ The file extension determines how the document is processed:
 
 ## Adding Documents to Listings
 
-Documents are added to listings through the `user_access_interfaces` field in your listing file.
+Documents are added to listings through the `documents` field at the listing level.
 
 ### Basic Document Structure
 
-Documents are defined in your listing files. The listing automatically belongs to the offering in the same directory.
+Documents are defined in your listing files at the top level. The listing automatically belongs to the offering in the same directory.
 
 **Example: `listing.json`**
 
@@ -96,22 +96,24 @@ Documents are defined in your listing files. The listing automatically belongs t
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
-            "documents": [
-                {
-                    "category": "description",
-                    "title": "GPT-4 Overview",
-                    "file_path": "../../docs/gpt4-description.md.j2",
-                    "mime_type": "markdown",
-                    "is_public": true
-                },
-                {
-                    "category": "getting_started",
-                    "title": "Quick Start Guide",
-                    "file_path": "../../docs/quickstart.md",
-                    "mime_type": "markdown",
-                    "is_public": true
-                }
-            ]
+            "name": "API Interface",
+            "base_url": "https://api.example.com/v1"
+        }
+    ],
+    "documents": [
+        {
+            "category": "description",
+            "title": "GPT-4 Overview",
+            "file_path": "../../docs/gpt4-description.md.j2",
+            "mime_type": "markdown",
+            "is_public": true
+        },
+        {
+            "category": "getting_started",
+            "title": "Quick Start Guide",
+            "file_path": "../../docs/quickstart.md",
+            "mime_type": "markdown",
+            "is_public": true
         }
     ]
 }

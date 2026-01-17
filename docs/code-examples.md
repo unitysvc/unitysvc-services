@@ -61,7 +61,7 @@ Your code examples should **always** read credentials from these environment var
 
 ### 3. Add to Service Listing Documents
 
-Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array. The listing automatically belongs to the offering in the same directory:
+Code examples are referenced in your `listing.json` or `listing.toml` file under the `documents` array at the listing level (not inside interfaces). The listing automatically belongs to the offering in the same directory:
 
 ```json
 {
@@ -70,19 +70,20 @@ Code examples are referenced in your `listing.json` or `listing.toml` file under
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
-            "documents": [
-                {
-                    "category": "code_examples",
-                    "title": "Python Example",
-                    "file_path": "../../docs/example.py.j2",
-                    "mime_type": "python",
-                    "is_public": true,
-                    "meta": {
-                        "requirements": ["httpx"],
-                        "expect": "✓ Test passed"
-                    }
-                }
-            ]
+            "base_url": "https://api.example.com/v1"
+        }
+    ],
+    "documents": [
+        {
+            "category": "code_examples",
+            "title": "Python Example",
+            "file_path": "../../docs/example.py.j2",
+            "mime_type": "python",
+            "is_public": true,
+            "meta": {
+                "requirements": ["httpx"],
+                "expect": "✓ Test passed"
+            }
         }
     ]
 }
@@ -395,7 +396,7 @@ if response.status_code == 200 and "choices" in response.json():
 
 ### Step 4: Add to Listing Documentation
 
-Reference the code example in your `listing.json` file. The listing automatically belongs to the offering in the same directory.
+Reference the code example in your `listing.json` file at the listing level (not inside interfaces). The listing automatically belongs to the offering in the same directory.
 
 **Example: `listing.json`**
 
@@ -406,19 +407,20 @@ Reference the code example in your `listing.json` file. The listing automaticall
     "user_access_interfaces": [
         {
             "interface_type": "openai_chat_completions",
-            "documents": [
-                {
-                    "category": "code_examples",
-                    "title": "Python code example",
-                    "file_path": "../../docs/test.py.j2",
-                    "mime_type": "python",
-                    "is_public": true,
-                    "meta": {
-                        "requirements": ["httpx"],
-                        "expect": "✓ Test passed"
-                    }
-                }
-            ]
+            "base_url": "https://api.example.com/v1"
+        }
+    ],
+    "documents": [
+        {
+            "category": "code_examples",
+            "title": "Python code example",
+            "file_path": "../../docs/test.py.j2",
+            "mime_type": "python",
+            "is_public": true,
+            "meta": {
+                "requirements": ["httpx"],
+                "expect": "✓ Test passed"
+            }
         }
     ]
 }

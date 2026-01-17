@@ -710,22 +710,6 @@
       "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
       "title": "Routing Key"
     },
-    "documents": {
-      "anyOf": [
-        {
-          "items": {
-            "$ref": "#/$defs/Document"
-          },
-          "type": "array"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "List of documents associated with the interface",
-      "title": "Documents"
-    },
     "rate_limits": {
       "anyOf": [
         {

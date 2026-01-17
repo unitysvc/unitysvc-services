@@ -8,18 +8,18 @@
       "access_method": "http",
       "base_url": "${GATEWAY_BASE_URL}/p/example-provider2",
       "api_key": null,
-      "documents": [
-        {
-          "category": "code_example",
-          "description": "Example code to use the model",
-          "file_path": "code-example.md",
-          "is_active": true,
-          "is_public": true,
-          "mime_type": "python",
-          "title": "Python Code Example"
-        }
-      ],
       "name": "Provider API"
+    }
+  ],
+  "documents": [
+    {
+      "category": "code_example",
+      "description": "Example code to use the model",
+      "file_path": "code-example.md",
+      "is_active": true,
+      "is_public": true,
+      "mime_type": "python",
+      "title": "Python Code Example"
     }
   ],
   "currency": "USD",

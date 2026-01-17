@@ -158,7 +158,6 @@ class ContentFilterEnum(StrEnum):
 
 
 class DocumentContextEnum(StrEnum):
-    access_interface = "access_interface"  # Documents belong to AccessInterface
     service_definition = "service_definition"  # Documents belong to ServiceDefinition
     service_offering = "service_offering"  # Documents belong to ServiceOffering
     service_listing = "service_listing"  # Documents belong to ServiceListing
@@ -1247,10 +1246,6 @@ class AccessInterface(BaseModel):
     routing_key: dict[str, Any] | None = Field(
         default=None,
         description="Request routing key for matching (e.g., {'model': 'gpt-4'})",
-    )
-
-    documents: list[Document] | None = Field(
-        default=None, description="List of documents associated with the interface"
     )
 
     rate_limits: list[RateLimit] | None = Field(

@@ -304,7 +304,6 @@ The `AccessInterface` object defines how to access a service (used in providers,
 | `routing_key`         | object             | Optional routing key for request matching                                 |
 | `rate_limits`         | array of RateLimit | Rate limiting rules                                                       |
 | `constraints`         | ServiceConstraints | Service constraints                                                       |
-| `documents`           | array of Document  | Interface documentation                                                   |
 | `is_active`           | boolean            | Whether interface is active (default: true)                               |
 | `is_primary`          | boolean            | Whether this is primary interface (default: false)                        |
 | `sort_order`          | integer            | Display order (default: 0)                                                |
@@ -377,7 +376,7 @@ See [Pricing Specification](pricing.md) for TOML examples, validation rules, and
 
 ### Document Object
 
-Documents associated with entities (providers, services, listings, access interfaces).
+Documents associated with entities (providers, offerings, listings).
 
 | Field          | Type    | Description                                                                                               |
 | -------------- | ------- | --------------------------------------------------------------------------------------------------------- |
