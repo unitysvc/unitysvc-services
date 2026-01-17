@@ -38,7 +38,7 @@ def populate(
     Populate services by executing provider-specific update scripts.
 
     This command scans provider files for 'services_populator' configuration and executes
-    the specified commands with environment variables from 'provider_access_info'.
+    the specified commands with environment variables from 'services_populator.envs'.
 
     After successful execution, automatically runs formatting on all generated files to
     ensure they conform to the format specification (equivalent to running 'usvc format').
@@ -106,14 +106,14 @@ def populate(
 
             console.print(f"[bold cyan]Processing provider:[/bold cyan] {provider_name_in_file}")
 
-            # Prepare environment variables from provider_access_info
+            # Prepare environment variables from services_populator.envs
             env = os.environ.copy()
-            provider_access_info = provider_config.get("provider_access_info", {})
-            if provider_access_info:
-                for key, value in provider_access_info.items():
+            populator_envs = services_populator.get("envs", {})
+            if populator_envs:
+                for key, value in populator_envs.items():
                     env[key] = str(value)
                 console.print(
-                    f"[dim]  Set {len(provider_access_info)} environment variable(s) from provider_access_info[/dim]"
+                    f"[dim]  Set {len(populator_envs)} environment variable(s) from services_populator.envs[/dim]"
                 )
 
             # Get the provider directory (parent of provider file)
@@ -136,10 +136,12 @@ def populate(
                 console.print("[yellow]  [DRY-RUN] Would execute command[/yellow]")
                 console.print(f"[yellow]    {' '.join(full_command)}[/yellow]")
                 console.print(f"[yellow]  under  {provider_dir}[/yellow]")
-                if provider_access_info:
-                    console.print("[yellow]  with:[/yellow]")
-                    for key, value in provider_access_info.items():
-                        console.print(f"[yellow]    {key}={value}[/yellow]")
+                if populator_envs:
+                    console.print("[yellow]  with environment variables:[/yellow]")
+                    for key, value in populator_envs.items():
+                        # Mask sensitive values
+                        display_value = value if len(str(value)) < 8 else str(value)[:4] + "..."
+                        console.print(f"[yellow]    {key}={display_value}[/yellow]")
                 console.print()
                 total_skipped += 1
                 continue

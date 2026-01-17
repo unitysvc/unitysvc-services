@@ -685,7 +685,7 @@ unitysvc_services populate [DATA_DIR] [OPTIONS]
 
 -   Provider file must have `services_populator` configuration
 -   Script specified in `services_populator.command`
--   Environment variables from `provider_access_info`
+-   Environment variables from `services_populator.envs`
 
 **Examples:**
 

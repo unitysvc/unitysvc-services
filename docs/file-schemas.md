@@ -17,14 +17,13 @@ Provider files define the service provider's metadata and access configuration f
 
 ### Required Fields
 
-| Field                  | Type                | Description                                                               |
-| ---------------------- | ------------------- | ------------------------------------------------------------------------- |
-| `schema`               | string              | Must be `"provider_v1"`                                                   |
-| `name`                 | string              | Provider identifier (URL-friendly: lowercase, hyphens, underscores, dots) |
-| `homepage`             | string (URL)        | Provider website URL                                                      |
-| `contact_email`        | string (email)      | Contact email address                                                     |
-| `provider_access_info` | AccessInterface     | Upstream access interface configuration                                   |
-| `time_created`         | datetime (ISO 8601) | Timestamp when the provider was created                                   |
+| Field           | Type                | Description                                                               |
+| --------------- | ------------------- | ------------------------------------------------------------------------- |
+| `schema`        | string              | Must be `"provider_v1"`                                                   |
+| `name`          | string              | Provider identifier (URL-friendly: lowercase, hyphens, underscores, dots) |
+| `homepage`      | string (URL)        | Provider website URL                                                      |
+| `contact_email` | string (email)      | Contact email address                                                     |
+| `time_created`  | datetime (ISO 8601) | Timestamp when the provider was created                                   |
 
 ### Optional Fields
 
@@ -41,13 +40,10 @@ Provider files define the service provider's metadata and access configuration f
 
 ### services_populator Object
 
-| Field     | Type   | Description                                                 |
-| --------- | ------ | ----------------------------------------------------------- |
-| `command` | string | Script filename to execute (relative to provider directory) |
-
-### provider_access_info (AccessInterface)
-
-See [AccessInterface Object](#access-interface-object) below for complete field reference.
+| Field     | Type              | Description                                                    |
+| --------- | ----------------- | -------------------------------------------------------------- |
+| `command` | string            | Script filename to execute (relative to provider directory)    |
+| `envs`    | object (optional) | Environment variables to set when executing the populate command |
 
 ### Example (TOML)
 
@@ -64,10 +60,9 @@ status = "active"
 [services_populator]
 command = "populate_services.py"
 
-[provider_access_info]
-access_method = "http"
-base_url = "https://api.openai.com/v1"
-api_key = "sk-YOUR-API-KEY"
+[services_populator.envs]
+API_KEY = "sk-YOUR-API-KEY"
+BASE_URL = "https://api.openai.com/v1"
 ```
 
 ### Example (JSON)
@@ -83,12 +78,11 @@ api_key = "sk-YOUR-API-KEY"
     "time_created": "2024-01-15T10:00:00Z",
     "status": "active",
     "services_populator": {
-        "command": "populate_services.py"
-    },
-    "provider_access_info": {
-        "access_method": "http",
-        "base_url": "https://api.openai.com/v1",
-        "api_key": "sk-YOUR-API-KEY"
+        "command": "populate_services.py",
+        "envs": {
+            "API_KEY": "sk-YOUR-API-KEY",
+            "BASE_URL": "https://api.openai.com/v1"
+        }
     }
 }
 ```
