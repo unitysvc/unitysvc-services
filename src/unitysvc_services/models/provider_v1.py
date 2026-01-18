@@ -51,9 +51,9 @@ class ProviderV1(ProviderData):
     )
 
     # Override with typed Document model for file validation
-    documents: list[Document] | None = Field(  # type: ignore[assignment]
+    documents: dict[str, Document] | None = Field(  # type: ignore[assignment]
         default=None,
-        description="List of documents associated with the provider (e.g. logo)",
+        description="Documents associated with the provider, keyed by title (e.g. logo)",
     )
 
     @field_validator("name")

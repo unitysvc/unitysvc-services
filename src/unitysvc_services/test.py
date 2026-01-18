@@ -73,8 +73,9 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
     documents = listing_data.get("documents", {}) or {}
 
     # Get first interface for template context (if any)
-    interfaces = listing_data.get("user_access_interfaces", [])
-    first_interface = interfaces[0] if interfaces else {}
+    # user_access_interfaces is now a dict keyed by name
+    interfaces = listing_data.get("user_access_interfaces", {}) or {}
+    first_interface = next(iter(interfaces.values()), {}) if interfaces else {}
 
     for title, doc in documents.items():
         # Check if this is a testable document (code_example or connectivity_test)

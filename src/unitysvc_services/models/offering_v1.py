@@ -52,9 +52,9 @@ class OfferingV1(ServiceOfferingData):
         description="Dictionary of upstream access interface",
     )
 
-    documents: list[Document] | None = Field(  # type: ignore[assignment]
+    documents: dict[str, Document] | None = Field(  # type: ignore[assignment]
         default=None,
-        description="List of documents associated with the service (e.g. tech spec.)",
+        description="Documents associated with the service, keyed by title (e.g. tech spec.)",
     )
 
     payout_price: Pricing | None = Field(  # type: ignore[assignment]

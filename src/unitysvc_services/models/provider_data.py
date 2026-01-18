@@ -72,8 +72,8 @@ class ProviderData(BaseModel):
         description="Provider status: draft (skip publish), ready (for review), or deprecated (retired)",
     )
 
-    # Documents (as dicts for flexibility)
-    documents: list[dict[str, Any]] | None = Field(
+    # Documents (keyed by title, as dicts for flexibility)
+    documents: dict[str, dict[str, Any]] | None = Field(
         default=None,
-        description="List of documents associated with the provider",
+        description="Documents associated with the provider, keyed by title",
     )
