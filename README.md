@@ -110,19 +110,23 @@ This separation enables:
 usvc validate
 usvc format
 
-# 3. Test code examples with upstream credentials
-usvc test list --provider my-provider
-usvc test run --provider my-provider --services "my-*"
+# 3. Run code examples locally with upstream credentials
+usvc example list --provider my-provider
+usvc example run --provider my-provider --services "my-*"
 
 # 4. For dynamic catalogs, use populate scripts
 usvc populate
 
-# 5. Publish to platform (publishes provider + offering + listing together)
+# 5. Upload to platform (uploads provider + offering + listing together)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
-usvc publish
+usvc upload
 
-# 6. Query backend to verify published data
+# 6. Test via gateway and submit for review
+usvc test
+usvc submit
+
+# 7. Query backend to verify uploaded data
 usvc query
 ```
 
@@ -136,15 +140,15 @@ data/
 │   └── services/
 │       └── ${service_name}/
 │           ├── offering.json      # Offering Data (offering_v1)
-│           └── listing-*.json     # Listing Data (listing_v1) ← publish entry point
+│           └── listing-*.json     # Listing Data (listing_v1) ← upload entry point
 ```
 
-**Publishing is listing-centric**: When you run `usvc publish`, the SDK:
+**Uploading is listing-centric**: When you run `usvc upload`, the SDK:
 
 1. Finds all listing files (`listing_v1` schema)
 2. For each listing, locates the **single** offering file in the same directory
 3. Locates the provider file in the parent directory
-4. Publishes all three together as a unified service
+4. Uploads all three together as a unified service in `draft` status
 
 **Key constraint**: Each service directory must have exactly **one** offering file. Listings automatically belong to this offering based on their file location—no explicit linking required.
 
