@@ -180,23 +180,12 @@ class DataValidator:
     def validate_duplicate_document_titles(self, data: dict[str, Any], file_path: Path) -> list[str]:
         """Validate that document titles are unique within an entity.
 
-        The backend tracks documents by title, so duplicate titles will cause
-        publish failures.
+        Note: With dict format, titles are dict keys which are inherently unique.
+        This function is kept for backward compatibility but returns empty list.
         """
-        errors: list[str] = []
-
-        # Check documents array at top level
-        documents = data.get("documents", [])
-        if documents:
-            titles = [doc.get("title") for doc in documents if doc.get("title")]
-            duplicates = [title for title in set(titles) if titles.count(title) > 1]
-            if duplicates:
-                errors.append(
-                    f"Duplicate document titles found: {duplicates}. "
-                    f"Document titles must be unique within an entity."
-                )
-
-        return errors
+        # Documents are now stored as dict where key = title
+        # Dict keys are inherently unique, so no duplicate check needed
+        return []
 
     def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
         """Validate that the name field matches the directory name."""
