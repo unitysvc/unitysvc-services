@@ -10,10 +10,10 @@ Report bugs at https://github.com/unitysvc/unitysvc-services/issues.
 
 If you are reporting a bug, please include:
 
--   Your operating system name and version
--   Python version
--   Any details about your local setup that might be helpful in troubleshooting
--   Detailed steps to reproduce the bug
+- Your operating system name and version
+- Python version
+- Any details about your local setup that might be helpful in troubleshooting
+- Detailed steps to reproduce the bug
 
 ### Fix Bugs
 
@@ -25,7 +25,7 @@ Look through the GitHub issues for features. Anything tagged with "enhancement" 
 
 ### Write Documentation
 
-UnitySVC Seller SDK can always use more documentation, whether as part of the official docs, in docstrings, or even on the web in blog posts, articles, and such.
+UnitySVC Provider SDK can always use more documentation, whether as part of the official docs, in docstrings, or even on the web in blog posts, articles, and such.
 
 ### Submit Feedback
 
@@ -33,9 +33,9 @@ The best way to send feedback is to file an issue at https://github.com/unitysvc
 
 If you are proposing a feature:
 
--   Explain in detail how it would work
--   Keep the scope as narrow as possible, to make it easier to implement
--   Remember that this is a volunteer-driven project, and that contributions are welcome :)
+- Explain in detail how it would work
+- Keep the scope as narrow as possible, to make it easier to implement
+- Remember that this is a volunteer-driven project, and that contributions are welcome :)
 
 ## Getting Started
 
@@ -85,9 +85,9 @@ git checkout -b fix/my-bugfix
 
 ### 4. Make Your Changes
 
--   Write clear, documented code
--   Add tests for new functionality
--   Update documentation as needed
+- Write clear, documented code
+- Add tests for new functionality
+- Update documentation as needed
 
 ### 5. Run Tests and Linting
 
@@ -119,13 +119,12 @@ git push origin feature/my-feature
 ```
 
 Commit types:
-
--   `feat:` New feature
--   `fix:` Bug fix
--   `docs:` Documentation changes
--   `refactor:` Code refactoring
--   `test:` Test changes
--   `chore:` Maintenance tasks
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `refactor:` Code refactoring
+- `test:` Test changes
+- `chore:` Maintenance tasks
 
 ### 7. Submit a Pull Request
 
@@ -146,11 +145,11 @@ Before you submit a pull request, check that it meets these guidelines:
 
 ### Code Style
 
--   Follow PEP 8
--   Use type hints
--   Write descriptive docstrings
--   Keep functions focused and small
--   Use meaningful variable names
+- Follow PEP 8
+- Use type hints
+- Write descriptive docstrings
+- Keep functions focused and small
+- Use meaningful variable names
 
 Example:
 
@@ -184,10 +183,10 @@ def find_service(
 
 ### Testing
 
--   Write unit tests for all new functions
--   Use `tmp_path` fixture for file operations
--   Test both success and error cases
--   Aim for high code coverage
+- Write unit tests for all new functions
+- Use `tmp_path` fixture for file operations
+- Test both success and error cases
+- Aim for high code coverage
 
 Example:
 
@@ -208,10 +207,10 @@ def test_load_json_file(tmp_path: Path):
 
 ### Documentation
 
--   Update relevant documentation in `docs/`
--   Add examples for new features
--   Keep README.md up to date
--   Use clear, concise language
+- Update relevant documentation in `docs/`
+- Add examples for new features
+- Keep README.md up to date
+- Use clear, concise language
 
 ## Running Tests
 
@@ -290,8 +289,8 @@ Please note that this project is released with a [Contributor Code of Conduct](C
 
 ## Questions?
 
--   Check the [Development Guide](docs/development.md) for detailed information
--   Look through existing [issues](https://github.com/unitysvc/unitysvc-services/issues)
--   Open a new issue if you need help
+- Check the [Development Guide](docs/development.md) for detailed information
+- Look through existing [issues](https://github.com/unitysvc/unitysvc-services/issues)
+- Open a new issue if you need help
 
 Thank you for contributing!

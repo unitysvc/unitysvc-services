@@ -28,7 +28,7 @@ def test_validator_loads_schemas(schema_dir, example_data_dir):
     assert len(validator.schemas) > 0
     assert "base" in validator.schemas
     assert "provider_v1" in validator.schemas
-    assert "offering_v1" in validator.schemas
+    assert "service_v1" in validator.schemas
     assert "listing_v1" in validator.schemas
 
 
@@ -66,7 +66,7 @@ def test_validate_service_toml(schema_dir, example_data_dir):
     """Test validation of service TOML file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    service_file = example_data_dir / "provider1" / "services" / "service1" / "offering.toml"
+    service_file = example_data_dir / "provider1" / "services" / "service1" / "service.toml"
     is_valid, errors = validator.validate_data_file(service_file)
 
     if not is_valid:
@@ -81,7 +81,7 @@ def test_validate_service_json(schema_dir, example_data_dir):
     """Test validation of service JSON file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    service_file = example_data_dir / "provider2" / "services" / "service2" / "offering.json"
+    service_file = example_data_dir / "provider2" / "services" / "service2" / "service.json"
     is_valid, errors = validator.validate_data_file(service_file)
 
     if not is_valid:
@@ -96,7 +96,7 @@ def test_validate_listing_toml(schema_dir, example_data_dir):
     """Test validation of listing TOML file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    listing_file = example_data_dir / "provider1" / "services" / "service1" / "listing.toml"
+    listing_file = example_data_dir / "provider1" / "services" / "service1" / "svcreseller.toml"
     is_valid, errors = validator.validate_data_file(listing_file)
 
     if not is_valid:
@@ -111,7 +111,7 @@ def test_validate_listing_json(schema_dir, example_data_dir):
     """Test validation of listing JSON file."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    listing_file = example_data_dir / "provider2" / "services" / "service2" / "listing.json"
+    listing_file = example_data_dir / "provider2" / "services" / "service2" / "svcreseller.json"
     is_valid, errors = validator.validate_data_file(listing_file)
 
     if not is_valid:
@@ -122,26 +122,25 @@ def test_validate_listing_json(schema_dir, example_data_dir):
     assert is_valid, f"Listing JSON validation failed: {errors}"
 
 
-def test_validate_jinja2_files(schema_dir, example_data_dir, tmp_path):
-    """Test validation of Jinja2 template files."""
+def test_validate_markdown_files(schema_dir, example_data_dir):
+    """Test validation of markdown files."""
     validator = DataValidator(example_data_dir, schema_dir)
 
-    # Create valid Jinja2 template files for testing
-    valid_template = tmp_path / "valid.md.j2"
-    valid_template.write_text("# {{ listing.service_name }}\n\nProvider: {{ provider.provider_name }}")
+    md_files = [
+        example_data_dir / "provider1" / "README.md",
+        example_data_dir / "provider1" / "terms-of-service.md",
+        example_data_dir / "provider1" / "services" / "service1" / "code-example.md",
+    ]
 
-    invalid_template = tmp_path / "invalid.py.j2"
-    invalid_template.write_text("# {{ listing.service_name\n")  # Missing closing braces
+    for md_file in md_files:
+        is_valid, errors = validator.validate_md_file(md_file)
 
-    # Test valid template
-    is_valid, errors = validator.validate_jinja2_file(valid_template)
-    assert is_valid, f"Valid Jinja2 template failed validation: {errors}"
+        if not is_valid:
+            print(f"Validation errors for {md_file}:")
+            for error in errors:
+                print(f"  - {error}")
 
-    # Test invalid template
-    is_valid, errors = validator.validate_jinja2_file(invalid_template)
-    assert not is_valid, "Invalid Jinja2 template should fail validation"
-    assert len(errors) > 0, "Should have validation errors for invalid template"
-    assert "Jinja2 syntax error" in errors[0], f"Error should mention Jinja2 syntax: {errors}"
+        assert is_valid, f"Markdown validation failed for {md_file}: {errors}"
 
 
 def test_validate_all_files(schema_dir, example_data_dir):

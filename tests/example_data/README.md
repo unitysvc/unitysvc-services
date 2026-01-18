@@ -35,7 +35,7 @@ The examples demonstrate two different file formats:
 
 ## Schema Compliance
 
-All examples conform to the latest `offering_v1` and `provider_v1` schemas with:
+All examples conform to the latest `service_v1` and `provider_v1` schemas with:
 
 -  Required fields populated
 -  Proper service type classification
@@ -55,7 +55,7 @@ unitysvc_services validate-data tests/example_data
 
 ## Key Schema Fields
 
-### Service Schema (offering_v1)
+### Service Schema (service_v1)
 
 - `schema`: Schema version identifier
 - `time_created`: ISO timestamps
@@ -63,7 +63,7 @@ unitysvc_services validate-data tests/example_data
 - `service_type`: From ServiceTypeEnum (llm, embedding, image_generation, etc.)
 - `display_name`: Human-readable name
 - `description`: Service description
-- `status`: draft/ready/deprecated
+- `upstream_status`: ready/deprecated/uploading
 - `static_info`: Technical specifications
 - `upstream_access_interface`: API connection details
 - `upstream_pricing_info`: Pricing structure

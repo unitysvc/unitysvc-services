@@ -1,6 +1,6 @@
 # API Reference
 
-Python API documentation for the UnitySVC Seller SDK.
+Python API documentation for the UnitySVC Provider SDK.
 
 ## Overview
 
@@ -91,7 +91,7 @@ from unitysvc_services.utils import find_files_by_schema
 service_files = find_files_by_schema(
     Path("data"),
     schema="service_v1",
-    field_filter={"status": "ready"}
+    field_filter={"upstream_status": "ready"}
 )
 # Returns list of (Path, dict) tuples
 ```
@@ -140,139 +140,6 @@ else:
 
 -   `tuple[Path, str, dict] | None`: (file_path, format, data) or None if not found
 
-#### resolve_provider_name()
-
-Resolve the provider name from a file path.
-
-```python
-from pathlib import Path
-from unitysvc_services.utils import resolve_provider_name
-
-provider_name = resolve_provider_name(
-    Path("data/fireworks/services/llama-3-1/listing.json")
-)
-# Returns: "fireworks"
-```
-
-**Parameters:**
-
--   `file_path` (Path): Path to the service offering or listing file
-
-**Returns:**
-
--   `str | None`: Provider name if found, None otherwise
-
-**How it works:**
-
--   Checks if file is under a "services" directory
--   Provider name is the directory before "services"
--   Validates by looking for provider data file in that directory
--   Returns the name from the provider file if found
-
-#### resolve_service_name_for_listing()
-
-Resolve the service name for a listing file by finding the offering in the same directory.
-
-```python
-from pathlib import Path
-from unitysvc_services.utils import resolve_service_name_for_listing
-
-listing_file = Path("data/fireworks/services/llama-3-1/listing.json")
-
-service_name = resolve_service_name_for_listing(listing_file)
-# Returns: service name from co-located offering file
-```
-
-**Parameters:**
-
--   `listing_file` (Path): Path to the listing file
--   `listing_data` (dict | None): Unused, kept for backwards compatibility
-
-**Returns:**
-
--   `str | None`: Service name if found, None otherwise
-
-**How it works:**
-
-Finds the single offering file (`offering_v1` schema) in the same directory as the listing and returns its `name` field. Each service directory must have exactly one offering file.
-
-#### convert_convenience_fields_to_documents()
-
-Convert convenience fields (logo, terms_of_service) to Document objects.
-
-```python
-from pathlib import Path
-from unitysvc_services.utils import convert_convenience_fields_to_documents
-
-data = {
-    "logo": "assets/logo.png",
-    "terms_of_service": "https://example.com/terms",
-    "documents": []
-}
-
-updated_data = convert_convenience_fields_to_documents(
-    data,
-    base_path=Path("/data/provider")
-)
-# logo and terms_of_service fields are removed
-# Corresponding Document objects added to documents list
-```
-
-**Parameters:**
-
--   `data` (dict): Data dictionary containing potential convenience fields
--   `base_path` (Path): Base path for resolving relative file paths
--   `logo_field` (str): Name of the logo field (default: "logo")
--   `terms_field` (str | None): Name of the terms field (default: "terms_of_service", None to skip)
-
-**Returns:**
-
--   `dict`: Updated data dictionary with convenience fields converted to documents list
-
-**What it does:**
-
--   Converts file paths or URLs to proper Document structures
--   Automatically determines MIME types from file extensions
--   Removes convenience fields after conversion
--   Adds Document objects to the documents list
-
-#### render_template_file()
-
-Render a Jinja2 template file and return content and new filename.
-
-```python
-from pathlib import Path
-from unitysvc_services.utils import render_template_file
-
-rendered_content, new_filename = render_template_file(
-    Path("test.py.j2"),
-    listing={"name": "listing-default", "display_name": "GPT-4 Access"},
-    offering={"name": "gpt-4-turbo", "display_name": "GPT-4 Turbo"},
-    provider={"name": "openai", "display_name": "OpenAI"},
-    seller={"name": "marketplace", "display_name": "Marketplace"}
-)
-# rendered_content: Template rendered with data
-# new_filename: "test.py" (without .j2 extension)
-```
-
-**Parameters:**
-
--   `file_path` (Path): Path to the file (may or may not be a .j2 template)
--   `listing` (dict, optional): Listing data for template rendering
--   `offering` (dict, optional): Offering data for template rendering
--   `provider` (dict, optional): Provider data for template rendering
--   `seller` (dict, optional): Seller data for template rendering
-
-**Returns:**
-
--   `tuple[str, str]`: (rendered_content, new_filename_without_j2)
-
-**Behavior:**
-
--   If file ends with `.j2`: Renders as Jinja2 template and strips `.j2` from filename
--   If file does not end with `.j2`: Returns content as-is with original filename
--   All template variables default to empty dict if not provided
-
 ### unitysvc_services.cli
 
 Main CLI application built with Typer.
@@ -289,7 +156,6 @@ from unitysvc_services.cli import app
 # - validate: Validate data
 # - format: Format files
 # - populate: Run populate scripts
-# - test: Test code examples with upstream credentials
 ```
 
 ### unitysvc_services.publisher
@@ -453,65 +319,6 @@ for provider, success, output in results:
 
 -   `list[tuple[str, bool, str]]`: List of (provider_name, success, output)
 
-### unitysvc_services.test
-
-Code example testing operations.
-
-#### list_code_examples()
-
-List available code examples from listing files.
-
-```python
-from pathlib import Path
-from unitysvc_services.test import list_code_examples
-
-# This is typically called via CLI, but can be used programmatically
-# Note: This function uses Typer and is designed for CLI use
-```
-
-**Functionality:**
-
--   Scans for listing files (schema: listing_v1)
--   Extracts documents with category = "code_examples"
--   Displays results in table format with file paths
--   Supports filtering by provider and service patterns
-
-#### run_tests()
-
-Execute code examples with upstream credentials.
-
-```python
-from pathlib import Path
-from unitysvc_services.test import run
-
-# This is typically called via CLI, but can be used programmatically
-# Note: This function uses Typer and is designed for CLI use
-```
-
-**Functionality:**
-
--   Discovers code examples from listing files
--   Loads related data (offering, provider, seller)
--   Renders Jinja2 templates with context data
--   Executes code with appropriate interpreter
--   Validates output based on exit code and `expect` field
--   Saves failed test content for debugging
-
-**Test Execution:**
-
-1. Template rendering with listing, offering, provider, seller data
-2. Environment variable setup (API_KEY, BASE_URL)
-3. Interpreter detection (.py → python3, .js → node, .sh → bash)
-4. Script execution with timeout
-5. Output validation (exit code + optional expect string)
-
-**Test Pass Criteria:**
-
--   Exit code is 0 AND
--   If `expect` field exists: expected string found in stdout
-
-See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/code-examples/) guide for detailed workflow.
-
 ## Pydantic Models
 
 ### Provider
@@ -551,7 +358,7 @@ service = ServiceOffering(
     display_name="My Service",
     description="A high-performance service",
     service_type="api",
-    status="ready"
+    upstream_status="ready"
 )
 ```
 
@@ -564,7 +371,7 @@ listing = ServiceListing(
     schema="listing_v1",
     seller_name="my-marketplace",
     service_name="my-service",
-    status="ready"
+    listing_status="in_service"
 )
 ```
 
@@ -594,12 +401,12 @@ data_dir = Path("data")
 services = find_files_by_schema(
     data_dir,
     schema="service_v1",
-    field_filter={"status": "ready"}
+    field_filter={"upstream_status": "ready"}
 )
 
 # Update to deprecated
 for file_path, data in services:
-    data["status"] = "deprecated"
+    data["upstream_status"] = "deprecated"
     # Preserve original format
     file_format = "json" if file_path.suffix == ".json" else "toml"
     write_data_file(file_path, data, file_format)
@@ -657,7 +464,7 @@ def generate_service_report(data_dir: Path) -> dict:
         report["by_type"][svc_type] = report["by_type"].get(svc_type, 0) + 1
 
         # By status
-        status = data.get("status", "unknown")
+        status = data.get("upstream_status", "unknown")
         report["by_status"][status] = report["by_status"].get(status, 0) + 1
 
         # By provider (from file path)
@@ -717,7 +524,5 @@ def get_service(name: str, data_dir: Path = Path("data")) -> dict[str, Any] | No
 ## See Also
 
 -   [CLI Reference](cli-reference.md) - Command-line interface
--   [Documenting Service Listings](documenting-services.md) - Add documentation to services
--   [Creating Code Examples](code-examples.md) - Develop and test code examples
 -   [File Schemas](file-schemas.md) - Data schema specifications
 -   [Workflows](workflows.md) - Usage patterns and examples

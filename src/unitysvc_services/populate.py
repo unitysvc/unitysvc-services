@@ -9,7 +9,6 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from .format_data import format_data
 from .utils import find_files_by_schema
 
 app = typer.Typer(help="Populate services")
@@ -38,10 +37,7 @@ def populate(
     Populate services by executing provider-specific update scripts.
 
     This command scans provider files for 'services_populator' configuration and executes
-    the specified commands with environment variables from 'services_populator.envs'.
-
-    After successful execution, automatically runs formatting on all generated files to
-    ensure they conform to the format specification (equivalent to running 'usvc format').
+    the specified commands with environment variables from 'provider_access_info'.
     """
     # Set data directory
     if data_dir is None:
@@ -106,14 +102,14 @@ def populate(
 
             console.print(f"[bold cyan]Processing provider:[/bold cyan] {provider_name_in_file}")
 
-            # Prepare environment variables from services_populator.envs
+            # Prepare environment variables from provider_access_info
             env = os.environ.copy()
-            populator_envs = services_populator.get("envs", {})
-            if populator_envs:
-                for key, value in populator_envs.items():
+            provider_access_info = provider_config.get("provider_access_info", {})
+            if provider_access_info:
+                for key, value in provider_access_info.items():
                     env[key] = str(value)
                 console.print(
-                    f"[dim]  Set {len(populator_envs)} environment variable(s) from services_populator.envs[/dim]"
+                    f"[dim]  Set {len(provider_access_info)} environment variable(s) from provider_access_info[/dim]"
                 )
 
             # Get the provider directory (parent of provider file)
@@ -132,22 +128,13 @@ def populate(
 
             full_command = ["python3"] + cmd_parts
 
+            console.print(f"[blue]  Command:[/blue] {' '.join(full_command)}")
+            console.print(f"[blue]  Working directory:[/blue] {provider_dir}")
+
             if dry_run:
-                console.print("[yellow]  [DRY-RUN] Would execute command[/yellow]")
-                console.print(f"[yellow]    {' '.join(full_command)}[/yellow]")
-                console.print(f"[yellow]  under  {provider_dir}[/yellow]")
-                if populator_envs:
-                    console.print("[yellow]  with environment variables:[/yellow]")
-                    for key, value in populator_envs.items():
-                        # Mask sensitive values
-                        display_value = value if len(str(value)) < 8 else str(value)[:4] + "..."
-                        console.print(f"[yellow]    {key}={display_value}[/yellow]")
-                console.print()
+                console.print("[yellow]  [DRY-RUN] Would execute command[/yellow]\n")
                 total_skipped += 1
                 continue
-            else:
-                console.print(f"[blue]  Command:[/blue] {' '.join(full_command)}")
-                console.print(f"[blue]  Working directory:[/blue] {provider_dir}")
 
             # Execute the command
             try:
@@ -190,20 +177,6 @@ def populate(
     console.print(f"  [green]✓ Successfully executed: {total_executed}[/green]")
     console.print(f"  [yellow]⏭️  Skipped: {total_skipped}[/yellow]")
     console.print(f"  [red]✗ Failed: {total_failed}[/red]")
-
-    # Format generated files if any populate scripts executed successfully
-    if total_executed > 0 and not dry_run:
-        console.print("\n" + "=" * 50)
-        console.print("[bold cyan]Formatting generated files...[/bold cyan]")
-        console.print("[dim]Running automatic formatting to ensure data conforms to format specification[/dim]\n")
-
-        try:
-            # Run format command on the data directory
-            format_data(data_dir)
-            console.print("\n[green]✓ Formatting completed successfully[/green]")
-        except Exception as e:
-            console.print(f"\n[yellow]⚠ Warning: Formatting failed: {e}[/yellow]")
-            console.print("[dim]You may want to run 'usvc format' manually to fix formatting issues[/dim]")
 
     if total_failed > 0:
         raise typer.Exit(code=1)

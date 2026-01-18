@@ -128,7 +128,7 @@ def list_offerings(
     console.print(f"[blue]Searching for service offerings in:[/blue] {data_dir}\n")
 
     # Find service files by schema
-    service_files = find_files_by_schema(data_dir, "offering_v1")
+    service_files = find_files_by_schema(data_dir, "service_v1")
 
     if not service_files:
         console.print("[yellow]No service offering files found.[/yellow]")
@@ -149,7 +149,7 @@ def list_offerings(
             provider_name,
             data.get("name", "N/A"),
             data.get("display_name", "N/A"),
-            data.get("status", "N/A"),
+            data.get("upstream_status", "N/A"),
         )
 
     console.print(table)
@@ -209,7 +209,7 @@ def list_listings(
             provider_name,
             service_name,
             seller_info.get("name", "N/A"),
-            data.get("status", "N/A"),
+            data.get("listing_status", "N/A"),
         )
 
     console.print(table)

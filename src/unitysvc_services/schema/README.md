@@ -30,7 +30,7 @@ This directory contains **JSON schemas** automatically generated from Pydantic m
 
 ### Service Schemas
 
-- **`offering_v1.json`** - Validates service offering technical data
+- **`service_v1.json`** - Validates service offering technical data
   - Service specifications (name, category, description)
   - Technical details (context length, API methods)
   - Business information (pricing, providers, SLA)
@@ -38,9 +38,10 @@ This directory contains **JSON schemas** automatically generated from Pydantic m
   - Upstream interfaces and pricing
 
 - **`listing_v1.json`** - Validates service listing marketplace data
+  - Service reference (service_name, service_version)
+  - Provider and seller information
   - User-facing pricing and access interfaces
   - Listing status and metadata
-  - Service/provider relationships determined by file location
 
 ## 🔧 Schema Generation
 
@@ -55,7 +56,7 @@ This generates 5 schema files:
 - `base.json` - Base types and enums
 - `provider_v1.json` - Provider schema
 - `seller_v1.json` - Seller schema
-- `offering_v1.json` - Service offering schema
+- `service_v1.json` - Service offering schema
 - `listing_v1.json` - Service listing schema
 
 ### Source Models
@@ -64,7 +65,7 @@ All models are located in `src/unitysvc_services/models/`:
 - **Base Model**: `base.py` - Common types and enums
 - **Provider Model**: `provider_v1.py`
 - **Seller Model**: `seller_v1.py`
-- **Service Model**: `offering_v1.py`
+- **Service Model**: `service_v1.py`
 - **Listing Model**: `listing_v1.py`
 
 ## ✅ Validation Features
@@ -134,7 +135,7 @@ Validation Results: 564/564 files valid
 ==================================================
 ✓ VALID: provider.toml
 ✓ VALID: seller.json
-✓ VALID: services/llama-3.1-8b/offering.json
+✓ VALID: services/llama-3.1-8b/service.json
 ✓ VALID: services/llama-3.1-8b/listing-svcreseller.json
 ...
 ✓ All files valid!
@@ -171,7 +172,7 @@ The correct order for publishing is:
 ### Naming Convention
 
 - Format: `{schema_name}.json`
-- Examples: `provider_v1.json`, `seller_v1.json`, `offering_v1.json`
+- Examples: `provider_v1.json`, `seller_v1.json`, `service_v1.json`
 
 ### Version Management
 

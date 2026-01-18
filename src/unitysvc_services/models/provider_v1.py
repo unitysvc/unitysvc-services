@@ -1,63 +1,59 @@
 from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, HttpUrl
 
-from .base import Document, validate_name
-from .provider_data import ProviderData
+from unitysvc_services.models.base import AccessInterface, Document, ProviderStatusEnum
 
 
-class ServicesPopulator(BaseModel):
-    """Configuration for automatically populating service data."""
-
+class ProviderV1(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    command: str | list[str] = Field(
-        description="Command to execute for populating services (string or list of arguments)"
-    )
-    envs: dict[str, str] | None = Field(
-        default=None,
-        description="Environment variables to set when executing the command",
-    )
-
-
-class ProviderV1(ProviderData):
-    """
-    Provider information for service providers (provider_v1 schema).
-
-    Extends ProviderData with:
-    - schema_version: Schema identifier for file validation
-    - time_created: Timestamp for file creation
-    - services_populator: How to automatically populate service data (with envs)
-    - logo, terms_of_service: Convenience fields (converted to documents during import)
-    - Typed Document model instead of dict for file validation
-    - Field validators for name format
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    # File-specific fields for validation
+    #
+    # fields for business data collection and maintenance
+    #
     schema_version: str = Field(default="provider_v1", description="Schema identifier", alias="schema")
     time_created: datetime
+    # how to automatically populate service data, if available
+    services_populator: dict[str, Any] | None = None
+    # parameters for accessing service provider, which typically
+    # include "api_endpoint" and "api_key"
+    provider_access_info: AccessInterface = Field(description="Dictionary of upstream access interface")
+    #
+    # fields that will be stored in backend database
+    #
 
-    # How to automatically populate service data, if available
-    services_populator: ServicesPopulator | None = None
+    # name of the provider should be the same as directory name
+    name: str
 
-    # Convenience fields for logo and terms of service (converted to documents during import)
+    # this field is added for convenience. It will be converted to
+    # documents during importing.
     logo: str | HttpUrl | None = None
 
+    # this field is added for convenience. It will be converted to
+    # documents during importing.
     terms_of_service: None | str | HttpUrl = Field(
         default=None,
         description="Either a path to a .md file or a URL to terms of service",
     )
 
-    # Override with typed Document model for file validation
-    documents: list[Document] | None = Field(  # type: ignore[assignment]
+    documents: list[Document] | None = Field(
         default=None,
         description="List of documents associated with the provider (e.g. logo)",
     )
+    #
+    # fields for business operation purposes, not stored in backend database
+    #
 
-    @field_validator("name")
-    @classmethod
-    def validate_name_format(cls, v: str) -> str:
-        """Validate that provider name uses URL-safe identifiers."""
-        return validate_name(v, "provider", allow_slash=False)
+    # internal business data, usually not expose to users, and may not store
+    # in database
+    description: str | None = None
+    homepage: HttpUrl
+    contact_email: EmailStr
+    secondary_contact_email: EmailStr | None = None
+
+    # Status field to track provider state
+    status: ProviderStatusEnum = Field(
+        default=ProviderStatusEnum.active,
+        description="Provider status: active, disabled, or incomplete",
+    )

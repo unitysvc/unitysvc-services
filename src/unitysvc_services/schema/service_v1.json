@@ -339,14 +339,87 @@
       "title": "OveragePolicyEnum",
       "type": "string"
     },
-    "ProviderStatusEnum": {
-      "description": "Provider status enum.",
-      "enum": [
-        "active",
-        "disabled",
-        "incomplete"
+    "Pricing": {
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Currency code (e.g., USD)",
+          "title": "Currency"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pricing model description",
+          "title": "Description"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Pricing tier name (e.g., Basic, Pro, Enterprise)",
+          "title": "Name"
+        },
+        "price_data": {
+          "additionalProperties": true,
+          "description": "JSON containing price data (single price, tiered, usage-based, etc.)",
+          "title": "Price Data",
+          "type": "object"
+        },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Reference URL to upstream pricing",
+          "title": "Reference"
+        },
+        "unit": {
+          "$ref": "#/$defs/PricingUnitEnum",
+          "description": "Unit of pricing"
+        }
+      },
+      "required": [
+        "unit",
+        "price_data"
       ],
-      "title": "ProviderStatusEnum",
+      "title": "Pricing",
+      "type": "object"
+    },
+    "PricingUnitEnum": {
+      "enum": [
+        "one_million_tokens",
+        "one_second",
+        "image",
+        "step"
+      ],
+      "title": "PricingUnitEnum",
       "type": "string"
     },
     "QuotaResetCycleEnum": {
@@ -759,6 +832,33 @@
       "title": "ServiceConstraints",
       "type": "object"
     },
+    "ServiceTypeEnum": {
+      "enum": [
+        "llm",
+        "embedding",
+        "image_generation",
+        "streaming_transcription",
+        "prerecorded_transcription",
+        "prerecorded_translation",
+        "vision_language_model",
+        "speech_to_text",
+        "text_to_speech",
+        "video_generation",
+        "text_to_image",
+        "undetermined",
+        "text_to_3d"
+      ],
+      "title": "ServiceTypeEnum",
+      "type": "string"
+    },
+    "TagEnum": {
+      "description": "Allowed enums, currently not enforced.",
+      "enum": [
+        "byop"
+      ],
+      "title": "TagEnum",
+      "type": "string"
+    },
     "TimeWindowEnum": {
       "enum": [
         "second",
@@ -769,26 +869,32 @@
       ],
       "title": "TimeWindowEnum",
       "type": "string"
+    },
+    "UpstreamStatusEnum": {
+      "enum": [
+        "uploading",
+        "ready",
+        "deprecated"
+      ],
+      "title": "UpstreamStatusEnum",
+      "type": "string"
     }
   },
   "additionalProperties": false,
   "properties": {
-    "contact_email": {
-      "format": "email",
-      "title": "Contact Email",
+    "description": {
+      "title": "Description",
       "type": "string"
     },
-    "description": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Description"
+    "details": {
+      "additionalProperties": true,
+      "description": "Dictionary of static features and information",
+      "title": "Details",
+      "type": "object"
+    },
+    "display_name": {
+      "title": "Display Name",
+      "type": "string"
     },
     "documents": {
       "anyOf": [
@@ -803,15 +909,8 @@
         }
       ],
       "default": null,
-      "description": "List of documents associated with the provider (e.g. logo)",
+      "description": "List of documents associated with the service (e.g. tech spec.)",
       "title": "Documents"
-    },
-    "homepage": {
-      "format": "uri",
-      "maxLength": 2083,
-      "minLength": 1,
-      "title": "Homepage",
-      "type": "string"
     },
     "logo": {
       "anyOf": [
@@ -835,20 +934,18 @@
       "title": "Name",
       "type": "string"
     },
-    "provider_access_info": {
-      "$ref": "#/$defs/AccessInterface",
-      "description": "Dictionary of upstream access interface"
-    },
     "schema": {
-      "default": "provider_v1",
+      "default": "service_v1",
       "description": "Schema identifier",
       "title": "Schema",
       "type": "string"
     },
-    "secondary_contact_email": {
+    "service_type": {
+      "$ref": "#/$defs/ServiceTypeEnum"
+    },
+    "tagline": {
       "anyOf": [
         {
-          "format": "email",
           "type": "string"
         },
         {
@@ -856,58 +953,72 @@
         }
       ],
       "default": null,
-      "title": "Secondary Contact Email"
+      "title": "Tagline"
     },
-    "services_populator": {
+    "tags": {
       "anyOf": [
         {
-          "additionalProperties": true,
-          "type": "object"
+          "items": {
+            "$ref": "#/$defs/TagEnum"
+          },
+          "type": "array"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "title": "Services Populator"
-    },
-    "status": {
-      "$ref": "#/$defs/ProviderStatusEnum",
-      "default": "active",
-      "description": "Provider status: active, disabled, or incomplete"
-    },
-    "terms_of_service": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "format": "uri",
-          "maxLength": 2083,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Either a path to a .md file or a URL to terms of service",
-      "title": "Terms Of Service"
+      "description": "List of tags for the service, e.g., bring your own API key",
+      "title": "Tags"
     },
     "time_created": {
       "format": "date-time",
       "title": "Time Created",
       "type": "string"
+    },
+    "upstream_access_interface": {
+      "$ref": "#/$defs/AccessInterface",
+      "description": "Dictionary of upstream access interface"
+    },
+    "upstream_price": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Pricing"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "List of pricing information"
+    },
+    "upstream_status": {
+      "$ref": "#/$defs/UpstreamStatusEnum",
+      "default": "ready",
+      "description": "Status of the service from upstream service provider"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Version"
     }
   },
   "required": [
     "time_created",
-    "provider_access_info",
     "name",
-    "homepage",
-    "contact_email"
+    "service_type",
+    "display_name",
+    "version",
+    "description",
+    "details",
+    "upstream_access_interface",
+    "upstream_price"
   ],
-  "title": "ProviderV1",
+  "title": "ServiceV1",
   "type": "object"
 }

@@ -6,8 +6,6 @@ import pytest
 
 from unitysvc_services.utils import (
     convert_convenience_fields_to_documents,
-    deep_merge_dicts,
-    load_data_file,
     resolve_provider_name,
     resolve_service_name_for_listing,
 )
@@ -30,7 +28,7 @@ def test_resolve_service_name_explicit(example_data_dir: Path) -> None:
     for file_path, _format, data in listing_files:
         if "provider2" in str(file_path):
             service_name = resolve_service_name_for_listing(file_path, data)
-            assert service_name == "service2"
+            assert service_name == "example-service-2"
             break
     else:
         pytest.fail("No provider2 listing found")
@@ -70,7 +68,7 @@ def test_resolve_provider_name_from_service_offering(example_data_dir: Path) -> 
     from unitysvc_services.utils import find_files_by_schema
 
     # Find a service offering file
-    service_files = find_files_by_schema(example_data_dir, "offering_v1")
+    service_files = find_files_by_schema(example_data_dir, "service_v1")
 
     # Find the provider1 service file
     for file_path, _format, _data in service_files:
@@ -223,179 +221,3 @@ def test_convert_mime_type_detection(tmp_path: Path) -> None:
         data = {"logo": file_path}
         result = convert_convenience_fields_to_documents(data, tmp_path, terms_field=None)
         assert result["documents"][0]["mime_type"] == expected_mime
-
-
-def test_deep_merge_dicts_simple() -> None:
-    """Test simple dictionary merge."""
-    base = {"a": 1, "b": 2, "c": 3}
-    override = {"b": 20, "d": 4}
-
-    result = deep_merge_dicts(base, override)
-
-    assert result == {"a": 1, "b": 20, "c": 3, "d": 4}
-
-
-def test_deep_merge_dicts_nested() -> None:
-    """Test deep merge with nested dictionaries."""
-    base = {"config": {"host": "localhost", "port": 8080}, "name": "service1"}
-    override = {"config": {"port": 9000, "ssl": True}, "status": "active"}
-
-    result = deep_merge_dicts(base, override)
-
-    assert result == {
-        "config": {"host": "localhost", "port": 9000, "ssl": True},
-        "name": "service1",
-        "status": "active",
-    }
-
-
-def test_deep_merge_dicts_lists_replaced() -> None:
-    """Test that lists are replaced, not merged."""
-    base = {"tags": ["python", "web"], "name": "service1"}
-    override = {"tags": ["backend"]}
-
-    result = deep_merge_dicts(base, override)
-
-    # Lists should be replaced, not merged
-    assert result == {"tags": ["backend"], "name": "service1"}
-
-
-def test_deep_merge_dicts_empty_override() -> None:
-    """Test merge with empty override."""
-    base = {"a": 1, "b": 2}
-    override: dict[str, int] = {}
-
-    result = deep_merge_dicts(base, override)
-
-    assert result == {"a": 1, "b": 2}
-
-
-def test_deep_merge_dicts_deeply_nested() -> None:
-    """Test deeply nested dictionary merge."""
-    base = {"level1": {"level2": {"level3": {"value": "old", "keep": True}}}}
-    override = {"level1": {"level2": {"level3": {"value": "new"}}}}
-
-    result = deep_merge_dicts(base, override)
-
-    assert result == {"level1": {"level2": {"level3": {"value": "new", "keep": True}}}}
-
-
-def test_load_data_file_json_no_override(tmp_path: Path) -> None:
-    """Test loading JSON file without override."""
-    import json
-
-    # Create a base JSON file
-    base_file = tmp_path / "test.json"
-    base_data = {"schema": "test_v1", "name": "test", "value": 100}
-    with open(base_file, "w", encoding="utf-8") as f:
-        json.dump(base_data, f)
-
-    data, file_format = load_data_file(base_file)
-
-    assert file_format == "json"
-    assert data == base_data
-
-
-def test_load_data_file_json_with_override(tmp_path: Path) -> None:
-    """Test loading JSON file with override."""
-    import json
-
-    # Create base JSON file
-    base_file = tmp_path / "offering.json"
-    base_data = {"schema": "offering_v1", "name": "my-service", "status": "draft", "version": 1}
-    with open(base_file, "w", encoding="utf-8") as f:
-        json.dump(base_data, f)
-
-    # Create override JSON file
-    override_file = tmp_path / "offering.override.json"
-    override_data = {"status": "active", "logo_url": "https://example.com/logo.png"}
-    with open(override_file, "w", encoding="utf-8") as f:
-        json.dump(override_data, f)
-
-    data, file_format = load_data_file(base_file)
-
-    assert file_format == "json"
-    assert data == {
-        "schema": "offering_v1",
-        "name": "my-service",
-        "status": "active",  # overridden
-        "version": 1,
-        "logo_url": "https://example.com/logo.png",  # added from override
-    }
-
-
-def test_load_data_file_toml_no_override(tmp_path: Path) -> None:
-    """Test loading TOML file without override."""
-    import tomli_w
-
-    # Create a base TOML file
-    base_file = tmp_path / "test.toml"
-    base_data = {"schema": "test_v1", "name": "test", "value": 100}
-    with open(base_file, "wb") as f:
-        tomli_w.dump(base_data, f)
-
-    data, file_format = load_data_file(base_file)
-
-    assert file_format == "toml"
-    assert data == base_data
-
-
-def test_load_data_file_toml_with_override(tmp_path: Path) -> None:
-    """Test loading TOML file with override."""
-    import tomli_w
-
-    # Create base TOML file
-    base_file = tmp_path / "provider.toml"
-    base_data = {"schema": "provider_v1", "name": "my-provider", "tier": "free"}
-    with open(base_file, "wb") as f:
-        tomli_w.dump(base_data, f)
-
-    # Create override TOML file
-    override_file = tmp_path / "provider.override.toml"
-    override_data = {"tier": "premium", "featured": True}
-    with open(override_file, "wb") as f:
-        tomli_w.dump(override_data, f)
-
-    data, file_format = load_data_file(base_file)
-
-    assert file_format == "toml"
-    assert data == {
-        "schema": "provider_v1",
-        "name": "my-provider",
-        "tier": "premium",  # overridden
-        "featured": True,  # added from override
-    }
-
-
-def test_load_data_file_with_nested_override(tmp_path: Path) -> None:
-    """Test loading file with nested dictionary override."""
-    import json
-
-    # Create base file with nested config
-    base_file = tmp_path / "config.json"
-    base_data = {
-        "schema": "config_v1",
-        "database": {"host": "localhost", "port": 5432, "name": "testdb"},
-        "cache": {"enabled": False},
-    }
-    with open(base_file, "w", encoding="utf-8") as f:
-        json.dump(base_data, f)
-
-    # Create override file with partial nested override
-    override_file = tmp_path / "config.override.json"
-    override_data = {"database": {"port": 3306, "ssl": True}, "cache": {"enabled": True}}
-    with open(override_file, "w", encoding="utf-8") as f:
-        json.dump(override_data, f)
-
-    data, file_format = load_data_file(base_file)
-
-    assert data == {
-        "schema": "config_v1",
-        "database": {
-            "host": "localhost",  # preserved from base
-            "port": 3306,  # overridden
-            "name": "testdb",  # preserved from base
-            "ssl": True,  # added from override
-        },
-        "cache": {"enabled": True},  # overridden
-    }

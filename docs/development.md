@@ -1,15 +1,15 @@
 # Development Guide
 
-Guide for setting up a development environment and contributing to the UnitySVC Seller SDK.
+Guide for setting up a development environment and contributing to the UnitySVC Provider SDK.
 
 ## Development Setup
 
 ### Prerequisites
 
--   Python 3.11 or later
--   Git
--   uv (recommended) or pip
--   Code editor (VS Code, PyCharm, etc.)
+- Python 3.11 or later
+- Git
+- uv (recommended) or pip
+- Code editor (VS Code, PyCharm, etc.)
 
 ### Clone Repository
 
@@ -165,13 +165,12 @@ git commit -m "feat: Add new feature"
 ```
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
--   `feat:` New feature
--   `fix:` Bug fix
--   `docs:` Documentation changes
--   `refactor:` Code refactoring
--   `test:` Test changes
--   `chore:` Maintenance tasks
+- `feat:` New feature
+- `fix:` Bug fix
+- `docs:` Documentation changes
+- `refactor:` Code refactoring
+- `test:` Test changes
+- `chore:` Maintenance tasks
 
 ### 8. Push and Create PR
 
@@ -255,17 +254,15 @@ python scripts/update_schema.py
 ```
 
 This script:
-
--   Scans all models in `src/unitysvc_services/models/`
--   Generates JSON schemas for each model
--   Outputs to `src/unitysvc_services/schema/`
--   Formats schemas to match pre-commit requirements
+- Scans all models in `src/unitysvc_services/models/`
+- Generates JSON schemas for each model
+- Outputs to `src/unitysvc_services/schema/`
+- Formats schemas to match pre-commit requirements
 
 The generated schemas are used for:
-
--   Data validation in the CLI
--   Documentation generation
--   IDE autocomplete support
+- Data validation in the CLI
+- Documentation generation
+- IDE autocomplete support
 
 ## Code Style
 
@@ -423,20 +420,20 @@ mkdocs gh-deploy
 
 ### Documentation Style
 
--   Use clear, concise language
--   Include code examples
--   Link to related pages
--   Use admonitions for important notes
+- Use clear, concise language
+- Include code examples
+- Link to related pages
+- Use admonitions for important notes
 
 ```markdown
 !!! note
-Important information here
+    Important information here
 
 !!! warning
-Warning message here
+    Warning message here
 
 !!! tip
-Helpful tip here
+    Helpful tip here
 ```
 
 ## Debugging
@@ -470,24 +467,24 @@ Create `.vscode/launch.json`:
 
 ```json
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Current File",
-            "type": "python",
-            "request": "launch",
-            "program": "${file}",
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "CLI: validate",
-            "type": "python",
-            "request": "launch",
-            "module": "unitysvc_services.cli",
-            "args": ["validate", "data"],
-            "console": "integratedTerminal"
-        }
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Current File",
+      "type": "python",
+      "request": "launch",
+      "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "CLI: validate",
+      "type": "python",
+      "request": "launch",
+      "module": "unitysvc_services.cli",
+      "args": ["validate", "data"],
+      "console": "integratedTerminal"
+    }
+  ]
 }
 ```
 
@@ -524,17 +521,14 @@ Update `CHANGELOG.md`:
 ## [0.2.0] - 2024-01-15
 
 ### Added
-
--   New feature X
--   New command Y
+- New feature X
+- New command Y
 
 ### Fixed
-
--   Bug in Z
+- Bug in Z
 
 ### Changed
-
--   Improved performance of W
+- Improved performance of W
 ```
 
 ## Common Tasks
@@ -566,13 +560,13 @@ Update `CHANGELOG.md`:
 
 ## Getting Help
 
--   Check existing [issues](https://github.com/unitysvc/unitysvc-services/issues)
--   Join discussions on GitHub
--   Read the [contributing guide](contributing.md)
--   Ask questions in issues
+- Check existing [issues](https://github.com/unitysvc/unitysvc-services/issues)
+- Join discussions on GitHub
+- Read the [contributing guide](contributing.md)
+- Ask questions in issues
 
 ## See Also
 
--   [Contributing Guide](contributing.md) - Contribution guidelines
--   [CLI Reference](cli-reference.md) - Command reference
--   [API Reference](api-reference.md) - Python API
+- [Contributing Guide](contributing.md) - Contribution guidelines
+- [CLI Reference](cli-reference.md) - Command reference
+- [API Reference](api-reference.md) - Python API

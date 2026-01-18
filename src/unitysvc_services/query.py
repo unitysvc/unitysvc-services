@@ -1,163 +1,391 @@
 """Query command group - query backend API for data."""
 
-import asyncio
 import json
+import os
 from typing import Any
 
+import httpx
 import typer
 from rich.console import Console
 from rich.table import Table
-
-from .api import UnitySvcAPI
 
 app = typer.Typer(help="Query backend API for data")
 console = Console()
 
 
-class ServiceDataQuery(UnitySvcAPI):
-    """Query service data from UnitySVC backend endpoints.
+class ServiceDataQuery:
+    """Query service data from UnitySVC backend endpoints."""
 
-    Inherits HTTP methods with automatic curl fallback from UnitySvcAPI.
-    Provides async methods for querying public service data.
-    Use with async context manager for proper resource cleanup.
-    """
+    def __init__(self, base_url: str, api_key: str):
+        """Initialize query client with backend URL and API key.
 
-    pass
+        Args:
+            base_url: UnitySVC backend URL
+            api_key: API key for authentication
+
+        Raises:
+            ValueError: If base_url or api_key is not provided
+        """
+        if not base_url:
+            raise ValueError("UNITYSVC_BASE_URL environment variable not set.")
+        if not api_key:
+            raise ValueError("UNITYSVC_API_KEY environment variable not set.")
+
+        self.base_url = base_url.rstrip("/")
+        self.api_key = api_key
+        self.client = httpx.Client(
+            headers={
+                "X-API-Key": api_key,
+                "Content-Type": "application/json",
+            },
+            timeout=30.0,
+        )
+
+    def list_service_offerings(self) -> list[dict[str, Any]]:
+        """List all service offerings from the backend."""
+        response = self.client.get(f"{self.base_url}/publish/service_offerings")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_service_listings(self) -> list[dict[str, Any]]:
+        """List all service listings from the backend."""
+        response = self.client.get(f"{self.base_url}/publish/services")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_providers(self) -> list[dict[str, Any]]:
+        """List all providers from the backend."""
+        response = self.client.get(f"{self.base_url}/publish/providers")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_sellers(self) -> list[dict[str, Any]]:
+        """List all sellers from the backend."""
+        response = self.client.get(f"{self.base_url}/publish/sellers")
+        response.raise_for_status()
+        result = response.json()
+        return result.get("data", result) if isinstance(result, dict) else result
+
+    def list_access_interfaces(self) -> dict[str, Any]:
+        """List all access interfaces from the backend (private endpoint)."""
+        response = self.client.get(f"{self.base_url}/private/access_interfaces")
+        response.raise_for_status()
+        return response.json()
+
+    def list_documents(self) -> dict[str, Any]:
+        """List all documents from the backend (private endpoint)."""
+        response = self.client.get(f"{self.base_url}/private/documents")
+        response.raise_for_status()
+        return response.json()
+
+    def close(self):
+        """Close the HTTP client."""
+        self.client.close()
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        self.close()
+
+    @staticmethod
+    def from_env() -> "ServiceDataQuery":
+        """Create ServiceDataQuery from environment variables.
+
+        Returns:
+            ServiceDataQuery instance
+
+        Raises:
+            ValueError: If required environment variables are not set
+        """
+        backend_url = os.getenv("UNITYSVC_BASE_URL") or ""
+        api_key = os.getenv("UNITYSVC_API_KEY") or ""
+        return ServiceDataQuery(base_url=backend_url, api_key=api_key)
 
 
-@app.callback(invoke_without_command=True)
-def query_services(
+@app.command("sellers")
+def query_sellers(
     format: str = typer.Option(
         "table",
         "--format",
         "-f",
         help="Output format: table, json",
     ),
-    fields: str = typer.Option(
-        "id,name,status,seller_id,provider_id,offering_id,listing_id",
-        "--fields",
-        help=(
-            "Comma-separated list of fields to display. Available fields: "
-            "id, name, display_name, status, seller_id, provider_id, offering_id, "
-            "listing_id, revision_of, created_by_id, updated_by_id, created_at, updated_at"
-        ),
-    ),
-    skip: int = typer.Option(
-        0,
-        "--skip",
-        help="Number of records to skip (for pagination)",
-    ),
-    limit: int = typer.Option(
-        100,
-        "--limit",
-        help="Maximum number of records to return (default: 100)",
-    ),
-    status: str | None = typer.Option(
-        None,
-        "--status",
-        help="Filter by status (draft, pending, testing, active, rejected, suspended)",
-    ),
 ):
-    """Query services for the current seller.
-
-    Services are the identity layer that connects sellers to content versions
-    (Provider, ServiceOffering, ServiceListing).
-
-    Examples:
-        # Use default fields
-        usvc query
-
-        # Show only specific fields
-        usvc query --fields id,name,status
-
-        # Filter by status
-        usvc query --status active
-
-        # Output as JSON
-        usvc query --format json
-
-        # Pagination
-        usvc query --skip 100 --limit 100
-    """
-    # Parse fields list
-    field_list = [f.strip() for f in fields.split(",")]
-
-    # Define allowed fields from ServicePublic model
-    allowed_fields = {
-        "id",
-        "name",
-        "display_name",
-        "status",
-        "seller_id",
-        "provider_id",
-        "offering_id",
-        "listing_id",
-        "revision_of",
-        "created_by_id",
-        "updated_by_id",
-        "created_at",
-        "updated_at",
-    }
-
-    # Validate fields
-    invalid_fields = [f for f in field_list if f not in allowed_fields]
-    if invalid_fields:
-        console.print(
-            f"[red]Error:[/red] Invalid field(s): {', '.join(invalid_fields)}",
-            style="bold red",
-        )
-        console.print(f"[yellow]Available fields:[/yellow] {', '.join(sorted(allowed_fields))}")
-        raise typer.Exit(code=1)
-
-    async def _query_services_async():
-        async with ServiceDataQuery() as query:
-            params: dict[str, Any] = {"skip": skip, "limit": limit}
-            if status:
-                params["status"] = status
-
-            services = await query.get("/seller/services", params)
-            return services.get("data", services) if isinstance(services, dict) else services
-
+    """Query all sellers from the backend."""
     try:
-        services = asyncio.run(_query_services_async())
+        with ServiceDataQuery.from_env() as query:
+            sellers = query.list_sellers()
 
-        if format == "json":
-            # For JSON, filter fields if not all are requested
-            if set(field_list) != allowed_fields:
-                filtered_services = [{k: v for k, v in svc.items() if k in field_list} for svc in services]
-                console.print(json.dumps(filtered_services, indent=2))
+            if format == "json":
+                console.print(json.dumps(sellers, indent=2))
             else:
-                console.print(json.dumps(services, indent=2))
-        else:
-            if not services:
-                console.print("[yellow]No services found.[/yellow]")
-            else:
-                table = Table(title="Services")
+                if not sellers:
+                    console.print("[yellow]No sellers found.[/yellow]")
+                else:
+                    table = Table(title="Sellers")
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Name", style="green")
+                    table.add_column("Display Name", style="blue")
+                    table.add_column("Type", style="magenta")
+                    table.add_column("Contact Email", style="yellow")
+                    table.add_column("Active", style="white")
 
-                # Add columns dynamically based on selected fields
-                for field in field_list:
-                    # Capitalize and format field names for display
-                    column_name = field.replace("_", " ").title()
-                    table.add_column(column_name)
+                    for seller in sellers:
+                        table.add_row(
+                            str(seller.get("id", "N/A")),
+                            seller.get("name", "N/A"),
+                            seller.get("display_name", "N/A"),
+                            seller.get("seller_type", "N/A"),
+                            seller.get("contact_email", "N/A"),
+                            "✓" if seller.get("is_active") else "✗",
+                        )
 
-                # Add rows
-                for svc in services:
-                    row = []
-                    for field in field_list:
-                        value = svc.get(field)
-                        if value is None:
-                            row.append("N/A")
-                        elif isinstance(value, dict | list):
-                            row.append(str(value)[:50])  # Truncate complex types
-                        else:
-                            row.append(str(value))
-                    table.add_row(*row)
-
-                console.print(table)
-                console.print(f"\n[green]Total:[/green] {len(services)} service(s)")
+                    console.print(table)
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to query services: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to query sellers: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("providers")
+def query_providers(
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json",
+    ),
+):
+    """Query all providers from the backend."""
+    try:
+        with ServiceDataQuery.from_env() as query:
+            providers = query.list_providers()
+
+            if format == "json":
+                console.print(json.dumps(providers, indent=2))
+            else:
+                if not providers:
+                    console.print("[yellow]No providers found.[/yellow]")
+                else:
+                    table = Table(title="Providers")
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Name", style="green")
+                    table.add_column("Display Name", style="blue")
+                    table.add_column("Time Created", style="magenta")
+
+                    for provider in providers:
+                        table.add_row(
+                            str(provider.get("id", "N/A")),
+                            provider.get("name", "N/A"),
+                            provider.get("display_name", "N/A"),
+                            str(provider.get("time_created", "N/A")),
+                        )
+
+                    console.print(table)
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to query providers: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("offerings")
+def query_offerings(
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json",
+    ),
+):
+    """Query all service offerings from UnitySVC backend."""
+    try:
+        with ServiceDataQuery.from_env() as query:
+            offerings = query.list_service_offerings()
+
+            if format == "json":
+                console.print(json.dumps(offerings, indent=2))
+            else:
+                if not offerings:
+                    console.print("[yellow]No service offerings found.[/yellow]")
+                else:
+                    table = Table(title="Service Offerings", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Name", style="green")
+                    table.add_column("Display Name", style="blue")
+                    table.add_column("Type", style="magenta")
+                    table.add_column("Status", style="yellow")
+                    table.add_column("Version")
+
+                    for offering in offerings:
+                        table.add_row(
+                            str(offering.get("id", "N/A")),
+                            offering.get("name", "N/A"),
+                            offering.get("display_name", "N/A"),
+                            offering.get("service_type", "N/A"),
+                            offering.get("upstream_status", "N/A"),
+                            offering.get("version", "N/A"),
+                        )
+
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {len(offerings)} service offering(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to query service offerings: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("listings")
+def query_listings(
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json",
+    ),
+):
+    """Query all service listings from UnitySVC backend."""
+    try:
+        with ServiceDataQuery.from_env() as query:
+            listings = query.list_service_listings()
+
+            if format == "json":
+                console.print(json.dumps(listings, indent=2))
+            else:
+                if not listings:
+                    console.print("[yellow]No service listings found.[/yellow]")
+                else:
+                    table = Table(title="Service Listings", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Service ID", style="blue")
+                    table.add_column("Seller", style="green")
+                    table.add_column("Status", style="yellow")
+                    table.add_column("Interfaces")
+
+                    for listing in listings:
+                        interfaces_count = len(listing.get("user_access_interfaces", []))
+                        table.add_row(
+                            str(listing.get("id", "N/A")),
+                            str(listing.get("service_id", "N/A")),
+                            listing.get("seller_name", "N/A"),
+                            listing.get("listing_status", "N/A"),
+                            str(interfaces_count),
+                        )
+
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {len(listings)} service listing(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to query service listings: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("interfaces")
+def query_interfaces(
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json",
+    ),
+):
+    """Query all access interfaces from UnitySVC backend (private endpoint)."""
+    try:
+        with ServiceDataQuery.from_env() as query:
+            data = query.list_access_interfaces()
+
+            if format == "json":
+                console.print(json.dumps(data, indent=2))
+            else:
+                interfaces = data.get("data", [])
+                if not interfaces:
+                    console.print("[yellow]No access interfaces found.[/yellow]")
+                else:
+                    table = Table(title="Access Interfaces", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Name", style="green")
+                    table.add_column("Context", style="blue")
+                    table.add_column("Entity ID", style="yellow")
+                    table.add_column("Method", style="magenta")
+                    table.add_column("Active", style="green")
+
+                    for interface in interfaces:
+                        table.add_row(
+                            str(interface.get("id", "N/A"))[:8] + "...",
+                            interface.get("name", "N/A"),
+                            interface.get("context_type", "N/A"),
+                            str(interface.get("entity_id", "N/A"))[:8] + "...",
+                            interface.get("access_method", "N/A"),
+                            "✓" if interface.get("is_active") else "✗",
+                        )
+
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} access interface(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to query access interfaces: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+@app.command("documents")
+def query_documents(
+    format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: table, json",
+    ),
+):
+    """Query all documents from UnitySVC backend (private endpoint)."""
+    try:
+        with ServiceDataQuery.from_env() as query:
+            data = query.list_documents()
+
+            if format == "json":
+                console.print(json.dumps(data, indent=2))
+            else:
+                documents = data.get("data", [])
+                if not documents:
+                    console.print("[yellow]No documents found.[/yellow]")
+                else:
+                    table = Table(title="Documents", show_lines=True)
+                    table.add_column("ID", style="cyan")
+                    table.add_column("Title", style="green")
+                    table.add_column("Category", style="blue")
+                    table.add_column("MIME Type", style="yellow")
+                    table.add_column("Context", style="magenta")
+                    table.add_column("Public", style="red")
+
+                    for doc in documents:
+                        table.add_row(
+                            str(doc.get("id", "N/A"))[:8] + "...",
+                            doc.get("title", "N/A")[:40],
+                            doc.get("category", "N/A"),
+                            doc.get("mime_type", "N/A"),
+                            doc.get("context_type", "N/A"),
+                            "✓" if doc.get("is_public") else "✗",
+                        )
+
+                    console.print(table)
+                    console.print(f"\n[green]Total:[/green] {data.get('count', 0)} document(s)")
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to query documents: {e}", style="bold red")
         raise typer.Exit(code=1)

@@ -1,30 +1,6 @@
 # Getting Started
 
-This guide will help you get started with managing your UnitySVC seller service data.
-
-## Two Ways to Manage Service Data
-
-UnitySVC provides two complementary approaches:
-
-### 1. Web Interface (Recommended for Getting Started)
-
-The [UnitySVC web platform](https://unitysvc.com) provides a user-friendly interface to:
-- Create, edit, and manage providers, offerings, and listings
-- Validate data with instant feedback
-- Preview how services appear to customers
-- Export data for use with the SDK
-
-### 2. SDK (This Package)
-
-The SDK enables a **local-first, version-controlled workflow** with key advantages:
-
-- **Version Control** - Track all changes in git, review diffs, roll back mistakes
-- **Script-Based Generation** - Programmatically generate services from provider APIs
-- **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
-- **Offline Work** - Edit locally, validate without network, publish when ready
-- **Code Review** - Use pull requests to review service changes before publishing
-
-**Recommended workflow**: Start with the web interface to create initial data, then use the SDK for ongoing management and automation.
+This guide will help you get started with the UnitySVC Provider SDK.
 
 ## Installation
 
@@ -42,177 +18,143 @@ pip install unitysvc-services
 ### Verify Installation
 
 ```bash
-usvc --help
-# Or using the full command name:
 unitysvc_services --help
 ```
 
 You should see the command-line interface help output.
 
-**Note:** The command `unitysvc_services` can be invoked using the shorter alias `usvc`. All examples below use the shorter `usvc` alias.
+## Quick Start: Create Your First Service
 
-## Prerequisites: Create Your Seller Account
+### Step 1: Initialize Your Data Directory
 
-Before publishing services, you need a seller account on the UnitySVC platform:
+Create a new provider:
 
-1. **Sign up** at [https://unitysvc.com](https://unitysvc.com)
-2. **Create your seller account** from the dashboard
-3. **Generate a seller API key** - this key contains your seller identity
-
-The seller API key is used for all publishing operations. The platform automatically associates your providers, offerings, and listings with your seller account.
-
-## Understanding the Service Data Model
-
-Before creating your first service, understand how UnitySVC structures service data:
-
-```mermaid
-flowchart TB
-    subgraph Service["Published Together"]
-        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
-        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
-        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
-    end
-
-    P --> O --> L
-
-    style P fill:#e3f2fd
-    style O fill:#fff3e0
-    style L fill:#e8f5e9
+```bash
+unitysvc_services init provider my-provider
 ```
 
-These three parts are **organized separately** for reusability but **published together** as a unified service:
-
-| Component | Purpose | Reusability |
-|-----------|---------|-------------|
-| **Provider Data** | Identity, contact info, terms of service | One per provider, shared by all offerings |
-| **Offering Data** | Service definition, API endpoints, upstream pricing | One per service, can have multiple listings |
-| **Listing Data** | Customer-facing info, documentation, pricing | One per pricing tier or marketplace |
-
-## Quick Start: Your First Service
-
-### Step 1: Create Data via Web Interface
-
-1. Go to [unitysvc.com](https://unitysvc.com) and sign in
-2. Create your **Provider** (your company/organization info)
-3. Create an **Offering** (the service you're providing)
-4. Create a **Listing** (how customers see and purchase your service)
-5. **Export** your data as JSON/TOML files
-
-### Step 2: Set Up Your Local Directory
-
-Place the exported files in the expected directory structure:
+This creates:
 
 ```
 data/
 └── my-provider/
-    ├── provider.json          # Provider Data
+    ├── provider.toml
     └── services/
-        └── my-service/
-            ├── offering.json  # Offering Data
-            └── listing.json   # Listing Data
 ```
 
-**Alternative**: You can also create files manually following the [File Schemas](file-schemas.md) documentation.
-
-### Step 3: Validate Your Data
+### Step 2: Create a Service Offering
 
 ```bash
-usvc validate
+unitysvc_services init offering my-first-service
+```
+
+This creates:
+
+```
+data/
+└── my-provider/
+    └── services/
+        └── my-first-service/
+            └── service.toml
+```
+
+### Step 3: Create a Service Listing
+
+```bash
+unitysvc_services init listing my-first-listing
+```
+
+This creates:
+
+```
+data/
+└── my-provider/
+    └── services/
+        └── my-first-service/
+            ├── service.toml
+            └── listing-svcreseller.toml
+```
+
+### Step 4: Create a Seller
+
+Create a seller file at the root of your data directory:
+
+```bash
+unitysvc_services init seller my-marketplace
+```
+
+This creates:
+
+```
+data/
+├── seller.toml
+└── my-provider/
+    └── services/
+        └── my-first-service/
+            ├── service.toml
+            └── listing-svcreseller.toml
+```
+
+### Step 5: Edit Your Files
+
+Open the generated files and fill in your service details:
+
+-   **provider.toml** - Provider information (name, display name, contact)
+-   **seller.toml** - Seller business information
+-   **service.toml** - Service offering details (pricing, API endpoints)
+-   **listing-svcreseller.toml** - User-facing service information
+
+### Step 6: Validate Your Data
+
+```bash
+unitysvc_services validate
 ```
 
 Fix any validation errors reported.
 
-### Step 4: Format Your Files
+### Step 7: Format Your Files
 
 ```bash
-usvc format
+unitysvc_services format
 ```
 
 This ensures consistent formatting (2-space JSON indentation, proper line endings, etc.).
 
-### Step 5: Publish to UnitySVC Platform
+### Step 8: Publish to UnitySVC Platform
 
-Set your credentials using your **seller API key**:
+Set your credentials:
 
 ```bash
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
-export UNITYSVC_API_KEY="svcpass_your_seller_api_key"
+export UNITYSVC_API_KEY="your-api-key"
 ```
 
-Publish your services:
+Publish your data (publishes all types in correct order: sellers → providers → offerings → listings):
 
 ```bash
 # From data directory
 cd data
-usvc publish
+unitysvc_services publish
 
 # Or specify path
-usvc publish --data-path ./data
+unitysvc_services publish --data-path ./data
 
-# Or publish a single listing file
-usvc publish --data-path ./data/my-provider/services/my-service/listing.toml
+# Or publish specific types
+unitysvc_services publish providers
+unitysvc_services publish sellers
 ```
 
-#### How Publishing Works
-
-The `usvc publish` command uses a **listing-centric** approach:
-
-1. Finds all listing files (`listing_v1` schema) in the directory
-2. For each listing, locates the offering file in the same directory
-3. Locates the provider file in the parent directory
-4. Publishes all three together to `/seller/services`
-
-```mermaid
-flowchart TD
-    subgraph Local["Your Local Data"]
-        A[Provider Data<br/>WHO provides]
-        B[Offering Data<br/>WHAT you offer]
-        C[Listing Data<br/>HOW it's sold]
-    end
-
-    subgraph Publish["usvc publish"]
-        D{Finds listings}
-        E[Bundles provider + offering + listing]
-    end
-
-    subgraph Platform["UnitySVC Platform"]
-        F{Reviews & Approves}
-        G[Service goes live]
-    end
-
-    C --> D
-    D --> E
-    A --> E
-    B --> E
-    E --> F
-    F -->|Approved| G
-```
-
-| Data Type | Purpose | Key Fields |
-|-----------|---------|------------|
-| **Provider Data** | Who provides the service | Provider name, contact info, terms |
-| **Offering Data** | What you offer to UnitySVC | API endpoints, upstream pricing |
-| **Listing Data** | What you offer to customers | Documentation, customer pricing |
-
-### Step 6: Verify Your Published Data
+### Step 9: Verify Your Published Data
 
 ```bash
-# Query your services
-usvc query
-
-# Query with custom fields - show only specific columns
-usvc query --fields id,name,status
-
-# Filter by status
-usvc query --status active
-
-# Query as JSON for programmatic use
-usvc query --format json
+unitysvc_services query providers
+unitysvc_services query offerings
+unitysvc_services query listings
 ```
 
 ## Next Steps
 
--   **[Data Structure](data-structure.md)** - Learn about the Service Data model and file organization
+-   **[Data Structure](data-structure.md)** - Learn about file organization and naming rules
 -   **[Workflows](workflows.md)** - Explore manual and automated workflows
 -   **[CLI Reference](cli-reference.md)** - Browse all available commands
 
@@ -221,19 +163,19 @@ usvc query --format json
 ### List Local Files
 
 ```bash
-usvc list providers
-usvc list offerings
-usvc list listings
+unitysvc_services list providers
+unitysvc_services list offerings
+unitysvc_services list listings
 ```
 
 ### Update Local Files
 
 ```bash
 # Update service status
-usvc update offering --name my-service --status ready
+unitysvc_services update offering --name my-service --status ready
 
 # Update listing status
-usvc update listing --services my-service --status ready
+unitysvc_services update listing --service-name my-service --status in_service
 ```
 
 ### Automated Service Generation
@@ -242,7 +184,7 @@ For providers with large catalogs, set up automated generation:
 
 1. Add `services_populator` configuration to `provider.toml`
 2. Create a script to fetch and generate service files
-3. Run: `usvc populate`
+3. Run: `unitysvc_services populate`
 
 See [Workflows](workflows.md#automated-workflow) for details.
 
@@ -257,20 +199,14 @@ See [Workflows](workflows.md#automated-workflow) for details.
 ### Publishing Errors
 
 -   Verify API credentials are set correctly
+-   Use `unitysvc_services publish` (without subcommand) to publish all types in the correct order automatically
 -   Ensure backend URL is accessible
--   Check that listing files have corresponding offering and provider files
 -   Check that you're running from the correct directory or using `--data-path`
-
-### "Provider not found" Errors
-
-This typically means:
--   The provider file is missing or not in the expected location (parent of `services/`)
--   The provider file has `status: draft` (draft providers are skipped)
 
 ### Format Issues
 
--   Run `usvc format --check` to see what would change
--   Use `usvc format` to auto-fix formatting
+-   Run `unitysvc_services format --check` to see what would change
+-   Use `unitysvc_services format` to auto-fix formatting
 
 ## Getting Help
 

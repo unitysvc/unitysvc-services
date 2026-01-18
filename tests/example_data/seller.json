@@ -1,0 +1,11 @@
+{
+  "schema": "seller_v1",
+  "time_created": "2024-02-29T05:52:38.739683Z",
+  "name": "svcreseller",
+  "display_name": "SVC Reseller",
+  "seller_type": "organization",
+  "contact_email": "contact@svcreseller.com",
+  "description": "Example seller for testing",
+  "status": "active",
+  "is_verified": false
+}

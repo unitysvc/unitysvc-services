@@ -1,0 +1,376 @@
+{
+  "$defs": {
+    "Document": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/DocumentCategoryEnum",
+          "description": "Document category for organization and filtering"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document description",
+          "title": "Description"
+        },
+        "external_url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "External URL for the document (mutually exclusive with object_key)",
+          "title": "External Url"
+        },
+        "file_path": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to file to upload (mutually exclusive with external_url)",
+          "title": "File Path"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether document is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_public": {
+          "default": false,
+          "description": "Whether document is publicly accessible without authentication",
+          "title": "Is Public",
+          "type": "boolean"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON containing operation stats",
+          "title": "Meta"
+        },
+        "mime_type": {
+          "$ref": "#/$defs/MimeTypeEnum",
+          "description": "Document MIME type"
+        },
+        "sort_order": {
+          "default": 0,
+          "description": "Sort order within category",
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "title": {
+          "description": "Document title",
+          "maxLength": 255,
+          "minLength": 5,
+          "title": "Title",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document version",
+          "title": "Version"
+        }
+      },
+      "required": [
+        "title",
+        "mime_type",
+        "category"
+      ],
+      "title": "Document",
+      "type": "object"
+    },
+    "DocumentCategoryEnum": {
+      "enum": [
+        "getting_started",
+        "api_reference",
+        "tutorials",
+        "code_examples",
+        "use_cases",
+        "troubleshooting",
+        "changelog",
+        "best_practices",
+        "specification",
+        "service_level_agreement",
+        "terms_of_service",
+        "invoice",
+        "logo",
+        "avatar",
+        "other"
+      ],
+      "title": "DocumentCategoryEnum",
+      "type": "string"
+    },
+    "MimeTypeEnum": {
+      "enum": [
+        "markdown",
+        "python",
+        "javascript",
+        "bash",
+        "html",
+        "text",
+        "pdf",
+        "jpeg",
+        "png",
+        "svg",
+        "url"
+      ],
+      "title": "MimeTypeEnum",
+      "type": "string"
+    },
+    "SellerStatusEnum": {
+      "description": "Seller status enum.",
+      "enum": [
+        "active",
+        "disabled",
+        "incomplete"
+      ],
+      "title": "SellerStatusEnum",
+      "type": "string"
+    },
+    "SellerTypeEnum": {
+      "enum": [
+        "individual",
+        "organization",
+        "partnership",
+        "corporation"
+      ],
+      "title": "SellerTypeEnum",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Seller information for marketplace sellers.\n\nEach repository can only have one seller.json file at the root of the data directory.",
+  "properties": {
+    "account_manager": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Email or username of the user managing this seller account",
+      "title": "Account Manager"
+    },
+    "business_registration": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Business registration number (if organization)",
+      "title": "Business Registration"
+    },
+    "contact_email": {
+      "description": "Primary contact email for the seller",
+      "format": "email",
+      "title": "Contact Email",
+      "type": "string"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 1000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Brief description of the seller",
+      "title": "Description"
+    },
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable seller name (e.g., 'ACME Corporation', 'John Doe')",
+      "title": "Display Name"
+    },
+    "documents": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/Document"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "List of documents associated with the seller (e.g. business registration, tax documents)",
+      "title": "Documents"
+    },
+    "homepage": {
+      "anyOf": [
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Seller's homepage URL",
+      "title": "Homepage"
+    },
+    "is_verified": {
+      "default": false,
+      "description": "Whether the seller has been verified (KYC/business verification)",
+      "title": "Is Verified",
+      "type": "boolean"
+    },
+    "logo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logo"
+    },
+    "name": {
+      "description": "Unique seller identifier (URL-friendly, e.g., 'acme-corp', 'john-doe')",
+      "maxLength": 100,
+      "minLength": 2,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema": {
+      "default": "seller_v1",
+      "description": "Schema identifier",
+      "title": "Schema",
+      "type": "string"
+    },
+    "secondary_contact_email": {
+      "anyOf": [
+        {
+          "format": "email",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Secondary contact email",
+      "title": "Secondary Contact Email"
+    },
+    "seller_type": {
+      "$ref": "#/$defs/SellerTypeEnum",
+      "default": "individual",
+      "description": "Type of seller entity"
+    },
+    "status": {
+      "$ref": "#/$defs/SellerStatusEnum",
+      "default": "active",
+      "description": "Seller status: active, disabled, or incomplete"
+    },
+    "stripe_connect_id": {
+      "anyOf": [
+        {
+          "maxLength": 255,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Stripe Connect account ID for payment processing",
+      "title": "Stripe Connect Id"
+    },
+    "tax_id": {
+      "anyOf": [
+        {
+          "maxLength": 100,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tax identification number (EIN, VAT, etc.)",
+      "title": "Tax Id"
+    },
+    "time_created": {
+      "format": "date-time",
+      "title": "Time Created",
+      "type": "string"
+    }
+  },
+  "required": [
+    "time_created",
+    "name",
+    "contact_email"
+  ],
+  "title": "SellerV1",
+  "type": "object"
+}

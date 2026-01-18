@@ -1,20 +1,17 @@
 {
   "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
       "source.fixAll": "explicit",
       "source.organizeImports": "explicit"
-    },
-    "editor.defaultFormatter": "charliermarsh.ruff",
-    "editor.formatOnSave": true
+    }
   },
-  "editor.rulers": [
-    88,
-    120
-  ],
+  "ruff.lint.enable": true,
+  "ruff.format.enable": true,
+  "python.languageServer": "Pylance",
+  "python.analysis.typeCheckingMode": "basic",
   "files.insertFinalNewline": true,
   "files.trimTrailingWhitespace": true,
-  "python.analysis.typeCheckingMode": "basic",
-  "python.languageServer": "Pylance",
-  "ruff.format.enable": true,
-  "ruff.lint.enable": true
+  "editor.rulers": [88, 120]
 }
