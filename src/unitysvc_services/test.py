@@ -15,6 +15,7 @@ from .models.base import DocumentCategoryEnum, OfferingStatusEnum
 from .utils import (
     determine_interpreter,
     find_files_by_schema,
+    load_data_file,
     read_override_file,
     render_template_file,
     write_override_file,
@@ -440,9 +441,11 @@ def has_existing_test_result(
     document_title: str,
     test_type: str = "upstream_test",
 ) -> bool:
-    """Check if a test result already exists in the listing override file.
+    """Check if a test result already exists in the listing data.
 
-    Checks documents.<title>.meta.<test_type> in the override file.
+    Checks documents.<title>.meta.<test_type> in the merged data
+    (base file + override file). Test results can be specified in
+    either the main data file or the override file.
 
     Args:
         listing_file: Path to the listing file
@@ -453,10 +456,11 @@ def has_existing_test_result(
         True if test result exists, False otherwise
     """
     try:
-        override_data = read_override_file(listing_file)
-        documents = override_data.get("documents", {})
+        # Load merged data (base + override) to check for test results
+        listing_data, _format = load_data_file(listing_file)
+        documents = listing_data.get("documents", {}) or {}
         doc_data = documents.get(document_title, {})
-        meta = doc_data.get("meta", {})
+        meta = doc_data.get("meta", {}) or {}
         return test_type in meta
     except Exception:
         return False
