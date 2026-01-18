@@ -176,7 +176,9 @@ def deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str
     return result
 
 
-def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
+def load_data_file(
+    file_path: Path, *, skip_override: bool = False
+) -> tuple[dict[str, Any], str]:
     """
     Load a data file (JSON or TOML) and return (data, format).
 
@@ -192,6 +194,9 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
 
     Args:
         file_path: Path to the data file
+        skip_override: If True, skip loading and merging override files.
+            Useful for commands that need the original local data without
+            server-synced overrides (e.g., example list/run commands).
 
     Returns:
         Tuple of (data dict, format string "json" or "toml")
@@ -211,26 +216,27 @@ def load_data_file(file_path: Path) -> tuple[dict[str, Any], str]:
     else:
         raise ValueError(f"Unsupported file format: {file_path.suffix}")
 
-    # Check for override file
+    # Check for override file (unless skip_override is True)
     # Pattern: <stem>.override.<suffix>
     # Example: offering.json -> offering.override.json
-    override_path = file_path.with_stem(f"{file_path.stem}.override")
+    if not skip_override:
+        override_path = file_path.with_stem(f"{file_path.stem}.override")
 
-    if override_path.exists():
-        # Load the override file (same format as base file)
-        if override_path.suffix == ".json":
-            with open(override_path, encoding="utf-8") as f:
-                override_data = json.load(f)
-        elif override_path.suffix == ".toml":
-            with open(override_path, "rb") as f:
-                override_data = tomllib.load(f)
-        else:
-            # This shouldn't happen since we're using the same suffix as base
-            # But handle it gracefully
-            override_data = {}
+        if override_path.exists():
+            # Load the override file (same format as base file)
+            if override_path.suffix == ".json":
+                with open(override_path, encoding="utf-8") as f:
+                    override_data = json.load(f)
+            elif override_path.suffix == ".toml":
+                with open(override_path, "rb") as f:
+                    override_data = tomllib.load(f)
+            else:
+                # This shouldn't happen since we're using the same suffix as base
+                # But handle it gracefully
+                override_data = {}
 
-        # Deep merge the override data into the base data
-        data = deep_merge_dicts(data, override_data)
+            # Deep merge the override data into the base data
+            data = deep_merge_dicts(data, override_data)
 
     return data, file_format
 
@@ -412,6 +418,7 @@ def find_files_by_schema(
     schema: str,
     path_filter: str | None = None,
     field_filter: tuple[tuple[str, Any], ...] | None = None,
+    skip_override: bool = False,
 ) -> list[tuple[Path, str, dict[str, Any]]]:
     """
     Find all data files matching a schema with optional filters.
@@ -421,6 +428,7 @@ def find_files_by_schema(
         schema: Schema identifier (e.g., "offering_v1", "listing_v1")
         path_filter: Optional string that must be in the file path
         field_filter: Optional tuple of (key, value) pairs to filter by
+        skip_override: If True, skip loading override files (use base data only)
 
     Returns:
         List of tuples (file_path, format, data) for matching files
@@ -437,7 +445,7 @@ def find_files_by_schema(
             if path_filter and path_filter not in str(data_file):
                 continue
 
-            data, file_format = load_data_file(data_file)
+            data, file_format = load_data_file(data_file, skip_override=skip_override)
 
             # Check schema
             if data.get("schema") != schema:
@@ -679,32 +687,150 @@ def render_template_file(
         return file_content, file_path.name
 
 
-def determine_interpreter(file_content: str, file_suffix: str) -> tuple[str | None, str | None]:
-    """
-    Determine the interpreter command for executing a script file.
+def execute_script_content(
+    script: str,
+    mime_type: str,
+    env_vars: dict[str, str],
+    expected_output: str | None = None,
+    timeout: int = 30,
+) -> dict[str, Any]:
+    """Execute script content and return results.
 
-    Checks for shebang line first, then falls back to file extension-based detection.
+    This is a shared utility function used by both the SDK's example runner
+    and the backend's Celery task for consistent execution behavior.
 
     Args:
-        file_content: The content of the script file
-        file_suffix: The file extension (e.g., ".py", ".js", ".sh")
+        script: The script content to execute (expanded, not a template)
+        mime_type: Document MIME type ("python", "javascript", "bash")
+        env_vars: Environment variables to set (e.g., {"API_KEY": "...", "BASE_URL": "..."})
+        expected_output: Optional substring that must appear in stdout for success
+        timeout: Execution timeout in seconds (default: 30)
 
     Returns:
-        Tuple of (interpreter_cmd, error_message). If successful, returns (interpreter_cmd, None).
-        If failed, returns (None, error_message).
+        Result dictionary with:
+        - status: "success" | "task_failed" | "script_failed" | "unexpected_output"
+        - error: Error message (None if success)
+        - exit_code: Script exit code (None if script didn't run)
+        - stdout: Standard output (truncated to 1KB)
+        - stderr: Standard error (truncated to 1KB)
+    """
+    import subprocess
+    import tempfile
+
+    # Output truncation limit (1KB)
+    MAX_OUTPUT_SIZE = 1000
+
+    result: dict[str, Any] = {
+        "status": "task_failed",
+        "error": None,
+        "exit_code": None,
+        "stdout": None,
+        "stderr": None,
+    }
+
+    # Determine interpreter from mime_type
+    interpreter_cmd, file_suffix, error = determine_interpreter(script, mime_type)
+    if error:
+        result["status"] = "task_failed"
+        result["error"] = error
+        return result
+
+    assert interpreter_cmd is not None, "interpreter_cmd should not be None after error check"
+
+    # Prepare environment
+    env = os.environ.copy()
+    env.update(env_vars)
+
+    # Write script to temporary file
+    temp_file = None
+    try:
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=file_suffix,
+            delete=False,
+        )
+        temp_file.write(script)
+        temp_file.close()
+        os.chmod(temp_file.name, 0o755)
+
+        # Execute script
+        process = subprocess.run(
+            [interpreter_cmd, temp_file.name],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+
+        result["exit_code"] = process.returncode
+        result["stdout"] = process.stdout[:MAX_OUTPUT_SIZE] if process.stdout else None
+        result["stderr"] = process.stderr[:MAX_OUTPUT_SIZE] if process.stderr else None
+
+        # Determine status
+        if process.returncode != 0:
+            result["status"] = "script_failed"
+            result["error"] = f"Script exited with code {process.returncode}"
+        elif expected_output and (not process.stdout or expected_output not in process.stdout):
+            result["status"] = "unexpected_output"
+            result["error"] = f"Expected output not found: {expected_output}"
+        else:
+            result["status"] = "success"
+            result["error"] = None
+
+    except subprocess.TimeoutExpired:
+        result["error"] = f"Script execution timeout ({timeout} seconds)"
+    except FileNotFoundError as e:
+        result["error"] = f"Interpreter not found: {e}"
+    except Exception as e:
+        result["error"] = str(e)
+    finally:
+        if temp_file and os.path.exists(temp_file.name):
+            os.unlink(temp_file.name)
+
+    return result
+
+
+def determine_interpreter(
+    script: str, mime_type: str
+) -> tuple[str | None, str, str | None]:
+    """
+    Determine the interpreter command for executing a script.
+
+    Checks for shebang line first, then falls back to MIME type-based detection.
+    Supported MIME types: "python", "javascript", "bash"
+
+    Args:
+        script: The content of the script (used for shebang parsing)
+        mime_type: Document MIME type ("python", "javascript", "bash")
+
+    Returns:
+        Tuple of (interpreter_cmd, file_suffix, error_message).
+        If successful, returns (interpreter_cmd, file_suffix, None).
+        If failed, returns (None, "", error_message).
 
     Examples:
-        >>> determine_interpreter("#!/usr/bin/env python3\\nprint('hello')", ".py")
-        ('python3', None)
-        >>> determine_interpreter("console.log('hello')", ".js")
-        ('node', None)
-        >>> determine_interpreter("curl http://example.com", ".sh")
-        ('bash', None)
+        >>> determine_interpreter("print('hello')", "python")
+        ('python3', '.py', None)
+        >>> determine_interpreter("console.log('hello')", "javascript")
+        ('node', '.js', None)
+        >>> determine_interpreter("curl http://example.com", "bash")
+        ('bash', '.sh', None)
     """
     import shutil
 
+    # Map MIME type to file suffix
+    mime_to_suffix = {
+        "python": ".py",
+        "javascript": ".js",
+        "bash": ".sh",
+    }
+
+    file_suffix = mime_to_suffix.get(mime_type, "")
+    if not file_suffix:
+        return None, "", f"Unsupported MIME type: {mime_type}. Supported: python, javascript, bash"
+
     # Parse shebang to get interpreter
-    lines = file_content.split("\n")
+    lines = script.split("\n")
     interpreter_cmd = None
 
     # First, try to parse shebang
@@ -717,39 +843,31 @@ def determine_interpreter(file_content: str, file_suffix: str) -> tuple[str | No
             # e.g., #!/usr/bin/python3
             interpreter_cmd = shebang.split("/")[-1].split()[0]
 
-    # If no shebang found, determine interpreter based on file extension
+    # If no shebang found, determine interpreter based on MIME type
     if not interpreter_cmd:
-        if file_suffix == ".py":
+        if mime_type == "python":
             # Try python3 first, fallback to python
             if shutil.which("python3"):
                 interpreter_cmd = "python3"
             elif shutil.which("python"):
                 interpreter_cmd = "python"
             else:
-                return None, "Neither 'python3' nor 'python' found. Please install Python to run this test."
-        elif file_suffix == ".js":
+                return None, file_suffix, "Neither 'python3' nor 'python' found."
+        elif mime_type == "javascript":
             # JavaScript files need Node.js
             if shutil.which("node"):
                 interpreter_cmd = "node"
             else:
-                return None, "'node' not found. Please install Node.js to run JavaScript tests."
-        elif file_suffix == ".sh":
+                return None, file_suffix, "'node' not found. Please install Node.js."
+        elif mime_type == "bash":
             # Shell scripts use bash
             if shutil.which("bash"):
                 interpreter_cmd = "bash"
             else:
-                return None, "'bash' not found. Please install bash to run shell script tests."
-        else:
-            # Unknown file type - try python3/python as fallback
-            if shutil.which("python3"):
-                interpreter_cmd = "python3"
-            elif shutil.which("python"):
-                interpreter_cmd = "python"
-            else:
-                return None, f"Unknown file type '{file_suffix}' and no Python interpreter found."
+                return None, file_suffix, "'bash' not found."
     else:
         # Shebang was found - verify the interpreter exists
         if not shutil.which(interpreter_cmd):
-            return None, f"Interpreter '{interpreter_cmd}' from shebang not found. Please install it to run this test."
+            return None, file_suffix, f"Interpreter '{interpreter_cmd}' from shebang not found."
 
-    return interpreter_cmd, None
+    return interpreter_cmd, file_suffix, None

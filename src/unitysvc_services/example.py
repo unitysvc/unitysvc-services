@@ -8,9 +8,6 @@ making it easy to track results in version control.
 """
 
 import fnmatch
-import os
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +17,7 @@ from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
 from .utils import (
-    determine_interpreter,
+    execute_script_content,
     find_files_by_schema,
     render_template_file,
 )
@@ -151,7 +148,7 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
         else:
             console.print(f"[yellow]Warning: No provider_v1 file found in {provider_dir}[/yellow]")
 
-        # Find seller file using find_files_by_schema
+        # Find seller file using find_files_by_schema (optional - seller files are not always present)
         # Go up to data directory (3 levels up from listing)
         data_dir = listing_file.parent.parent.parent.parent
         seller_results = find_files_by_schema(data_dir, "seller_v1")
@@ -160,8 +157,7 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
             # Data is already loaded by find_files_by_schema
             _file_path, _format, seller_data = seller_results[0]
             result["seller"] = seller_data
-        else:
-            console.print(f"[yellow]Warning: No seller_v1 file found in {data_dir}[/yellow]")
+        # No warning if seller file not found - seller data is optional
 
     except Exception as e:
         console.print(f"[yellow]Warning: Failed to load related data: {e}[/yellow]")
@@ -221,7 +217,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         "stdout": None,
         "stderr": None,
         "rendered_content": None,
-        "file_suffix": None,
+        "mime_type": None,
         "listing_file": None,
         "actual_filename": None,
     }
@@ -256,75 +252,38 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             result["error"] = f"Template rendering failed: {str(e)}"
             return result
 
-        # Get file suffix from the actual filename (after .j2 stripping if applicable)
-        file_suffix = Path(actual_filename).suffix or ".txt"
+        # Get mime_type from code_example
+        mime_type = code_example.get("mime_type", "python")
 
-        # Store rendered content and file suffix for later use (e.g., writing failed tests)
+        # Store rendered content for later use (e.g., writing failed tests)
         result["rendered_content"] = file_content
-        result["file_suffix"] = file_suffix
+        result["mime_type"] = mime_type
         result["listing_file"] = listing_file
         result["actual_filename"] = actual_filename
 
-        # Determine interpreter to use (using shared utility function)
-        interpreter_cmd, error = determine_interpreter(file_content, file_suffix)
-        if error:
-            result["error"] = error
-            return result
-
-        # At this point, interpreter_cmd is guaranteed to be a string (error check above)
-        assert interpreter_cmd is not None, "interpreter_cmd should not be None after error check"
-
         # Prepare environment variables
-        env = os.environ.copy()
-        env["API_KEY"] = credentials["api_key"]
-        env["BASE_URL"] = credentials["base_url"]
+        env_vars = {
+            "API_KEY": credentials["api_key"],
+            "BASE_URL": credentials["base_url"],
+        }
 
-        # Write script to temporary file with original extension
-        with tempfile.NamedTemporaryFile(mode="w", suffix=file_suffix, delete=False) as temp_file:
-            temp_file.write(file_content)
-            temp_file_path = temp_file.name
+        # Execute script using shared utility
+        expected_output = code_example.get("expect")
+        exec_result = execute_script_content(
+            script=file_content,
+            mime_type=mime_type,
+            env_vars=env_vars,
+            expected_output=expected_output,
+            timeout=30,
+        )
 
-        try:
-            # Execute the script (interpreter availability already verified)
-            process = subprocess.run(
-                [interpreter_cmd, temp_file_path],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+        # Map shared result to SDK result format
+        result["exit_code"] = exec_result["exit_code"]
+        result["stdout"] = exec_result["stdout"]
+        result["stderr"] = exec_result["stderr"]
+        result["error"] = exec_result["error"]
+        result["success"] = exec_result["status"] == "success"
 
-            result["exit_code"] = process.returncode
-            result["stdout"] = process.stdout
-            result["stderr"] = process.stderr
-
-            # Determine if test passed
-            # Test passes if: exit_code == 0 AND (expect is None OR expect in stdout)
-            expected_output = code_example.get("expect")
-
-            if process.returncode != 0:
-                # Failed: non-zero exit code
-                result["success"] = False
-                result["error"] = f"Script exited with code {process.returncode}. stderr: {process.stderr[:200]}"
-            elif expected_output and expected_output not in process.stdout:
-                # Failed: exit code is 0 but expected string not found in output
-                result["success"] = False
-                result["error"] = (
-                    f"Output validation failed: expected substring '{expected_output}' "
-                    f"not found in stdout. stdout: {process.stdout[:200]}"
-                )
-            else:
-                # Passed: exit code is 0 AND (no expect field OR expected string found)
-                result["success"] = True
-
-        finally:
-            try:
-                os.unlink(temp_file_path)
-            except Exception:
-                pass
-
-    except subprocess.TimeoutExpired:
-        result["error"] = "Script execution timeout (30 seconds)"
     except Exception as e:
         result["error"] = f"Error executing script: {str(e)}"
 
@@ -359,18 +318,30 @@ def get_output_file_paths(code_example_path: Path, listing_file: Path) -> tuple[
     return out_path, err_path
 
 
-def has_existing_output_files(code_example_path: Path, listing_file: Path) -> bool:
-    """Check if .out and .err files already exist for a code example.
+def has_passing_output_files(code_example_path: Path, listing_file: Path) -> bool:
+    """Check if a passing test result exists for a code example.
+
+    Only returns True if the test previously passed. Failed tests should be re-run.
 
     Args:
         code_example_path: Path to the code example file
         listing_file: Path to the listing file
 
     Returns:
-        True if both .out and .err files exist, False otherwise
+        True if .out, .err, and .status files exist AND status is "pass"
     """
     out_path, err_path = get_output_file_paths(code_example_path, listing_file)
-    return out_path.exists() and err_path.exists()
+    status_path = out_path.with_suffix(".status")
+
+    if not (out_path.exists() and err_path.exists() and status_path.exists()):
+        return False
+
+    # Check if status is "pass"
+    try:
+        status = status_path.read_text().strip()
+        return status == "pass"
+    except Exception:
+        return False
 
 
 def save_output_files(
@@ -378,25 +349,31 @@ def save_output_files(
     listing_file: Path,
     stdout: str,
     stderr: str,
+    passed: bool,
 ) -> tuple[Path, Path]:
-    """Save stdout and stderr to .out and .err files.
+    """Save stdout, stderr, and status to .out, .err, and .status files.
 
     Args:
         code_example_path: Path to the code example file
         listing_file: Path to the listing file
         stdout: Standard output from execution
         stderr: Standard error from execution
+        passed: Whether the test passed
 
     Returns:
         Tuple of (out_file_path, err_file_path)
     """
     out_path, err_path = get_output_file_paths(code_example_path, listing_file)
+    status_path = out_path.with_suffix(".status")
 
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(stdout or "")
 
     with open(err_path, "w", encoding="utf-8") as f:
         f.write(stderr or "")
+
+    with open(status_path, "w", encoding="utf-8") as f:
+        f.write("pass" if passed else "fail")
 
     return out_path, err_path
 
@@ -472,7 +449,7 @@ def list_code_examples(
         raise typer.Exit(code=0)
 
     # Find all listing files
-    listing_results = find_files_by_schema(data_dir, "listing_v1")
+    listing_results = find_files_by_schema(data_dir, "listing_v1", skip_override=True)
 
     if not listing_results:
         console.print("[yellow]No listing files found.[/yellow]")
@@ -534,11 +511,13 @@ def list_code_examples(
     table.add_column("Service", style="cyan")
     table.add_column("Provider", style="blue")
     table.add_column("Title", style="white")
+    table.add_column("Category", style="green")
     table.add_column("Type", style="magenta")
     table.add_column("File Path", style="dim")
 
     for example, prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
+        category = example.get("category", "unknown")
 
         # Show path relative to data directory
         if file_path != "N/A":
@@ -554,6 +533,7 @@ def list_code_examples(
             example["service_name"],
             prov_name,
             example["title"],
+            category,
             file_ext,
             file_path,
         ]
@@ -673,7 +653,7 @@ def run(
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
     # Find all listing files
-    listing_results = find_files_by_schema(data_dir, "listing_v1")
+    listing_results = find_files_by_schema(data_dir, "listing_v1", skip_override=True)
 
     if not listing_results:
         console.print("[yellow]No listing files found.[/yellow]")
@@ -744,13 +724,13 @@ def run(
         title = example["title"]
         example_listing_file = example.get("listing_file")
 
-        # Check if .out/.err files already exist (skip if not forcing)
+        # Check if test previously passed (skip if not forcing)
         code_example_path = Path(example.get("file_path", ""))
-        if not force and example_listing_file and has_existing_output_files(
+        if not force and example_listing_file and has_passing_output_files(
             code_example_path, Path(example_listing_file)
         ):
             console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
-            console.print("  [yellow]⊘ Skipped[/yellow] (.out and .err files exist)")
+            console.print("  [yellow]⊘ Skipped[/yellow] (previously passed)")
             console.print()
             # Add a skipped result for the summary
             results.append(
@@ -786,13 +766,14 @@ def run(
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
 
-            # Save output to .out and .err files
+            # Save output to .out, .err, and .status files
             if example_listing_file:
                 out_path, err_path = save_output_files(
                     code_example_path,
                     Path(example_listing_file),
                     result.get("stdout", "") or "",
                     result.get("stderr", "") or "",
+                    passed=True,
                 )
                 console.print(f"  [dim]Output saved to: {out_path.name}, {err_path.name}[/dim]")
         else:
@@ -803,13 +784,14 @@ def run(
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
-            # Save output to .out and .err files (even for failures)
+            # Save output to .out, .err, and .status files (even for failures)
             if example_listing_file:
                 out_path, err_path = save_output_files(
                     code_example_path,
                     Path(example_listing_file),
                     result.get("stdout", "") or "",
                     result.get("stderr", "") or "",
+                    passed=False,
                 )
                 console.print(f"  [dim]Output saved to: {out_path.name}, {err_path.name}[/dim]")
 
