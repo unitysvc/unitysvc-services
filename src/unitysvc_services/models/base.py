@@ -1169,10 +1169,6 @@ class DocumentData(BaseModel):
     )
 
 
-# Backwards compatibility alias
-Document = DocumentData
-
-
 class RateLimit(BaseModel):
     """Store rate limiting rules for services."""
 
@@ -1268,10 +1264,6 @@ class AccessInterfaceData(BaseModel):
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
-
-
-# Backwards compatibility alias
-AccessInterface = AccessInterfaceData
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:

@@ -2,7 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
-from .base import Document, validate_name
+from .base import DocumentData, validate_name
 from .provider_data import ProviderData
 
 
@@ -50,8 +50,8 @@ class ProviderV1(ProviderData):
         description="Either a path to a .md file or a URL to terms of service",
     )
 
-    # Override with typed Document model for file validation
-    documents: dict[str, Document] | None = Field(  # type: ignore[assignment]
+    # Override with typed DocumentData model for file validation
+    documents: dict[str, DocumentData] | None = Field(  # type: ignore[assignment]
         default=None,
         description="Documents associated with the provider, keyed by title (e.g. logo)",
     )

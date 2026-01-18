@@ -3,8 +3,8 @@ from datetime import datetime
 from pydantic import ConfigDict, Field, field_validator
 
 from .base import (
-    AccessInterface,
-    Document,
+    AccessInterfaceData,
+    DocumentData,
     Pricing,
     validate_name,
 )
@@ -33,7 +33,7 @@ class ListingV1(ServiceListingData):
 
     # Override with typed models instead of dicts for file validation
     # (status, user_parameters_schema, user_parameters_ui_schema are inherited from ServiceListingData)
-    user_access_interfaces: dict[str, AccessInterface] | None = Field(  # type: ignore[assignment]
+    user_access_interfaces: dict[str, AccessInterfaceData] | None = Field(  # type: ignore[assignment]
         default=None,
         description="User access interfaces for the listing, keyed by name",
     )
@@ -43,7 +43,7 @@ class ListingV1(ServiceListingData):
         description="List price: Listed price for customers",
     )
 
-    documents: dict[str, Document] | None = Field(  # type: ignore[assignment]
+    documents: dict[str, DocumentData] | None = Field(  # type: ignore[assignment]
         default=None,
         description="Documents associated with the listing, keyed by title (e.g. service level agreements)",
     )
