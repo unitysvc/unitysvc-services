@@ -48,8 +48,8 @@ class OfferingV1(ServiceOfferingData):
     logo: str | HttpUrl | None = None
 
     # Override with typed models for file validation
-    upstream_access_interface: AccessInterfaceData = Field(  # type: ignore[assignment]
-        description="Dictionary of upstream access interface",
+    upstream_access_interfaces: dict[str, AccessInterfaceData] = Field(  # type: ignore[assignment]
+        description="Upstream access interfaces, keyed by name",
     )
 
     documents: dict[str, DocumentData] | None = Field(  # type: ignore[assignment]
