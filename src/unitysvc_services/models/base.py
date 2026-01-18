@@ -1134,12 +1134,15 @@ class ProviderStatusEnum(StrEnum):
     deprecated = "deprecated"
 
 
-class Document(BaseModel):
+class DocumentData(BaseModel):
+    """Document data for SDK/API payloads.
+
+    Note: The document title is NOT stored here - it's the key in the documents dict.
+    When stored in the database, the backend extracts the key as the title field.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
-    # fields that will be stored in backend database
-    #
-    title: str = Field(min_length=5, max_length=255, description="Document title")
     description: str | None = Field(default=None, max_length=500, description="Document description")
     mime_type: MimeTypeEnum = Field(description="Document MIME type")
     version: str | None = Field(default=None, max_length=50, description="Document version")
@@ -1164,6 +1167,10 @@ class Document(BaseModel):
         default=False,
         description="Whether document is publicly accessible without authentication",
     )
+
+
+# Backwards compatibility alias
+Document = DocumentData
 
 
 class RateLimit(BaseModel):
@@ -1227,7 +1234,13 @@ class ServiceConstraints(BaseModel):
     max_connections_per_ip: int | None = Field(default=None, description="Maximum connections per IP address")
 
 
-class AccessInterface(BaseModel):
+class AccessInterfaceData(BaseModel):
+    """Access interface data for SDK/API payloads.
+
+    Note: The interface name is NOT stored here - it's the key in the interfaces dict.
+    When stored in the database, the backend extracts the key as the name field.
+    """
+
     model_config = ConfigDict(extra="forbid")
 
     access_method: AccessMethodEnum = Field(default=AccessMethodEnum.http, description="Type of access method")
@@ -1235,8 +1248,6 @@ class AccessInterface(BaseModel):
     base_url: str = Field(max_length=500, description="Base URL for api access")
 
     api_key: str | None = Field(default=None, max_length=2000, description="API key if required")
-
-    name: str | None = Field(default=None, max_length=100, description="Interface name")
 
     description: str | None = Field(default=None, max_length=500, description="Interface description")
 
@@ -1257,6 +1268,10 @@ class AccessInterface(BaseModel):
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
+
+
+# Backwards compatibility alias
+AccessInterface = AccessInterfaceData
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:

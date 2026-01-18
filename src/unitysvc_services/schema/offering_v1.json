@@ -1,7 +1,8 @@
 {
   "$defs": {
-    "AccessInterface": {
+    "AccessInterfaceData": {
       "additionalProperties": false,
+      "description": "Access interface data for SDK/API payloads.\n\nNote: The interface name is NOT stored here - it's the key in the interfaces dict.\nWhen stored in the database, the backend extracts the key as the name field.",
       "properties": {
         "access_method": {
           "$ref": "#/$defs/AccessMethodEnum",
@@ -66,20 +67,6 @@
           "title": "Is Primary",
           "type": "boolean"
         },
-        "name": {
-          "anyOf": [
-            {
-              "maxLength": 100,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Interface name",
-          "title": "Name"
-        },
         "rate_limits": {
           "anyOf": [
             {
@@ -140,7 +127,7 @@
       "required": [
         "base_url"
       ],
-      "title": "AccessInterface",
+      "title": "AccessInterfaceData",
       "type": "object"
     },
     "AccessMethodEnum": {
@@ -298,8 +285,36 @@
       "title": "CurrencyEnum",
       "type": "string"
     },
-    "Document": {
+    "DocumentCategoryEnum": {
+      "enum": [
+        "getting_started",
+        "api_reference",
+        "tutorial",
+        "code_example",
+        "code_example_output",
+        "connectivity_test",
+        "use_case",
+        "troubleshooting",
+        "changelog",
+        "best_practice",
+        "specification",
+        "service_level_agreement",
+        "terms_of_service",
+        "statement",
+        "invoice",
+        "logo",
+        "avatar",
+        "blog_content",
+        "blog_banner",
+        "attachment",
+        "other"
+      ],
+      "title": "DocumentCategoryEnum",
+      "type": "string"
+    },
+    "DocumentData": {
       "additionalProperties": false,
+      "description": "Document data for SDK/API payloads.\n\nNote: The document title is NOT stored here - it's the key in the documents dict.\nWhen stored in the database, the backend extracts the key as the title field.",
       "properties": {
         "category": {
           "$ref": "#/$defs/DocumentCategoryEnum",
@@ -383,21 +398,6 @@
           "title": "Sort Order",
           "type": "integer"
         },
-        "title": {
-          "anyOf": [
-            {
-              "maxLength": 255,
-              "minLength": 5,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Document title (optional, uses key from documents dict if not provided)",
-          "title": "Title"
-        },
         "version": {
           "anyOf": [
             {
@@ -417,35 +417,8 @@
         "mime_type",
         "category"
       ],
-      "title": "Document",
+      "title": "DocumentData",
       "type": "object"
-    },
-    "DocumentCategoryEnum": {
-      "enum": [
-        "getting_started",
-        "api_reference",
-        "tutorial",
-        "code_example",
-        "code_example_output",
-        "connectivity_test",
-        "use_case",
-        "troubleshooting",
-        "changelog",
-        "best_practice",
-        "specification",
-        "service_level_agreement",
-        "terms_of_service",
-        "statement",
-        "invoice",
-        "logo",
-        "avatar",
-        "blog_content",
-        "blog_banner",
-        "attachment",
-        "other"
-      ],
-      "title": "DocumentCategoryEnum",
-      "type": "string"
     },
     "ExprPriceData": {
       "additionalProperties": false,
@@ -1519,7 +1492,7 @@
       "anyOf": [
         {
           "additionalProperties": {
-            "$ref": "#/$defs/Document"
+            "$ref": "#/$defs/DocumentData"
           },
           "type": "object"
         },
@@ -1669,7 +1642,7 @@
       "type": "string"
     },
     "upstream_access_interface": {
-      "$ref": "#/$defs/AccessInterface",
+      "$ref": "#/$defs/AccessInterfaceData",
       "description": "Dictionary of upstream access interface"
     }
   },
