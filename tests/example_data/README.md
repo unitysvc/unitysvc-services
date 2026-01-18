@@ -64,9 +64,9 @@ unitysvc_services validate-data tests/example_data
 - `display_name`: Human-readable name
 - `description`: Service description
 - `status`: draft/ready/deprecated
-- `static_info`: Technical specifications
-- `upstream_access_interface`: API connection details
-- `upstream_pricing_info`: Pricing structure
+- `details`: Technical specifications
+- `upstream_access_interfaces`: API connection details (dict keyed by interface name)
+- `payout_price`: Pricing structure
 
 ### Provider Schema (provider_v1)
 
