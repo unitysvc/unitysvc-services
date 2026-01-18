@@ -20,20 +20,18 @@
   "upstream_access_interface": {
     "access_method": "http",
     "base_url": "https://api.fireworks.ai/inference/v1/image/generation",
-    "api_key": "your_api_key_here",
-    "name": "Fireworks Image API"
+    "api_key": "your_api_key_here"
   },
-  "documents": [
-    {
+  "documents": {
+    "Python Code Example": {
       "category": "code_example",
       "description": "Example code to use the model",
       "file_path": "code-example.md",
       "is_active": true,
       "is_public": true,
-      "mime_type": "python",
-      "title": "Python Code Example"
+      "mime_type": "python"
     }
-  ],
+  },
   "currency": "USD",
   "payout_price": {
     "type": "image",

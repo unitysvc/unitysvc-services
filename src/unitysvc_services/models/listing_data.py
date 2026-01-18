@@ -83,16 +83,16 @@ class ServiceListingData(BaseModel):
         description="Currency for list_price (indexed for filtering)",
     )
 
-    # Access interfaces
-    user_access_interfaces: list[dict[str, Any]] | None = Field(
+    # Access interfaces (keyed by name)
+    user_access_interfaces: dict[str, dict[str, Any]] | None = Field(
         default=None,
-        description="List of user access interfaces for the listing",
+        description="User access interfaces for the listing, keyed by name",
     )
 
-    # Documents
-    documents: list[dict[str, Any]] | None = Field(
+    # Documents (keyed by title)
+    documents: dict[str, dict[str, Any]] | None = Field(
         default=None,
-        description="List of documents associated with the listing (e.g., service level agreements)",
+        description="Documents associated with the listing, keyed by title (e.g., service level agreements)",
     )
 
     # User parameters

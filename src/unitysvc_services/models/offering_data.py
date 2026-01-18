@@ -92,10 +92,10 @@ class ServiceOfferingData(BaseModel):
         description="How to access the service from upstream",
     )
 
-    # Documents
-    documents: list[dict[str, Any]] | None = Field(
+    # Documents (keyed by title)
+    documents: dict[str, dict[str, Any]] | None = Field(
         default=None,
-        description="List of documents associated with the service",
+        description="Documents associated with the service, keyed by title",
     )
 
     # Currency for payout_price

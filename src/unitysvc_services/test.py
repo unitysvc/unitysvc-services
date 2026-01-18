@@ -15,6 +15,7 @@ from .models.base import DocumentCategoryEnum, OfferingStatusEnum
 from .utils import (
     determine_interpreter,
     find_files_by_schema,
+    load_data_file,
     read_override_file,
     render_template_file,
     write_override_file,
@@ -52,7 +53,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
     """Extract code example and connectivity test documents from a listing file.
 
     Args:
-        listing_data: Parsed listing data
+        listing_data: Parsed listing data (documents is a dict keyed by title)
         listing_file: Path to the listing file for resolving relative paths
 
     Returns:
@@ -69,14 +70,15 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
         DocumentCategoryEnum.connectivity_test,
     }
 
-    # Get documents from listing level (new location)
-    documents = listing_data.get("documents", [])
+    # Get documents from listing level (now a dict keyed by title)
+    documents = listing_data.get("documents", {}) or {}
 
     # Get first interface for template context (if any)
-    interfaces = listing_data.get("user_access_interfaces", [])
-    first_interface = interfaces[0] if interfaces else {}
+    # user_access_interfaces is now a dict keyed by name
+    interfaces = listing_data.get("user_access_interfaces", {}) or {}
+    first_interface: dict[str, Any] = next(iter(interfaces.values()), {}) if interfaces else {}
 
-    for doc in documents:
+    for title, doc in documents.items():
         # Check if this is a testable document (code_example or connectivity_test)
         category = doc.get("category", "")
         if category in testable_categories:
@@ -91,7 +93,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
 
                 code_example = {
                     "service_name": service_name,
-                    "title": doc.get("title", "Untitled"),
+                    "title": title,  # Title is now the dict key
                     "mime_type": doc.get("mime_type", "python"),
                     "file_path": str(absolute_path),
                     "listing_data": listing_data,  # Full listing data for templates
@@ -363,6 +365,105 @@ def update_offering_override_status(listing_file: Path, status: OfferingStatusEn
 
     except Exception as e:
         console.print(f"[yellow]⚠ Failed to update override file: {e}[/yellow]")
+
+
+# Maximum size for stdout/stderr in test results (1KB)
+MAX_OUTPUT_SIZE = 1024
+
+
+def truncate_output(output: str, max_size: int = MAX_OUTPUT_SIZE) -> str:
+    """Truncate output to max_size bytes, adding truncation notice if needed."""
+    if not output:
+        return ""
+    if len(output.encode("utf-8")) <= max_size:
+        return output
+    # Truncate and add notice
+    truncated = output.encode("utf-8")[: max_size - 20].decode("utf-8", errors="ignore")
+    return truncated + "... [truncated]"
+
+
+def save_document_test_result(
+    listing_file: Path,
+    document_title: str,
+    test_type: str,  # "upstream_test" or "gateway_test"
+    result: dict[str, Any],
+) -> None:
+    """Save test result to listing override file under documents.<title>.meta.
+
+    Since documents is now a dict keyed by title, we save directly to:
+    documents.<title>.meta.<test_type>
+
+    This merges naturally with deep_merge_dicts during load_data_file().
+
+    Args:
+        listing_file: Path to the listing file
+        document_title: Title (key) of the document being tested
+        test_type: Type of test ("upstream_test" or "gateway_test")
+        result: Test result dict with success, exit_code, stdout, stderr
+    """
+    try:
+        # Load existing override data
+        override_data = read_override_file(listing_file)
+
+        # Initialize documents dict if not present
+        if "documents" not in override_data:
+            override_data["documents"] = {}
+
+        # Initialize entry for this document if not present
+        if document_title not in override_data["documents"]:
+            override_data["documents"][document_title] = {}
+
+        # Initialize meta for this document if not present
+        if "meta" not in override_data["documents"][document_title]:
+            override_data["documents"][document_title]["meta"] = {}
+
+        # Build test result structure (truncate stdout/stderr to 1KB)
+        test_result = {
+            "skip": False,
+            "return_code": result.get("exit_code"),
+            "stdout": truncate_output(result.get("stdout") or ""),
+            "stderr": truncate_output(result.get("stderr") or ""),
+        }
+
+        # Save under the appropriate test type in meta
+        override_data["documents"][document_title]["meta"][test_type] = test_result
+
+        # Write override file
+        write_override_file(listing_file, override_data)
+        console.print("  [dim]→ Test result saved to override file[/dim]")
+
+    except Exception as e:
+        console.print(f"[yellow]⚠ Failed to save test result: {e}[/yellow]")
+
+
+def has_existing_test_result(
+    listing_file: Path,
+    document_title: str,
+    test_type: str = "upstream_test",
+) -> bool:
+    """Check if a test result already exists in the listing data.
+
+    Checks documents.<title>.meta.<test_type> in the merged data
+    (base file + override file). Test results can be specified in
+    either the main data file or the override file.
+
+    Args:
+        listing_file: Path to the listing file
+        document_title: Title (key) of the document
+        test_type: Type of test to check for
+
+    Returns:
+        True if test result exists, False otherwise
+    """
+    try:
+        # Load merged data (base + override) to check for test results
+        listing_data, _format = load_data_file(listing_file)
+        documents = listing_data.get("documents", {}) or {}
+        doc_data = documents.get(document_title, {})
+        meta = doc_data.get("meta", {}) or {}
+        return test_type in meta
+    except Exception:
+        return False
 
 
 @app.command("list")
@@ -712,39 +813,12 @@ def run(
         title = example["title"]
         example_listing_file = example.get("listing_file")
 
-        # Determine actual filename (strip .j2 if it's a template)
-        file_path = example.get("file_path")
-        if file_path:
-            original_path = Path(file_path)
-            # If it's a .j2 template, the actual filename is without .j2
-            if original_path.suffix == ".j2":
-                actual_filename = original_path.stem
-            else:
-                actual_filename = original_path.name
-        else:
-            actual_filename = None
-
-        # Prepare output file paths if we have the necessary information
-        out_path = None
-        err_path = None
-        if example_listing_file and actual_filename:
-            listing_path = Path(example_listing_file)
-            listing_stem = listing_path.stem
-
-            # Create filename pattern: {service_name}_{listing_stem}_{actual_filename}.out/.err
-            # e.g., "llama-3-1-405b-instruct_svclisting_test.py.out"
-            base_filename = f"{service_name}_{listing_stem}_{actual_filename}"
-            out_filename = f"{base_filename}.out"
-            err_filename = f"{base_filename}.err"
-
-            # Output paths in the listing directory
-            out_path = listing_path.parent / out_filename
-            err_path = listing_path.parent / err_filename
-
-        # Check if test results already exist (skip if not forcing)
-        if not force and out_path and err_path and out_path.exists() and err_path.exists():
+        # Check if test results already exist in override file (skip if not forcing)
+        if not force and example_listing_file and has_existing_test_result(
+            Path(example_listing_file), title, "upstream_test"
+        ):
             console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
-            console.print("  [yellow]⊘ Skipped[/yellow] (results already exist)")
+            console.print("  [yellow]⊘ Skipped[/yellow] (results exist in override file)")
             console.print()
             skipped_count += 1
             # Add a skipped result for the summary
@@ -781,24 +855,14 @@ def run(
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
 
-            # Save successful test output to .out and .err files (if paths were determined)
-            if out_path and err_path:
-                # Write stdout to .out file
-                try:
-                    with open(out_path, "w", encoding="utf-8") as f:
-                        f.write(result["stdout"] or "")
-                    console.print(f"  [dim]→ Output saved to:[/dim] {out_path}")
-                except Exception as e:
-                    console.print(f"  [yellow]⚠ Failed to save output: {e}[/yellow]")
-
-                # Write stderr to .err file
-                try:
-                    with open(err_path, "w", encoding="utf-8") as f:
-                        f.write(result["stderr"] or "")
-                    if result["stderr"]:
-                        console.print(f"  [dim]→ Error output saved to:[/dim] {err_path}")
-                except Exception as e:
-                    console.print(f"  [yellow]⚠ Failed to save error output: {e}[/yellow]")
+            # Save test result to listing override file
+            if example_listing_file:
+                save_document_test_result(
+                    Path(example_listing_file),
+                    title,
+                    "upstream_test",
+                    result,
+                )
 
             # Track test result for this offering (don't update status yet)
             if example_listing_file and not test_file:
@@ -818,37 +882,25 @@ def run(
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
-            # Write failed test outputs and script to current directory
-            # Use actual_filename from result in case template rendering modified it
+            # Save test result to listing override file (even for failures)
+            if example_listing_file:
+                save_document_test_result(
+                    Path(example_listing_file),
+                    title,
+                    "upstream_test",
+                    result,
+                )
+
+            # Write failed test script and env to current directory (for debugging)
             if result.get("listing_file") and result.get("actual_filename"):
                 result_listing_file = Path(result["listing_file"])
                 result_actual_filename = result["actual_filename"]
                 result_listing_stem = result_listing_file.stem
 
                 # Create filename: failed_{service_name}_{listing_stem}_{actual_filename}
-                # This will be the base name for .out, .err, and the script file
                 failed_filename = f"failed_{service_name}_{result_listing_stem}_{result_actual_filename}"
 
-                # Write stdout to .out file in current directory
-                out_filename = f"{failed_filename}.out"
-                try:
-                    with open(out_filename, "w", encoding="utf-8") as f:
-                        f.write(result["stdout"] or "")
-                    console.print(f"  [yellow]→ Output saved to:[/yellow] {out_filename}")
-                except Exception as e:
-                    console.print(f"  [yellow]⚠ Failed to save output: {e}[/yellow]")
-
-                # Write stderr to .err file in current directory
-                err_filename = f"{failed_filename}.err"
-                try:
-                    with open(err_filename, "w", encoding="utf-8") as f:
-                        f.write(result["stderr"] or "")
-                    console.print(f"  [yellow]→ Error output saved to:[/yellow] {err_filename}")
-                except Exception as e:
-                    console.print(f"  [yellow]⚠ Failed to save error output: {e}[/yellow]")
-
                 # Write failed test script content to current directory (for debugging)
-                # rendered_content is always set if we got here (set during template rendering)
                 try:
                     with open(failed_filename, "w", encoding="utf-8") as f:
                         f.write(result["rendered_content"])

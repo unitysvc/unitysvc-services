@@ -71,10 +71,8 @@ message = ""
 access_method = "http"
 base_url = "https://api.fireworks.ai/inference/v1"
 api_key = "your_api_key_here"
-name = "Fireworks API"
 
-[[documents]]
-title = "Python Code Example"
+[documents."Python Code Example"]
 description = "Example code to use the model"
 mime_type = "python"
 category = "code_example"

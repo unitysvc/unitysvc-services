@@ -555,16 +555,16 @@ def convert_convenience_fields_to_documents(
         terms_field: Name of the terms of service field (default: "terms_of_service", None to skip)
 
     Returns:
-        Updated data dictionary with convenience fields converted to documents list
+        Updated data dictionary with convenience fields converted to documents dict
 
     Example:
-        >>> data = {"logo": "assets/logo.png", "documents": []}
+        >>> data = {"logo": "assets/logo.png", "documents": {}}
         >>> result = convert_convenience_fields_to_documents(data, Path("/data/provider"))
-        >>> # Result will have logo removed and added to documents list
+        >>> # Result will have logo removed and added to documents dict
     """
-    # Initialize documents list if not present
+    # Initialize documents dict if not present
     if "documents" not in data or data["documents"] is None:
-        data["documents"] = []
+        data["documents"] = {}
 
     # Helper to determine MIME type from file path/URL
     def get_mime_type(path_or_url: str) -> str:
@@ -585,7 +585,6 @@ def convert_convenience_fields_to_documents(
     if logo_field in data and data[logo_field]:
         logo_value = data[logo_field]
         logo_doc: dict[str, Any] = {
-            "title": "Company Logo",
             "category": "logo",
             "mime_type": get_mime_type(str(logo_value)),
             "is_public": True,
@@ -598,7 +597,7 @@ def convert_convenience_fields_to_documents(
             # It's a file path - will be resolved by resolve_file_references
             logo_doc["file_path"] = str(logo_value)
 
-        data["documents"].append(logo_doc)
+        data["documents"]["Company Logo"] = logo_doc
         # Remove the convenience field
         del data[logo_field]
 
@@ -606,7 +605,6 @@ def convert_convenience_fields_to_documents(
     if terms_field and terms_field in data and data[terms_field]:
         terms_value = data[terms_field]
         terms_doc: dict[str, Any] = {
-            "title": "Terms of Service",
             "category": "terms_of_service",
             "mime_type": get_mime_type(str(terms_value)),
             "is_public": True,
@@ -619,7 +617,7 @@ def convert_convenience_fields_to_documents(
             # It's a file path - will be resolved by resolve_file_references
             terms_doc["file_path"] = str(terms_value)
 
-        data["documents"].append(terms_doc)
+        data["documents"]["Terms of Service"] = terms_doc
         # Remove the convenience field
         del data[terms_field]
 

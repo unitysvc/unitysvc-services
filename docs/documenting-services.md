@@ -93,31 +93,30 @@ Documents are defined in your listing files at the top level. The listing automa
 {
     "schema": "listing_v1",
     "name": "listing-default",
-    "user_access_interfaces": [
-        {
-            "interface_type": "openai_chat_completions",
-            "name": "API Interface",
+    "user_access_interfaces": {
+        "API Interface": {
+            "access_method": "http",
             "base_url": "https://api.example.com/v1"
         }
-    ],
-    "documents": [
-        {
-            "category": "description",
-            "title": "GPT-4 Overview",
+    },
+    "documents": {
+        "GPT-4 Overview": {
+            "category": "getting_started",
             "file_path": "../../docs/gpt4-description.md.j2",
             "mime_type": "markdown",
             "is_public": true
         },
-        {
+        "Quick Start Guide": {
             "category": "getting_started",
-            "title": "Quick Start Guide",
             "file_path": "../../docs/quickstart.md",
             "mime_type": "markdown",
             "is_public": true
         }
-    ]
+    }
 }
 ```
+
+**Note:** Both `documents` and `user_access_interfaces` use dict format where the key becomes the title/name. This enables easy merging via override files.
 
 ### Document Fields
 
@@ -133,7 +132,7 @@ Documents are defined in your listing files at the top level. The listing automa
     -   `privacy_policy` - Privacy policy
     -   `logo` - Company/service logos
 
--   **`title`** (required): Display name for the document
+-   **Document key** (required): The dict key serves as the document title (5-255 chars)
 
 -   **`file_path`** (required): Relative path from listing file to the document
 
@@ -252,12 +251,11 @@ GPT-4 is a large multimodal model that can solve complex problems with greater a
 -   Question answering
 ```
 
-**In `listing.json`:**
+**In `listing.json` documents:**
 
 ```json
-{
-    "category": "description",
-    "title": "Service Overview",
+"Service Overview": {
+    "category": "getting_started",
     "file_path": "description.md",
     "mime_type": "markdown",
     "is_public": true
@@ -294,12 +292,11 @@ To use this service, connect to the API endpoint at:
 For support inquiries, contact {{ seller.contact_email }}.
 ```
 
-**In `listing.json`:**
+**In `listing.json` documents:**
 
 ```json
-{
-    "category": "description",
-    "title": "Service Overview",
+"Service Overview": {
+    "category": "getting_started",
     "file_path": "description.md.j2",
     "mime_type": "markdown",
     "is_public": true
@@ -358,12 +355,11 @@ print(response.json())
 -   Review [best practices](#) for production use
 ````
 
-**In `listing.json`:**
+**In `listing.json` documents:**
 
 ```json
-{
+"Quick Start Guide": {
     "category": "getting_started",
-    "title": "Quick Start Guide",
     "file_path": "quickstart.md.j2",
     "mime_type": "markdown",
     "is_public": true
@@ -441,12 +437,11 @@ data/
 
 Service overview and feature descriptions. Typically shown first to users.
 
-**Example:**
+**Example (in documents dict):**
 
 ```json
-{
-    "category": "description",
-    "title": "Service Overview",
+"Service Overview": {
+    "category": "getting_started",
     "file_path": "description.md.j2",
     "mime_type": "markdown",
     "is_public": true
@@ -460,9 +455,8 @@ Quickstart guides and initial setup instructions.
 **Example:**
 
 ```json
-{
+"Quick Start Guide": {
     "category": "getting_started",
-    "title": "Quick Start Guide",
     "file_path": "quickstart.md",
     "mime_type": "markdown",
     "is_public": true
@@ -476,59 +470,57 @@ Detailed API documentation, endpoint references, and parameter descriptions.
 **Example:**
 
 ```json
-{
+"API Reference": {
     "category": "api_reference",
-    "title": "API Reference",
     "file_path": "api-docs.md",
     "mime_type": "markdown",
     "is_public": true
 }
 ```
 
-### code_examples
+### code_example
 
 Executable code examples in various languages. See [Creating Code Examples](code-examples.md) for detailed guide.
 
 **Example:**
 
 ```json
-{
-    "category": "code_examples",
-    "title": "Python Example",
+"Python Example": {
+    "category": "code_example",
     "file_path": "example.py.j2",
     "mime_type": "python",
     "is_public": true,
-    "requirements": ["httpx"],
-    "expect": "✓ Test passed"
+    "meta": {
+        "requirements": ["httpx"],
+        "expect": "✓ Test passed"
+    }
 }
 ```
 
-### faq
+### troubleshooting
 
-Frequently asked questions about the service.
+Frequently asked questions and troubleshooting guides.
 
 **Example:**
 
 ```json
-{
-    "category": "faq",
-    "title": "Frequently Asked Questions",
+"Frequently Asked Questions": {
+    "category": "troubleshooting",
     "file_path": "faq.md",
     "mime_type": "markdown",
     "is_public": true
 }
 ```
 
-### pricing
+### specification
 
-Pricing information and cost structures.
+Pricing information, specifications, and technical details.
 
 **Example:**
 
 ```json
-{
-    "category": "pricing",
-    "title": "Pricing Details",
+"Pricing Details": {
+    "category": "specification",
     "file_path": "pricing.md.j2",
     "mime_type": "markdown",
     "is_public": true
@@ -542,9 +534,8 @@ Terms of service for using the service.
 **Example:**
 
 ```json
-{
+"Terms of Service": {
     "category": "terms_of_service",
-    "title": "Terms of Service",
     "file_path": "terms.md",
     "mime_type": "markdown",
     "is_public": true
@@ -558,9 +549,8 @@ Company or service logo images.
 **Example:**
 
 ```json
-{
+"Company Logo": {
     "category": "logo",
-    "title": "Company Logo",
     "file_path": "logo.png",
     "mime_type": "png",
     "is_public": true
@@ -635,12 +625,12 @@ fireworks/services/llama-3-1-70b/auth-guide.md (duplicate)
 Use clear document categories to help users find information:
 
 ```json
-"documents": [
-    {"category": "description", "title": "Overview", ...},
-    {"category": "getting_started", "title": "Quick Start", ...},
-    {"category": "api_reference", "title": "API Docs", ...},
-    {"category": "code_examples", "title": "Python Example", ...}
-]
+"documents": {
+    "Overview": {"category": "getting_started", ...},
+    "Quick Start": {"category": "getting_started", ...},
+    "API Docs": {"category": "api_reference", ...},
+    "Python Example": {"category": "code_example", ...}
+}
 ```
 
 ### 4. Make Documents Public

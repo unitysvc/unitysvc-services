@@ -34,7 +34,7 @@ Provider files define the service provider's metadata and access configuration f
 | `secondary_contact_email` | string (email)    | Secondary contact email                                                |
 | `logo`                    | string/URL        | Path to logo file or URL (converted to document during import)         |
 | `terms_of_service`        | string/URL        | Path to terms file or URL (converted to document during import)        |
-| `documents`               | array of Document | Associated documents                                                   |
+| `documents`               | dict of DocumentData | Documents keyed by title                                             |
 | `services_populator`      | object            | Automated service generation configuration                             |
 | `status`                  | enum              | Provider status: `active` (default), `pending`, `disabled`, or `draft` |
 
@@ -114,7 +114,7 @@ Seller files define the marketplace or reseller information. **Only one seller f
 | `tax_id`                  | string            | Tax ID (EIN, VAT, etc., max 100 chars)                                            |
 | `stripe_connect_id`       | string            | Stripe Connect account ID (max 255 chars)                                         |
 | `logo`                    | string/URL        | Path to logo file or URL (converted to document)                                  |
-| `documents`               | array of Document | Associated documents (business registration, tax docs, etc.)                      |
+| `documents`               | dict of DocumentData | Documents keyed by title (business registration, tax docs, etc.)                |
 | `status`                  | enum              | Seller status: `active` (default), `pending`, `disabled`, or `draft`              |
 | `is_verified`             | boolean           | KYC/business verification status (default: false)                                 |
 
@@ -159,7 +159,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `status`          | enum                  | Offering status: `draft` (default), `ready`, or `deprecated`    |
 | `details`         | object                | Service-specific features and information                       |
 | `payout_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
-| `documents`       | array of Document     | Technical specs, documentation                                  |
+| `documents`       | dict of DocumentData  | Technical specs, documentation, keyed by title                  |
 
 ### ServiceType Enum Values
 
@@ -215,11 +215,11 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Required Fields
 
-| Field                    | Type                     | Description                        |
-| ------------------------ | ------------------------ | ---------------------------------- |
-| `schema`                 | string                   | Must be `"listing_v1"`             |
-| `user_access_interfaces` | array of AccessInterface | How users access the service       |
-| `time_created`           | datetime (ISO 8601)      | Timestamp when listing was created |
+| Field                    | Type                           | Description                        |
+| ------------------------ | ------------------------------ | ---------------------------------- |
+| `schema`                 | string                         | Must be `"listing_v1"`             |
+| `user_access_interfaces` | dict of AccessInterfaceData    | How users access the service, keyed by name |
+| `time_created`           | datetime (ISO 8601)            | Timestamp when listing was created |
 
 ### Optional Fields
 
@@ -229,7 +229,7 @@ Listing files define how a seller presents/sells a service to end users.
 | `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
 | `status`                    | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
-| `documents`                 | array of Document     | SLAs, documentation, guides                                                |
+| `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                |
 | `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
 | `user_parameters_ui_schema` | object                | UI schema for user configuration                                           |
 
@@ -258,12 +258,11 @@ display_name = "GPT-4 Premium Access"
 status = "ready"
 time_created = "2024-01-25T16:00:00Z"
 
-[[user_access_interfaces]]
+[user_access_interfaces."OpenAI API Access"]
 access_method = "http"
 base_url = "${GATEWAY_BASE_URL}/p/openai"
-name = "OpenAI API Access"
 
-[user_access_interfaces.routing_key]
+[user_access_interfaces."OpenAI API Access".routing_key]
 model = "gpt-4"
 
 [list_price]
@@ -274,8 +273,7 @@ type = "one_million_tokens"
 input = "35.00"
 output = "70.00"
 
-[[documents]]
-title = "Quick Start Guide"
+[documents."Quick Start Guide"]
 file_path = "../../docs/quick-start.md"
 category = "getting_started"
 mime_type = "markdown"
@@ -283,16 +281,15 @@ mime_type = "markdown"
 
 ## Data Types
 
-### Access Interface Object
+### AccessInterfaceData Object
 
-The `AccessInterface` object defines how to access a service (used in providers, services, and listings).
+The `AccessInterfaceData` object defines how to access a service (used in offerings and listings). The interface name is the dict key, not a field in the object.
 
 | Field                 | Type               | Description                                                               |
 | --------------------- | ------------------ | ------------------------------------------------------------------------- |
 | `access_method`       | enum               | Access method: `http` (default), `websocket`, `grpc`                      |
 | `base_url`            | string             | API endpoint URL (max 500 chars)                                          |
 | `api_key`             | string             | API key if required (max 2000 chars)                                      |
-| `name`                | string             | Interface name (max 100 chars)                                            |
 | `description`         | string             | Interface description (max 500 chars)                                     |
 | `request_transformer` | object             | Request transformation config (keys: `proxy_rewrite`, `body_transformer`) |
 | `routing_key`         | object             | Optional routing key for request matching                                 |
@@ -301,6 +298,8 @@ The `AccessInterface` object defines how to access a service (used in providers,
 | `is_active`           | boolean            | Whether interface is active (default: true)                               |
 | `is_primary`          | boolean            | Whether this is primary interface (default: false)                        |
 | `sort_order`          | integer            | Display order (default: 0)                                                |
+
+**Note:** The interface name is specified as the dict key, not as a field within the object.
 
 #### Routing Key
 
@@ -317,12 +316,12 @@ The `routing_key` field enables fine-grained request routing when multiple servi
 
 ```json
 {
-    "user_access_interfaces": [
-        {
+    "user_access_interfaces": {
+        "GPT-4 API": {
             "base_url": "${GATEWAY_BASE_URL}/p/openai",
             "routing_key": { "model": "gpt-4" }
         }
-    ]
+    }
 }
 ```
 
@@ -368,23 +367,24 @@ Flexible pricing structure for both upstream (`payout_price`) and user-facing (`
 
 See [Pricing Specification](pricing.md) for TOML examples, validation rules, and cost calculation details.
 
-### Document Object
+### DocumentData Object
 
-Documents associated with entities (providers, offerings, listings).
+Documents associated with entities (providers, offerings, listings). The document title is the dict key, not a field in the object.
 
 | Field          | Type    | Description                                                                                               |
 | -------------- | ------- | --------------------------------------------------------------------------------------------------------- |
-| `title`        | string  | Document title (5-255 chars)                                                                              |
 | `mime_type`    | enum    | MIME type: `markdown`, `python`, `javascript`, `bash`, `html`, `text`, `pdf`, `jpeg`, `png`, `svg`, `url` |
 | `category`     | enum    | Document category (see [DocumentCategory values](#documentcategory-enum-values))                          |
 | `description`  | string  | Document description (max 500 chars)                                                                      |
 | `version`      | string  | Document version (max 50 chars)                                                                           |
 | `file_path`    | string  | Relative path to file (max 1000 chars, mutually exclusive with external_url)                              |
 | `external_url` | string  | External URL (max 1000 chars, mutually exclusive with file_path)                                          |
-| `meta`         | object  | Additional metadata                                                                                       |
+| `meta`         | object  | Additional metadata (e.g., test results, requirements)                                                    |
 | `sort_order`   | integer | Sort order within category (default: 0)                                                                   |
 | `is_active`    | boolean | Whether document is active (default: true)                                                                |
 | `is_public`    | boolean | Publicly accessible without auth (default: false)                                                         |
+
+**Note:** The document title is specified as the dict key (5-255 chars), not as a field within the object.
 
 ### DocumentCategory Enum Values
 

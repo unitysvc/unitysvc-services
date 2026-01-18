@@ -482,21 +482,23 @@ data/
 ```json
 {
     "schema": "listing_v1",
-    "user_access_interfaces": [
-        {
+    "user_access_interfaces": {
+        "OpenAI API": {
             "access_method": "http",
             "base_url": "${GATEWAY_BASE_URL}/p/openai"
         }
-    ],
-    "documents": [
-        {
-            "title": "Python Code Example",
+    },
+    "documents": {
+        "Python Code Example": {
             "file_path": "../../docs/code-example.py",
-            "category": "code_examples"
+            "category": "code_example",
+            "mime_type": "python"
         }
-    ]
+    }
 }
 ```
+
+**Note:** Both `documents` and `user_access_interfaces` use dict format where the key is the title/name. This enables easy merging via override files.
 
 ### Benefits
 
