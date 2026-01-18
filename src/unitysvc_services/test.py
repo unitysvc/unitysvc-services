@@ -182,10 +182,12 @@ def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
         if not offering:
             return None
 
-        # Extract credentials from upstream_access_interface
-        upstream_access = offering.get("upstream_access_interface", {})
-        api_key = upstream_access.get("api_key")
-        base_url = upstream_access.get("base_url")
+        # Extract credentials from upstream_access_interfaces (dict keyed by name)
+        # Use first interface for credentials
+        upstream_interfaces = offering.get("upstream_access_interfaces", {})
+        first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
+        api_key = first_interface.get("api_key")
+        base_url = first_interface.get("base_url")
 
         if api_key and base_url:
             return {

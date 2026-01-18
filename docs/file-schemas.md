@@ -139,13 +139,13 @@ Service files define the service offering from the upstream provider's perspecti
 
 ### Required Fields
 
-| Field                       | Type                | Description                                                                  |
-| --------------------------- | ------------------- | ---------------------------------------------------------------------------- |
-| `schema`                    | string              | Must be `"offering_v1"`                                                      |
-| `name`                      | string              | Service identifier (must match directory name, allows slashes for hierarchy) |
-| `service_type`              | enum                | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
-| `upstream_access_interface` | AccessInterface     | How to access the upstream service                                           |
-| `time_created`              | datetime (ISO 8601) | Timestamp when offering was created                                          |
+| Field                        | Type                         | Description                                                                  |
+| ---------------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
+| `schema`                     | string                       | Must be `"offering_v1"`                                                      |
+| `name`                       | string                       | Service identifier (must match directory name, allows slashes for hierarchy) |
+| `service_type`               | enum                         | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
+| `upstream_access_interfaces` | dict of AccessInterfaceData  | How to access upstream services, keyed by interface name                     |
+| `time_created`               | datetime (ISO 8601)          | Timestamp when offering was created                                          |
 
 ### Optional Fields
 
@@ -194,7 +194,7 @@ max_output_tokens = 4096
 supports_function_calling = true
 supports_vision = true
 
-[upstream_access_interface]
+[upstream_access_interfaces."OpenAI API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 
