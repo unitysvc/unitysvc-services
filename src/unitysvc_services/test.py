@@ -430,7 +430,7 @@ def save_document_test_result(
 
         # Write override file
         write_override_file(listing_file, override_data)
-        console.print(f"  [dim]→ Test result saved to override file[/dim]")
+        console.print("  [dim]→ Test result saved to override file[/dim]")
 
     except Exception as e:
         console.print(f"[yellow]⚠ Failed to save test result: {e}[/yellow]")
