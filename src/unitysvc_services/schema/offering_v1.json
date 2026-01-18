@@ -9,6 +9,12 @@
           "default": "http",
           "description": "Type of access method"
         },
+        "base_url": {
+          "description": "Base URL for api access",
+          "maxLength": 500,
+          "title": "Base Url",
+          "type": "string"
+        },
         "api_key": {
           "anyOf": [
             {
@@ -23,24 +29,6 @@
           "description": "API key if required",
           "title": "Api Key"
         },
-        "base_url": {
-          "description": "Base URL for api access",
-          "maxLength": 500,
-          "title": "Base Url",
-          "type": "string"
-        },
-        "constraints": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ServiceConstraints"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Service constraints and conditions"
-        },
         "description": {
           "anyOf": [
             {
@@ -54,34 +42,6 @@
           "default": null,
           "description": "Interface description",
           "title": "Description"
-        },
-        "is_active": {
-          "default": true,
-          "description": "Whether interface is active",
-          "title": "Is Active",
-          "type": "boolean"
-        },
-        "is_primary": {
-          "default": false,
-          "description": "Whether this is the primary interface",
-          "title": "Is Primary",
-          "type": "boolean"
-        },
-        "rate_limits": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/RateLimit"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Rate limit",
-          "title": "Rate Limits"
         },
         "request_transformer": {
           "anyOf": [
@@ -116,6 +76,46 @@
           "default": null,
           "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
           "title": "Routing Key"
+        },
+        "rate_limits": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/RateLimit"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rate limit",
+          "title": "Rate Limits"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ServiceConstraints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Service constraints and conditions"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether interface is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_primary": {
+          "default": false,
+          "description": "Whether this is the primary interface",
+          "title": "Is Primary",
+          "type": "boolean"
         },
         "sort_order": {
           "default": 0,
@@ -156,16 +156,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "prices": {
-          "description": "List of pricing components to sum together",
-          "items": {
-            "additionalProperties": true,
-            "type": "object"
-          },
-          "minItems": 1,
-          "title": "Prices",
-          "type": "array"
-        },
         "reference": {
           "anyOf": [
             {
@@ -184,6 +174,16 @@
           "default": "add",
           "title": "Type",
           "type": "string"
+        },
+        "prices": {
+          "description": "List of pricing components to sum together",
+          "items": {
+            "additionalProperties": true,
+            "type": "object"
+          },
+          "minItems": 1,
+          "title": "Prices",
+          "type": "array"
         }
       },
       "required": [
@@ -207,11 +207,6 @@
       "additionalProperties": false,
       "description": "Price data for a constant/fixed amount.\n\nUsed for fixed fees, discounts, or adjustments that don't depend on usage.\nAmount can be positive (charge) or negative (discount/credit).",
       "properties": {
-        "amount": {
-          "description": "Fixed amount (positive for charge, negative for discount)",
-          "title": "Amount",
-          "type": "string"
-        },
         "description": {
           "anyOf": [
             {
@@ -242,6 +237,11 @@
           "const": "constant",
           "default": "constant",
           "title": "Type",
+          "type": "string"
+        },
+        "amount": {
+          "description": "Fixed amount (positive for charge, negative for discount)",
+          "title": "Amount",
           "type": "string"
         }
       },
@@ -316,10 +316,6 @@
       "additionalProperties": false,
       "description": "Document data for SDK/API payloads.\n\nNote: The document title is NOT stored here - it's the key in the documents dict.\nWhen stored in the database, the backend extracts the key as the title field.",
       "properties": {
-        "category": {
-          "$ref": "#/$defs/DocumentCategoryEnum",
-          "description": "Document category for organization and filtering"
-        },
         "description": {
           "anyOf": [
             {
@@ -334,10 +330,14 @@
           "description": "Document description",
           "title": "Description"
         },
-        "external_url": {
+        "mime_type": {
+          "$ref": "#/$defs/MimeTypeEnum",
+          "description": "Document MIME type"
+        },
+        "version": {
           "anyOf": [
             {
-              "maxLength": 1000,
+              "maxLength": 50,
               "type": "string"
             },
             {
@@ -345,34 +345,12 @@
             }
           ],
           "default": null,
-          "description": "External URL for the document (mutually exclusive with object_key)",
-          "title": "External Url"
+          "description": "Document version",
+          "title": "Version"
         },
-        "file_path": {
-          "anyOf": [
-            {
-              "maxLength": 1000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Path to file to upload (mutually exclusive with external_url)",
-          "title": "File Path"
-        },
-        "is_active": {
-          "default": true,
-          "description": "Whether document is active",
-          "title": "Is Active",
-          "type": "boolean"
-        },
-        "is_public": {
-          "default": false,
-          "description": "Whether document is publicly accessible without authentication",
-          "title": "Is Public",
-          "type": "boolean"
+        "category": {
+          "$ref": "#/$defs/DocumentCategoryEnum",
+          "description": "Document category for organization and filtering"
         },
         "meta": {
           "anyOf": [
@@ -388,20 +366,10 @@
           "description": "JSON containing operation stats",
           "title": "Meta"
         },
-        "mime_type": {
-          "$ref": "#/$defs/MimeTypeEnum",
-          "description": "Document MIME type"
-        },
-        "sort_order": {
-          "default": 0,
-          "description": "Sort order within category",
-          "title": "Sort Order",
-          "type": "integer"
-        },
-        "version": {
+        "file_path": {
           "anyOf": [
             {
-              "maxLength": 50,
+              "maxLength": 1000,
               "type": "string"
             },
             {
@@ -409,8 +377,40 @@
             }
           ],
           "default": null,
-          "description": "Document version",
-          "title": "Version"
+          "description": "Path to file to upload (mutually exclusive with external_url)",
+          "title": "File Path"
+        },
+        "external_url": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "External URL for the document (mutually exclusive with object_key)",
+          "title": "External Url"
+        },
+        "sort_order": {
+          "default": 0,
+          "description": "Sort order within category",
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether document is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_public": {
+          "default": false,
+          "description": "Whether document is publicly accessible without authentication",
+          "title": "Is Public",
+          "type": "boolean"
         }
       },
       "required": [
@@ -437,11 +437,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "expr": {
-          "description": "Arithmetic expression using usage metrics (e.g., 'input_tokens / 1000000 * 2.5')",
-          "title": "Expr",
-          "type": "string"
-        },
         "reference": {
           "anyOf": [
             {
@@ -460,6 +455,11 @@
           "default": "expr",
           "title": "Type",
           "type": "string"
+        },
+        "expr": {
+          "description": "Arithmetic expression using usage metrics (e.g., 'input_tokens / 1000000 * 2.5')",
+          "title": "Expr",
+          "type": "string"
         }
       },
       "required": [
@@ -472,11 +472,6 @@
       "additionalProperties": false,
       "description": "Graduated tiered pricing where each tier's units are priced at that tier's rate.\n\nLike AWS pricing - first N units at price A, next M units at price B, etc.\n`based_on` can be 'request_count', 'customer_charge', or any UsageData field.\n\nExample (graduated pricing - different rates per tier):\n    {\n        \"type\": \"graduated\",\n        \"based_on\": \"request_count\",\n        \"tiers\": [\n            {\"up_to\": 1000, \"unit_price\": \"0.01\"},\n            {\"up_to\": 10000, \"unit_price\": \"0.008\"},\n            {\"up_to\": null, \"unit_price\": \"0.005\"}\n        ]\n    }\nIf request_count is 5000:\n    - First 1000 at $0.01 = $10.00\n    - Next 4000 at $0.008 = $32.00\n    - Total = $42.00",
       "properties": {
-        "based_on": {
-          "description": "Metric for graduated calc: 'request_count', 'customer_charge', or UsageData field",
-          "title": "Based On",
-          "type": "string"
-        },
         "description": {
           "anyOf": [
             {
@@ -503,6 +498,17 @@
           "description": "URL to upstream provider's pricing page",
           "title": "Reference"
         },
+        "type": {
+          "const": "graduated",
+          "default": "graduated",
+          "title": "Type",
+          "type": "string"
+        },
+        "based_on": {
+          "description": "Metric for graduated calc: 'request_count', 'customer_charge', or UsageData field",
+          "title": "Based On",
+          "type": "string"
+        },
         "tiers": {
           "description": "List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
           "items": {
@@ -511,12 +517,6 @@
           "minItems": 1,
           "title": "Tiers",
           "type": "array"
-        },
-        "type": {
-          "const": "graduated",
-          "default": "graduated",
-          "title": "Type",
-          "type": "string"
         }
       },
       "required": [
@@ -530,11 +530,6 @@
       "additionalProperties": false,
       "description": "A single tier in graduated pricing with per-unit price.",
       "properties": {
-        "unit_price": {
-          "description": "Price per unit in this tier",
-          "title": "Unit Price",
-          "type": "string"
-        },
         "up_to": {
           "anyOf": [
             {
@@ -546,6 +541,11 @@
           ],
           "description": "Upper limit for this tier (None for unlimited)",
           "title": "Up To"
+        },
+        "unit_price": {
+          "description": "Price per unit in this tier",
+          "title": "Unit Price",
+          "type": "string"
         }
       },
       "required": [
@@ -572,11 +572,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "price": {
-          "description": "Price per image",
-          "title": "Price",
-          "type": "string"
-        },
         "reference": {
           "anyOf": [
             {
@@ -594,6 +589,11 @@
           "const": "image",
           "default": "image",
           "title": "Type",
+          "type": "string"
+        },
+        "price": {
+          "description": "Price per image",
+          "title": "Price",
           "type": "string"
         }
       },
@@ -624,12 +624,6 @@
       "additionalProperties": false,
       "description": "Composite pricing that multiplies a base price by a factor.\n\nUseful for applying percentage-based adjustments to a base price.\n\nExample:\n    {\n        \"type\": \"multiply\",\n        \"factor\": \"0.70\",\n        \"base\": {\"type\": \"one_million_tokens\", \"input\": \"0.50\", \"output\": \"1.50\"}\n    }",
       "properties": {
-        "base": {
-          "additionalProperties": true,
-          "description": "Base pricing to multiply",
-          "title": "Base",
-          "type": "object"
-        },
         "description": {
           "anyOf": [
             {
@@ -642,11 +636,6 @@
           "default": null,
           "description": "Human-readable description of the pricing model",
           "title": "Description"
-        },
-        "factor": {
-          "description": "Multiplication factor (e.g., '0.70' for 70%)",
-          "title": "Factor",
-          "type": "string"
         },
         "reference": {
           "anyOf": [
@@ -666,6 +655,17 @@
           "default": "multiply",
           "title": "Type",
           "type": "string"
+        },
+        "factor": {
+          "description": "Multiplication factor (e.g., '0.70' for 70%)",
+          "title": "Factor",
+          "type": "string"
+        },
+        "base": {
+          "additionalProperties": true,
+          "description": "Base pricing to multiply",
+          "title": "Base",
+          "type": "object"
         }
       },
       "required": [
@@ -699,12 +699,6 @@
       "additionalProperties": false,
       "description": "A single tier in tiered pricing.",
       "properties": {
-        "price": {
-          "additionalProperties": true,
-          "description": "Price configuration for this tier",
-          "title": "Price",
-          "type": "object"
-        },
         "up_to": {
           "anyOf": [
             {
@@ -716,6 +710,12 @@
           ],
           "description": "Upper limit for this tier (None for unlimited)",
           "title": "Up To"
+        },
+        "price": {
+          "additionalProperties": true,
+          "description": "Price configuration for this tier",
+          "title": "Price",
+          "type": "object"
         }
       },
       "required": [
@@ -739,18 +739,18 @@
       "additionalProperties": false,
       "description": "Store rate limiting rules for services.",
       "properties": {
-        "burst_limit": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Short-term burst allowance",
-          "title": "Burst Limit"
+        "limit": {
+          "description": "Maximum allowed in the time window",
+          "title": "Limit",
+          "type": "integer"
+        },
+        "unit": {
+          "$ref": "#/$defs/RateLimitUnitEnum",
+          "description": "What is being limited"
+        },
+        "window": {
+          "$ref": "#/$defs/TimeWindowEnum",
+          "description": "Time window for the limit"
         },
         "description": {
           "anyOf": [
@@ -766,24 +766,24 @@
           "description": "Human-readable description",
           "title": "Description"
         },
+        "burst_limit": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Short-term burst allowance",
+          "title": "Burst Limit"
+        },
         "is_active": {
           "default": true,
           "description": "Whether rate limit is active",
           "title": "Is Active",
           "type": "boolean"
-        },
-        "limit": {
-          "description": "Maximum allowed in the time window",
-          "title": "Limit",
-          "type": "integer"
-        },
-        "unit": {
-          "$ref": "#/$defs/RateLimitUnitEnum",
-          "description": "What is being limited"
-        },
-        "window": {
-          "$ref": "#/$defs/TimeWindowEnum",
-          "description": "Time window for the limit"
         }
       },
       "required": [
@@ -831,11 +831,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "percentage": {
-          "description": "Percentage of customer charge that goes to the seller (0-100)",
-          "title": "Percentage",
-          "type": "string"
-        },
         "reference": {
           "anyOf": [
             {
@@ -854,6 +849,11 @@
           "default": "revenue_share",
           "title": "Type",
           "type": "string"
+        },
+        "percentage": {
+          "description": "Percentage of customer charge that goes to the seller (0-100)",
+          "title": "Percentage",
+          "type": "string"
         }
       },
       "required": [
@@ -865,6 +865,68 @@
     "ServiceConstraints": {
       "additionalProperties": false,
       "properties": {
+        "monthly_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Monthly usage quota (requests, tokens, etc.)",
+          "title": "Monthly Quota"
+        },
+        "daily_quota": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Daily usage quota (requests, tokens, etc.)",
+          "title": "Daily Quota"
+        },
+        "quota_unit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RateLimitUnitEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unit for quota limits"
+        },
+        "quota_reset_cycle": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/QuotaResetCycleEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How often quotas reset"
+        },
+        "overage_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OveragePolicyEnum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What happens when quota is exceeded"
+        },
         "auth_methods": {
           "anyOf": [
             {
@@ -881,64 +943,6 @@
           "description": "Supported authentication methods",
           "title": "Auth Methods"
         },
-        "connection_timeout_seconds": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Connection timeout in seconds",
-          "title": "Connection Timeout Seconds"
-        },
-        "content_filters": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/ContentFilterEnum"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Active content filtering policies",
-          "title": "Content Filters"
-        },
-        "daily_quota": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Daily usage quota (requests, tokens, etc.)",
-          "title": "Daily Quota"
-        },
-        "input_languages": {
-          "anyOf": [
-            {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Supported input languages (ISO 639-1 codes)",
-          "title": "Input Languages"
-        },
         "ip_whitelist_required": {
           "anyOf": [
             {
@@ -952,73 +956,18 @@
           "description": "Whether IP whitelisting is required",
           "title": "Ip Whitelist Required"
         },
-        "maintenance_windows": {
+        "tls_version_min": {
           "anyOf": [
             {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Scheduled maintenance windows",
-          "title": "Maintenance Windows"
-        },
-        "max_batch_size": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Maximum number of items in batch requests",
-          "title": "Max Batch Size"
-        },
-        "max_concurrent_requests": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Maximum concurrent requests allowed",
-          "title": "Max Concurrent Requests"
-        },
-        "max_connections_per_ip": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Maximum connections per IP address",
-          "title": "Max Connections Per Ip"
-        },
-        "max_context_length": {
-          "anyOf": [
-            {
-              "type": "integer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Maximum context length in tokens",
-          "title": "Max Context Length"
+          "description": "Minimum TLS version required",
+          "title": "Tls Version Min"
         },
         "max_request_size_bytes": {
           "anyOf": [
@@ -1046,7 +995,7 @@
           "description": "Maximum response payload size in bytes",
           "title": "Max Response Size Bytes"
         },
-        "monthly_quota": {
+        "timeout_seconds": {
           "anyOf": [
             {
               "type": "integer"
@@ -1056,8 +1005,53 @@
             }
           ],
           "default": null,
-          "description": "Monthly usage quota (requests, tokens, etc.)",
-          "title": "Monthly Quota"
+          "description": "Request timeout in seconds",
+          "title": "Timeout Seconds"
+        },
+        "max_batch_size": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Maximum number of items in batch requests",
+          "title": "Max Batch Size"
+        },
+        "content_filters": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ContentFilterEnum"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Active content filtering policies",
+          "title": "Content Filters"
+        },
+        "input_languages": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Supported input languages (ISO 639-1 codes)",
+          "title": "Input Languages"
         },
         "output_languages": {
           "anyOf": [
@@ -1075,41 +1069,18 @@
           "description": "Supported output languages (ISO 639-1 codes)",
           "title": "Output Languages"
         },
-        "overage_policy": {
+        "max_context_length": {
           "anyOf": [
             {
-              "$ref": "#/$defs/OveragePolicyEnum"
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "What happens when quota is exceeded"
-        },
-        "quota_reset_cycle": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/QuotaResetCycleEnum"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "How often quotas reset"
-        },
-        "quota_unit": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RateLimitUnitEnum"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Unit for quota limits"
+          "description": "Maximum context length in tokens",
+          "title": "Max Context Length"
         },
         "region_restrictions": {
           "anyOf": [
@@ -1127,6 +1098,19 @@
           "description": "Geographic restrictions (ISO country codes)",
           "title": "Region Restrictions"
         },
+        "uptime_sla_percent": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Uptime SLA percentage (e.g., 99.9)",
+          "title": "Uptime Sla Percent"
+        },
         "response_time_sla_ms": {
           "anyOf": [
             {
@@ -1140,7 +1124,23 @@
           "description": "Response time SLA in milliseconds",
           "title": "Response Time Sla Ms"
         },
-        "timeout_seconds": {
+        "maintenance_windows": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scheduled maintenance windows",
+          "title": "Maintenance Windows"
+        },
+        "max_concurrent_requests": {
           "anyOf": [
             {
               "type": "integer"
@@ -1150,34 +1150,34 @@
             }
           ],
           "default": null,
-          "description": "Request timeout in seconds",
-          "title": "Timeout Seconds"
+          "description": "Maximum concurrent requests allowed",
+          "title": "Max Concurrent Requests"
         },
-        "tls_version_min": {
+        "connection_timeout_seconds": {
           "anyOf": [
             {
-              "type": "string"
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Minimum TLS version required",
-          "title": "Tls Version Min"
+          "description": "Connection timeout in seconds",
+          "title": "Connection Timeout Seconds"
         },
-        "uptime_sla_percent": {
+        "max_connections_per_ip": {
           "anyOf": [
             {
-              "type": "number"
+              "type": "integer"
             },
             {
               "type": "null"
             }
           ],
           "default": null,
-          "description": "Uptime SLA percentage (e.g., 99.9)",
-          "title": "Uptime Sla Percent"
+          "description": "Maximum connections per IP address",
+          "title": "Max Connections Per Ip"
         }
       },
       "title": "ServiceConstraints",
@@ -1219,11 +1219,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "price": {
-          "description": "Price per step/iteration",
-          "title": "Price",
-          "type": "string"
-        },
         "reference": {
           "anyOf": [
             {
@@ -1241,6 +1236,11 @@
           "const": "step",
           "default": "step",
           "title": "Type",
+          "type": "string"
+        },
+        "price": {
+          "description": "Price per step/iteration",
+          "title": "Price",
           "type": "string"
         }
       },
@@ -1262,11 +1262,6 @@
       "additionalProperties": false,
       "description": "Volume-based tiered pricing where the tier determines price for ALL units.\n\nThe tier is determined by the `based_on` metric, and ALL units are priced\nat that tier's rate. `based_on` can be 'request_count', 'customer_charge',\nor any field from UsageData (e.g., 'input_tokens', 'seconds', 'count').\n\nExample (volume pricing - all units at same rate):\n    {\n        \"type\": \"tiered\",\n        \"based_on\": \"request_count\",\n        \"tiers\": [\n            {\"up_to\": 1000, \"price\": {\"type\": \"constant\", \"amount\": \"10.00\"}},\n            {\"up_to\": 10000, \"price\": {\"type\": \"constant\", \"amount\": \"80.00\"}},\n            {\"up_to\": null, \"price\": {\"type\": \"constant\", \"amount\": \"500.00\"}}\n        ]\n    }\nIf request_count is 5000, the price is $80.00 (falls in 1001-10000 tier).",
       "properties": {
-        "based_on": {
-          "description": "Metric for tier selection: 'request_count', 'customer_charge', or UsageData field",
-          "title": "Based On",
-          "type": "string"
-        },
         "description": {
           "anyOf": [
             {
@@ -1293,6 +1288,17 @@
           "description": "URL to upstream provider's pricing page",
           "title": "Reference"
         },
+        "type": {
+          "const": "tiered",
+          "default": "tiered",
+          "title": "Type",
+          "type": "string"
+        },
+        "based_on": {
+          "description": "Metric for tier selection: 'request_count', 'customer_charge', or UsageData field",
+          "title": "Based On",
+          "type": "string"
+        },
         "tiers": {
           "description": "List of tiers, ordered by up_to (ascending). Last tier should have up_to=null.",
           "items": {
@@ -1301,12 +1307,6 @@
           "minItems": 1,
           "title": "Tiers",
           "type": "array"
-        },
-        "type": {
-          "const": "tiered",
-          "default": "tiered",
-          "title": "Type",
-          "type": "string"
         }
       },
       "required": [
@@ -1333,11 +1333,6 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
-        "price": {
-          "description": "Price per second of usage",
-          "title": "Price",
-          "type": "string"
-        },
         "reference": {
           "anyOf": [
             {
@@ -1355,6 +1350,11 @@
           "const": "one_second",
           "default": "one_second",
           "title": "Type",
+          "type": "string"
+        },
+        "price": {
+          "description": "Price per second of usage",
+          "title": "Price",
           "type": "string"
         }
       },
@@ -1392,6 +1392,38 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
+        "reference": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "URL to upstream provider's pricing page",
+          "title": "Reference"
+        },
+        "type": {
+          "const": "one_million_tokens",
+          "default": "one_million_tokens",
+          "title": "Type",
+          "type": "string"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Unified price per million tokens (used when input/output are the same)",
+          "title": "Price"
+        },
         "input": {
           "anyOf": [
             {
@@ -1417,38 +1449,6 @@
           "default": null,
           "description": "Price per million output tokens",
           "title": "Output"
-        },
-        "price": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Unified price per million tokens (used when input/output are the same)",
-          "title": "Price"
-        },
-        "reference": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "URL to upstream provider's pricing page",
-          "title": "Reference"
-        },
-        "type": {
-          "const": "one_million_tokens",
-          "default": "one_million_tokens",
-          "title": "Type",
-          "type": "string"
         }
       },
       "title": "TokenPriceData",
@@ -1458,21 +1458,11 @@
   "additionalProperties": false,
   "description": "Service offering model for file-based definitions (offering_v1 schema).\n\nExtends ServiceOfferingData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- logo: Convenience field (converted to documents during import)\n- tags: Tags for the service (e.g., bring your own API key)\n- Typed models (AccessInterface, Document, Pricing) instead of dicts\n- Field validators for name format\n\nThis model is used for validating offering.json/offering.toml files\ncreated by the CLI tool.",
   "properties": {
-    "currency": {
-      "$ref": "#/$defs/CurrencyEnum",
-      "default": "USD",
-      "description": "Currency for payout_price"
-    },
-    "description": {
-      "description": "Service description",
-      "title": "Description",
+    "name": {
+      "description": "Technical service name (e.g., 'gpt-4')",
+      "maxLength": 100,
+      "title": "Name",
       "type": "string"
-    },
-    "details": {
-      "additionalProperties": true,
-      "description": "Dictionary of static features and information",
-      "title": "Details",
-      "type": "object"
     },
     "display_name": {
       "anyOf": [
@@ -1488,45 +1478,39 @@
       "description": "Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
       "title": "Display Name"
     },
-    "documents": {
-      "anyOf": [
-        {
-          "additionalProperties": {
-            "$ref": "#/$defs/DocumentData"
-          },
-          "type": "object"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Documents associated with the service, keyed by title (e.g. tech spec.)",
-      "title": "Documents"
+    "service_type": {
+      "$ref": "#/$defs/ServiceTypeEnum",
+      "default": "llm",
+      "description": "Category for grouping/comparison"
     },
-    "logo": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "format": "uri",
-          "maxLength": 2083,
-          "minLength": 1,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "title": "Logo"
-    },
-    "name": {
-      "description": "Technical service name (e.g., 'gpt-4')",
-      "maxLength": 100,
-      "title": "Name",
+    "description": {
+      "description": "Service description",
+      "title": "Description",
       "type": "string"
+    },
+    "tagline": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Short elevator pitch or description for the service",
+      "title": "Tagline"
+    },
+    "status": {
+      "$ref": "#/$defs/OfferingStatusEnum",
+      "default": "draft",
+      "description": "Offering status: draft (skip publish), ready (for review), or deprecated (retired)"
+    },
+    "details": {
+      "additionalProperties": true,
+      "description": "Dictionary of static features and information",
+      "title": "Details",
+      "type": "object"
     },
     "payout_price": {
       "anyOf": [
@@ -1591,34 +1575,34 @@
       "description": "Payout pricing: How to calculate seller payout",
       "title": "Payout Price"
     },
-    "schema": {
-      "default": "offering_v1",
-      "description": "Schema identifier",
-      "title": "Schema",
-      "type": "string"
+    "upstream_access_interfaces": {
+      "additionalProperties": {
+        "$ref": "#/$defs/AccessInterfaceData"
+      },
+      "description": "Upstream access interfaces, keyed by name",
+      "title": "Upstream Access Interfaces",
+      "type": "object"
     },
-    "service_type": {
-      "$ref": "#/$defs/ServiceTypeEnum",
-      "default": "llm",
-      "description": "Category for grouping/comparison"
-    },
-    "status": {
-      "$ref": "#/$defs/OfferingStatusEnum",
-      "default": "draft",
-      "description": "Offering status: draft (skip publish), ready (for review), or deprecated (retired)"
-    },
-    "tagline": {
+    "documents": {
       "anyOf": [
         {
-          "type": "string"
+          "additionalProperties": {
+            "$ref": "#/$defs/DocumentData"
+          },
+          "type": "object"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "description": "Short elevator pitch or description for the service",
-      "title": "Tagline"
+      "description": "Documents associated with the service, keyed by title (e.g. tech spec.)",
+      "title": "Documents"
+    },
+    "currency": {
+      "$ref": "#/$defs/CurrencyEnum",
+      "default": "USD",
+      "description": "Currency for payout_price"
     },
     "tags": {
       "anyOf": [
@@ -1636,21 +1620,41 @@
       "description": "List of tags for the service, e.g., 'byop' for bring your own API key",
       "title": "Tags"
     },
+    "schema": {
+      "default": "offering_v1",
+      "description": "Schema identifier",
+      "title": "Schema",
+      "type": "string"
+    },
     "time_created": {
       "format": "date-time",
       "title": "Time Created",
       "type": "string"
     },
-    "upstream_access_interface": {
-      "$ref": "#/$defs/AccessInterfaceData",
-      "description": "Dictionary of upstream access interface"
+    "logo": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "format": "uri",
+          "maxLength": 2083,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Logo"
     }
   },
   "required": [
     "name",
     "description",
     "details",
-    "upstream_access_interface",
+    "upstream_access_interfaces",
     "time_created"
   ],
   "title": "OfferingV1",

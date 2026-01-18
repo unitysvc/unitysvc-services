@@ -86,10 +86,10 @@ class ServiceOfferingData(BaseModel):
         description="Payout pricing: How to calculate seller payout",
     )
 
-    # Access interface
-    upstream_access_interface: dict[str, Any] | None = Field(
+    # Access interfaces (keyed by name)
+    upstream_access_interfaces: dict[str, dict[str, Any]] | None = Field(
         default=None,
-        description="How to access the service from upstream",
+        description="Upstream access interfaces, keyed by name",
     )
 
     # Documents (keyed by title)
