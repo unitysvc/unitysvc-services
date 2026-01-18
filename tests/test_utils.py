@@ -110,7 +110,7 @@ def test_resolve_provider_name_invalid_path(tmp_path: Path) -> None:
 
 def test_convert_logo_file_path_to_document(tmp_path: Path) -> None:
     """Test converting logo file path to Document."""
-    data = {"name": "test-provider", "logo": "assets/logo.png", "documents": []}
+    data = {"name": "test-provider", "logo": "assets/logo.png", "documents": {}}
 
     result = convert_convenience_fields_to_documents(data, tmp_path)
 
@@ -119,8 +119,8 @@ def test_convert_logo_file_path_to_document(tmp_path: Path) -> None:
 
     # Document should be added
     assert len(result["documents"]) == 1
-    doc = result["documents"][0]
-    assert doc["title"] == "Company Logo"
+    assert "Company Logo" in result["documents"]
+    doc = result["documents"]["Company Logo"]
     assert doc["category"] == "logo"
     assert doc["mime_type"] == "png"
     assert doc["file_path"] == "assets/logo.png"
@@ -139,8 +139,8 @@ def test_convert_logo_url_to_document(tmp_path: Path) -> None:
 
     # Document should be added
     assert len(result["documents"]) == 1
-    doc = result["documents"][0]
-    assert doc["title"] == "Company Logo"
+    assert "Company Logo" in result["documents"]
+    doc = result["documents"]["Company Logo"]
     assert doc["category"] == "logo"
     assert doc["mime_type"] == "svg"
     assert doc["external_url"] == "https://example.com/logo.svg"
@@ -154,7 +154,7 @@ def test_convert_terms_of_service_to_document(tmp_path: Path) -> None:
         "name": "test-provider",
         "logo": "logo.png",
         "terms_of_service": "docs/terms.md",
-        "documents": [],
+        "documents": {},
     }
 
     result = convert_convenience_fields_to_documents(data, tmp_path)
@@ -167,13 +167,13 @@ def test_convert_terms_of_service_to_document(tmp_path: Path) -> None:
     assert len(result["documents"]) == 2
 
     # Check logo document
-    logo_doc = result["documents"][0]
-    assert logo_doc["title"] == "Company Logo"
+    assert "Company Logo" in result["documents"]
+    logo_doc = result["documents"]["Company Logo"]
     assert logo_doc["category"] == "logo"
 
     # Check terms document
-    terms_doc = result["documents"][1]
-    assert terms_doc["title"] == "Terms of Service"
+    assert "Terms of Service" in result["documents"]
+    terms_doc = result["documents"]["Terms of Service"]
     assert terms_doc["category"] == "terms_of_service"
     assert terms_doc["mime_type"] == "markdown"
     assert terms_doc["file_path"] == "docs/terms.md"
@@ -192,20 +192,20 @@ def test_convert_seller_logo_only(tmp_path: Path) -> None:
 
     # Only one document should be added
     assert len(result["documents"]) == 1
-    doc = result["documents"][0]
-    assert doc["title"] == "Company Logo"
+    assert "Company Logo" in result["documents"]
+    doc = result["documents"]["Company Logo"]
     assert doc["mime_type"] == "jpeg"
 
 
 def test_convert_no_convenience_fields(tmp_path: Path) -> None:
     """Test when no convenience fields are present."""
-    data = {"name": "test-provider", "documents": [{"title": "Existing Doc"}]}
+    data = {"name": "test-provider", "documents": {"Existing Doc": {"category": "getting_started"}}}
 
     result = convert_convenience_fields_to_documents(data, tmp_path)
 
     # Original document should still be there
     assert len(result["documents"]) == 1
-    assert result["documents"][0]["title"] == "Existing Doc"
+    assert "Existing Doc" in result["documents"]
 
 
 def test_convert_mime_type_detection(tmp_path: Path) -> None:
@@ -222,7 +222,7 @@ def test_convert_mime_type_detection(tmp_path: Path) -> None:
     for file_path, expected_mime in test_cases:
         data = {"logo": file_path}
         result = convert_convenience_fields_to_documents(data, tmp_path, terms_field=None)
-        assert result["documents"][0]["mime_type"] == expected_mime
+        assert result["documents"]["Company Logo"]["mime_type"] == expected_mime
 
 
 def test_deep_merge_dicts_simple() -> None:
