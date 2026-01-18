@@ -384,11 +384,19 @@
           "type": "integer"
         },
         "title": {
-          "description": "Document title",
-          "maxLength": 255,
-          "minLength": 5,
-          "title": "Title",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 5,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document title (optional, uses key from documents dict if not provided)",
+          "title": "Title"
         },
         "version": {
           "anyOf": [
@@ -406,7 +414,6 @@
         }
       },
       "required": [
-        "title",
         "mime_type",
         "category"
       ],
@@ -1473,17 +1480,17 @@
     "documents": {
       "anyOf": [
         {
-          "items": {
+          "additionalProperties": {
             "$ref": "#/$defs/Document"
           },
-          "type": "array"
+          "type": "object"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "description": "List of documents associated with the listing (e.g. service level agreements)",
+      "description": "Documents associated with the listing, keyed by title (e.g. service level agreements)",
       "title": "Documents"
     },
     "list_price": {
@@ -1608,12 +1615,20 @@
       "type": "string"
     },
     "user_access_interfaces": {
-      "description": "List of user access interfaces for the listing",
-      "items": {
-        "$ref": "#/$defs/AccessInterface"
-      },
-      "title": "User Access Interfaces",
-      "type": "array"
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/AccessInterface"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "User access interfaces for the listing, keyed by name",
+      "title": "User Access Interfaces"
     },
     "user_parameters_schema": {
       "anyOf": [
@@ -1645,7 +1660,6 @@
     }
   },
   "required": [
-    "user_access_interfaces",
     "time_created"
   ],
   "title": "ListingV1",

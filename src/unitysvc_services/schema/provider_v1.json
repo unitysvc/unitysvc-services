@@ -86,11 +86,19 @@
           "type": "integer"
         },
         "title": {
-          "description": "Document title",
-          "maxLength": 255,
-          "minLength": 5,
-          "title": "Title",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 255,
+              "minLength": 5,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document title (optional, uses key from documents dict if not provided)",
+          "title": "Title"
         },
         "version": {
           "anyOf": [
@@ -108,7 +116,6 @@
         }
       },
       "required": [
-        "title",
         "mime_type",
         "category"
       ],
@@ -251,17 +258,17 @@
     "documents": {
       "anyOf": [
         {
-          "items": {
+          "additionalProperties": {
             "$ref": "#/$defs/Document"
           },
-          "type": "array"
+          "type": "object"
         },
         {
           "type": "null"
         }
       ],
       "default": null,
-      "description": "List of documents associated with the provider (e.g. logo)",
+      "description": "Documents associated with the provider, keyed by title (e.g. logo)",
       "title": "Documents"
     },
     "homepage": {
