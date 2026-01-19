@@ -103,7 +103,6 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                     "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
                     "requirements": meta.get("requirements"),  # Required packages (from meta)
                     "category": category,  # Track which category this is
-                    "id": doc.get("id"),  # Document ID from override file (if uploaded)
                 }
                 code_examples.append(code_example)
 
@@ -515,13 +514,11 @@ def list_code_examples(
     table.add_column("Title", style="white")
     table.add_column("Category", style="green")
     table.add_column("Type", style="magenta")
-    table.add_column("ID", style="yellow")
     table.add_column("File Path", style="dim")
 
     for example, prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
         category = example.get("category", "unknown")
-        doc_id = example.get("id")
 
         # Show path relative to data directory
         if file_path != "N/A":
@@ -533,15 +530,11 @@ def list_code_examples(
                 # If relative_to fails, just show the path as-is
                 file_path = str(file_path)
 
-        # Show complete document ID or "-" if not uploaded
-        display_id = doc_id if doc_id else "-"
-
         row = [
             example["service_name"],
             example["title"],
             category,
             file_ext,
-            display_id,
             file_path,
         ]
 

@@ -543,24 +543,12 @@ class ServiceDataPublisher(UnitySvcAPI):
         result["service_name"] = offering_data_resolved.get("name")
         result["provider_name"] = provider_name_str
 
-        # Save service_id and document IDs to override file for future updates (not in dryrun mode)
+        # Save service_id to override file for future updates (not in dryrun mode)
         if not dryrun:
             service_result = result.get("service", {})
             service_id = service_result.get("id")
             if service_id:
                 override_data: dict[str, Any] = {"service_id": service_id}
-
-                # Include listing document IDs (for code examples that need gateway testing)
-                # Format as {title: {id: uuid}} so it merges properly with base listing data
-                listing_result = result.get("listing", {})
-                listing_documents = listing_result.get("documents", {})
-                if listing_documents:
-                    # Transform {title: uuid} to {title: {id: uuid}} for proper deep merge
-                    override_data["documents"] = {
-                        title: {"id": doc_id} if isinstance(doc_id, str) else doc_id
-                        for title, doc_id in listing_documents.items()
-                    }
-
                 override_path = write_override_file(listing_file, override_data)
                 result["override_file"] = str(override_path)
 
