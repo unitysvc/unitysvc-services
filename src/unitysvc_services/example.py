@@ -103,6 +103,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                     "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
                     "requirements": meta.get("requirements"),  # Required packages (from meta)
                     "category": category,  # Track which category this is
+                    "id": doc.get("id"),  # Document ID from override file (if uploaded)
                 }
                 code_examples.append(code_example)
 
@@ -406,13 +407,13 @@ def list_code_examples(
 
     Examples:
         # List all code examples
-        usvc example list
+        usvc data list examples
 
         # List for specific provider
-        usvc example list --provider fireworks
+        usvc data list examples --provider fireworks
 
         # List for specific services
-        usvc example list --services "llama*,gpt-4*"
+        usvc data list examples --services "llama*,gpt-4*"
     """
     # Set data directory
     if data_dir is None:
@@ -448,14 +449,15 @@ def list_code_examples(
         console.print("[yellow]No providers found.[/yellow]")
         raise typer.Exit(code=0)
 
-    # Find all listing files
-    listing_results = find_files_by_schema(data_dir, "listing_v1", skip_override=True)
+    # Find all listing files (override files are merged to include document IDs)
+    listing_results = find_files_by_schema(data_dir, "listing_v1")
 
     if not listing_results:
         console.print("[yellow]No listing files found.[/yellow]")
         raise typer.Exit(code=0)
 
     # Extract code examples from all listings
+    # Tuple: (example, provider_name, file_ext)
     all_code_examples: list[tuple[dict[str, Any], str, str]] = []
 
     for listing_file, _format, listing_data in listing_results:
@@ -500,6 +502,7 @@ def list_code_examples(
                 file_ext = Path(path.stem).suffix or "unknown"
             else:
                 file_ext = path.suffix or "unknown"
+
             all_code_examples.append((example, prov_name, file_ext))
 
     if not all_code_examples:
@@ -509,15 +512,16 @@ def list_code_examples(
     # Display results in table
     table = Table(title="Available Code Examples")
     table.add_column("Service", style="cyan")
-    table.add_column("Provider", style="blue")
     table.add_column("Title", style="white")
     table.add_column("Category", style="green")
     table.add_column("Type", style="magenta")
+    table.add_column("ID", style="yellow")
     table.add_column("File Path", style="dim")
 
     for example, prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
         category = example.get("category", "unknown")
+        doc_id = example.get("id")
 
         # Show path relative to data directory
         if file_path != "N/A":
@@ -529,12 +533,15 @@ def list_code_examples(
                 # If relative_to fails, just show the path as-is
                 file_path = str(file_path)
 
+        # Show complete document ID or "-" if not uploaded
+        display_id = doc_id if doc_id else "-"
+
         row = [
             example["service_name"],
-            prov_name,
             example["title"],
             category,
             file_ext,
+            display_id,
             file_path,
         ]
 
@@ -544,8 +551,8 @@ def list_code_examples(
     console.print(f"\n[green]Total:[/green] {len(all_code_examples)} code example(s)")
 
 
-@app.command()
-def run(
+@app.command("run-local")
+def run_local(
     data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing provider data files (default: current directory)",
@@ -593,38 +600,38 @@ def run(
     1. Scans for all listing files (schema: listing_v1)
     2. Extracts code example documents
     3. Loads provider credentials from offering file
-    4. Skips tests that have existing .out and .err files (unless --force is used)
+    4. Skips tests that previously passed (unless --force is used)
     5. Executes each code example with API_KEY and BASE_URL set to upstream values
     6. Saves output to .out and .err files for tracking
     7. Displays test results
 
     Examples:
         # Run all code examples
-        usvc example run
+        usvc data test
 
         # Run for specific provider
-        usvc example run --provider fireworks
+        usvc data test --provider fireworks
 
         # Run for specific services (with wildcards)
-        usvc example run --services "llama*,gpt-4*"
+        usvc data test --services "llama*,gpt-4*"
 
         # Run single service
-        usvc example run --services "llama-3-1-405b-instruct"
+        usvc data test --services "llama-3-1-405b-instruct"
 
         # Run specific file
-        usvc example run --test-file "code-example.py.j2"
+        usvc data test --test-file "code-example.py.j2"
 
         # Combine filters
-        usvc example run --provider fireworks --services "llama*"
+        usvc data test --provider fireworks --services "llama*"
 
         # Show detailed output
-        usvc example run --verbose
+        usvc data test --verbose
 
         # Force rerun all tests (ignore existing results)
-        usvc example run --force
+        usvc data test --force
 
         # Stop on first failure
-        usvc example run --fail-fast
+        usvc data test --fail-fast
     """
     # Set data directory
     if data_dir is None:
@@ -652,8 +659,8 @@ def run(
 
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
-    # Find all listing files
-    listing_results = find_files_by_schema(data_dir, "listing_v1", skip_override=True)
+    # Find all listing files (override files are merged to include document IDs)
+    listing_results = find_files_by_schema(data_dir, "listing_v1")
 
     if not listing_results:
         console.print("[yellow]No listing files found.[/yellow]")

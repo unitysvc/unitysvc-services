@@ -551,10 +551,15 @@ class ServiceDataPublisher(UnitySvcAPI):
                 override_data: dict[str, Any] = {"service_id": service_id}
 
                 # Include listing document IDs (for code examples that need gateway testing)
+                # Format as {title: {id: uuid}} so it merges properly with base listing data
                 listing_result = result.get("listing", {})
                 listing_documents = listing_result.get("documents", {})
                 if listing_documents:
-                    override_data["documents"] = listing_documents
+                    # Transform {title: uuid} to {title: {id: uuid}} for proper deep merge
+                    override_data["documents"] = {
+                        title: {"id": doc_id} if isinstance(doc_id, str) else doc_id
+                        for title, doc_id in listing_documents.items()
+                    }
 
                 override_path = write_override_file(listing_file, override_data)
                 result["override_file"] = str(override_path)
