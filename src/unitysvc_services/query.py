@@ -34,7 +34,7 @@ def query_services(
         help="Output format: table, json",
     ),
     fields: str = typer.Option(
-        "id,name,status,seller_id,provider_id,offering_id,listing_id",
+        "id,name,status,provider_id,offering_id,listing_id",
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
@@ -138,7 +138,11 @@ def query_services(
                 for field in field_list:
                     # Capitalize and format field names for display
                     column_name = field.replace("_", " ").title()
-                    table.add_column(column_name)
+                    # Show id field in full without wrapping
+                    if field == "id":
+                        table.add_column(column_name, no_wrap=True)
+                    else:
+                        table.add_column(column_name)
 
                 # Add rows
                 for svc in services:
@@ -160,4 +164,73 @@ def query_services(
         raise typer.Exit(code=1)
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to query services: {e}", style="bold red")
+        raise typer.Exit(code=1)
+
+
+def show_service(
+    service_id: str = typer.Argument(..., help="Service ID to show (supports partial IDs, minimum 8 chars)"),
+    format: str = typer.Option(
+        "json",
+        "--format",
+        "-f",
+        help="Output format: json, table",
+    ),
+):
+    """Show details of a service by ID.
+
+    Supports partial ID matching (minimum 8 characters, like git).
+
+    Examples:
+        # Show service by full ID
+        usvc services show 297040cd-c676-48d7-9a06-9b2a1d713496
+
+        # Show service by partial ID
+        usvc services show 297040cd
+    """
+    async def _show_service():
+        async with ServiceDataQuery() as query:
+            # Pass partial ID directly to backend - it handles resolution
+            service = await query.get(f"/seller/services/{service_id}/data")
+            return service
+
+    try:
+        service = asyncio.run(_show_service())
+
+        if format == "json":
+            console.print(json.dumps(service, indent=2, default=str))
+        elif format == "table":
+            # Display service metadata first
+            name = service.get("service_name", service_id)
+            table = Table(title=f"Service: {name}")
+            table.add_column("Field", style="cyan")
+            table.add_column("Value", style="white")
+
+            # Show metadata fields first
+            metadata_fields = ["service_id", "service_name", "status", "provider_name"]
+            for field in metadata_fields:
+                if field in service:
+                    table.add_row(field, str(service[field]) if service[field] is not None else "-")
+
+            # Show content sections
+            for key in ["provider", "offering", "listing"]:
+                if key in service and isinstance(service[key], dict):
+                    table.add_row(f"[bold]{key}[/bold]", "")
+                    for k, v in service[key].items():
+                        if isinstance(v, dict | list):
+                            table.add_row(f"  {k}", json.dumps(v, indent=2, default=str)[:100] + "..." if len(json.dumps(v)) > 100 else json.dumps(v, default=str))
+                        else:
+                            table.add_row(f"  {k}", str(v) if v is not None else "-")
+
+            console.print(table)
+        else:
+            console.print(f"[red]Unknown format: {format}[/red]")
+            raise typer.Exit(code=1)
+
+    except typer.Exit:
+        raise
+    except ValueError as e:
+        console.print(f"[red]✗[/red] {e}", style="bold red")
+        raise typer.Exit(code=1)
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to show service: {e}", style="bold red")
         raise typer.Exit(code=1)

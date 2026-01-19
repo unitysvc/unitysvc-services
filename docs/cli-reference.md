@@ -20,28 +20,55 @@ usvc [OPTIONS] COMMAND [ARGS]...
 
 ## Commands Overview
 
-| Command     | Description                                      |
-| ----------- | ------------------------------------------------ |
-| `list`      | List data files in directory                     |
-| `query`     | Query backend API for data                       |
-| `publish`   | Publish data to backend                          |
-| `unpublish` | Unpublish (delete) data from backend             |
-| `update`    | Update local data files                          |
-| `validate`  | Validate data consistency                        |
-| `format`    | Format data files                                |
-| `populate`  | Execute provider populate scripts                |
-| `test`      | Test code examples with upstream API credentials |
+The CLI is organized into two main command groups with a clear separation of concerns:
+
+### Local Data Operations (`usvc data`)
+
+Work with local data files - can be used offline without API credentials.
+
+| Command        | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `validate`     | Validate data files against schemas                |
+| `format`       | Format/prettify data files                         |
+| `populate`     | Generate data files from provider scripts          |
+| `list`         | List local data files (services, providers, etc.)  |
+| `show`         | Show details of a local data object                |
+| `list-tests`   | List code examples in local data                   |
+| `run-tests`     | Run code examples locally with upstream credentials|
+| `show-test`    | Show details of a local test                       |
+
+### Remote Service Operations (`usvc services`)
+
+Manage services on the backend - can be run from anywhere with the right API key.
+
+| Command        | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `upload`       | Upload services to backend (draft status)          |
+| `list`         | List deployed services on backend                  |
+| `show`         | Show details of a deployed service                 |
+| `submit`       | Submit draft service for ops review                |
+| `deprecate`    | Deprecate an active service                        |
+| `delete`       | Delete a service from backend                      |
+| `list-tests`   | List tests for deployed services                   |
+| `show-test`    | Show details of a test for a deployed service      |
+| `run-tests`     | Run tests via gateway (backend execution)          |
+| `skip-test`    | Mark a code example test as skipped                |
+| `unskip-test`  | Remove skip status from a test                     |
 
 **Note:** To create initial service data, use the [UnitySVC web interface](https://unitysvc.com) which provides a visual editor with validation. You can export your data for use with this SDK.
 
-## list - List Local Files
+## usvc data - Local Data Operations
+
+Commands for working with local data files. These commands work offline and don't require API credentials.
+
+### usvc data list - List Local Files
 
 List data files in local directory.
 
-### list providers
+#### usvc data list providers
 
 ```bash
-unitysvc_services list providers [DATA_DIR]
+usvc data list providers [DATA_DIR]
 ```
 
 **Arguments:**
@@ -52,41 +79,53 @@ unitysvc_services list providers [DATA_DIR]
 
 ```bash
 # List providers in current directory
-usvc list providers
+usvc data list providers
 
 # List providers in specific directory
-usvc list providers ./data
+usvc data list providers ./data
 ```
 
-### list sellers
+#### usvc data list sellers
 
 ```bash
-unitysvc_services list sellers [DATA_DIR]
+usvc data list sellers [DATA_DIR]
 ```
 
-### list offerings
+#### usvc data list offerings
 
 ```bash
-unitysvc_services list offerings [DATA_DIR]
+usvc data list offerings [DATA_DIR]
 ```
 
-### list listings
+#### usvc data list listings
 
 ```bash
-unitysvc_services list listings [DATA_DIR]
+usvc data list listings [DATA_DIR]
 ```
+
+#### usvc data list services
+
+```bash
+usvc data list services [DATA_DIR]
+```
+
+List all services with their provider, offering, and listing files.
 
 **Output:**
 
 -   Table format with file paths and key fields
 -   Color-coded status indicators
 
-## query - Query Backend
+## usvc services - Remote Service Operations
+
+Commands for managing services on the backend. These commands require API credentials and can be run from anywhere.
+
+### usvc services list - Query Backend
 
 Query services for the current seller from UnitySVC backend API. Services are the identity layer that connects sellers to content versions (Provider, ServiceOffering, ServiceListing).
 
 ```bash
-unitysvc_services query [OPTIONS]
+usvc services list [OPTIONS]
 ```
 
 **Options:**
@@ -110,35 +149,35 @@ id, name, display_name, status, seller_id, provider_id, offering_id, listing_id,
 
 ```bash
 # Table output with default fields
-usvc query
+usvc services list
 
 # JSON output
-usvc query --format json
+usvc services list --format json
 
 # Custom fields - show only specific columns
-usvc query --fields id,name,status
+usvc services list --fields id,name,status
 
 # Filter by status
-usvc query --status active
+usvc services list --status active
 
 # Retrieve more than 100 records
-usvc query --limit 500
+usvc services list --limit 500
 
 # Pagination: get second page of 100 records
-usvc query --skip 100 --limit 100
+usvc services list --skip 100 --limit 100
 ```
 
-## publish - Publish Services to Backend
+### usvc services upload - Upload Services to Backend
 
-Publish services to UnitySVC backend. The publish command uses a **listing-centric** approach where each listing file triggers a unified publish of provider + offering + listing together.
+Upload services to UnitySVC backend. The upload command uses a **listing-centric** approach where each listing file triggers a unified upload of provider + offering + listing together.
 
-### How Publishing Works
+#### How Uploading Works
 
-A **Service** in UnitySVC consists of three data components that are published together:
+A **Service** in UnitySVC consists of three data components that are uploaded together:
 
 ```mermaid
 flowchart TB
-    subgraph Service["Published Together"]
+    subgraph Service["Uploaded Together"]
         P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
         O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
         L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
@@ -151,19 +190,19 @@ flowchart TB
     style L fill:#e8f5e9
 ```
 
-When you run `usvc publish`:
+When you run `usvc services upload`:
 
 1. **Finds** all listing files (`listing_v1` schema) in the directory tree
 2. For each listing, **locates** the offering file (`offering_v1`) in the same directory
 3. **Locates** the provider file (`provider_v1`) in the parent directory
-4. **Publishes** all three together to the `/seller/services` endpoint
+4. **Uploads** all three together to the `/seller/services` endpoint
 
-This ensures atomic publishing - all three components are validated and published as a single unit.
+This ensures atomic uploading - all three components are validated and uploaded as a single unit.
 
 **Usage:**
 
 ```bash
-unitysvc_services publish [OPTIONS]
+usvc services upload [OPTIONS]
 ```
 
 **Options:**
@@ -179,22 +218,22 @@ unitysvc_services publish [OPTIONS]
 **Examples:**
 
 ```bash
-# Publish all services from current directory
-usvc publish
+# Upload all services from current directory
+usvc services upload
 
-# Publish all services from custom directory
-usvc publish --data-path ./data
+# Upload all services from custom directory
+usvc services upload --data-path ./data
 
-# Publish a single service (specific listing file)
-usvc publish --data-path ./data/my-provider/services/my-service/listing.json
+# Upload a single service (specific listing file)
+usvc services upload --data-path ./data/my-provider/services/my-service/listing.json
 
-# Preview changes before publishing (dryrun mode)
-usvc publish --dryrun
+# Preview changes before uploading (dryrun mode)
+usvc services upload --dryrun
 ```
 
 **Dryrun Mode:**
 
-The `--dryrun` option allows you to preview what would happen during publish without making actual changes to the backend. This is useful for:
+The `--dryrun` option allows you to preview what would happen during upload without making actual changes to the backend. This is useful for:
 
 -   Verifying which services would be created vs updated
 -   Checking that all required files exist (provider, offering, listing)
@@ -205,67 +244,67 @@ In dryrun mode:
 -   No actual data is sent to the backend
 -   Backend returns what action would be taken (create/update/unchanged)
 -   Missing files are reported as errors
--   Summary shows what would happen if published
+-   Summary shows what would happen if uploaded
 
 **Output Format:**
 
-Publishing displays progress for each service and a summary table:
+Uploading displays progress for each service and a summary table:
 
 ```bash
-$ usvc publish
-Publishing services from: /path/to/data
+$ usvc services upload
+Uploading services from: /path/to/data
 Backend URL: https://api.unitysvc.com/api/v1
 
   + Created service: listing-premium (offering: gpt-4, provider: openai)
   ~ Updated service: listing-basic (offering: gpt-4, provider: openai)
   = Unchanged service: listing-default (offering: claude-3, provider: anthropic)
 
-Publishing Summary
+Upload Summary
 ╭──────────┬───────┬─────────┬─────────┬────────┬─────────┬─────────┬───────────╮
 │ Type     │ Found │ Success │ Skipped │ Failed │ Created │ Updated │ Unchanged │
 ├──────────┼───────┼─────────┼─────────┼────────┼─────────┼─────────┼───────────┤
 │ Services │ 3     │ 3       │         │        │ 1       │ 1       │ 1         │
 ╰──────────┴───────┴─────────┴─────────┴────────┴─────────┴─────────┴───────────╯
 
-✓ All services published successfully!
+✓ All services uploaded successfully!
 ```
 
 **Status Indicators:**
 
 | Symbol | Status | Meaning |
 |--------|--------|---------|
-| `+` | Created | New service published for the first time |
+| `+` | Created | New service uploaded for the first time |
 | `~` | Updated | Existing service updated with changes |
 | `=` | Unchanged | Service already exists and is identical |
-| `⊘` | Skipped | Service has draft status, not published |
-| `✗` | Failed | Error during publishing |
+| `⊘` | Skipped | Service has draft status, not uploaded |
+| `✗` | Failed | Error during uploading |
 
 **Skipped Services:**
 
-Services are skipped (not published) when any of these conditions are true:
+Services are skipped (not uploaded) when any of these conditions are true:
 
 -   Provider has `status: draft` - provider still being configured
 -   Offering has `status: draft` - offering still being configured
 -   Listing has `status: draft` - listing still being configured
 
-This allows you to work on services locally without publishing incomplete data. Set status to `ready` when you're ready to publish.
+This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
 
 **Error Handling:**
 
-If publishing fails for a service, the error is displayed and publishing continues with remaining services. Common errors:
+If uploading fails for a service, the error is displayed and uploading continues with remaining services. Common errors:
 
 -   Missing offering file in the same directory as the listing
 -   Missing provider file in the parent directory
 -   Invalid data that fails schema validation
 -   Network/authentication errors
 
-**Idempotent Publishing:**
+**Idempotent Uploading:**
 
-Publishing is idempotent - running `usvc publish` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
+Uploading is idempotent - running `usvc services upload` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
 
 **Override Files and Service ID Persistence:**
 
-After a successful first publish, the SDK automatically saves the `service_id` to an override file:
+After a successful first upload, the SDK automatically saves the `service_id` to an override file:
 
 ```
 listing.json       →  listing.override.json
@@ -279,23 +318,23 @@ Example override file content:
 }
 ```
 
-**Important:** The `service_id` is the stable identifier that subscriptions reference. When you first publish from a new repository or data directory, a **new Service is always created**, even if the content is identical to an existing service. The `service_id` in the override file ensures subsequent publishes update this specific service.
+**Important:** The `service_id` is the stable identifier that subscriptions reference. When you first upload from a new repository or data directory, a **new Service is always created**, even if the content is identical to an existing service. The `service_id` in the override file ensures subsequent uploads update this specific service.
 
-On subsequent publishes, the `service_id` is automatically loaded from the override file and included in the publish request, ensuring the existing service is **updated** rather than creating a new one.
+On subsequent uploads, the `service_id` is automatically loaded from the override file and included in the upload request, ensuring the existing service is **updated** rather than creating a new one.
 
-**Publishing as New (Remove Existing Service ID):**
+**Uploading as New (Remove Existing Service ID):**
 
-If you need to publish as a completely new service (ignoring any existing `service_id`), delete the override file before publishing:
+If you need to upload as a completely new service (ignoring any existing `service_id`), delete the override file before uploading:
 
 ```bash
-# Remove override file to publish as new service
+# Remove override file to upload as new service
 rm listing.override.json
 
-# Publish - will create a new service with a new service_id
-usvc publish --data-path ./my-provider/services/my-service/listing.json
+# Upload - will create a new service with a new service_id
+usvc services upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
-Use cases for publishing as new:
+Use cases for uploading as new:
 - Accidentally deleted the service from the backend and need to recreate it
 - Deploying to a different environment (staging vs production)
 - Backend data was reset
@@ -312,8 +351,8 @@ cp listing.json listing-enterprise.json
 #    - Change "name" field to a unique value (e.g., "enterprise")
 #    - Modify pricing, parameters, etc. as needed
 
-# 3. Publish the new listing (no override file exists, so creates new service)
-usvc publish --data-path ./my-provider/services/my-service/listing-enterprise.json
+# 3. Upload the new listing (no override file exists, so creates new service)
+usvc services upload --data-path ./my-provider/services/my-service/listing-enterprise.json
 ```
 
 **Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
@@ -327,7 +366,226 @@ listing.override.json          # service_id for production
 listing.staging.override.json  # service_id for staging
 ```
 
-## unpublish - Unpublish from Backend
+### usvc services deprecate - Deprecate a Service
+
+Deprecate an active service. Deprecated services remain accessible but are marked as deprecated.
+
+```bash
+usvc services deprecate <SERVICE_ID> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service to deprecate (required)
+
+**Options:**
+
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Deprecate a service (with confirmation)
+usvc services deprecate abc123-uuid
+
+# Deprecate without confirmation
+usvc services deprecate abc123-uuid -y
+```
+
+### usvc services delete - Delete a Service
+
+Permanently delete a service from the backend.
+
+```bash
+usvc services delete <SERVICE_ID> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service to delete (required)
+
+**Options:**
+
+-   `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Delete a service (with confirmation)
+usvc services delete abc123-uuid
+
+# Delete without confirmation
+usvc services delete abc123-uuid -y
+```
+
+### usvc services submit - Submit for Review
+
+Submit a draft service for ops review.
+
+```bash
+usvc services submit <SERVICE_ID>
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service to submit (required)
+
+**Examples:**
+
+```bash
+# Submit a service for review
+usvc services submit abc123-uuid
+```
+
+**Required Environment Variables:**
+
+-   `UNITYSVC_BASE_URL` - Backend API URL
+-   `UNITYSVC_API_KEY` - API key for authentication
+
+---
+
+## usvc services test commands
+
+Commands for managing and running tests on deployed services via the gateway.
+
+### usvc services list-tests
+
+List tests for deployed services. If no service ID is specified, lists tests for all services.
+
+```bash
+usvc services list-tests [SERVICE_ID] [OPTIONS]
+```
+
+**Arguments:**
+
+-   `[SERVICE_ID]` - UUID or partial UUID of the service (optional, lists all if omitted)
+
+**Options:**
+
+-   `--format, -f TEXT` - Output format: table, json (default: table)
+
+**Examples:**
+
+```bash
+# List tests for all services
+usvc services list-tests
+
+# List tests for specific service
+usvc services list-tests abc123
+
+# JSON output
+usvc services list-tests --format json
+```
+
+### usvc services show-test
+
+Show details of a test for a deployed service.
+
+```bash
+usvc services show-test <SERVICE_ID> -t <TEST_TITLE> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+
+**Options:**
+
+-   `--test-title, -t TEXT` - Test title (required)
+-   `--format, -f TEXT` - Output format: table, json (default: table)
+
+**Examples:**
+
+```bash
+usvc services show-test abc123 -t "Python Example"
+```
+
+### usvc services run-tests
+
+Run tests via gateway using the backend's execution environment. Queues a Celery task to execute the test script with gateway credentials.
+
+```bash
+usvc services run-tests <SERVICE_ID> [OPTIONS]
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+
+**Options:**
+
+-   `--test-title, -t TEXT` - Run specific test by title (runs all if not specified)
+-   `--verbose, -v` - Show detailed output
+-   `--force, -f` - Force rerun (ignore skip status)
+-   `--fail-fast, -x` - Stop on first failure
+
+**Examples:**
+
+```bash
+# Run all tests for a service
+usvc services run-tests abc123
+
+# Run specific test
+usvc services run-tests abc123 -t "Demo"
+
+# Verbose output
+usvc services run-tests abc123 -v
+
+# Force rerun even if previously successful
+usvc services run-tests abc123 --force
+```
+
+### usvc services skip-test
+
+Mark a code example test as skipped. Skipped tests are excluded from test runs. Note: Connectivity tests cannot be skipped.
+
+```bash
+usvc services skip-test <SERVICE_ID> -t <TEST_TITLE>
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+
+**Options:**
+
+-   `--test-title, -t TEXT` - Test title (required)
+
+**Examples:**
+
+```bash
+usvc services skip-test abc123 -t "Demo that requires GPU"
+```
+
+### usvc services unskip-test
+
+Remove skip status from a test, making it eligible for execution again.
+
+```bash
+usvc services unskip-test <SERVICE_ID> -t <TEST_TITLE>
+```
+
+**Arguments:**
+
+-   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+
+**Options:**
+
+-   `--test-title, -t TEXT` - Test title (required)
+
+**Examples:**
+
+```bash
+usvc services unskip-test abc123 -t "Demo that requires GPU"
+```
+
+---
+
+## Legacy unpublish commands (deprecated)
+
+These commands are deprecated. Use `usvc services deprecate` and `usvc services delete` instead.
+
+### unpublish - Unpublish from Backend
 
 Unpublish (delete) data from UnitySVC backend. This command provides granular control over removing offerings, listings, providers, and sellers.
 
@@ -587,12 +845,12 @@ usvc update listing \
   --seller svcreseller
 ```
 
-## validate - Validate Data
+### usvc data validate - Validate Data
 
 Validate data consistency and schema compliance.
 
 ```bash
-unitysvc_services validate [DATA_DIR]
+usvc data validate [DATA_DIR]
 ```
 
 **Arguments:**
@@ -612,10 +870,10 @@ unitysvc_services validate [DATA_DIR]
 
 ```bash
 # Validate current directory
-usvc validate
+usvc data validate
 
 # Validate specific directory
-usvc validate ./data
+usvc data validate ./data
 ```
 
 **Exit Codes:**
@@ -623,12 +881,12 @@ usvc validate ./data
 -   `0` - All validations passed
 -   `1` - Validation errors found
 
-## format - Format Files
+### usvc data format - Format Files
 
 Format data files to match pre-commit requirements.
 
 ```bash
-unitysvc_services format [DATA_DIR] [OPTIONS]
+usvc data format [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
@@ -650,13 +908,13 @@ unitysvc_services format [DATA_DIR] [OPTIONS]
 
 ```bash
 # Format all files in current directory
-usvc format
+usvc data format
 
 # Check formatting without changes
-usvc format --check
+usvc data format --check
 
 # Format specific directory
-usvc format ./data
+usvc data format ./data
 ```
 
 **Exit Codes:**
@@ -664,12 +922,12 @@ usvc format ./data
 -   `0` - All files formatted or already formatted
 -   `1` - Formatting errors or files need formatting (with --check)
 
-## populate - Generate Services
+### usvc data populate - Generate Services
 
 Execute provider populate scripts to auto-generate service data.
 
 ```bash
-unitysvc_services populate [DATA_DIR] [OPTIONS]
+usvc data populate [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
@@ -691,18 +949,18 @@ unitysvc_services populate [DATA_DIR] [OPTIONS]
 
 ```bash
 # Run all populate scripts
-usvc populate
+usvc data populate
 
 # Run for specific provider
-usvc populate --provider openai
+usvc data populate --provider openai
 
 # Dry run
-usvc populate --dry-run
+usvc data populate --dry-run
 ```
 
-## test - Test Code Examples
+## usvc data test commands
 
-Test code examples with upstream API credentials. This command discovers code examples from listing files and executes them with provider credentials.
+Test code examples locally with upstream API credentials. These commands discover code examples from listing files and execute them with provider credentials.
 
 **How it works:**
 
@@ -714,12 +972,12 @@ Test code examples with upstream API credentials. This command discovers code ex
 6. Executes code examples using appropriate interpreter (python3, node, bash)
 7. Validates results based on exit code and optional `expect` field
 
-### test list
+### usvc data list-tests
 
 List available code examples without running them.
 
 ```bash
-unitysvc_services test list [DATA_DIR] [OPTIONS]
+usvc data list-tests [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
@@ -739,24 +997,24 @@ unitysvc_services test list [DATA_DIR] [OPTIONS]
 
 ```bash
 # List all code examples
-usvc test list
+usvc data list-tests
 
 # List for specific provider
-usvc test list --provider fireworks
+usvc data list-tests --provider fireworks
 
 # List for specific services (with wildcards)
-usvc test list --services "llama*,gpt-4*"
+usvc data list-tests --services "llama*,gpt-4*"
 
 # List from custom directory
-usvc test list ./data
+usvc data list-tests ./data
 ```
 
-### test run
+### usvc data run-tests
 
 Execute code examples and report results.
 
 ```bash
-unitysvc_services test run [DATA_DIR] [OPTIONS]
+usvc data run-tests [DATA_DIR] [OPTIONS]
 ```
 
 **Arguments:**
@@ -772,7 +1030,7 @@ unitysvc_services test run [DATA_DIR] [OPTIONS]
 -   `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
 -   `--fail-fast, -x` - Stop testing on first failure
 
-\*\*Test Pass Criteria:
+**Test Pass Criteria:**
 
 -   Exit code is 0 AND
 -   If `expect` field is defined in document: expected string found in stdout
@@ -805,39 +1063,39 @@ When a test passes, output files are saved in the listing directory:
 -   Saved alongside the listing definition file
 -   Used to skip re-running tests unless `--force` is specified
 
-\*\*Examples:
+**Examples:**
 
 ```bash
 # Test all code examples
-usvc test run
+usvc data run-tests
 
 # Test specific provider
-usvc test run --provider fireworks
+usvc data run-tests --provider fireworks
 
 # Test specific services (with wildcards)
-usvc test run --services "llama*,gpt-4*"
+usvc data run-tests --services "llama*,gpt-4*"
 
 # Test single service
-usvc test run --services "llama-3-1-405b-instruct"
+usvc data run-tests --services "llama-3-1-405b-instruct"
 
 # Test specific file
-usvc test run --test-file "code-example.py.j2"
+usvc data run-tests --test-file "code-example.py.j2"
 
 # Combine filters
-usvc test run --provider fireworks --services "llama*"
+usvc data run-tests --provider fireworks --services "llama*"
 
 # Show detailed output
-usvc test run --verbose
+usvc data run-tests --verbose
 
 # Force rerun all tests (ignore cached results)
-usvc test run --force
+usvc data run-tests --force
 
 # Stop on first failure (useful for quick feedback)
-usvc test run --fail-fast
+usvc data run-tests --fail-fast
 
 # Combine options
-usvc test run --force --fail-fast --verbose
-usvc test run -f -x -v  # Short form
+usvc data run-tests --force --fail-fast --verbose
+usvc data run-tests -f -x -v  # Short form
 ```
 
 **Interpreter Detection:**
@@ -852,14 +1110,38 @@ usvc test run -f -x -v  # Short form
 -   `0` - All tests passed
 -   `1` - One or more tests failed
 
+### usvc data show-test
+
+Show details of a local code example test, including rendered content and test results.
+
+```bash
+usvc data show-test [DATA_DIR] [OPTIONS]
+```
+
+**Arguments:**
+
+-   `[DATA_DIR]` - Data directory (default: current directory)
+
+**Options:**
+
+-   `--provider, -p NAME` - Filter by provider
+-   `--services, -s NAME` - Filter by service name
+-   `--test-file, -t FILENAME` - Show specific test file
+
+**Examples:**
+
+```bash
+usvc data show-test --services "my-service" --test-file "example.py.j2"
+```
+
 See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/code-examples/) for detailed guide on creating and debugging code examples.
 
 ## Environment Variables
 
-| Variable            | Description            | Used By        |
-| ------------------- | ---------------------- | -------------- |
-| `UNITYSVC_BASE_URL` | Backend API URL        | query, publish |
-| `UNITYSVC_API_KEY`  | API authentication key | query, publish |
+| Variable            | Description            | Used By                                    |
+| ------------------- | ---------------------- | ------------------------------------------ |
+| `UNITYSVC_BASE_URL` | Backend API URL        | `usvc services` commands                   |
+| `UNITYSVC_API_KEY`  | API authentication key | `usvc services` commands                   |
 
 **Example:**
 
@@ -867,8 +1149,13 @@ See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/
 export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
 export UNITYSVC_API_KEY=your-api-key
 
-usvc validate
-usvc publish providers
+# Local operations (no API key needed)
+usvc data validate
+usvc data format
+
+# Remote operations (requires API key)
+usvc services upload
+usvc services list
 ```
 
 ## Exit Codes
@@ -912,60 +1199,84 @@ Create data using the web interface at [unitysvc.com](https://unitysvc.com), the
 
 Alternatively, create files manually following the [File Schemas](file-schemas.md) documentation.
 
-### Full Publish Flow
+### Full Upload Flow
 
 ```bash
-# Set environment
+# Set environment (only needed for remote operations)
 export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
 export UNITYSVC_API_KEY=your-key
 
-# Validate and format
-usvc validate
-usvc format
+# Local operations: validate and format
+usvc data validate
+usvc data format
 
-# Preview changes before publishing (recommended)
+# Local operations: test code examples with upstream credentials
+usvc data list-tests
+usvc data run-tests
+
+# Preview changes before uploading (recommended)
 cd data
-usvc publish --dryrun
+usvc services upload --dryrun
 
-# If preview looks good, publish all (handles order automatically)
-usvc publish
+# If preview looks good, upload all (handles order automatically)
+usvc services upload
 
-# Verify
-usvc query
+# Verify on backend
+usvc services list
+
+# Run tests via gateway
+usvc services list-tests
+usvc services run-tests <service-id>
+
+# Submit for review when ready
+usvc services submit <service-id>
 ```
 
-### Update and Republish
+### Update and Re-upload
 
 ```bash
 # Update local file
 usvc update offering --name my-service --status ready
 
-# Validate
-usvc validate
+# Validate locally
+usvc data validate
 
 # Preview changes
-usvc publish offerings --dryrun
+usvc services upload --dryrun
 
-# Publish changes
-usvc publish offerings
+# Upload changes
+usvc services upload
 ```
 
 ### Automated Generation
 
 ```bash
 # Generate services
-usvc populate
+usvc data populate
 
 # Validate and format
-usvc validate
-usvc format
+usvc data validate
+usvc data format
 
 # Preview generated data
 cd data
-usvc publish --dryrun
+usvc services upload --dryrun
 
-# Publish all
-usvc publish
+# Upload all
+usvc services upload
+```
+
+### Managing Test Status
+
+```bash
+# Skip a code example test
+usvc services skip-test <service-id> -t "Demo that requires GPU"
+
+# Re-enable a skipped test
+usvc services unskip-test <service-id> -t "Demo that requires GPU"
+
+# View test details
+usvc services show-test <service-id> -t "Python Example"
 ```
 
 ## See Also

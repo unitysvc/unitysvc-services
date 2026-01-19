@@ -394,10 +394,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Load the listing data file
         listing_data, _ = load_data_file(listing_file)
 
-        # If name is not provided, use filename (without extension)
-        if "name" not in listing_data or not listing_data.get("name"):
-            listing_data["name"] = listing_file.stem
-
         # Extract provider directory from path structure
         # Expected: .../provider_name/services/service_name/listing.json
         parts = listing_file.parts
@@ -433,6 +429,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         if "name" not in offering_data or not offering_data.get("name"):
             offering_data["name"] = parts[services_idx + 1]
 
+        # If listing name is not provided, use offering name
+        # Service name = listing name or offering name
+        if "name" not in listing_data or not listing_data.get("name"):
+            listing_data["name"] = offering_data.get("name")
+
         # Find provider file in the parent directory
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
         if not provider_files:
@@ -448,7 +449,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Provider status is '{provider_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         # Check offering status - skip if draft
@@ -457,7 +458,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         # Check listing status - skip if draft
@@ -466,7 +467,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Listing status is '{listing_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         collected_attachments: list[Attachment] = []
@@ -629,7 +630,9 @@ class ServiceDataPublisher(UnitySvcAPI):
                 # Print complete statement after upload
                 if result.get("skipped"):
                     reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped service: [cyan]{listing_name}[/cyan] - {reason}")
+                    # Use service_name (offering name) as primary identifier
+                    skip_name = result.get("service_name") or listing_name
+                    console.print(f"  [yellow]⊘[/yellow] Skipped service: [cyan]{skip_name}[/cyan] - {reason}")
                 else:
                     service_name = result.get("service_name")
                     provider_name = result.get("provider_name")
@@ -644,8 +647,8 @@ class ServiceDataPublisher(UnitySvcAPI):
                     ops_status = listing_result.get("ops_status", "unknown")
 
                     console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{listing_name}[/cyan] "
-                        f"(offering: {service_name}, provider: {provider_name}) "
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{service_name}[/cyan] "
+                        f"(provider: {provider_name}) "
                         f"[dim]status={listing_status}, ops_status={ops_status}[/dim]"
                     )
                     # Update result with derived status for summary tracking

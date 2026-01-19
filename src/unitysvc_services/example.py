@@ -544,7 +544,105 @@ def list_code_examples(
     console.print(f"\n[green]Total:[/green] {len(all_code_examples)} code example(s)")
 
 
-@app.command("run-local")
+@app.command("show")
+def show_test(
+    service: str = typer.Argument(..., help="Service name to show test results for"),
+    title: str = typer.Option(
+        None, "--title", "-t", help="Only show results for specific test title"
+    ),
+    data_dir: Path | None = typer.Option(
+        None,
+        "--data-dir",
+        "-d",
+        help="Directory containing provider data files (default: current directory)",
+    ),
+):
+    """Show test results for a service's code examples.
+
+    Displays the status (.status), stdout (.out), and stderr (.err) files
+    for previously executed tests.
+
+    Examples:
+        usvc data test show llama-3-1-405b-instruct
+        usvc data test show llama-3-1-405b-instruct --title "Quick Start"
+    """
+    # Set data directory
+    if data_dir is None:
+        data_dir = Path.cwd()
+
+    if not data_dir.is_absolute():
+        data_dir = Path.cwd() / data_dir
+
+    if not data_dir.exists():
+        console.print(f"[red]Data directory not found: {data_dir}[/red]")
+        raise typer.Exit(code=1)
+
+    # Find listing files for the service
+    listing_results = find_files_by_schema(data_dir, "listing_v1")
+
+    found = False
+    for listing_file, _format, listing_data in listing_results:
+        # Check if this listing is for the requested service
+        service_dir = extract_service_directory_name(listing_file)
+        if service_dir != service:
+            continue
+
+        found = True
+        code_examples = extract_code_examples_from_listing(listing_data, listing_file)
+
+        if not code_examples:
+            console.print(f"[yellow]No code examples found for service: {service}[/yellow]")
+            continue
+
+        # Filter by title if specified
+        if title:
+            code_examples = [e for e in code_examples if e.get("title") == title]
+            if not code_examples:
+                console.print(f"[yellow]No test found with title: {title}[/yellow]")
+                continue
+
+        for example in code_examples:
+            example_title = example.get("title", "Unknown")
+            file_path = Path(example.get("file_path", ""))
+
+            console.print(f"\n[bold cyan]{example_title}[/bold cyan]")
+            console.print(f"[dim]File: {file_path.name}[/dim]")
+
+            # Get output file paths
+            out_path, err_path = get_output_file_paths(file_path, listing_file)
+            status_path = out_path.with_suffix(".status")
+
+            # Show status
+            if status_path.exists():
+                status = status_path.read_text().strip()
+                if status == "pass":
+                    console.print(f"[green]Status: PASS[/green]")
+                else:
+                    console.print(f"[red]Status: FAIL[/red]")
+            else:
+                console.print("[yellow]Status: NOT RUN[/yellow]")
+                continue
+
+            # Show stdout
+            if out_path.exists():
+                stdout = out_path.read_text()
+                if stdout.strip():
+                    console.print("\n[bold]stdout:[/bold]")
+                    console.print(stdout[:1000] if len(stdout) > 1000 else stdout)
+
+            # Show stderr
+            if err_path.exists():
+                stderr = err_path.read_text()
+                if stderr.strip():
+                    console.print("\n[bold]stderr:[/bold]")
+                    console.print(stderr[:1000] if len(stderr) > 1000 else stderr)
+
+    if not found:
+        console.print(f"[red]Service not found: {service}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command("run")
 def run_local(
     data_dir: Path | None = typer.Argument(
         None,

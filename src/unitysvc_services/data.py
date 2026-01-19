@@ -9,8 +9,7 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from . import format_data, list as list_cmd, populate, validator
-from .example import list_code_examples, run_local
+from . import example, format_data, list as list_cmd, populate, validator
 from .utils import find_files_by_schema, load_data_file, resolve_service_name_for_listing
 
 app = typer.Typer(help="Local data file operations (validate, format, test, etc.)")
@@ -250,7 +249,11 @@ app.add_typer(show_app, name="show")
 app.command("validate")(validator.validate)
 app.command("format")(format_data.format_data)
 app.command("populate")(populate.populate)
-app.command("test")(run_local)
+
+# Test commands - hyphenated for clarity (verb-noun)
+app.command("list-tests")(example.list_code_examples)
+app.command("run-tests")(example.run_local)
+app.command("show-test")(example.show_test)
 
 # Create combined list subgroup
 list_app = typer.Typer(help="List local data files")
@@ -343,11 +346,11 @@ def _list_services_impl(data_dir: Path | None):
 
     # Display results in table
     table = Table(title="Services")
-    table.add_column("Service", style="cyan")
+    table.add_column("Name", style="cyan")
     table.add_column("Provider", style="blue")
     table.add_column("Status", style="magenta")
     table.add_column("Service ID", style="yellow")
-    table.add_column("Listing File", style="dim")
+    table.add_column("File", style="dim")
 
     for svc in services:
         service_id = svc["service_id"][:8] + "..." if svc["service_id"] else "-"
@@ -394,8 +397,5 @@ list_app.command("providers")(list_cmd.list_providers)
 list_app.command("sellers")(list_cmd.list_sellers)
 list_app.command("offerings")(list_cmd.list_offerings)
 list_app.command("listings")(list_cmd.list_listings)
-
-# Add examples list from example.py
-list_app.command("examples")(list_code_examples)
 
 app.add_typer(list_app, name="list")
