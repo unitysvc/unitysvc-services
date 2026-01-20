@@ -703,6 +703,84 @@ def submit_service(
             raise typer.Exit(code=1)
 
 
+def withdraw_service(
+    service_ids: list[str] = typer.Argument(
+        ..., help="Service ID(s) to withdraw (supports partial IDs, minimum 8 chars)"
+    ),
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompt",
+    ),
+):
+    """Withdraw one or more services back to draft (pending/rejected → draft).
+
+    Use this to:
+    - Withdraw a pending submission before admin reviews it
+    - Acknowledge a rejection and prepare for edits
+
+    The service returns to draft status. Re-submit with 'usvc services submit'
+    after making any changes.
+
+    Supports partial ID matching (minimum 8 characters, like git).
+
+    Examples:
+        # Withdraw specific service
+        usvc services withdraw 297040cd
+
+        # Withdraw multiple services
+        usvc services withdraw 297040cd 112b499d
+
+        # Skip confirmation
+        usvc services withdraw 297040cd --yes
+    """
+    count = len(service_ids)
+    console.print(f"[cyan]Withdrawing {count} service(s) to draft...[/cyan]\n")
+    for sid in service_ids:
+        console.print(f"  • {sid}")
+    console.print()
+
+    if not yes:
+        confirm = typer.confirm(f"Withdraw {count} service(s) to draft status?")
+        if not confirm:
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
+
+    async def _withdraw_all():
+        unpublisher = ServiceDataUnpublisher()
+        results = []
+        for service_id in service_ids:
+            try:
+                result = await unpublisher.update_service_status(service_id, status="draft")
+                results.append((service_id, result, None))
+            except Exception as e:
+                results.append((service_id, None, str(e)))
+        return results
+
+    results = asyncio.run(_withdraw_all())
+
+    # Display results
+    success_count = 0
+    error_count = 0
+
+    for service_id, result, error in results:
+        if error:
+            console.print(f"[red]✗ {service_id}:[/red] {error}")
+            error_count += 1
+        else:
+            console.print(f"[green]✓ {service_id}:[/green] Withdrawn to draft")
+            success_count += 1
+
+    # Summary
+    if count > 1:
+        console.print()
+        console.print(f"[green]✓ Success:[/green] {success_count}/{count}")
+        if error_count > 0:
+            console.print(f"[red]✗ Failed:[/red] {error_count}/{count}")
+            raise typer.Exit(code=1)
+
+
 def delete_service(
     service_ids: list[str] = typer.Argument(..., help="Service ID(s) to delete (supports partial IDs)"),
     dryrun: bool = typer.Option(

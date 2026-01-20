@@ -502,7 +502,22 @@ usvc services show-test abc123 -t "Python Example"
 
 ### usvc services run-tests
 
-Run tests via gateway using the backend's execution environment. Queues a Celery task to execute the test script with gateway credentials.
+Run tests **locally** on your machine. Fetches test scripts from the backend, executes them with your local environment variables, and reports results back to the platform.
+
+**Environment Setup Required:**
+
+Before running tests, you must set up your environment with gateway credentials:
+
+```bash
+# Set gateway URL and your customer API key
+export BASE_URL="https://gateway.unitysvc.com"
+export API_KEY="svcpass_your_customer_api_key"
+```
+
+To get an API key:
+1. Create a customer account (or use an existing one)
+2. Generate a customer API key for that account
+3. Export it as `API_KEY` in your shell
 
 ```bash
 usvc services run-tests <SERVICE_ID> [OPTIONS]
@@ -515,25 +530,39 @@ usvc services run-tests <SERVICE_ID> [OPTIONS]
 **Options:**
 
 -   `--test-title, -t TEXT` - Run specific test by title (runs all if not specified)
--   `--verbose, -v` - Show detailed output
--   `--force, -f` - Force rerun (ignore skip status)
+-   `--doc-id, -d TEXT` - Run specific test by document ID (supports partial IDs)
+-   `--verbose, -v` - Show detailed output including stdout/stderr
+-   `--force` - Force rerun (ignore previous success status)
 -   `--fail-fast, -x` - Stop on first failure
+-   `--timeout INT` - Execution timeout in seconds (default: 30)
 
 **Examples:**
 
 ```bash
+# Set up environment first
+export BASE_URL="https://gateway.unitysvc.com"
+export API_KEY="svcpass_your_customer_api_key"
+
 # Run all tests for a service
 usvc services run-tests abc123
 
-# Run specific test
+# Run specific test by title
 usvc services run-tests abc123 -t "Demo"
+
+# Run specific test by document ID
+usvc services run-tests abc123 -d def456
 
 # Verbose output
 usvc services run-tests abc123 -v
 
 # Force rerun even if previously successful
 usvc services run-tests abc123 --force
+
+# Stop on first failure
+usvc services run-tests abc123 --fail-fast
 ```
+
+**Note:** This differs from web-based testing (frontend "Test" button) which uses the platform's ops customer API key. Local CLI testing gives you full control over the test environment but requires you to manage your own credentials.
 
 ### usvc services skip-test
 

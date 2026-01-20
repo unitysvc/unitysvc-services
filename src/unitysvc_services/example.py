@@ -100,7 +100,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                     "listing_data": listing_data,  # Full listing data for templates
                     "listing_file": listing_file,  # Path to listing file for loading related data
                     "interface": first_interface,  # First interface for templates (base_url, routing_key, etc.)
-                    "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
+                    "output_contains": meta.get("output_contains"),  # Substring to check in output (from meta)
                     "requirements": meta.get("requirements"),  # Required packages (from meta)
                     "category": category,  # Track which category this is
                 }
@@ -268,12 +268,12 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         }
 
         # Execute script using shared utility
-        expected_output = code_example.get("expect")
+        output_contains = code_example.get("output_contains")
         exec_result = execute_script_content(
             script=file_content,
             mime_type=mime_type,
             env_vars=env_vars,
-            expected_output=expected_output,
+            output_contains=output_contains,
             timeout=30,
         )
 

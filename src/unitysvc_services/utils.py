@@ -691,7 +691,7 @@ def execute_script_content(
     script: str,
     mime_type: str,
     env_vars: dict[str, str],
-    expected_output: str | None = None,
+    output_contains: str | None = None,
     timeout: int = 30,
 ) -> dict[str, Any]:
     """Execute script content and return results.
@@ -703,7 +703,7 @@ def execute_script_content(
         script: The script content to execute (expanded, not a template)
         mime_type: Document MIME type ("python", "javascript", "bash")
         env_vars: Environment variables to set (e.g., {"API_KEY": "...", "BASE_URL": "..."})
-        expected_output: Optional substring that must appear in stdout for success
+        output_contains: Optional substring that must appear in stdout for success
         timeout: Execution timeout in seconds (default: 30)
 
     Returns:
@@ -770,9 +770,9 @@ def execute_script_content(
         if process.returncode != 0:
             result["status"] = "script_failed"
             result["error"] = f"Script exited with code {process.returncode}"
-        elif expected_output and (not process.stdout or expected_output not in process.stdout):
+        elif output_contains and (not process.stdout or output_contains not in process.stdout):
             result["status"] = "unexpected_output"
-            result["error"] = f"Expected output not found: {expected_output}"
+            result["error"] = f"Output does not contain: {output_contains}"
         else:
             result["status"] = "success"
             result["error"] = None

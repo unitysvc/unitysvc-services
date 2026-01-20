@@ -4,7 +4,7 @@ import typer
 
 from . import query, upload, test_runner
 from .query import show_service
-from .unpublisher import delete_service, deprecate_service, submit_service
+from .unpublisher import delete_service, deprecate_service, submit_service, withdraw_service
 
 app = typer.Typer(help="Remote service operations (upload, submit, list, show, deprecate, delete, etc.)")
 
@@ -20,6 +20,9 @@ app.command("show")(show_service)
 
 # submit changes draft → pending (for review)
 app.command("submit")(submit_service)
+
+# withdraw returns pending/rejected → draft
+app.command("withdraw")(withdraw_service)
 
 # deprecate marks service as deprecated (status change)
 app.command("deprecate")(deprecate_service)
