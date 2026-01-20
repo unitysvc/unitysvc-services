@@ -1,6 +1,7 @@
 """Tests for the service lifecycle module."""
 
 import asyncio
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -15,6 +16,12 @@ from unitysvc_services.lifecycle import (
 )
 
 runner = CliRunner()
+
+
+def strip_ansi(text: str) -> str:
+    """Remove ANSI escape codes from text."""
+    ansi_pattern = re.compile(r'\x1b\[[0-9;]*m')
+    return ansi_pattern.sub('', text)
 
 
 # =============================================================================
@@ -383,35 +390,39 @@ class TestServicesIntegration:
         from unitysvc_services.services import app
 
         result = runner.invoke(app, ["deprecate", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "deprecated" in result.output.lower()
-        assert "--yes" in result.output
+        assert "deprecated" in output.lower()
+        assert "--yes" in output
 
     def test_services_submit_help(self):
         """Test submit command help text."""
         from unitysvc_services.services import app
 
         result = runner.invoke(app, ["submit", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "review" in result.output.lower() or "pending" in result.output.lower()
-        assert "--yes" in result.output
+        assert "review" in output.lower() or "pending" in output.lower()
+        assert "--yes" in output
 
     def test_services_withdraw_help(self):
         """Test withdraw command help text."""
         from unitysvc_services.services import app
 
         result = runner.invoke(app, ["withdraw", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "draft" in result.output.lower()
-        assert "--yes" in result.output
+        assert "draft" in output.lower()
+        assert "--yes" in output
 
     def test_services_delete_help(self):
         """Test delete command help text."""
         from unitysvc_services.services import app
 
         result = runner.invoke(app, ["delete", "--help"], color=False)
+        output = strip_ansi(result.output)
         assert result.exit_code == 0
-        assert "delete" in result.output.lower()
-        assert "--dryrun" in result.output
-        assert "--force" in result.output
-        assert "--yes" in result.output
+        assert "delete" in output.lower()
+        assert "--dryrun" in output
+        assert "--force" in output
+        assert "--yes" in output
