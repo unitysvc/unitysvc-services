@@ -3,8 +3,8 @@
 import typer
 
 from . import query, test_runner, upload
+from .lifecycle import delete_service, deprecate_service, submit_service, withdraw_service
 from .query import show_service
-from .unpublisher import delete_service, deprecate_service, submit_service, withdraw_service
 
 app = typer.Typer(help="Remote service operations (upload, submit, list, show, deprecate, delete, etc.)")
 
