@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -162,7 +163,7 @@ def show_service(
 
         # Find corresponding offering
         offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
-        offering_data = {}
+        offering_data: dict[str, Any] = {}
         offering_status = ""
         if offering_results:
             _, _fmt, offering_data = offering_results[0]
@@ -173,7 +174,7 @@ def show_service(
 
         if service_name == name:
             # Find provider status
-            provider_data = {}
+            provider_data: dict[str, Any] = {}
             provider_status = ""
             try:
                 provider_dir = listing_file.parent.parent.parent
@@ -293,7 +294,7 @@ def _list_services_impl(data_dir: Path | None):
         offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
         offering_name = ""
         offering_status = ""
-        offering_data = {}
+        offering_data: dict[str, Any] = {}
         if offering_results:
             _, _fmt, offering_data = offering_results[0]
             offering_name = offering_data.get("name", "")

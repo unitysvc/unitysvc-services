@@ -23,7 +23,11 @@ class TestRunner(UnitySvcAPI):
     ) -> list[dict[str, Any]]:
         """List documents for a service."""
         params = {"executable_only": "true"} if executable_only else {}
-        return await self.get(f"/seller/services/{service_id}/documents", params=params)
+        result = await self.get(f"/seller/services/{service_id}/documents", params=params)
+        # API may return list directly or wrapped in {"data": [...]}
+        if isinstance(result, list):
+            return result
+        return result.get("data", [])
 
     async def get_document(
         self, document_id: str, file_content: bool = False
@@ -42,7 +46,7 @@ class TestRunner(UnitySvcAPI):
         error: str | None = None,
     ) -> dict[str, Any]:
         """Update document test metadata with execution results."""
-        data = {
+        data: dict[str, Any] = {
             "status": status,
             "executed_at": datetime.now(UTC).isoformat(),
         }
@@ -426,7 +430,7 @@ def run_test(
         output_contains = full_meta.get("output_contains")
 
         # Use environment variables from user's shell (empty dict = inherit current env)
-        exec_env = {}
+        exec_env: dict[str, str] = {}
 
         try:
             result = execute_script_content(
