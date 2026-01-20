@@ -382,7 +382,7 @@ class TestServicesIntegration:
         """Test deprecate command help text."""
         from unitysvc_services.services import app
 
-        result = runner.invoke(app, ["deprecate", "--help"])
+        result = runner.invoke(app, ["deprecate", "--help"], color=False)
         assert result.exit_code == 0
         assert "deprecated" in result.output.lower()
         assert "--yes" in result.output
@@ -391,7 +391,7 @@ class TestServicesIntegration:
         """Test submit command help text."""
         from unitysvc_services.services import app
 
-        result = runner.invoke(app, ["submit", "--help"])
+        result = runner.invoke(app, ["submit", "--help"], color=False)
         assert result.exit_code == 0
         assert "review" in result.output.lower() or "pending" in result.output.lower()
         assert "--yes" in result.output
@@ -400,7 +400,7 @@ class TestServicesIntegration:
         """Test withdraw command help text."""
         from unitysvc_services.services import app
 
-        result = runner.invoke(app, ["withdraw", "--help"])
+        result = runner.invoke(app, ["withdraw", "--help"], color=False)
         assert result.exit_code == 0
         assert "draft" in result.output.lower()
         assert "--yes" in result.output
@@ -409,7 +409,7 @@ class TestServicesIntegration:
         """Test delete command help text."""
         from unitysvc_services.services import app
 
-        result = runner.invoke(app, ["delete", "--help"])
+        result = runner.invoke(app, ["delete", "--help"], color=False)
         assert result.exit_code == 0
         assert "delete" in result.output.lower()
         assert "--dryrun" in result.output
