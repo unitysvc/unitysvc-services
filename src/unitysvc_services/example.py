@@ -516,7 +516,7 @@ def list_code_examples(
     table.add_column("Type", style="magenta")
     table.add_column("File Path", style="dim")
 
-    for example, prov_name, file_ext in all_code_examples:
+    for example, _prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
         category = example.get("category", "unknown")
 
@@ -616,9 +616,9 @@ def show_test(
             if status_path.exists():
                 status = status_path.read_text().strip()
                 if status == "pass":
-                    console.print(f"[green]Status: PASS[/green]")
+                    console.print("[green]Status: PASS[/green]")
                 else:
-                    console.print(f"[red]Status: FAIL[/red]")
+                    console.print("[red]Status: FAIL[/red]")
             else:
                 console.print("[yellow]Status: NOT RUN[/yellow]")
                 continue

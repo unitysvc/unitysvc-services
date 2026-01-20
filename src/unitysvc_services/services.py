@@ -2,7 +2,7 @@
 
 import typer
 
-from . import query, upload, test_runner
+from . import query, test_runner, upload
 from .query import show_service
 from .unpublisher import delete_service, deprecate_service, submit_service, withdraw_service
 

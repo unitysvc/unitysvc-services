@@ -217,7 +217,9 @@ def show_service(
                     table.add_row(f"[bold]{key}[/bold]", "")
                     for k, v in service[key].items():
                         if isinstance(v, dict | list):
-                            table.add_row(f"  {k}", json.dumps(v, indent=2, default=str)[:100] + "..." if len(json.dumps(v)) > 100 else json.dumps(v, default=str))
+                            v_str = json.dumps(v, indent=2, default=str)
+                            display = v_str[:100] + "..." if len(v_str) > 100 else v_str
+                            table.add_row(f"  {k}", display)
                         else:
                             table.add_row(f"  {k}", str(v) if v is not None else "-")
 

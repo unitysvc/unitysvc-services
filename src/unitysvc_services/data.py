@@ -2,15 +2,15 @@
 
 import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from . import example, format_data, list as list_cmd, populate, validator
-from .utils import find_files_by_schema, load_data_file, resolve_service_name_for_listing
+from . import example, format_data, populate, validator
+from . import list as list_cmd
+from .utils import find_files_by_schema, resolve_service_name_for_listing
 
 app = typer.Typer(help="Local data file operations (validate, format, test, etc.)")
 console = Console()
@@ -23,7 +23,7 @@ show_app = typer.Typer(help="Show details of local data objects")
 @show_app.command("provider")
 def show_provider(
     name: str = typer.Argument(..., help="Provider name to show"),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",
@@ -58,7 +58,7 @@ def show_provider(
 @show_app.command("offering")
 def show_offering(
     name: str = typer.Argument(..., help="Offering name to show"),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",
@@ -93,7 +93,7 @@ def show_offering(
 @show_app.command("listing")
 def show_listing(
     name: str = typer.Argument(..., help="Listing name to show"),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",
@@ -133,7 +133,7 @@ def show_listing(
 @show_app.command("service")
 def show_service(
     name: str = typer.Argument(..., help="Service name to show (listing name or offering name)"),
-    data_dir: Optional[Path] = typer.Option(
+    data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
         "-d",

@@ -177,13 +177,6 @@ def list_listings(
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
 
-    # Find seller definition to get display names
-    seller_files = find_files_by_schema(data_dir, "seller_v1")
-    seller_info = {}
-    if seller_files:
-        # Use the first (and should be only) seller file
-        seller_info = seller_files[0][-1]
-
     # Find listing files by schema
     listing_files = find_files_by_schema(data_dir, "listing_v1")
 

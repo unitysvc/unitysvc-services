@@ -612,7 +612,7 @@ def deprecate_service(
     success_count = 0
     error_count = 0
 
-    for service_id, result, error in results:
+    for service_id, _result, error in results:
         if error:
             console.print(f"[red]✗ {service_id}:[/red] {error}")
             error_count += 1
@@ -686,7 +686,7 @@ def submit_service(
     success_count = 0
     error_count = 0
 
-    for service_id, result, error in results:
+    for service_id, _result, error in results:
         if error:
             console.print(f"[red]✗ {service_id}:[/red] {error}")
             error_count += 1
@@ -764,7 +764,7 @@ def withdraw_service(
     success_count = 0
     error_count = 0
 
-    for service_id, result, error in results:
+    for service_id, _result, error in results:
         if error:
             console.print(f"[red]✗ {service_id}:[/red] {error}")
             error_count += 1
@@ -874,10 +874,10 @@ def delete_service(
     if count > 1:
         console.print()
         if dryrun:
-            console.print(f"[yellow]Dry-run mode: No actual deletion performed[/yellow]")
+            console.print("[yellow]Dry-run mode: No actual deletion performed[/yellow]")
         console.print(f"[green]✓ Success:[/green] {success_count}/{count}")
         if error_count > 0:
             console.print(f"[red]✗ Failed:[/red] {error_count}/{count}")
             raise typer.Exit(code=1)
     elif dryrun:
-        console.print(f"\n[yellow]Dry-run mode: No actual deletion performed[/yellow]")
+        console.print("\n[yellow]Dry-run mode: No actual deletion performed[/yellow]")
