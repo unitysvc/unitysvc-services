@@ -12,6 +12,83 @@ Code examples help users understand how to interact with your services. The Unit
 -   Validating output automatically
 -   Publishing examples with your service listings
 
+## Gateway Testing Methods
+
+There are two ways to test code examples that access services through the UnitySVC gateway:
+
+### Web-Based Testing (Frontend)
+
+When you click the "Test" button in the UnitySVC web interface (admin panel or seller dashboard), the platform executes your code examples using:
+
+-   **`BASE_URL`**: Platform-provided gateway URL
+-   **`API_KEY`**: Platform's ops customer API key (shared across all sellers)
+
+**Characteristics:**
+
+-   Simple setup - no configuration required from sellers
+-   Limited to basic scripts (curl, Python, JavaScript, bash)
+-   Test execution happens on the platform's backend (Celery worker)
+-   Results are automatically saved to document metadata
+-   Suitable for quick validation and CI/CD integration
+
+**Limitations:**
+
+-   Cannot use complex SDK setups or custom environments
+-   Uses a shared test customer account (ops customer)
+-   Limited execution timeout and resource constraints
+
+### SDK-Based Testing (Local CLI)
+
+When you run tests locally using the `usvc` CLI, you must configure your own environment:
+
+```bash
+# Set up your environment before running tests
+export BASE_URL="https://gateway.unitysvc.com"
+export API_KEY="svcpass_your_customer_api_key"
+
+# Run tests
+usvc services test run <service_id>
+```
+
+**Setup Requirements:**
+
+1. **Create a Customer**: Create your own customer account for testing
+2. **Create an API Key**: Generate a customer API key for gateway access
+3. **Set Environment Variables**: Export `BASE_URL` and `API_KEY` in your shell
+
+**Characteristics:**
+
+-   Full control over test environment
+-   Can use complex SDK setups, custom libraries, and local tools
+-   Test execution happens on your local machine
+-   Results are submitted back to the platform
+-   Suitable for development, debugging, and advanced testing scenarios
+
+**Benefits:**
+
+-   Use your own customer account for isolated testing
+-   No shared resource constraints
+-   Full access to local debugging tools
+-   Can test with different API keys and configurations
+
+### Comparison
+
+| Feature | Web-Based | SDK-Based (Local) |
+|---------|-----------|-------------------|
+| Setup | None required | Requires customer + API key |
+| `BASE_URL` | Platform-provided | Seller-configured |
+| `API_KEY` | Platform ops customer | Seller's own customer |
+| Execution | Backend (Celery) | Local machine |
+| Script Types | Simple (curl, Python, JS) | Any (including complex SDKs) |
+| Debugging | Limited | Full local access |
+| Use Case | Quick validation | Development & advanced testing |
+
+### Recommended Workflow
+
+1. **Development**: Use SDK-based local testing for iterative development
+2. **Validation**: Use web-based testing for final validation before publishing
+3. **CI/CD**: Either method works; web-based is simpler, SDK-based offers more control
+
 ## Basic Concepts
 
 Before diving into creating code examples, understand these fundamental principles:

@@ -1,9 +1,13 @@
-"""Test command group - test code examples with upstream credentials."""
+"""Run code examples locally with upstream credentials.
+
+This is a local development tool to help sellers test code examples
+using upstream API credentials. It does NOT modify seller data files.
+
+Test results are written to .out and .err files alongside the code example,
+making it easy to track results in version control.
+"""
 
 import fnmatch
-import os
-import subprocess
-import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -11,17 +15,14 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from .models.base import DocumentCategoryEnum, OfferingStatusEnum
+from .models.base import DocumentCategoryEnum
 from .utils import (
-    determine_interpreter,
+    execute_script_content,
     find_files_by_schema,
-    load_data_file,
-    read_override_file,
     render_template_file,
-    write_override_file,
 )
 
-app = typer.Typer(help="Test code examples with upstream credentials")
+app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
 
 
@@ -99,7 +100,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
                     "listing_data": listing_data,  # Full listing data for templates
                     "listing_file": listing_file,  # Path to listing file for loading related data
                     "interface": first_interface,  # First interface for templates (base_url, routing_key, etc.)
-                    "expect": meta.get("expect"),  # Expected output substring for validation (from meta)
+                    "output_contains": meta.get("output_contains"),  # Substring to check in output (from meta)
                     "requirements": meta.get("requirements"),  # Required packages (from meta)
                     "category": category,  # Track which category this is
                 }
@@ -147,7 +148,7 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
         else:
             console.print(f"[yellow]Warning: No provider_v1 file found in {provider_dir}[/yellow]")
 
-        # Find seller file using find_files_by_schema
+        # Find seller file using find_files_by_schema (optional - seller files are not always present)
         # Go up to data directory (3 levels up from listing)
         data_dir = listing_file.parent.parent.parent.parent
         seller_results = find_files_by_schema(data_dir, "seller_v1")
@@ -156,8 +157,7 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
             # Data is already loaded by find_files_by_schema
             _file_path, _format, seller_data = seller_results[0]
             result["seller"] = seller_data
-        else:
-            console.print(f"[yellow]Warning: No seller_v1 file found in {data_dir}[/yellow]")
+        # No warning if seller file not found - seller data is optional
 
     except Exception as e:
         console.print(f"[yellow]Warning: Failed to load related data: {e}[/yellow]")
@@ -217,7 +217,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         "stdout": None,
         "stderr": None,
         "rendered_content": None,
-        "file_suffix": None,
+        "mime_type": None,
         "listing_file": None,
         "actual_filename": None,
     }
@@ -252,220 +252,130 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             result["error"] = f"Template rendering failed: {str(e)}"
             return result
 
-        # Get file suffix from the actual filename (after .j2 stripping if applicable)
-        file_suffix = Path(actual_filename).suffix or ".txt"
+        # Get mime_type from code_example
+        mime_type = code_example.get("mime_type", "python")
 
-        # Store rendered content and file suffix for later use (e.g., writing failed tests)
+        # Store rendered content for later use (e.g., writing failed tests)
         result["rendered_content"] = file_content
-        result["file_suffix"] = file_suffix
+        result["mime_type"] = mime_type
         result["listing_file"] = listing_file
         result["actual_filename"] = actual_filename
 
-        # Determine interpreter to use (using shared utility function)
-        interpreter_cmd, error = determine_interpreter(file_content, file_suffix)
-        if error:
-            result["error"] = error
-            return result
-
-        # At this point, interpreter_cmd is guaranteed to be a string (error check above)
-        assert interpreter_cmd is not None, "interpreter_cmd should not be None after error check"
-
         # Prepare environment variables
-        env = os.environ.copy()
-        env["API_KEY"] = credentials["api_key"]
-        env["BASE_URL"] = credentials["base_url"]
+        env_vars = {
+            "API_KEY": credentials["api_key"],
+            "BASE_URL": credentials["base_url"],
+        }
 
-        # Write script to temporary file with original extension
-        with tempfile.NamedTemporaryFile(mode="w", suffix=file_suffix, delete=False) as temp_file:
-            temp_file.write(file_content)
-            temp_file_path = temp_file.name
+        # Execute script using shared utility
+        output_contains = code_example.get("output_contains")
+        exec_result = execute_script_content(
+            script=file_content,
+            mime_type=mime_type,
+            env_vars=env_vars,
+            output_contains=output_contains,
+            timeout=30,
+        )
 
-        try:
-            # Execute the script (interpreter availability already verified)
-            process = subprocess.run(
-                [interpreter_cmd, temp_file_path],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=30,
-            )
+        # Map shared result to SDK result format
+        result["exit_code"] = exec_result["exit_code"]
+        result["stdout"] = exec_result["stdout"]
+        result["stderr"] = exec_result["stderr"]
+        result["error"] = exec_result["error"]
+        result["success"] = exec_result["status"] == "success"
 
-            result["exit_code"] = process.returncode
-            result["stdout"] = process.stdout
-            result["stderr"] = process.stderr
-
-            # Determine if test passed
-            # Test passes if: exit_code == 0 AND (expect is None OR expect in stdout)
-            expected_output = code_example.get("expect")
-
-            if process.returncode != 0:
-                # Failed: non-zero exit code
-                result["success"] = False
-                result["error"] = f"Script exited with code {process.returncode}. stderr: {process.stderr[:200]}"
-            elif expected_output and expected_output not in process.stdout:
-                # Failed: exit code is 0 but expected string not found in output
-                result["success"] = False
-                result["error"] = (
-                    f"Output validation failed: expected substring '{expected_output}' "
-                    f"not found in stdout. stdout: {process.stdout[:200]}"
-                )
-            else:
-                # Passed: exit code is 0 AND (no expect field OR expected string found)
-                result["success"] = True
-
-        finally:
-            try:
-                os.unlink(temp_file_path)
-            except Exception:
-                pass
-
-    except subprocess.TimeoutExpired:
-        result["error"] = "Script execution timeout (30 seconds)"
     except Exception as e:
         result["error"] = f"Error executing script: {str(e)}"
 
     return result
 
 
-def update_offering_override_status(listing_file: Path, status: OfferingStatusEnum | None) -> None:
-    """Update or remove the status field in the offering override file.
+def get_output_file_paths(code_example_path: Path, listing_file: Path) -> tuple[Path, Path]:
+    """Get the .out and .err file paths for a code example.
+
+    Output files are named: {listing_stem}_{code_example_filename}.out/.err
+    and are placed in the same directory as the listing file.
 
     Args:
-        listing_file: Path to the listing file (offering is in same directory)
-        status: Status to set (e.g., OfferingStatusEnum.deprecated), or None to remove status field
-    """
-    try:
-        # Find the offering file (offering.json) in the same directory
-        offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
-        if not offering_results:
-            console.print(f"[yellow]⚠ No service offering file found in {listing_file.parent}[/yellow]")
-            return
-
-        # Get the base offering file path
-        offering_file_path, _offering_format, _offering_data = offering_results[0]
-
-        # Load existing override data
-        override_data = read_override_file(offering_file_path)
-
-        # Update or remove status field
-        if status is None:
-            # Remove status field if it exists and equals deprecated
-            if override_data.get("status") == OfferingStatusEnum.deprecated:
-                del override_data["status"]
-                console.print("  [dim]→ Removed deprecated status from override file[/dim]")
-        else:
-            # Set status field
-            override_data["status"] = status.value
-            console.print(f"  [dim]→ Set status to {status.value} in override file[/dim]")
-
-        # Write override file (or delete if empty)
-        result = write_override_file(offering_file_path, override_data, delete_if_empty=True)
-        if result:
-            console.print(f"  [dim]→ Updated override file: {result}[/dim]")
-        elif override_data == {}:
-            console.print("  [dim]→ Removed empty override file[/dim]")
-
-    except Exception as e:
-        console.print(f"[yellow]⚠ Failed to update override file: {e}[/yellow]")
-
-
-# Maximum size for stdout/stderr in test results (1KB)
-MAX_OUTPUT_SIZE = 1024
-
-
-def truncate_output(output: str, max_size: int = MAX_OUTPUT_SIZE) -> str:
-    """Truncate output to max_size bytes, adding truncation notice if needed."""
-    if not output:
-        return ""
-    if len(output.encode("utf-8")) <= max_size:
-        return output
-    # Truncate and add notice
-    truncated = output.encode("utf-8")[: max_size - 20].decode("utf-8", errors="ignore")
-    return truncated + "... [truncated]"
-
-
-def save_document_test_result(
-    listing_file: Path,
-    document_title: str,
-    test_type: str,  # "upstream_test" or "gateway_test"
-    result: dict[str, Any],
-) -> None:
-    """Save test result to listing override file under documents.<title>.meta.
-
-    Since documents is now a dict keyed by title, we save directly to:
-    documents.<title>.meta.<test_type>
-
-    This merges naturally with deep_merge_dicts during load_data_file().
-
-    Args:
+        code_example_path: Path to the code example file
         listing_file: Path to the listing file
-        document_title: Title (key) of the document being tested
-        test_type: Type of test ("upstream_test" or "gateway_test")
-        result: Test result dict with success, exit_code, stdout, stderr
-    """
-    try:
-        # Load existing override data
-        override_data = read_override_file(listing_file)
-
-        # Initialize documents dict if not present
-        if "documents" not in override_data:
-            override_data["documents"] = {}
-
-        # Initialize entry for this document if not present
-        if document_title not in override_data["documents"]:
-            override_data["documents"][document_title] = {}
-
-        # Initialize meta for this document if not present
-        if "meta" not in override_data["documents"][document_title]:
-            override_data["documents"][document_title]["meta"] = {}
-
-        # Build test result structure (truncate stdout/stderr to 1KB)
-        test_result = {
-            "skip": False,
-            "return_code": result.get("exit_code"),
-            "stdout": truncate_output(result.get("stdout") or ""),
-            "stderr": truncate_output(result.get("stderr") or ""),
-        }
-
-        # Save under the appropriate test type in meta
-        override_data["documents"][document_title]["meta"][test_type] = test_result
-
-        # Write override file
-        write_override_file(listing_file, override_data)
-        console.print("  [dim]→ Test result saved to override file[/dim]")
-
-    except Exception as e:
-        console.print(f"[yellow]⚠ Failed to save test result: {e}[/yellow]")
-
-
-def has_existing_test_result(
-    listing_file: Path,
-    document_title: str,
-    test_type: str = "upstream_test",
-) -> bool:
-    """Check if a test result already exists in the listing data.
-
-    Checks documents.<title>.meta.<test_type> in the merged data
-    (base file + override file). Test results can be specified in
-    either the main data file or the override file.
-
-    Args:
-        listing_file: Path to the listing file
-        document_title: Title (key) of the document
-        test_type: Type of test to check for
 
     Returns:
-        True if test result exists, False otherwise
+        Tuple of (out_file_path, err_file_path)
     """
+    listing_stem = listing_file.stem
+    # Remove .j2 extension if present to get the actual filename
+    code_filename = code_example_path.name
+    if code_filename.endswith(".j2"):
+        code_filename = code_filename[:-3]
+
+    out_filename = f"{listing_stem}_{code_filename}.out"
+    err_filename = f"{listing_stem}_{code_filename}.err"
+
+    out_path = listing_file.parent / out_filename
+    err_path = listing_file.parent / err_filename
+
+    return out_path, err_path
+
+
+def has_passing_output_files(code_example_path: Path, listing_file: Path) -> bool:
+    """Check if a passing test result exists for a code example.
+
+    Only returns True if the test previously passed. Failed tests should be re-run.
+
+    Args:
+        code_example_path: Path to the code example file
+        listing_file: Path to the listing file
+
+    Returns:
+        True if .out, .err, and .status files exist AND status is "pass"
+    """
+    out_path, err_path = get_output_file_paths(code_example_path, listing_file)
+    status_path = out_path.with_suffix(".status")
+
+    if not (out_path.exists() and err_path.exists() and status_path.exists()):
+        return False
+
+    # Check if status is "pass"
     try:
-        # Load merged data (base + override) to check for test results
-        listing_data, _format = load_data_file(listing_file)
-        documents = listing_data.get("documents", {}) or {}
-        doc_data = documents.get(document_title, {})
-        meta = doc_data.get("meta", {}) or {}
-        return test_type in meta
+        status = status_path.read_text().strip()
+        return status == "pass"
     except Exception:
         return False
+
+
+def save_output_files(
+    code_example_path: Path,
+    listing_file: Path,
+    stdout: str,
+    stderr: str,
+    passed: bool,
+) -> tuple[Path, Path]:
+    """Save stdout, stderr, and status to .out, .err, and .status files.
+
+    Args:
+        code_example_path: Path to the code example file
+        listing_file: Path to the listing file
+        stdout: Standard output from execution
+        stderr: Standard error from execution
+        passed: Whether the test passed
+
+    Returns:
+        Tuple of (out_file_path, err_file_path)
+    """
+    out_path, err_path = get_output_file_paths(code_example_path, listing_file)
+    status_path = out_path.with_suffix(".status")
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(stdout or "")
+
+    with open(err_path, "w", encoding="utf-8") as f:
+        f.write(stderr or "")
+
+    with open(status_path, "w", encoding="utf-8") as f:
+        f.write("pass" if passed else "fail")
+
+    return out_path, err_path
 
 
 @app.command("list")
@@ -496,13 +406,13 @@ def list_code_examples(
 
     Examples:
         # List all code examples
-        usvc test list
+        usvc data list examples
 
         # List for specific provider
-        usvc test list --provider fireworks
+        usvc data list examples --provider fireworks
 
         # List for specific services
-        usvc test list --services "llama*,gpt-4*"
+        usvc data list examples --services "llama*,gpt-4*"
     """
     # Set data directory
     if data_dir is None:
@@ -538,7 +448,7 @@ def list_code_examples(
         console.print("[yellow]No providers found.[/yellow]")
         raise typer.Exit(code=0)
 
-    # Find all listing files
+    # Find all listing files (override files are merged to include document IDs)
     listing_results = find_files_by_schema(data_dir, "listing_v1")
 
     if not listing_results:
@@ -546,6 +456,7 @@ def list_code_examples(
         raise typer.Exit(code=0)
 
     # Extract code examples from all listings
+    # Tuple: (example, provider_name, file_ext)
     all_code_examples: list[tuple[dict[str, Any], str, str]] = []
 
     for listing_file, _format, listing_data in listing_results:
@@ -590,6 +501,7 @@ def list_code_examples(
                 file_ext = Path(path.stem).suffix or "unknown"
             else:
                 file_ext = path.suffix or "unknown"
+
             all_code_examples.append((example, prov_name, file_ext))
 
     if not all_code_examples:
@@ -599,13 +511,14 @@ def list_code_examples(
     # Display results in table
     table = Table(title="Available Code Examples")
     table.add_column("Service", style="cyan")
-    table.add_column("Provider", style="blue")
     table.add_column("Title", style="white")
+    table.add_column("Category", style="green")
     table.add_column("Type", style="magenta")
     table.add_column("File Path", style="dim")
 
-    for example, prov_name, file_ext in all_code_examples:
+    for example, _prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
+        category = example.get("category", "unknown")
 
         # Show path relative to data directory
         if file_path != "N/A":
@@ -619,8 +532,8 @@ def list_code_examples(
 
         row = [
             example["service_name"],
-            prov_name,
             example["title"],
+            category,
             file_ext,
             file_path,
         ]
@@ -631,8 +544,106 @@ def list_code_examples(
     console.print(f"\n[green]Total:[/green] {len(all_code_examples)} code example(s)")
 
 
-@app.command()
-def run(
+@app.command("show")
+def show_test(
+    service: str = typer.Argument(..., help="Service name to show test results for"),
+    title: str = typer.Option(
+        None, "--title", "-t", help="Only show results for specific test title"
+    ),
+    data_dir: Path | None = typer.Option(
+        None,
+        "--data-dir",
+        "-d",
+        help="Directory containing provider data files (default: current directory)",
+    ),
+):
+    """Show test results for a service's code examples.
+
+    Displays the status (.status), stdout (.out), and stderr (.err) files
+    for previously executed tests.
+
+    Examples:
+        usvc data test show llama-3-1-405b-instruct
+        usvc data test show llama-3-1-405b-instruct --title "Quick Start"
+    """
+    # Set data directory
+    if data_dir is None:
+        data_dir = Path.cwd()
+
+    if not data_dir.is_absolute():
+        data_dir = Path.cwd() / data_dir
+
+    if not data_dir.exists():
+        console.print(f"[red]Data directory not found: {data_dir}[/red]")
+        raise typer.Exit(code=1)
+
+    # Find listing files for the service
+    listing_results = find_files_by_schema(data_dir, "listing_v1")
+
+    found = False
+    for listing_file, _format, listing_data in listing_results:
+        # Check if this listing is for the requested service
+        service_dir = extract_service_directory_name(listing_file)
+        if service_dir != service:
+            continue
+
+        found = True
+        code_examples = extract_code_examples_from_listing(listing_data, listing_file)
+
+        if not code_examples:
+            console.print(f"[yellow]No code examples found for service: {service}[/yellow]")
+            continue
+
+        # Filter by title if specified
+        if title:
+            code_examples = [e for e in code_examples if e.get("title") == title]
+            if not code_examples:
+                console.print(f"[yellow]No test found with title: {title}[/yellow]")
+                continue
+
+        for example in code_examples:
+            example_title = example.get("title", "Unknown")
+            file_path = Path(example.get("file_path", ""))
+
+            console.print(f"\n[bold cyan]{example_title}[/bold cyan]")
+            console.print(f"[dim]File: {file_path.name}[/dim]")
+
+            # Get output file paths
+            out_path, err_path = get_output_file_paths(file_path, listing_file)
+            status_path = out_path.with_suffix(".status")
+
+            # Show status
+            if status_path.exists():
+                status = status_path.read_text().strip()
+                if status == "pass":
+                    console.print("[green]Status: PASS[/green]")
+                else:
+                    console.print("[red]Status: FAIL[/red]")
+            else:
+                console.print("[yellow]Status: NOT RUN[/yellow]")
+                continue
+
+            # Show stdout
+            if out_path.exists():
+                stdout = out_path.read_text()
+                if stdout.strip():
+                    console.print("\n[bold]stdout:[/bold]")
+                    console.print(stdout[:1000] if len(stdout) > 1000 else stdout)
+
+            # Show stderr
+            if err_path.exists():
+                stderr = err_path.read_text()
+                if stderr.strip():
+                    console.print("\n[bold]stderr:[/bold]")
+                    console.print(stderr[:1000] if len(stderr) > 1000 else stderr)
+
+    if not found:
+        console.print(f"[red]Service not found: {service}[/red]")
+        raise typer.Exit(code=1)
+
+
+@app.command("run")
+def run_local(
     data_dir: Path | None = typer.Argument(
         None,
         help="Directory containing provider data files (default: current directory)",
@@ -674,43 +685,44 @@ def run(
         help="Stop testing on first failure",
     ),
 ):
-    """Test code examples with upstream API credentials.
+    """Run code examples locally with upstream API credentials.
 
     This command:
     1. Scans for all listing files (schema: listing_v1)
     2. Extracts code example documents
-    3. Loads provider credentials from provider.toml
-    4. Skips tests that have existing .out and .err files (unless --force is used)
+    3. Loads provider credentials from offering file
+    4. Skips tests that previously passed (unless --force is used)
     5. Executes each code example with API_KEY and BASE_URL set to upstream values
-    6. Displays test results
+    6. Saves output to .out and .err files for tracking
+    7. Displays test results
 
     Examples:
-        # Test all code examples
-        unitysvc_services test run
+        # Run all code examples
+        usvc data test
 
-        # Test specific provider
-        unitysvc_services test run --provider fireworks
+        # Run for specific provider
+        usvc data test --provider fireworks
 
-        # Test specific services (with wildcards)
-        unitysvc_services test run --services "llama*,gpt-4*"
+        # Run for specific services (with wildcards)
+        usvc data test --services "llama*,gpt-4*"
 
-        # Test single service
-        unitysvc_services test run --services "llama-3-1-405b-instruct"
+        # Run single service
+        usvc data test --services "llama-3-1-405b-instruct"
 
-        # Test specific file
-        unitysvc_services test run --test-file "code-example.py.j2"
+        # Run specific file
+        usvc data test --test-file "code-example.py.j2"
 
         # Combine filters
-        unitysvc_services test run --provider fireworks --services "llama*"
+        usvc data test --provider fireworks --services "llama*"
 
         # Show detailed output
-        unitysvc_services test run --verbose
+        usvc data test --verbose
 
         # Force rerun all tests (ignore existing results)
-        unitysvc_services test run --force
+        usvc data test --force
 
         # Stop on first failure
-        unitysvc_services test run --fail-fast
+        usvc data test --fail-fast
     """
     # Set data directory
     if data_dir is None:
@@ -738,7 +750,7 @@ def run(
 
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
-    # Find all listing files
+    # Find all listing files (override files are merged to include document IDs)
     listing_results = find_files_by_schema(data_dir, "listing_v1")
 
     if not listing_results:
@@ -804,25 +816,20 @@ def run(
 
     # Execute each code example
     results = []
-    skipped_count = 0
-
-    # Track test results per service offering (for status updates)
-    # Key: offering directory path, Value: {"passed": int, "failed": int, "listing_file": Path}
-    offering_test_results: dict[str, dict[str, Any]] = {}
 
     for example, prov_name, credentials in all_code_examples:
         service_name = example["service_name"]
         title = example["title"]
         example_listing_file = example.get("listing_file")
 
-        # Check if test results already exist in override file (skip if not forcing)
-        if not force and example_listing_file and has_existing_test_result(
-            Path(example_listing_file), title, "upstream_test"
+        # Check if test previously passed (skip if not forcing)
+        code_example_path = Path(example.get("file_path", ""))
+        if not force and example_listing_file and has_passing_output_files(
+            code_example_path, Path(example_listing_file)
         ):
             console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
-            console.print("  [yellow]⊘ Skipped[/yellow] (results exist in override file)")
+            console.print("  [yellow]⊘ Skipped[/yellow] (previously passed)")
             console.print()
-            skipped_count += 1
             # Add a skipped result for the summary
             results.append(
                 {
@@ -857,25 +864,16 @@ def run(
             if verbose and result["stdout"]:
                 console.print(f"  [dim]stdout:[/dim] {result['stdout'][:200]}")
 
-            # Save test result to listing override file
+            # Save output to .out, .err, and .status files
             if example_listing_file:
-                save_document_test_result(
+                out_path, err_path = save_output_files(
+                    code_example_path,
                     Path(example_listing_file),
-                    title,
-                    "upstream_test",
-                    result,
+                    result.get("stdout", "") or "",
+                    result.get("stderr", "") or "",
+                    passed=True,
                 )
-
-            # Track test result for this offering (don't update status yet)
-            if example_listing_file and not test_file:
-                offering_dir = str(example_listing_file.parent)
-                if offering_dir not in offering_test_results:
-                    offering_test_results[offering_dir] = {
-                        "passed": 0,
-                        "failed": 0,
-                        "listing_file": example_listing_file,
-                    }
-                offering_test_results[offering_dir]["passed"] += 1
+                console.print(f"  [dim]Output saved to: {out_path.name}, {err_path.name}[/dim]")
         else:
             console.print(f"  [red]✗ Failed[/red] - {result['error']}")
             if verbose:
@@ -884,14 +882,16 @@ def run(
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
-            # Save test result to listing override file (even for failures)
+            # Save output to .out, .err, and .status files (even for failures)
             if example_listing_file:
-                save_document_test_result(
+                out_path, err_path = save_output_files(
+                    code_example_path,
                     Path(example_listing_file),
-                    title,
-                    "upstream_test",
-                    result,
+                    result.get("stdout", "") or "",
+                    result.get("stderr", "") or "",
+                    passed=False,
                 )
+                console.print(f"  [dim]Output saved to: {out_path.name}, {err_path.name}[/dim]")
 
             # Write failed test script and env to current directory (for debugging)
             if result.get("listing_file") and result.get("actual_filename"):
@@ -921,17 +921,6 @@ def run(
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save environment file: {e}[/yellow]")
 
-            # Track test result for this offering (don't update status yet)
-            if example_listing_file and not test_file:
-                offering_dir = str(example_listing_file.parent)
-                if offering_dir not in offering_test_results:
-                    offering_test_results[offering_dir] = {
-                        "passed": 0,
-                        "failed": 0,
-                        "listing_file": example_listing_file,
-                    }
-                offering_test_results[offering_dir]["failed"] += 1
-
             # Stop testing if fail-fast is enabled
             if fail_fast:
                 console.print()
@@ -939,21 +928,6 @@ def run(
                 break
 
         console.print()
-
-    # Update offering status based on test results (only if not using --test-file)
-    if not test_file and offering_test_results:
-        console.print("\n[cyan]Updating service offering status...[/cyan]")
-        for _offering_dir, test_stats in offering_test_results.items():
-            listing_file = test_stats["listing_file"]
-            passed = test_stats["passed"]
-            failed = test_stats["failed"]
-
-            # If any test failed, set to deprecated
-            if failed > 0:
-                update_offering_override_status(listing_file, OfferingStatusEnum.deprecated)
-            # If all tests passed, remove deprecated status
-            elif passed > 0 and failed == 0:
-                update_offering_override_status(listing_file, None)
 
     # Print summary table
     console.print("\n" + "=" * 70)

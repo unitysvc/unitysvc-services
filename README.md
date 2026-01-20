@@ -107,23 +107,28 @@ This separation enables:
 #    Place files in: data/{provider}/services/{service}/
 
 # 2. Validate and format your local data
-usvc validate
-usvc format
+usvc data validate
+usvc data format
 
-# 3. Test code examples with upstream credentials
-usvc test list --provider my-provider
-usvc test run --provider my-provider --services "my-*"
+# 3. Run code examples locally with upstream credentials
+usvc data list-tests
+usvc data run-tests --provider my-provider
 
 # 4. For dynamic catalogs, use populate scripts
-usvc populate
+usvc data populate
 
-# 5. Publish to platform (publishes provider + offering + listing together)
+# 5. Upload to platform (uploads provider + offering + listing together)
 export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
-usvc publish
+usvc services upload
 
-# 6. Query backend to verify published data
-usvc query
+# 6. Test via gateway and submit for review
+usvc services list-tests
+usvc services run-tests
+usvc services submit <service-id>
+
+# 7. Query backend to verify uploaded data
+usvc services list
 ```
 
 ## Data Structure
@@ -136,15 +141,15 @@ data/
 │   └── services/
 │       └── ${service_name}/
 │           ├── offering.json      # Offering Data (offering_v1)
-│           └── listing-*.json     # Listing Data (listing_v1) ← publish entry point
+│           └── listing-*.json     # Listing Data (listing_v1) ← upload entry point
 ```
 
-**Publishing is listing-centric**: When you run `usvc publish`, the SDK:
+**Uploading is listing-centric**: When you run `usvc services upload`, the SDK:
 
 1. Finds all listing files (`listing_v1` schema)
 2. For each listing, locates the **single** offering file in the same directory
 3. Locates the provider file in the parent directory
-4. Publishes all three together as a unified service
+4. Uploads all three together as a unified service in `draft` status
 
 **Key constraint**: Each service directory must have exactly **one** offering file. Listings automatically belong to this offering based on their file location—no explicit linking required.
 
@@ -166,36 +171,59 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 ### Getting Started
 
 ```bash
-web interface (create data) → export → validate → publish
+web interface (create data) → export → usvc data validate → usvc services upload
 ```
 
 ### Ongoing Management
 
 ```bash
-edit files → validate → format → test → commit → publish
+edit files → usvc data validate → usvc data format → usvc data run-tests → commit → usvc services upload
 ```
 
 ### Automated Workflow (large/dynamic catalogs)
 
 ```bash
-configure populate script → populate → validate → publish (via CI/CD)
+configure populate script → usvc data populate → usvc data validate → usvc services upload (via CI/CD)
 ```
 
 See [Workflows Documentation](https://unitysvc-services.readthedocs.io/en/latest/workflows/) for details.
 
 ## CLI Commands
 
-| Command     | Description                                      |
-| ----------- | ------------------------------------------------ |
-| `list`      | List local data files                            |
-| `query`     | Query backend API for published data             |
-| `publish`   | Publish services to backend                      |
-| `unpublish` | Unpublish (delete) data from backend             |
-| `update`    | Update local file fields                         |
-| `validate`  | Validate data consistency                        |
-| `format`    | Format data files                                |
-| `populate`  | Execute provider populate scripts                |
-| `test`      | Test code examples with upstream API credentials |
+The CLI is organized into two main command groups:
+
+### Local Data Operations (`usvc data`)
+
+Work with local data files - can be used offline without API credentials.
+
+| Command        | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `validate`     | Validate data files against schemas                |
+| `format`       | Format/prettify data files                         |
+| `populate`     | Generate data files from provider scripts          |
+| `list`         | List local data files (services, providers, etc.)  |
+| `show`         | Show details of a local data object                |
+| `list-tests`   | List code examples in local data                   |
+| `run-tests`     | Run code examples locally with upstream credentials|
+| `show-test`    | Show details of a local test                       |
+
+### Remote Service Operations (`usvc services`)
+
+Manage services on the backend - can be run from anywhere with the right API key.
+
+| Command        | Description                                        |
+| -------------- | -------------------------------------------------- |
+| `upload`       | Upload services to backend (draft status)          |
+| `list`         | List deployed services on backend                  |
+| `show`         | Show details of a deployed service                 |
+| `submit`       | Submit draft service for ops review                |
+| `deprecate`    | Deprecate an active service                        |
+| `delete`       | Delete a service from backend                      |
+| `list-tests`   | List tests for deployed services                   |
+| `show-test`    | Show details of a test for a deployed service      |
+| `run-tests`     | Run tests via gateway (backend execution)          |
+| `skip-test`    | Mark a code example test as skipped                |
+| `unskip-test`  | Remove skip status from a test                     |
 
 Run `usvc --help` or see [CLI Reference](https://unitysvc-services.readthedocs.io/en/latest/cli-reference/) for complete documentation.
 

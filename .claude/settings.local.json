@@ -25,7 +25,9 @@
       "Bash(pip install:*)",
       "Bash(/Users/bpeng/unitysvc/.venv/bin/pip install:*)",
       "Bash(uv pip install:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(ruff check:*)",
+      "Bash(wc:*)"
     ]
   }
 }

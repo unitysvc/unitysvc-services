@@ -394,10 +394,6 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Load the listing data file
         listing_data, _ = load_data_file(listing_file)
 
-        # If name is not provided, use filename (without extension)
-        if "name" not in listing_data or not listing_data.get("name"):
-            listing_data["name"] = listing_file.stem
-
         # Extract provider directory from path structure
         # Expected: .../provider_name/services/service_name/listing.json
         parts = listing_file.parts
@@ -433,6 +429,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         if "name" not in offering_data or not offering_data.get("name"):
             offering_data["name"] = parts[services_idx + 1]
 
+        # If listing name is not provided, use offering name
+        # Service name = listing name or offering name
+        if "name" not in listing_data or not listing_data.get("name"):
+            listing_data["name"] = offering_data.get("name")
+
         # Find provider file in the parent directory
         provider_files = find_files_by_schema(provider_dir, "provider_v1")
         if not provider_files:
@@ -448,7 +449,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Provider status is '{provider_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         # Check offering status - skip if draft
@@ -457,7 +458,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         # Check listing status - skip if draft
@@ -466,7 +467,7 @@ class ServiceDataPublisher(UnitySvcAPI):
             return {
                 "skipped": True,
                 "reason": f"Listing status is '{listing_status}' - not publishing to backend (still in draft)",
-                "name": listing_data.get("name", "unknown"),
+                "service_name": offering_data.get("name", "unknown"),
             }
 
         collected_attachments: list[Attachment] = []
@@ -548,7 +549,8 @@ class ServiceDataPublisher(UnitySvcAPI):
             service_result = result.get("service", {})
             service_id = service_result.get("id")
             if service_id:
-                override_path = write_override_file(listing_file, {"service_id": service_id})
+                override_data: dict[str, Any] = {"service_id": service_id}
+                override_path = write_override_file(listing_file, override_data)
                 result["override_file"] = str(override_path)
 
         return result
@@ -608,11 +610,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Fallback
         return "created"
 
-    async def _publish_service_task(
+    async def _upload_service_task(
         self, listing_file: Path, console: Console, semaphore: asyncio.Semaphore, dryrun: bool = False
     ) -> tuple[Path, dict[str, Any] | Exception]:
         """
-        Async task to publish a single service (provider + offering + listing) with concurrency control.
+        Async task to upload a single service (provider + offering + listing) with concurrency control.
 
         Returns tuple of (listing_file, result_or_exception).
         """
@@ -622,13 +624,15 @@ class ServiceDataPublisher(UnitySvcAPI):
                 data, _ = load_data_file(listing_file)
                 listing_name = data.get("name", listing_file.stem)
 
-                # Publish the service (provider + offering + listing together)
+                # Upload the service (provider + offering + listing together)
                 result = await self.post_service_async(listing_file, dryrun=dryrun)
 
-                # Print complete statement after publication
+                # Print complete statement after upload
                 if result.get("skipped"):
                     reason = result.get("reason", "unknown")
-                    console.print(f"  [yellow]⊘[/yellow] Skipped service: [cyan]{listing_name}[/cyan] - {reason}")
+                    # Use service_name (offering name) as primary identifier
+                    skip_name = result.get("service_name") or listing_name
+                    console.print(f"  [yellow]⊘[/yellow] Skipped service: [cyan]{skip_name}[/cyan] - {reason}")
                 else:
                     service_name = result.get("service_name")
                     provider_name = result.get("provider_name")
@@ -643,8 +647,8 @@ class ServiceDataPublisher(UnitySvcAPI):
                     ops_status = listing_result.get("ops_status", "unknown")
 
                     console.print(
-                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{listing_name}[/cyan] "
-                        f"(offering: {service_name}, provider: {provider_name}) "
+                        f"  {symbol} [{color}]{status.capitalize()}[/{color}] service: [cyan]{service_name}[/cyan] "
+                        f"(provider: {provider_name}) "
                         f"[dim]status={listing_status}, ops_status={ops_status}[/dim]"
                     )
                     # Update result with derived status for summary tracking
@@ -657,17 +661,17 @@ class ServiceDataPublisher(UnitySvcAPI):
                     listing_name = data.get("name", listing_file.stem)
                 except Exception:
                     listing_name = listing_file.stem
-                console.print(f"  [red]✗[/red] Failed to publish service: [cyan]{listing_name}[/cyan] - {str(e)}")
+                console.print(f"  [red]✗[/red] Failed to upload service: [cyan]{listing_name}[/cyan] - {str(e)}")
                 return (listing_file, e)
 
-    async def publish_all_services(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
+    async def upload_all_services(self, data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
         """
-        Publish all services found in a directory tree concurrently.
+        Upload all services found in a directory tree concurrently.
 
-        Each listing file triggers a unified publish of provider + offering + listing
+        Each listing file triggers a unified upload of provider + offering + listing
         to the /seller/services endpoint.
 
-        Validates data consistency before publishing.
+        Validates data consistency before uploading.
         Returns a summary of successes and failures.
 
         Args:
@@ -703,11 +707,11 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         console = Console()
 
-        # Run all service publications concurrently with rate limiting
+        # Run all service uploads concurrently with rate limiting
         # Create semaphore to limit concurrent requests
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
         tasks = [
-            self._publish_service_task(listing_file, console, semaphore, dryrun=dryrun)
+            self._upload_service_task(listing_file, console, semaphore, dryrun=dryrun)
             for listing_file in listing_files
         ]
         task_results = await asyncio.gather(*tasks)
@@ -734,13 +738,13 @@ class ServiceDataPublisher(UnitySvcAPI):
         return results
 
 
-# CLI commands for publishing
-app = typer.Typer(help="Publish data to backend")
+# CLI commands for uploading
+app = typer.Typer(help="Upload service data to backend")
 console = Console()
 
 
 @app.callback(invoke_without_command=True)
-def publish_callback(
+def upload_callback(
     data_path: Path | None = typer.Option(
         None,
         "--data-path",
@@ -754,16 +758,19 @@ def publish_callback(
     ),
 ):
     """
-    Publish services to backend.
+    Upload service data to backend.
 
     Finds all listing files (listing_v1 schema) in the directory tree, then for each
     listing automatically discovers the associated offering (same directory) and
-    provider (parent directory), and publishes all three together to /seller/services.
+    provider (parent directory), and uploads all three together to /seller/services.
 
-    When given a single listing file, publishes only that service.
+    When given a single listing file, uploads only that service.
 
-    Note: Sellers are no longer published from local files. Create your seller
-    account on the UnitySVC platform and use your seller API key for publishing.
+    Services are uploaded in 'draft' status. Use 'usvc test' to run gateway tests,
+    then 'usvc submit' to submit for admin review.
+
+    If service_id already exists (from a previous upload), this updates the existing
+    service rather than creating a new one.
 
     Required environment variables:
     - UNITYSVC_BASE_URL: Backend API URL
@@ -784,35 +791,35 @@ def publish_callback(
     is_single_file = data_path.is_file()
 
     if is_single_file:
-        console.print(f"[bold blue]Publishing service from:[/bold blue] {data_path}")
+        console.print(f"[bold blue]Uploading service from:[/bold blue] {data_path}")
     else:
-        console.print(f"[bold blue]Publishing services from:[/bold blue] {data_path}")
+        console.print(f"[bold blue]Uploading services from:[/bold blue] {data_path}")
     console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
 
-    async def _publish_async():
-        async with ServiceDataPublisher() as publisher:
+    async def _upload_async():
+        async with ServiceDataPublisher() as uploader:
             if is_single_file:
-                # Publish single service from listing file
-                result = await publisher.post_service_async(data_path, dryrun=dryrun)
+                # Upload single service from listing file
+                result = await uploader.post_service_async(data_path, dryrun=dryrun)
                 return result, True
             else:
-                # Publish all services from directory
-                results = await publisher.publish_all_services(data_path, dryrun=dryrun)
+                # Upload all services from directory
+                results = await uploader.upload_all_services(data_path, dryrun=dryrun)
                 return results, False
 
     try:
-        result, is_single = asyncio.run(_publish_async())
+        result, is_single = asyncio.run(_upload_async())
 
         if is_single:
             # Single file result
             if result.get("skipped"):
                 console.print(f"[yellow]⊘[/yellow] Skipped: {result.get('reason', 'unknown')}")
             else:
-                console.print("[green]✓[/green] Service published successfully!")
+                console.print("[green]✓[/green] Service uploaded successfully!")
                 console.print(f"[cyan]Response:[/cyan] {json.dumps(result, indent=2)}")
         else:
             # Directory results - create summary table
-            console.print("\n[bold cyan]Publishing Summary[/bold cyan]")
+            console.print("\n[bold cyan]Upload Summary[/bold cyan]")
 
             table = Table(show_header=True, header_style="bold cyan", border_style="cyan")
             table.add_column("Type", style="cyan", no_wrap=True)
@@ -858,12 +865,15 @@ def publish_callback(
                     )
                 else:
                     console.print(
-                        "\n[green]✓[/green] All services published successfully!",
+                        "\n[green]✓[/green] All services uploaded successfully!",
                         style="bold green",
+                    )
+                    console.print(
+                        "\n[dim]Next steps: Run 'usvc test' to validate, then 'usvc submit' to submit for review.[/dim]"
                     )
 
     except typer.Exit:
         raise
     except Exception as e:
-        console.print(f"[red]✗[/red] Failed to publish services: {e}", style="bold red")
+        console.print(f"[red]✗[/red] Failed to upload services: {e}", style="bold red")
         raise typer.Exit(code=1)

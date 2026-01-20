@@ -46,15 +46,15 @@ def list_providers(
 
     # Create table
     table = Table(title="Provider Files", show_lines=True)
-    table.add_column("File", style="cyan")
-    table.add_column("Name", style="green")
+    table.add_column("Name", style="cyan")
     table.add_column("Display Name", style="blue")
+    table.add_column("File", style="dim")
 
     for file_path, _file_format, data in sorted(provider_files, key=lambda x: x[0]):
         table.add_row(
-            str(file_path.relative_to(data_dir)),
             data.get("name", "N/A"),
             data.get("display_name", "N/A"),
+            str(file_path.relative_to(data_dir)),
         )
 
     console.print(table)
@@ -91,15 +91,15 @@ def list_sellers(
 
     # Create table
     table = Table(title="Seller Files", show_lines=True)
-    table.add_column("File", style="cyan")
-    table.add_column("Name", style="green")
+    table.add_column("Name", style="cyan")
     table.add_column("Display Name", style="blue")
+    table.add_column("File", style="dim")
 
     for file_path, _file_format, data in sorted(seller_files, key=lambda x: x[0]):
         table.add_row(
-            str(file_path.relative_to(data_dir)),
             data.get("name", "N/A"),
             data.get("display_name", "N/A"),
+            str(file_path.relative_to(data_dir)),
         )
 
     console.print(table)
@@ -136,20 +136,20 @@ def list_offerings(
 
     # Create table
     table = Table(title="Service Offering Files", show_lines=True)
-    table.add_column("File", style="cyan")
+    table.add_column("Name", style="cyan")
     table.add_column("Provider", style="yellow")
-    table.add_column("Name", style="green")
     table.add_column("Display Name", style="blue")
     table.add_column("Status", style="magenta")
+    table.add_column("File", style="dim")
 
     for file_path, _file_format, data in sorted(service_files, key=lambda x: x[0]):
         provider_name = resolve_provider_name(file_path) or "N/A"
         table.add_row(
-            str(file_path.relative_to(data_dir)),
-            provider_name,
             data.get("name", "N/A"),
+            provider_name,
             data.get("display_name", "N/A"),
             data.get("status", "N/A"),
+            str(file_path.relative_to(data_dir)),
         )
 
     console.print(table)
@@ -177,13 +177,6 @@ def list_listings(
 
     console.print(f"[blue]Searching for service listings in:[/blue] {data_dir}\n")
 
-    # Find seller definition to get display names
-    seller_files = find_files_by_schema(data_dir, "seller_v1")
-    seller_info = {}
-    if seller_files:
-        # Use the first (and should be only) seller file
-        seller_info = seller_files[0][-1]
-
     # Find listing files by schema
     listing_files = find_files_by_schema(data_dir, "listing_v1")
 
@@ -193,23 +186,26 @@ def list_listings(
 
     # Create table
     table = Table(title="Service Listing Files", show_lines=True)
-    table.add_column("File", style="cyan")
+    table.add_column("Name", style="cyan")
     table.add_column("Provider", style="yellow")
-    table.add_column("Service", style="blue")
-    table.add_column("Seller", style="green")
     table.add_column("Status", style="magenta")
+    table.add_column("File", style="dim")
 
     for file_path, _file_format, data in sorted(listing_files, key=lambda x: x[0]):
-        # Resolve provider and service names using the utility functions
+        # Get listing name, fall back to offering name if not specified
+        listing_name = data.get("name", "")
+        if not listing_name:
+            # Try to get offering name from same directory
+            listing_name = resolve_service_name_for_listing(file_path, data) or "N/A"
+
+        # Resolve provider name
         provider_name = resolve_provider_name(file_path) or "N/A"
-        service_name = resolve_service_name_for_listing(file_path, data) or "N/A"
 
         table.add_row(
-            str(file_path.relative_to(data_dir)),
+            listing_name,
             provider_name,
-            service_name,
-            seller_info.get("name", "N/A"),
             data.get("status", "N/A"),
+            str(file_path.relative_to(data_dir)),
         )
 
     console.print(table)
