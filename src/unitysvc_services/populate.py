@@ -96,6 +96,12 @@ def populate(
                 total_skipped += 1
                 continue
 
+            # Check if populator is disabled
+            if services_populator.get("disabled", False):
+                console.print(f"[yellow]⏭️  Skipping {provider_name_in_file}: services_populator is disabled[/yellow]")
+                total_skipped += 1
+                continue
+
             command = services_populator.get("command")
             if not command:
                 console.print(
@@ -105,6 +111,34 @@ def populate(
                 continue
 
             console.print(f"[bold cyan]Processing provider:[/bold cyan] {provider_name_in_file}")
+
+            # Install requirements if specified
+            requirements = services_populator.get("requirements", [])
+            if requirements:
+                if dry_run:
+                    console.print(f"[yellow]  [DRY-RUN] Would install: {', '.join(requirements)}[/yellow]")
+                else:
+                    console.print(f"[dim]  Installing requirements: {', '.join(requirements)}[/dim]")
+                    try:
+                        pip_result = subprocess.run(
+                            ["pip", "install", "--quiet"] + requirements,
+                            capture_output=True,
+                            text=True,
+                        )
+                        if pip_result.returncode != 0:
+                            console.print(
+                                f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {pip_result.stderr}",
+                                style="bold red",
+                            )
+                            total_failed += 1
+                            continue
+                    except subprocess.SubprocessError as e:
+                        console.print(
+                            f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {e}",
+                            style="bold red",
+                        )
+                        total_failed += 1
+                        continue
 
             # Prepare environment variables from services_populator.envs
             env = os.environ.copy()

@@ -8,8 +8,8 @@ Generates JSON schemas from Pydantic models.
 
 **When to use:**
 
--   After modifying any Pydantic model in `src/unitysvc_services/models/`
--   Before committing model changes
+- After modifying any Pydantic model in `src/unitysvc_services/models/`
+- Before committing model changes
 
 **Usage:**
 
@@ -32,12 +32,12 @@ src/unitysvc_services/schema/
 ├── base.json           # Base models and enums
 ├── provider_v1.json    # Provider schema
 ├── seller_v1.json      # Seller schema
-├── service_v1.json     # Service offering schema
+├── offering_v1.json     # Service offering schema
 └── listing_v1.json     # Service listing schema
 ```
 
 The generated schemas are:
 
--   Used for data validation in CLI commands
--   Included in the package distribution
--   Referenced in documentation
+- Used for data validation in CLI commands
+- Included in the package distribution
+- Referenced in documentation

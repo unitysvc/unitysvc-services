@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
@@ -11,12 +12,17 @@ class ServicesPopulator(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    command: str | list[str] = Field(
-        description="Command to execute for populating services (string or list of arguments)"
-    )
-    envs: dict[str, str] | None = Field(
+    command: str | list[str] | None = Field(
         default=None,
-        description="Environment variables to set when executing the command",
+        description="Command to execute for populating services (string or list of arguments). Comment out to disable.",
+    )
+    requirements: list[str] | None = Field(
+        default=None,
+        description="Python packages to install before executing the command (e.g., ['any-llm-sdk[anthropic]'])",
+    )
+    envs: dict[str, Any] | None = Field(
+        default=None,
+        description="Environment variables to set when executing the command (values converted to strings)",
     )
 
 
