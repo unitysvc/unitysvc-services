@@ -96,12 +96,6 @@ def populate(
                 total_skipped += 1
                 continue
 
-            # Check if populator is disabled
-            if services_populator.get("disabled", False):
-                console.print(f"[yellow]⏭️  Skipping {provider_name_in_file}: services_populator is disabled[/yellow]")
-                total_skipped += 1
-                continue
-
             command = services_populator.get("command")
             if not command:
                 console.print(
