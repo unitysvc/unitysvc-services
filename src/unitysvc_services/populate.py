@@ -1,6 +1,5 @@
 """Populate command - populate services by executing provider scripts."""
 
-import json
 import os
 import subprocess
 import tomllib
@@ -122,7 +121,8 @@ def populate(
                         )
                         if pip_result.returncode != 0:
                             console.print(
-                                f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {pip_result.stderr}",
+                                f"[red]✗[/red] Failed to install requirements for "
+                                f"{provider_name_in_file}: {pip_result.stderr}",
                                 style="bold red",
                             )
                             total_failed += 1
