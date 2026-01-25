@@ -27,16 +27,16 @@ data, file_format = load_data_file(Path("data/my-provider/provider.json"))
 
 **Parameters:**
 
--   `file_path` (Path): Path to the data file
+- `file_path` (Path): Path to the data file
 
 **Returns:**
 
--   `tuple[dict[str, Any], str]`: Data dictionary and format ("json" or "toml")
+- `tuple[dict[str, Any], str]`: Data dictionary and format ("json" or "toml")
 
 **Raises:**
 
--   `ValueError`: If file format is not supported
--   `FileNotFoundError`: If file doesn't exist
+- `ValueError`: If file format is not supported
+- `FileNotFoundError`: If file doesn't exist
 
 #### write_data_file()
 
@@ -52,13 +52,13 @@ write_data_file(Path("data/my-provider/provider.json"), data, "json")
 
 **Parameters:**
 
--   `file_path` (Path): Path to write to
--   `data` (dict): Data to write
--   `file_format` (str): Format ("json" or "toml")
+- `file_path` (Path): Path to write to
+- `data` (dict): Data to write
+- `file_format` (str): Format ("json" or "toml")
 
 **Returns:**
 
--   `None`
+- `None`
 
 #### find_data_files()
 
@@ -74,11 +74,11 @@ files = find_data_files(Path("data"))
 
 **Parameters:**
 
--   `data_dir` (Path): Directory to search
+- `data_dir` (Path): Directory to search
 
 **Returns:**
 
--   `list[Path]`: List of data file paths
+- `list[Path]`: List of data file paths
 
 #### find_files_by_schema()
 
@@ -90,7 +90,7 @@ from unitysvc_services.utils import find_files_by_schema
 
 service_files = find_files_by_schema(
     Path("data"),
-    schema="service_v1",
+    schema="offering_v1",
     field_filter={"status": "ready"}
 )
 # Returns list of (Path, dict) tuples
@@ -98,13 +98,13 @@ service_files = find_files_by_schema(
 
 **Parameters:**
 
--   `data_dir` (Path): Directory to search
--   `schema` (str): Schema to match (e.g., "service_v1")
--   `field_filter` (dict, optional): Additional field filters
+- `data_dir` (Path): Directory to search
+- `schema` (str): Schema to match (e.g., "offering_v1")
+- `field_filter` (dict, optional): Additional field filters
 
 **Returns:**
 
--   `list[tuple[Path, dict]]`: List of (file_path, data) tuples
+- `list[tuple[Path, dict]]`: List of (file_path, data) tuples
 
 #### find_file_by_schema_and_name()
 
@@ -116,7 +116,7 @@ from unitysvc_services.utils import find_file_by_schema_and_name
 
 result = find_file_by_schema_and_name(
     Path("data"),
-    schema="service_v1",
+    schema="offering_v1",
     name_field="name",
     name_value="gpt-4"
 )
@@ -131,14 +131,14 @@ else:
 
 **Parameters:**
 
--   `data_dir` (Path): Directory to search
--   `schema` (str): Schema to match
--   `name_field` (str): Field name to match (e.g., "name")
--   `name_value` (str): Field value to match
+- `data_dir` (Path): Directory to search
+- `schema` (str): Schema to match
+- `name_field` (str): Field name to match (e.g., "name")
+- `name_value` (str): Field value to match
 
 **Returns:**
 
--   `tuple[Path, str, dict] | None`: (file_path, format, data) or None if not found
+- `tuple[Path, str, dict] | None`: (file_path, format, data) or None if not found
 
 #### resolve_provider_name()
 
@@ -156,18 +156,18 @@ provider_name = resolve_provider_name(
 
 **Parameters:**
 
--   `file_path` (Path): Path to the service offering or listing file
+- `file_path` (Path): Path to the service offering or listing file
 
 **Returns:**
 
--   `str | None`: Provider name if found, None otherwise
+- `str | None`: Provider name if found, None otherwise
 
 **How it works:**
 
--   Checks if file is under a "services" directory
--   Provider name is the directory before "services"
--   Validates by looking for provider data file in that directory
--   Returns the name from the provider file if found
+- Checks if file is under a "services" directory
+- Provider name is the directory before "services"
+- Validates by looking for provider data file in that directory
+- Returns the name from the provider file if found
 
 #### resolve_service_name_for_listing()
 
@@ -185,12 +185,12 @@ service_name = resolve_service_name_for_listing(listing_file)
 
 **Parameters:**
 
--   `listing_file` (Path): Path to the listing file
--   `listing_data` (dict | None): Unused, kept for backwards compatibility
+- `listing_file` (Path): Path to the listing file
+- `listing_data` (dict | None): Unused, kept for backwards compatibility
 
 **Returns:**
 
--   `str | None`: Service name if found, None otherwise
+- `str | None`: Service name if found, None otherwise
 
 **How it works:**
 
@@ -220,21 +220,21 @@ updated_data = convert_convenience_fields_to_documents(
 
 **Parameters:**
 
--   `data` (dict): Data dictionary containing potential convenience fields
--   `base_path` (Path): Base path for resolving relative file paths
--   `logo_field` (str): Name of the logo field (default: "logo")
--   `terms_field` (str | None): Name of the terms field (default: "terms_of_service", None to skip)
+- `data` (dict): Data dictionary containing potential convenience fields
+- `base_path` (Path): Base path for resolving relative file paths
+- `logo_field` (str): Name of the logo field (default: "logo")
+- `terms_field` (str | None): Name of the terms field (default: "terms_of_service", None to skip)
 
 **Returns:**
 
--   `dict`: Updated data dictionary with convenience fields converted to documents list
+- `dict`: Updated data dictionary with convenience fields converted to documents list
 
 **What it does:**
 
--   Converts file paths or URLs to proper Document structures
--   Automatically determines MIME types from file extensions
--   Removes convenience fields after conversion
--   Adds Document objects to the documents list
+- Converts file paths or URLs to proper Document structures
+- Automatically determines MIME types from file extensions
+- Removes convenience fields after conversion
+- Adds Document objects to the documents list
 
 #### render_template_file()
 
@@ -257,21 +257,21 @@ rendered_content, new_filename = render_template_file(
 
 **Parameters:**
 
--   `file_path` (Path): Path to the file (may or may not be a .j2 template)
--   `listing` (dict, optional): Listing data for template rendering
--   `offering` (dict, optional): Offering data for template rendering
--   `provider` (dict, optional): Provider data for template rendering
--   `seller` (dict, optional): Seller data for template rendering
+- `file_path` (Path): Path to the file (may or may not be a .j2 template)
+- `listing` (dict, optional): Listing data for template rendering
+- `offering` (dict, optional): Offering data for template rendering
+- `provider` (dict, optional): Provider data for template rendering
+- `seller` (dict, optional): Seller data for template rendering
 
 **Returns:**
 
--   `tuple[str, str]`: (rendered_content, new_filename_without_j2)
+- `tuple[str, str]`: (rendered_content, new_filename_without_j2)
 
 **Behavior:**
 
--   If file ends with `.j2`: Renders as Jinja2 template and strips `.j2` from filename
--   If file does not end with `.j2`: Returns content as-is with original filename
--   All template variables default to empty dict if not provided
+- If file ends with `.j2`: Renders as Jinja2 template and strips `.j2` from filename
+- If file does not end with `.j2`: Returns content as-is with original filename
+- All template variables default to empty dict if not provided
 
 ### unitysvc_services.cli
 
@@ -304,19 +304,19 @@ Create an authenticated API client.
 from unitysvc_services.publisher import get_api_client
 
 client = get_api_client(
-    backend_url="https://api.unitysvc.com/api/v1",
+    backend_url="https://api.unitysvc.com/v1",
     api_key="your-api-key"
 )
 ```
 
 **Parameters:**
 
--   `backend_url` (str): Backend API URL
--   `api_key` (str): API authentication key
+- `backend_url` (str): Backend API URL
+- `api_key` (str): API authentication key
 
 **Returns:**
 
--   `AuthenticatedClient`: Configured API client
+- `AuthenticatedClient`: Configured API client
 
 #### publish_provider()
 
@@ -334,18 +334,18 @@ success = publish_provider(
 
 **Parameters:**
 
--   `client` (AuthenticatedClient): API client
--   `provider_file` (Path): Path to provider file
+- `client` (AuthenticatedClient): API client
+- `provider_file` (Path): Path to provider file
 
 **Returns:**
 
--   `bool`: True if successful
+- `bool`: True if successful
 
 Similar functions exist for:
 
--   `publish_seller()`
--   `publish_offering()`
--   `publish_listing()`
+- `publish_seller()`
+- `publish_offering()`
+- `publish_listing()`
 
 ### unitysvc_services.validator
 
@@ -368,20 +368,20 @@ if not is_valid:
 
 **Parameters:**
 
--   `data_dir` (Path): Directory to validate
+- `data_dir` (Path): Directory to validate
 
 **Returns:**
 
--   `tuple[bool, list[str]]`: (is_valid, list of error messages)
+- `tuple[bool, list[str]]`: (is_valid, list of error messages)
 
 **Validation checks:**
 
--   Schema compliance
--   Required fields present
--   Name uniqueness
--   Directory name matching
--   Valid references
--   File path validity
+- Schema compliance
+- Required fields present
+- Name uniqueness
+- Directory name matching
+- Valid references
+- File path validity
 
 ### unitysvc_services.formatter
 
@@ -406,19 +406,19 @@ for file_path in modified_files:
 
 **Parameters:**
 
--   `data_dir` (Path): Directory to format
--   `check_only` (bool): If True, don't modify files
+- `data_dir` (Path): Directory to format
+- `check_only` (bool): If True, don't modify files
 
 **Returns:**
 
--   `list[Path]`: List of modified (or would-be modified) files
+- `list[Path]`: List of modified (or would-be modified) files
 
 **Formatting rules:**
 
--   JSON: 2-space indentation, sorted keys
--   TOML: Standard formatting
--   Remove trailing whitespace
--   Single newline at end of file
+- JSON: 2-space indentation, sorted keys
+- TOML: Standard formatting
+- Remove trailing whitespace
+- Single newline at end of file
 
 ### unitysvc_services.populator
 
@@ -445,13 +445,13 @@ for provider, success, output in results:
 
 **Parameters:**
 
--   `data_dir` (Path): Data directory
--   `provider_filter` (str, optional): Run for specific provider only
--   `dry_run` (bool): If True, don't actually execute
+- `data_dir` (Path): Data directory
+- `provider_filter` (str, optional): Run for specific provider only
+- `dry_run` (bool): If True, don't actually execute
 
 **Returns:**
 
--   `list[tuple[str, bool, str]]`: List of (provider_name, success, output)
+- `list[tuple[str, bool, str]]`: List of (provider_name, success, output)
 
 ### unitysvc_services.test
 
@@ -471,10 +471,10 @@ from unitysvc_services.test import list_code_examples
 
 **Functionality:**
 
--   Scans for listing files (schema: listing_v1)
--   Extracts documents with category = "code_examples"
--   Displays results in table format with file paths
--   Supports filtering by provider and service patterns
+- Scans for listing files (schema: listing_v1)
+- Extracts documents with category = "code_examples"
+- Displays results in table format with file paths
+- Supports filtering by provider and service patterns
 
 #### run_tests()
 
@@ -490,12 +490,12 @@ from unitysvc_services.test import run
 
 **Functionality:**
 
--   Discovers code examples from listing files
--   Loads related data (offering, provider, seller)
--   Renders Jinja2 templates with context data
--   Executes code with appropriate interpreter
--   Validates output based on exit code and `expect` field
--   Saves failed test content for debugging
+- Discovers code examples from listing files
+- Loads related data (offering, provider, seller)
+- Renders Jinja2 templates with context data
+- Executes code with appropriate interpreter
+- Validates output based on exit code and `expect` field
+- Saves failed test content for debugging
 
 **Test Execution:**
 
@@ -507,8 +507,8 @@ from unitysvc_services.test import run
 
 **Test Pass Criteria:**
 
--   Exit code is 0 AND
--   If `expect` field exists: expected string found in stdout
+- Exit code is 0 AND
+- If `expect` field exists: expected string found in stdout
 
 See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/code-examples/) guide for detailed workflow.
 
@@ -546,7 +546,7 @@ seller = Seller(
 from unitysvc_services.models import ServiceOffering
 
 service = ServiceOffering(
-    schema="service_v1",
+    schema="offering_v1",
     name="my-service",
     display_name="My Service",
     description="A high-performance service",
@@ -576,7 +576,7 @@ The SDK respects these environment variables:
 import os
 
 # Backend connection
-backend_url = os.getenv("UNITYSVC_BASE_URL", "https://api.unitysvc.com/api/v1")
+backend_url = os.getenv("UNITYSVC_BASE_URL", "https://api.unitysvc.com/v1")
 api_key = os.getenv("UNITYSVC_API_KEY")
 ```
 
@@ -593,7 +593,7 @@ data_dir = Path("data")
 # Find all ready services
 services = find_files_by_schema(
     data_dir,
-    schema="service_v1",
+    schema="offering_v1",
     field_filter={"status": "ready"}
 )
 
@@ -616,7 +616,7 @@ def validate_pricing(data_dir: Path) -> list[str]:
     """Validate all services have pricing information."""
     errors = []
 
-    services = find_files_by_schema(data_dir, schema="service_v1")
+    services = find_files_by_schema(data_dir, schema="offering_v1")
 
     for file_path, data in services:
         if "pricing" not in data:
@@ -642,7 +642,7 @@ import json
 
 def generate_service_report(data_dir: Path) -> dict:
     """Generate summary report of all services."""
-    services = find_files_by_schema(data_dir, schema="service_v1")
+    services = find_files_by_schema(data_dir, schema="offering_v1")
 
     report = {
         "total_services": len(services),
@@ -702,7 +702,7 @@ def get_service(name: str, data_dir: Path = Path("data")) -> dict[str, Any] | No
     """Get service data by name."""
     result = find_file_by_schema_and_name(
         data_dir,
-        schema="service_v1",
+        schema="offering_v1",
         name_field="name",
         name_value=name
     )
@@ -716,8 +716,8 @@ def get_service(name: str, data_dir: Path = Path("data")) -> dict[str, Any] | No
 
 ## See Also
 
--   [CLI Reference](cli-reference.md) - Command-line interface
--   [Documenting Service Listings](documenting-services.md) - Add documentation to services
--   [Creating Code Examples](code-examples.md) - Develop and test code examples
--   [File Schemas](file-schemas.md) - Data schema specifications
--   [Workflows](workflows.md) - Usage patterns and examples
+- [CLI Reference](cli-reference.md) - Command-line interface
+- [Documenting Service Listings](documenting-services.md) - Add documentation to services
+- [Creating Code Examples](code-examples.md) - Develop and test code examples
+- [File Schemas](file-schemas.md) - Data schema specifications
+- [Workflows](workflows.md) - Usage patterns and examples

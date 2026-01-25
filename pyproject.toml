@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "unitysvc-services"
-version = "0.2.22"
+version = "0.3.2"
 description = "SDK for digital service providers on UnitySVC"
 readme = "README.md"
 authors = [{ name = "Bo Peng", email = "bo.peng@unitysvc.com" }]
@@ -23,6 +23,7 @@ dependencies = [
   "httpx",
   "tomli-w",
   "mistune>=3.0",    # Markdown parsing for attachment extraction
+  "json5",           # JSON5 support for reading JSON with comments
 ]
 requires-python = ">= 3.11"
 
@@ -43,8 +44,9 @@ dev = [
   "mkdocs",
   "mkdocs-material",
   "mkdocs-autorefs",
+  "pymdown-extensions",
 ]
-docs = ["mkdocs", "mkdocs-material", "mkdocs-autorefs"]
+docs = ["mkdocs", "mkdocs-material", "mkdocs-autorefs", "pymdown-extensions"]
 
 [project.urls]
 bugs = "https://github.com/unitysvc/unitysvc-services/issues"

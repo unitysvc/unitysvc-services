@@ -69,36 +69,36 @@ asyncio.run(publish_single_service())
 #    data/my-provider/services/my-service/listing.toml
 
 # 3. Validate your data
-usvc validate
+usvc data validate
 
-# 4. Format files for consistency
-usvc format
+# 4. Format files for consistency (optional)
+usvc data format
 
 # 5. Set environment variables
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
 
-# 6. Preview what would be published
-usvc publish --dryrun
+# 6. Preview what would be uploaded
+usvc services upload --dryrun
 
-# 7. Publish to the platform
-usvc publish
+# 7. Upload to the platform
+usvc services upload
 
-# 8. Verify published data
-usvc query
+# 8. Verify uploaded data
+usvc services list
 ```
 
 ### Understanding the Service Data Model
 
 Services in UnitySVC consist of three data components:
 
-| Component | Schema | Purpose |
-|-----------|--------|---------|
-| **Provider Data** | `provider_v1` | WHO provides the service |
-| **Offering Data** | `offering_v1` | WHAT is being provided |
-| **Listing Data** | `listing_v1` | HOW it's sold to customers |
+| Component         | Schema        | Purpose                    |
+| ----------------- | ------------- | -------------------------- |
+| **Provider Data** | `provider_v1` | WHO provides the service   |
+| **Offering Data** | `offering_v1` | WHAT is being provided     |
+| **Listing Data**  | `listing_v1`  | HOW it's sold to customers |
 
-These are organized separately but published together:
+These are organized separately but uploaded together:
 
 ```
 data/
@@ -107,17 +107,17 @@ data/
     └── services/
         └── my-service/
             ├── offering.toml  # Offering Data
-            └── listing.toml   # Listing Data ← publish entry point
+            └── listing.toml   # Listing Data ← upload entry point
 ```
 
-### Publishing Behavior
+### Upload Behavior
 
-When you run `usvc publish`:
+When you run `usvc services upload`:
 
 1. Finds all listing files in the directory
 2. For each listing, locates the offering in the same directory
 3. Locates the provider in the parent directory
-4. Publishes all three together atomically
+4. Uploads all three together atomically
 
 ### Multiple Listings
 
@@ -134,44 +134,45 @@ data/
             └── listing-enterprise.toml # Enterprise tier listing
 ```
 
-Each listing is published as a separate service, but they all share the same provider and offering data.
+Each listing is uploaded as a separate service, but they all share the same provider and offering data.
 
 ### Dry Run Mode
 
-Always preview changes before publishing:
+Always preview changes before uploading:
 
 ```bash
-usvc publish --dryrun
+usvc services upload --dryrun
 ```
 
 This shows:
+
 - Which services would be created (new)
 - Which services would be updated (changed)
 - Which services are unchanged
 - Any errors or missing files
 
-### Querying Published Data
+### Listing Uploaded Services
 
 ```bash
 # List your services
-usvc query
+usvc services list
 
 # List services with specific fields
-usvc query --fields id,name,status
+usvc services list --fields id,name,status
 
 # Filter by status
-usvc query --status active
+usvc services list --status active
 
 # Output as JSON
-usvc query --format json
+usvc services list --format json
 ```
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `UNITYSVC_BASE_URL` | Backend API URL (e.g., `https://api.unitysvc.com/api/v1`) |
-| `UNITYSVC_API_KEY` | Your seller API key for authentication |
+| Variable            | Description                                           |
+| ------------------- | ----------------------------------------------------- |
+| `UNITYSVC_BASE_URL` | Backend API URL (e.g., `https://api.unitysvc.com/v1`) |
+| `UNITYSVC_API_KEY`  | Your seller API key for authentication                |
 
 ## Next Steps
 

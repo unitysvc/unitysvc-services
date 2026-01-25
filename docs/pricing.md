@@ -6,8 +6,8 @@ This document describes the pricing structure used for `payout_price` (in servic
 
 UnitySVC uses a two-tier pricing model:
 
--   **Seller Price** (`payout_price` in `service_v1`): The agreed rate between the seller and UnitySVC. This is what the seller charges UnitySVC for each unit of service usage.
--   **Customer Price** (`list_price` in `listing_v1`): The price shown to customers on the marketplace. This is what the customer pays for each unit of service usage.
+- **Seller Price** (`payout_price` in `offering_v1`): The agreed rate between the seller and UnitySVC. This is what the seller charges UnitySVC for each unit of service usage.
+- **Customer Price** (`list_price` in `listing_v1`): The price shown to customers on the marketplace. This is what the customer pays for each unit of service usage.
 
 Both use the same `Pricing` structure, which supports multiple pricing types through a discriminated union based on the `type` field.
 
@@ -19,9 +19,9 @@ Both use the same `Pricing` structure, which supports multiple pricing types thr
 
 Currency is specified at the **service/listing level**, not inside the pricing object:
 
--   **Service** (ServiceOffering): Has ONE `payout_price` with ONE currency
--   **Listing** (ServiceListing): Has ONE `list_price` with ONE currency
--   **Multiple currencies**: Create multiple listings pointing to the same service
+- **Service** (ServiceOffering): Has ONE `payout_price` with ONE currency
+- **Listing** (ServiceListing): Has ONE `list_price` with ONE currency
+- **Multiple currencies**: Create multiple listings pointing to the same service
 
 ```
 ServiceOffering (gpt-4-turbo)
@@ -94,9 +94,9 @@ For LLM and text-based services. Prices are per million tokens.
 
 **Validation Rules:**
 
--   Must specify **either** `price` (unified) **or** both `input` and `output` (separate)
--   Cannot specify both `price` and `input`/`output`
--   All price values must be >= 0
+- Must specify **either** `price` (unified) **or** both `input` and `output` (separate)
+- Cannot specify both `price` and `input`/`output`
+- All price values must be >= 0
 
 **Example - Unified Pricing:**
 
@@ -361,9 +361,9 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
 
 **How it works:**
 
--   500 requests → Tier 1 → $10.00
--   5,000 requests → Tier 2 → $80.00
--   50,000 requests → Tier 3 → $500.00
+- 500 requests → Tier 1 → $10.00
+- 5,000 requests → Tier 2 → $80.00
+- 50,000 requests → Tier 3 → $500.00
 
 **Example - Different token rates based on request volume:**
 
@@ -429,9 +429,9 @@ AWS-style pricing where each tier's units are priced at that tier's rate. You al
 
 **How it works (5,000 requests):**
 
--   First 1,000 × $0.01 = $10.00
--   Next 4,000 × $0.008 = $32.00
--   **Total = $42.00**
+- First 1,000 × $0.01 = $10.00
+- Next 4,000 × $0.008 = $32.00
+- **Total = $42.00**
 
 **Example - First 1 million requests free, then pay per request:**
 
@@ -454,8 +454,8 @@ AWS-style pricing where each tier's units are priced at that tier's rate. You al
 | **Tiered**    | All 5,000 at tier 2 rate ($0.008) | **$40.00** |
 | **Graduated** | 1,000 × $0.01 + 4,000 × $0.008    | **$42.00** |
 
--   **Tiered (Volume)**: Rewards high volume - once you reach a tier, ALL units get that rate
--   **Graduated**: Each portion pays its tier's rate - first units always cost more
+- **Tiered (Volume)**: Rewards high volume - once you reach a tier, ALL units get that rate
+- **Graduated**: Each portion pays its tier's rate - first units always cost more
 
 ### Expression-Based `based_on`
 
@@ -488,8 +488,8 @@ Both `tiered` and `graduated` pricing support arithmetic expressions in the `bas
 
 How it works:
 
--   5000 input + 1000 output → 5000 + 4000 = 9000 → Tier 1 ($1.00)
--   5000 input + 2000 output → 5000 + 8000 = 13000 → Tier 2 ($10.00)
+- 5000 input + 1000 output → 5000 + 4000 = 9000 → Tier 1 ($1.00)
+- 5000 input + 2000 output → 5000 + 8000 = 13000 → Tier 2 ($10.00)
 
 **Example - Combine Request Count and Token Usage:**
 
@@ -509,9 +509,9 @@ How it works:
 
 Invalid expressions will raise errors at calculation time:
 
--   **Invalid syntax**: `"input_tokens +"` → `Invalid expression syntax`
--   **Unknown metric**: `"input_tokens + unknown_field"` → `Unknown metric: unknown_field`
--   **Unsupported operator**: `"input_tokens ** 2"` → `Unsupported operator: Pow`
+- **Invalid syntax**: `"input_tokens +"` → `Invalid expression syntax`
+- **Unknown metric**: `"input_tokens + unknown_field"` → `Unknown metric: unknown_field`
+- **Unsupported operator**: `"input_tokens ** 2"` → `Unsupported operator: Pow`
 
 ---
 
@@ -542,8 +542,8 @@ For revenue-sharing arrangements where the seller receives a percentage of the c
 
 The `percentage` field represents the seller's share of whatever the customer pays. For example:
 
--   If `percentage` is `"70"` and the customer pays $10, the seller receives $7
--   If `percentage` is `"85.5"` and the customer pays $100, the seller receives $85.50
+- If `percentage` is `"70"` and the customer pays $10, the seller receives $7
+- If `percentage` is `"85.5"` and the customer pays $100, the seller receives $85.50
 
 **Example:**
 
@@ -566,9 +566,9 @@ description = "70% revenue share"
 
 **Use Cases:**
 
--   Marketplace arrangements where sellers want a fixed percentage rather than per-unit pricing
--   Reseller agreements with variable customer pricing
--   Partner programs with revenue-sharing terms
+- Marketplace arrangements where sellers want a fixed percentage rather than per-unit pricing
+- Reseller agreements with variable customer pricing
+- Partner programs with revenue-sharing terms
 
 ### Expression Pricing (`expr`)
 
@@ -583,20 +583,20 @@ Expression-based pricing that evaluates an arbitrary arithmetic expression using
 
 **Available Metrics:**
 
--   `input_tokens`, `output_tokens`, `total_tokens` - Token counts
--   `seconds` - Time-based usage
--   `count` - Generic count (images, steps, etc.)
--   `request_count` - Number of API requests (seller only)
--   `customer_charge` - What the customer paid (seller only)
+- `input_tokens`, `output_tokens`, `total_tokens` - Token counts
+- `seconds` - Time-based usage
+- `count` - Generic count (images, steps, etc.)
+- `request_count` - Number of API requests (seller only)
+- `customer_charge` - What the customer paid (seller only)
 
 **Supported Operations:**
 
--   Addition: `+`
--   Subtraction: `-`
--   Multiplication: `*`
--   Division: `/`
--   Parentheses: `(` `)`
--   Numeric literals: `1000000`, `0.5`, etc.
+- Addition: `+`
+- Subtraction: `-`
+- Multiplication: `*`
+- Division: `/`
+- Parentheses: `(` `)`
+- Numeric literals: `1000000`, `0.5`, etc.
 
 **Example - Token Pricing with Different Rates:**
 
@@ -716,7 +716,7 @@ Composite pricing types can be nested for complex scenarios:
 
 ```json
 {
-    "schema": "service_v1",
+    "schema": "offering_v1",
     "name": "gpt-4-turbo",
     "display_name": "GPT-4 Turbo",
     "description": "OpenAI's most advanced model",
@@ -746,7 +746,7 @@ Composite pricing types can be nested for complex scenarios:
 ### Service File with Seller Price (TOML)
 
 ```toml
-schema = "service_v1"
+schema = "offering_v1"
 name = "whisper-large"
 display_name = "Whisper Large V3"
 description = "Audio transcription model"
@@ -795,7 +795,7 @@ description = "Premium access with priority support"
 
 ```json
 {
-    "schema": "service_v1",
+    "schema": "offering_v1",
     "name": "flux-pro",
     "display_name": "FLUX Pro",
     "description": "High-quality image generation",
@@ -859,7 +859,7 @@ description = "Premium access with priority support"
 
 ## Validation
 
-When you run `usvc validate`, the pricing structure is validated:
+When you run `usvc data validate`, the pricing structure is validated:
 
 1. **JSON Schema Validation**: Ensures the structure matches the expected format
 2. **Pydantic Model Validation**: Enforces business rules:
@@ -943,6 +943,6 @@ The backend calculates costs using these formulas:
 
 ## See Also
 
--   [File Schemas](file-schemas.md) - Complete schema reference
--   [Data Structure](data-structure.md) - File organization
--   [CLI Reference](cli-reference.md#validate) - Validation command
+- [File Schemas](file-schemas.md) - Complete schema reference
+- [Data Structure](data-structure.md) - File organization
+- [CLI Reference](cli-reference.md#validate) - Validation command

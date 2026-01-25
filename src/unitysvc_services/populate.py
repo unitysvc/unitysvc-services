@@ -1,11 +1,11 @@
 """Populate command - populate services by executing provider scripts."""
 
-import json
 import os
 import subprocess
 import tomllib
 from pathlib import Path
 
+import json5
 import typer
 from rich.console import Console
 
@@ -79,7 +79,7 @@ def populate(
                     provider_config = tomllib.load(f)
             else:
                 with open(provider_file) as f:
-                    provider_config = json.load(f)
+                    provider_config = json5.load(f)
 
             provider_name_in_file = provider_config.get("name", "unknown")
 
@@ -105,6 +105,35 @@ def populate(
                 continue
 
             console.print(f"[bold cyan]Processing provider:[/bold cyan] {provider_name_in_file}")
+
+            # Install requirements if specified
+            requirements = services_populator.get("requirements", [])
+            if requirements:
+                if dry_run:
+                    console.print(f"[yellow]  [DRY-RUN] Would install: {', '.join(requirements)}[/yellow]")
+                else:
+                    console.print(f"[dim]  Installing requirements: {', '.join(requirements)}[/dim]")
+                    try:
+                        pip_result = subprocess.run(
+                            ["pip", "install", "--quiet"] + requirements,
+                            capture_output=True,
+                            text=True,
+                        )
+                        if pip_result.returncode != 0:
+                            console.print(
+                                f"[red]✗[/red] Failed to install requirements for "
+                                f"{provider_name_in_file}: {pip_result.stderr}",
+                                style="bold red",
+                            )
+                            total_failed += 1
+                            continue
+                    except subprocess.SubprocessError as e:
+                        console.print(
+                            f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {e}",
+                            style="bold red",
+                        )
+                        total_failed += 1
+                        continue
 
             # Prepare environment variables from services_populator.envs
             env = os.environ.copy()

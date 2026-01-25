@@ -187,8 +187,82 @@ class DataValidator:
         # Dict keys are inherently unique, so no duplicate check needed
         return []
 
+    def validate_required_parameter_defaults(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """Validate that required user parameters have default values.
+
+        For listing_v1 data, if user_parameters_schema.required lists parameters,
+        each of those parameters must have a corresponding default value in
+        service_options.default_parameters.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'listing_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        errors: list[str] = []
+
+        # Only validate listing_v1 schema
+        if schema_name != "listing_v1":
+            return errors
+
+        # Get user_parameters_schema
+        user_parameters_schema = data.get("user_parameters_schema")
+        if not user_parameters_schema or not isinstance(user_parameters_schema, dict):
+            return errors
+
+        # Get required parameters from user_parameters_schema
+        required_params = user_parameters_schema.get("required")
+        if not required_params or not isinstance(required_params, list):
+            return errors
+
+        # No required parameters means nothing to validate
+        if len(required_params) == 0:
+            return errors
+
+        # Get service_options.default_parameters
+        service_options = data.get("service_options")
+        if not service_options or not isinstance(service_options, dict):
+            errors.append(
+                f"user_parameters_schema has required parameters {required_params}, "
+                f"but service_options is missing. "
+                f"Add service_options.default_parameters with defaults for required parameters."
+            )
+            return errors
+
+        default_parameters = service_options.get("default_parameters")
+        if not default_parameters or not isinstance(default_parameters, dict):
+            errors.append(
+                f"user_parameters_schema has required parameters {required_params}, "
+                f"but service_options.default_parameters is missing. "
+                f"Add default values for all required parameters."
+            )
+            return errors
+
+        # Check each required parameter has a default
+        missing_defaults = []
+        for param in required_params:
+            if param not in default_parameters:
+                missing_defaults.append(param)
+
+        if missing_defaults:
+            errors.append(
+                f"Required parameters missing default values in service_options.default_parameters: "
+                f"{missing_defaults}. Each required parameter must have a default value."
+            )
+
+        return errors
+
     def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
-        """Validate that the name field matches the directory name."""
+        """Validate that the name field matches the directory name.
+
+        Currently only validates provider_v1 files. The provider directory name
+        should match the provider name for organizational clarity.
+
+        Note: offering_v1 files are not validated because the service name is
+        always read from the offering's name field, not inferred from the directory.
+        """
         errors: list[str] = []
 
         # Only validate files with a 'name' field
@@ -199,26 +273,13 @@ class DataValidator:
         if not isinstance(name_value, str):
             return errors
 
-        # Determine expected directory name based on file type
-        if file_path.name in ["provider.json", "provider.toml"]:
-            # For provider.json, the directory should match the provider name
+        # Only validate provider files - directory name should match provider name
+        if schema_name == "provider_v1":
             directory_name = file_path.parent.name
             if self._normalize_name(name_value) != self._normalize_name(directory_name):
                 errors.append(
                     f"Provider name '{name_value}' does not match directory name '{directory_name}'. "
                     f"Expected directory name to match normalized provider name: '{self._normalize_name(name_value)}'"
-                )
-
-        elif file_path.name in ["offering.json", "offering.toml"]:
-            # For offering.json, the service directory should match the service name
-            service_directory_name = file_path.parent.name
-            if self._normalize_name(name_value) != self._normalize_name(service_directory_name):
-                normalized_name = self._normalize_name(name_value)
-                errors.append(
-                    f"Service name '{name_value}' does not match "
-                    f"service directory name '{service_directory_name}'. "
-                    f"Expected service directory name to match "
-                    f"normalized service name: '{normalized_name}'"
                 )
 
         return errors
@@ -344,6 +405,10 @@ class DataValidator:
         # Validate duplicate document titles
         dup_title_errors = self.validate_duplicate_document_titles(data, file_path)
         errors.extend(dup_title_errors)
+
+        # Validate required parameters have defaults (listing_v1 only)
+        required_param_errors = self.validate_required_parameter_defaults(data, schema_name)
+        errors.extend(required_param_errors)
 
         return len(errors) == 0, errors
 

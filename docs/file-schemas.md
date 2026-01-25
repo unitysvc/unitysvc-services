@@ -6,10 +6,10 @@ Complete reference for all data file schemas used in the UnitySVC Services SDK.
 
 All data files must include a `schema` field identifying their type and version. The SDK currently supports these schemas:
 
--   `provider_v1` - Provider metadata and upstream access configuration
--   `seller_v1` - Seller/marketplace information
--   `service_v1` - Service offering details (upstream provider perspective)
--   `listing_v1` - Service listing (user-facing marketplace perspective)
+- `provider_v1` - Provider metadata and upstream access configuration
+- `seller_v1` - Seller/marketplace information
+- `offering_v1` - Service offering details (upstream provider perspective)
+- `listing_v1` - Service listing (user-facing marketplace perspective)
 
 ## Schema: provider_v1
 
@@ -27,23 +27,31 @@ Provider files define the service provider's metadata and access configuration f
 
 ### Optional Fields
 
-| Field                     | Type              | Description                                                            |
-| ------------------------- | ----------------- | ---------------------------------------------------------------------- |
-| `display_name`            | string            | Human-readable provider name (max 200 chars)                           |
-| `description`             | string            | Provider description                                                   |
-| `secondary_contact_email` | string (email)    | Secondary contact email                                                |
-| `logo`                    | string/URL        | Path to logo file or URL (converted to document during import)         |
-| `terms_of_service`        | string/URL        | Path to terms file or URL (converted to document during import)        |
-| `documents`               | dict of DocumentData | Documents keyed by title                                             |
-| `services_populator`      | object            | Automated service generation configuration                             |
-| `status`                  | enum              | Provider status: `active` (default), `pending`, `disabled`, or `draft` |
+| Field                     | Type                 | Description                                                            |
+| ------------------------- | -------------------- | ---------------------------------------------------------------------- |
+| `display_name`            | string               | Human-readable provider name (max 200 chars)                           |
+| `description`             | string               | Provider description                                                   |
+| `secondary_contact_email` | string (email)       | Secondary contact email                                                |
+| `logo`                    | string/URL           | Path to logo file or URL (converted to document during import)         |
+| `terms_of_service`        | string/URL           | Path to terms file or URL (converted to document during import)        |
+| `documents`               | dict of DocumentData | Documents keyed by title                                               |
+| `services_populator`      | object               | Automated service generation configuration                             |
+| `status`                  | enum                 | Provider status: `draft` (default), `ready`, or `deprecated`           |
 
 ### services_populator Object
 
-| Field     | Type              | Description                                                    |
-| --------- | ----------------- | -------------------------------------------------------------- |
-| `command` | string            | Script filename to execute (relative to provider directory)    |
-| `envs`    | object (optional) | Environment variables to set when executing the populate command |
+Configuration for automatically populating service data using `usvc data populate`.
+
+| Field          | Type                    | Description                                                                                 |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
+| `command`      | string or list[string]  | Command to execute (string or list of arguments). Relative to provider directory.           |
+| `requirements` | array of strings        | Python packages to install before executing (e.g., `["httpx", "any-llm-sdk[anthropic]"]`)   |
+| `envs`         | object                  | Environment variables to set when executing the command (values converted to strings)       |
+
+**Notes:**
+- Comment out or omit `command` to disable population for a provider
+- `requirements` packages are installed via pip before running the command
+- `envs` values are converted to strings and set as environment variables
 
 ### Example (TOML)
 
@@ -55,10 +63,11 @@ description = "Leading AI research laboratory"
 contact_email = "support@openai.com"
 homepage = "https://openai.com"
 time_created = "2024-01-15T10:00:00Z"
-status = "active"
+status = "ready"
 
 [services_populator]
 command = "populate_services.py"
+requirements = ["httpx", "openai"]
 
 [services_populator.envs]
 API_KEY = "sk-YOUR-API-KEY"
@@ -76,9 +85,10 @@ BASE_URL = "https://api.openai.com/v1"
     "contact_email": "support@openai.com",
     "homepage": "https://openai.com",
     "time_created": "2024-01-15T10:00:00Z",
-    "status": "active",
+    "status": "ready",
     "services_populator": {
         "command": "populate_services.py",
+        "requirements": ["httpx", "openai"],
         "envs": {
             "API_KEY": "sk-YOUR-API-KEY",
             "BASE_URL": "https://api.openai.com/v1"
@@ -102,21 +112,21 @@ Seller files define the marketplace or reseller information. **Only one seller f
 
 ### Optional Fields
 
-| Field                     | Type              | Description                                                                       |
-| ------------------------- | ----------------- | --------------------------------------------------------------------------------- |
-| `display_name`            | string            | Human-readable seller name (max 200 chars)                                        |
-| `seller_type`             | enum              | Seller type: `individual` (default), `organization`, `partnership`, `corporation` |
-| `description`             | string            | Seller description (max 1000 chars)                                               |
-| `homepage`                | string (URL)      | Seller website URL                                                                |
-| `secondary_contact_email` | string (email)    | Secondary contact email                                                           |
-| `account_manager`         | string            | Email/username of account manager (max 100 chars)                                 |
-| `business_registration`   | string            | Business registration number (max 100 chars)                                      |
-| `tax_id`                  | string            | Tax ID (EIN, VAT, etc., max 100 chars)                                            |
-| `stripe_connect_id`       | string            | Stripe Connect account ID (max 255 chars)                                         |
-| `logo`                    | string/URL        | Path to logo file or URL (converted to document)                                  |
-| `documents`               | dict of DocumentData | Documents keyed by title (business registration, tax docs, etc.)                |
-| `status`                  | enum              | Seller status: `active` (default), `pending`, `disabled`, or `draft`              |
-| `is_verified`             | boolean           | KYC/business verification status (default: false)                                 |
+| Field                     | Type                 | Description                                                                       |
+| ------------------------- | -------------------- | --------------------------------------------------------------------------------- |
+| `display_name`            | string               | Human-readable seller name (max 200 chars)                                        |
+| `seller_type`             | enum                 | Seller type: `individual` (default), `organization`, `partnership`, `corporation` |
+| `description`             | string               | Seller description (max 1000 chars)                                               |
+| `homepage`                | string (URL)         | Seller website URL                                                                |
+| `secondary_contact_email` | string (email)       | Secondary contact email                                                           |
+| `account_manager`         | string               | Email/username of account manager (max 100 chars)                                 |
+| `business_registration`   | string               | Business registration number (max 100 chars)                                      |
+| `tax_id`                  | string               | Tax ID (EIN, VAT, etc., max 100 chars)                                            |
+| `stripe_connect_id`       | string               | Stripe Connect account ID (max 255 chars)                                         |
+| `logo`                    | string/URL           | Path to logo file or URL (converted to document)                                  |
+| `documents`               | dict of DocumentData | Documents keyed by title (business registration, tax docs, etc.)                  |
+| `status`                  | enum                 | Seller status: `draft` (default), `ready`, or `deprecated`                        |
+| `is_verified`             | boolean              | KYC/business verification status (default: false)                                 |
 
 ### Example (TOML)
 
@@ -129,58 +139,58 @@ description = "Premium AI services marketplace"
 contact_email = "business@acme.com"
 homepage = "https://acme.com"
 time_created = "2024-01-10T12:00:00Z"
-status = "active"
+status = "ready"
 is_verified = true
 ```
 
-## Schema: service_v1
+## Schema: offering_v1
 
 Service files define the service offering from the upstream provider's perspective.
 
 ### Required Fields
 
-| Field                        | Type                         | Description                                                                  |
-| ---------------------------- | ---------------------------- | ---------------------------------------------------------------------------- |
-| `schema`                     | string                       | Must be `"offering_v1"`                                                      |
-| `name`                       | string                       | Service identifier (must match directory name, allows slashes for hierarchy) |
-| `service_type`               | enum                         | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
-| `upstream_access_interfaces` | dict of AccessInterfaceData  | How to access upstream services, keyed by interface name                     |
-| `time_created`               | datetime (ISO 8601)          | Timestamp when offering was created                                          |
+| Field                        | Type                        | Description                                                                  |
+| ---------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
+| `schema`                     | string                      | Must be `"offering_v1"`                                                      |
+| `name`                       | string                      | Service identifier (must match directory name, allows slashes for hierarchy) |
+| `service_type`               | enum                        | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
+| `upstream_access_interfaces` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name                     |
+| `time_created`               | datetime (ISO 8601)         | Timestamp when offering was created                                          |
 
 ### Optional Fields
 
-| Field             | Type                  | Description                                                     |
-| ----------------- | --------------------- | --------------------------------------------------------------- |
-| `display_name`    | string                | Human-readable service name for display (e.g., 'GPT-4 Turbo')   |
-| `description`     | string                | Service description                                             |
-| `logo`            | string/URL            | Path to logo or URL (converted to document)                     |
-| `tagline`         | string                | Short elevator pitch                                            |
-| `tags`            | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)     |
-| `status`          | enum                  | Offering status: `draft` (default), `ready`, or `deprecated`    |
-| `details`         | object                | Service-specific features and information                       |
-| `payout_price`    | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)       |
-| `documents`       | dict of DocumentData  | Technical specs, documentation, keyed by title                  |
+| Field          | Type                  | Description                                                   |
+| -------------- | --------------------- | ------------------------------------------------------------- |
+| `display_name` | string                | Human-readable service name for display (e.g., 'GPT-4 Turbo') |
+| `description`  | string                | Service description                                           |
+| `logo`         | string/URL            | Path to logo or URL (converted to document)                   |
+| `tagline`      | string                | Short elevator pitch                                          |
+| `tags`         | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)   |
+| `status`       | enum                  | Offering status: `draft` (default), `ready`, or `deprecated`  |
+| `details`      | object                | Service-specific features and information                     |
+| `payout_price` | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)     |
+| `documents`    | dict of DocumentData  | Technical specs, documentation, keyed by title                |
 
 ### ServiceType Enum Values
 
--   `llm` - Large Language Model
--   `embedding` - Text embedding generation
--   `image_generation` - Image generation from prompts
--   `text_to_image` - Text to image conversion
--   `vision_language_model` - Image description/analysis
--   `speech_to_text` - Audio transcription
--   `text_to_speech` - Voice synthesis
--   `video_generation` - Video generation
--   `text_to_3d` - 3D model generation
--   `streaming_transcription` - Real-time audio transcription
--   `prerecorded_transcription` - Batch audio transcription
--   `prerecorded_translation` - Batch audio translation
--   `undetermined` - Type not yet determined
+- `llm` - Large Language Model
+- `embedding` - Text embedding generation
+- `image_generation` - Image generation from prompts
+- `text_to_image` - Text to image conversion
+- `vision_language_model` - Image description/analysis
+- `speech_to_text` - Audio transcription
+- `text_to_speech` - Voice synthesis
+- `video_generation` - Video generation
+- `text_to_3d` - 3D model generation
+- `streaming_transcription` - Real-time audio transcription
+- `prerecorded_transcription` - Batch audio transcription
+- `prerecorded_translation` - Batch audio translation
+- `undetermined` - Type not yet determined
 
 ### Example (TOML)
 
 ```toml
-schema = "service_v1"
+schema = "offering_v1"
 name = "gpt-4"
 display_name = "GPT-4"
 description = "Most capable GPT-4 model for complex reasoning tasks"
@@ -215,11 +225,11 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Required Fields
 
-| Field                    | Type                           | Description                        |
-| ------------------------ | ------------------------------ | ---------------------------------- |
-| `schema`                 | string                         | Must be `"listing_v1"`             |
-| `user_access_interfaces` | dict of AccessInterfaceData    | How users access the service, keyed by name |
-| `time_created`           | datetime (ISO 8601)            | Timestamp when listing was created |
+| Field                    | Type                        | Description                                 |
+| ------------------------ | --------------------------- | ------------------------------------------- |
+| `schema`                 | string                      | Must be `"listing_v1"`                      |
+| `user_access_interfaces` | dict of AccessInterfaceData | How users access the service, keyed by name |
+| `time_created`           | datetime (ISO 8601)         | Timestamp when listing was created          |
 
 ### Optional Fields
 
@@ -227,7 +237,7 @@ Listing files define how a seller presents/sells a service to end users.
 | --------------------------- | --------------------- | -------------------------------------------------------------------------- |
 | `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
 | `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
-| `status`                    | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
+| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`   |
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
 | `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                |
 | `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
@@ -235,15 +245,15 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Listing Name Field
 
--   **Automatic naming**: If `name` is omitted, uses filename (without extension)
--   **Multiple listings**: Use descriptive filenames for different tiers/marketplaces
--   **Example**: `listing-premium.json` → `name = "listing-premium"`
+- **Automatic naming**: If `name` is omitted, uses filename (without extension)
+- **Multiple listings**: Use descriptive filenames for different tiers/marketplaces
+- **Example**: `listing-premium.json` → `name = "listing-premium"`
 
 ### status Values (Listing)
 
--   `draft` - Work in progress, skipped during publish (default)
--   `ready` - Ready for admin review and testing
--   `deprecated` - No longer offered to new customers
+- `draft` - Work in progress, skipped during upload (default)
+- `ready` - Ready for admin review and testing
+- `deprecated` - No longer offered to new customers
 
 ### Example (TOML)
 
@@ -307,10 +317,10 @@ The `routing_key` field enables fine-grained request routing when multiple servi
 
 **How it works:**
 
--   Gateway extracts routing key from request body (currently the `model` field: `{"model": "value"}`)
--   Performs exact JSON equality match against `routing_key` in access interfaces
--   Only interfaces with matching `routing_key` handle the request
--   If `routing_key` is `null`, matches requests without a routing key
+- Gateway extracts routing key from request body (currently the `model` field: `{"model": "value"}`)
+- Performs exact JSON equality match against `routing_key` in access interfaces
+- Only interfaces with matching `routing_key` handle the request
+- If `routing_key` is `null`, matches requests without a routing key
 
 **Example use case:** Multiple GPT models on same endpoint:
 
@@ -388,23 +398,23 @@ Documents associated with entities (providers, offerings, listings). The documen
 
 ### DocumentCategory Enum Values
 
--   `getting_started` - Getting started guides
--   `api_reference` - API reference documentation
--   `tutorial` - Step-by-step tutorials
--   `code_example` - Code examples (visible to users)
--   `code_example_output` - Expected output from code examples
--   `connectivity_test` - Connectivity and performance tests (not visible to users, `is_public: false`)
--   `use_case` - Use case descriptions
--   `troubleshooting` - Troubleshooting guides
--   `changelog` - Version changelogs
--   `best_practice` - Best practices
--   `specification` - Technical specifications
--   `service_level_agreement` - SLAs
--   `terms_of_service` - Terms of service
--   `invoice` - Invoices/receipts
--   `logo` - Logo images
--   `avatar` - Avatar images
--   `other` - Other documents
+- `getting_started` - Getting started guides
+- `api_reference` - API reference documentation
+- `tutorial` - Step-by-step tutorials
+- `code_example` - Code examples (visible to users)
+- `code_example_output` - Expected output from code examples
+- `connectivity_test` - Connectivity and performance tests (not visible to users, `is_public: false`)
+- `use_case` - Use case descriptions
+- `troubleshooting` - Troubleshooting guides
+- `changelog` - Version changelogs
+- `best_practice` - Best practices
+- `specification` - Technical specifications
+- `service_level_agreement` - SLAs
+- `terms_of_service` - Terms of service
+- `invoice` - Invoices/receipts
+- `logo` - Logo images
+- `avatar` - Avatar images
+- `other` - Other documents
 
 ### RateLimit Object
 
@@ -437,41 +447,41 @@ Comprehensive service constraints and policies. All fields are optional.
 
 **Usage Quotas:**
 
--   `monthly_quota`, `daily_quota` - Usage quotas
--   `quota_unit` - Unit for quotas (RateLimitUnitEnum)
--   `quota_reset_cycle` - Reset cycle: `daily`, `weekly`, `monthly`, `yearly`
--   `overage_policy` - Policy when exceeded: `block`, `throttle`, `charge`, `queue`
+- `monthly_quota`, `daily_quota` - Usage quotas
+- `quota_unit` - Unit for quotas (RateLimitUnitEnum)
+- `quota_reset_cycle` - Reset cycle: `daily`, `weekly`, `monthly`, `yearly`
+- `overage_policy` - Policy when exceeded: `block`, `throttle`, `charge`, `queue`
 
 **Authentication:**
 
--   `auth_methods` - Supported auth methods (array of AuthMethodEnum)
--   `ip_whitelist_required` - IP whitelisting required (boolean)
--   `tls_version_min` - Minimum TLS version (string)
+- `auth_methods` - Supported auth methods (array of AuthMethodEnum)
+- `ip_whitelist_required` - IP whitelisting required (boolean)
+- `tls_version_min` - Minimum TLS version (string)
 
 **Request/Response:**
 
--   `max_request_size_bytes`, `max_response_size_bytes` - Size limits
--   `timeout_seconds` - Request timeout
--   `max_batch_size` - Max batch items
+- `max_request_size_bytes`, `max_response_size_bytes` - Size limits
+- `timeout_seconds` - Request timeout
+- `max_batch_size` - Max batch items
 
 **Content:**
 
--   `content_filters` - Content filtering: `adult`, `violence`, `hate_speech`, `profanity`, `pii`
--   `input_languages`, `output_languages` - Supported languages (ISO 639-1)
--   `max_context_length` - Max context tokens
--   `region_restrictions` - Geographic restrictions (ISO country codes)
+- `content_filters` - Content filtering: `adult`, `violence`, `hate_speech`, `profanity`, `pii`
+- `input_languages`, `output_languages` - Supported languages (ISO 639-1)
+- `max_context_length` - Max context tokens
+- `region_restrictions` - Geographic restrictions (ISO country codes)
 
 **Availability:**
 
--   `uptime_sla_percent` - Uptime SLA (e.g., 99.9)
--   `response_time_sla_ms` - Response time SLA
--   `maintenance_windows` - Scheduled maintenance
+- `uptime_sla_percent` - Uptime SLA (e.g., 99.9)
+- `response_time_sla_ms` - Response time SLA
+- `maintenance_windows` - Scheduled maintenance
 
 **Concurrency:**
 
--   `max_concurrent_requests` - Max concurrent requests
--   `connection_timeout_seconds` - Connection timeout
--   `max_connections_per_ip` - Max connections per IP
+- `max_concurrent_requests` - Max concurrent requests
+- `connection_timeout_seconds` - Connection timeout
+- `max_connections_per_ip` - Max connections per IP
 
 ## Validation Rules
 
@@ -496,21 +506,21 @@ Both JSON and TOML formats are supported for all schemas:
 
 ### JSON
 
--   Uses 2-space indentation
--   Keys sorted alphabetically
--   Files end with single newline
+- Uses 2-space indentation
+- Keys sorted alphabetically
+- Files end with single newline
 
 ### TOML
 
--   Standard TOML syntax
--   Sections use `[header]` notation
--   Arrays of objects use `[[header]]` notation
+- Standard TOML syntax
+- Sections use `[header]` notation
+- Arrays of objects use `[[header]]` notation
 
 The SDK preserves the original format when updating files.
 
 ## See Also
 
--   [Pricing Specification](pricing.md) - Complete pricing documentation
--   [Data Structure](data-structure.md) - File organization rules
--   [CLI Reference](cli-reference.md#validate) - Validation command
--   [Getting Started](getting-started.md) - Create your first files
+- [Pricing Specification](pricing.md) - Complete pricing documentation
+- [Data Structure](data-structure.md) - File organization rules
+- [CLI Reference](cli-reference.md#validate) - Validation command
+- [Getting Started](getting-started.md) - Create your first files

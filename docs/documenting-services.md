@@ -565,7 +565,7 @@ Use the validate command to check document references and template syntax:
 
 ```bash
 # Validate all files including documents
-usvc validate
+usvc data validate
 
 # Expected output:
 # ✓ All files validated successfully
@@ -643,13 +643,13 @@ Set `is_public: true` for user-facing documentation:
 }
 ```
 
-### 5. Validate Before Publishing
+### 5. Validate Before Uploading
 
-Always validate documents before publishing:
+Always validate documents before uploading:
 
 ```bash
-usvc validate
-usvc publish
+usvc data validate
+usvc services upload
 ```
 
 ## Next Steps

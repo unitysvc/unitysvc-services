@@ -16,9 +16,10 @@ The UnitySVC Seller SDK is a Python package that enables digital service provide
 
 -   **Define** service offerings and listings using schema-validated files
 -   **Manage** service data locally in version-controlled repositories
--   **Validate** data against JSON schemas before publishing
--   **Publish** services to the UnitySVC platform
--   **Query** and verify published data
+-   **Validate** data against JSON schemas before uploading
+-   **Upload** services to the UnitySVC platform
+-   **Manage Lifecycle** - Submit services for review, deprecate, or withdraw services
+-   **Query** and verify uploaded data
 
 ## The Service Data Model
 
@@ -30,7 +31,7 @@ A **Service** in UnitySVC consists of three complementary data components that w
 | **Offering Data** | `offering_v1` | WHAT is being provided | One per service, can have multiple listings |
 | **Listing Data** | `listing_v1` | HOW it's sold to customers | One per pricing tier/marketplace |
 
-These three parts are **organized separately** in the file system for reusability, but are **published together** as a unified service to the UnitySVC platform.
+These three parts are **organized separately** in the file system for reusability, but are **uploaded together** as a unified service to the UnitySVC platform.
 
 ### Why This Structure?
 
@@ -45,10 +46,11 @@ This enables scenarios like:
 
 ## Key Features
 
--   **Unified Publishing** - Provider, offering, and listing published together atomically
+-   **Unified Upload** - Provider, offering, and listing uploaded together atomically
+-   **Service Lifecycle** - Submit for review, deprecate, or withdraw services
 -   **Pydantic Models** - Type-safe data models for all entities
 -   **Data Validation** - Comprehensive schema validation
--   **Local-First** - Work offline, commit to git, publish when ready
+-   **Local-First** - Work offline, commit to git, upload when ready
 -   **CLI Tools** - Complete command-line interface
 -   **Automation** - Script-based service generation
 -   **Multiple Formats** - Support for JSON and TOML

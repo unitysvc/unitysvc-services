@@ -176,17 +176,19 @@
                 "type": "string"
               },
               "type": "array"
+            },
+            {
+              "type": "null"
             }
           ],
-          "description": "Command to execute for populating services (string or list of arguments)",
+          "default": null,
+          "description": "Command to execute for populating services (string or list of arguments). Comment out to disable.",
           "title": "Command"
         },
         "envs": {
           "anyOf": [
             {
-              "additionalProperties": {
-                "type": "string"
-              },
+              "additionalProperties": true,
               "type": "object"
             },
             {
@@ -194,13 +196,26 @@
             }
           ],
           "default": null,
-          "description": "Environment variables to set when executing the command",
+          "description": "Environment variables to set when executing the command (values converted to strings)",
           "title": "Envs"
+        },
+        "requirements": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Python packages to install before executing the command (e.g., ['any-llm-sdk[anthropic]'])",
+          "title": "Requirements"
         }
       },
-      "required": [
-        "command"
-      ],
       "title": "ServicesPopulator",
       "type": "object"
     }

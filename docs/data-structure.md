@@ -11,7 +11,7 @@ The SDK follows a **local-first, version-controlled workflow**. All service data
 
 ## The Service Data Model
 
-A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These are organized separately in the filesystem for reusability, but are **published together** as a unified service:
+A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These are organized separately in the filesystem for reusability, but are **uploaded together** as a unified service:
 
 ```mermaid
 flowchart TB
@@ -20,7 +20,7 @@ flowchart TB
         S["<b>Service</b><br/>name, display_name, status<br/><i>derived from components</i>"]
     end
 
-    subgraph Content["Content Entities (Published Together)"]
+    subgraph Content["Content Entities (Uploaded Together)"]
         P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
         O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
         L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
@@ -37,7 +37,7 @@ flowchart TB
 
 ### Service Identity
 
-When you publish provider, offering, and listing data together, the platform creates a **Service** record that:
+When you upload provider, offering, and listing data together, the platform creates a **Service** record that:
 
 -   **Links** the seller to the content (provider, offering, listing)
 -   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
@@ -66,14 +66,14 @@ This separation enables:
 - **Maintainability**: Clear separation of concerns
 - **Immutability**: Content entities are content-addressed; same content = same ID
 
-### Publishing Model
+### Upload Model
 
-When you run `usvc publish`, the SDK uses a **listing-centric** approach:
+When you run `usvc services upload`, the SDK uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory tree
 2. For each listing, locates the **single** offering file (`offering_v1`) in the same directory
 3. Locates the provider file (`provider_v1`) in the parent directory
-4. Publishes all three together as a unified service to `/seller/services`
+4. Uploads all three together as a unified service to `/seller/services`
 
 **Relationship by Location**: The relationship between providers, offerings, and listings is determined entirely by file location:
 - A listing belongs to the offering in the same directory
@@ -84,16 +84,18 @@ When you run `usvc publish`, the SDK uses a **listing-centric** approach:
 graph TD
     A[Listing File] -->|same directory| B[Offering File]
     A -->|parent directory| C[Provider File]
-    A & B & C -->|published together| D[/seller/services API]
+    A -->|uploaded together| D[Backend API]
+    B -->|uploaded together| D
+    C -->|uploaded together| D
 ```
 
-### Service Publishing Lifecycle
+### Service Upload Lifecycle
 
 Understanding how services are created and updated is essential for managing your service catalog:
 
-#### First Publish: New Service Creation
+#### First Upload: New Service Creation
 
-When you publish a listing file for the first time (from a new repository or data directory), **a new Service is always created**, even if the content is identical to an existing service. This is because:
+When you upload a listing file for the first time (from a new repository or data directory), **a new Service is always created**, even if the content is identical to an existing service. This is because:
 
 - Each listing file represents a distinct service identity
 - The Service ID is the stable identifier that subscriptions reference
@@ -101,7 +103,7 @@ When you publish a listing file for the first time (from a new repository or dat
 
 ```mermaid
 flowchart LR
-    subgraph First["First Publish"]
+    subgraph First["First Upload"]
         L1["listing.json<br/><i>no service_id</i>"] --> API1[Backend API]
         API1 --> S1["Creates NEW Service<br/><i>service_id: abc-123</i>"]
         S1 --> O1["listing.override.json<br/><i>service_id saved</i>"]
@@ -114,7 +116,7 @@ flowchart LR
 
 #### Service ID Persistence
 
-After a successful first publish, the SDK automatically saves the `service_id` to an override file:
+After a successful first upload, the SDK automatically saves the `service_id` to an override file:
 
 ```
 listing.json       →  listing.override.json
@@ -131,16 +133,16 @@ Example override file content:
 
 This override file should be:
 - **Committed to version control** - preserves the service identity across team members and CI/CD
-- **Never manually edited** (except when intentionally publishing as new)
+- **Never manually edited** (except when intentionally uploading as new)
 - **Environment-specific** if deploying to multiple environments (staging, production)
 
-#### Subsequent Publishes: Service Updates
+#### Subsequent Uploads: Service Updates
 
-On subsequent publishes, the SDK automatically loads the `service_id` from the override file and includes it in the publish request. This ensures the existing service is **updated** rather than creating a new one:
+On subsequent uploads, the SDK automatically loads the `service_id` from the override file and includes it in the upload request. This ensures the existing service is **updated** rather than creating a new one:
 
 ```mermaid
 flowchart LR
-    subgraph Update["Subsequent Publish"]
+    subgraph Update["Subsequent Upload"]
         O2["listing.override.json<br/><i>service_id: abc-123</i>"] --> L2["listing.json"]
         L2 --> API2[Backend API]
         API2 --> S2["Updates EXISTING Service<br/><i>service_id: abc-123</i>"]
@@ -154,34 +156,44 @@ flowchart LR
 When updating:
 - The Service ID remains stable (subscriptions continue to work)
 - Content entities are updated or created as needed
-- If content is unchanged, the publish returns "unchanged" status
+- If content is unchanged, the upload returns "unchanged" status
 
-#### Publishing as New (Ignoring Existing Service)
+#### Uploading as New (Ignoring Existing Service)
 
-To publish a service as completely new (ignoring any existing `service_id`), delete the override file before publishing:
+To upload a service as completely new (ignoring any existing `service_id`), delete the override file before uploading:
 
 ```bash
-# Remove override file to publish as new service
+# Remove override file to upload as new service
 rm listing.override.json
 
-# Publish - will create a NEW service with a new service_id
-usvc publish --data-path ./my-provider/services/my-service/listing.json
+# Upload - will create a NEW service with a new service_id
+usvc services upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
-Common use cases for publishing as new:
+Common use cases for uploading as new:
 - The service was accidentally deleted from the backend
 - Deploying to a different environment (staging vs production)
 - Creating a variant/copy of an existing service
 
 #### Multiple Environments
 
-For deploying the same service to multiple environments, manage separate override files:
+The SDK only supports a single override file per base file (`<stem>.override.<suffix>`). For deploying to multiple environments, use one of these approaches:
 
+**Option 1: Separate branches**
 ```
-listing.json                     # Base listing data
-listing.override.json            # Production service_id
-listing.staging.override.json    # Staging service_id (gitignored or separate branch)
+main branch:     listing.override.json  # Production service_id
+staging branch:  listing.override.json  # Staging service_id
 ```
+
+**Option 2: Separate data directories**
+```
+data-prod/my-provider/services/my-service/listing.override.json
+data-staging/my-provider/services/my-service/listing.override.json
+```
+
+**Option 3: CI/CD management**
+- Gitignore override files
+- Generate them in CI/CD from environment-specific secrets
 
 ## Required File Structure
 
@@ -212,78 +224,76 @@ data/
 
 ## Naming Rules and Restrictions
 
-### 1. Provider Directory (`${provider_name}/`)
+The SDK discovers files by their `schema` field, not by filename. However, some naming conventions are enforced for consistency.
 
--   **Must match** the `name` field in `provider.json`/`provider.toml`
--   Name is normalized: lowercase with hyphens replacing spaces/underscores
--   Example: Provider name `"My Provider"` → directory `my-provider/`
+### What's Actually Required
 
-### 2. Services Directory
+1. **Schema field**: Every data file must have a `schema` field (`provider_v1`, `offering_v1`, or `listing_v1`)
+2. **Services directory**: The path must contain a `services/` directory for the SDK to resolve provider relationships
+3. **One offering per directory**: Each service directory should have exactly one `offering_v1` file
+4. **Provider name consistency**: For `provider_v1` files, the parent directory name must match the `name` field
 
--   **Must be** named `services/` under each provider directory
--   Path: `${provider_name}/services/`
--   This is where all service offerings and listings are defined
+### What's Convention (Recommended but Not Enforced)
 
-### 3. Service Directory (`${service_name}/`)
+1. **Filenames**: Any filename works as long as the `schema` field is correct
+2. **Service directory name**: Convention is to match the offering `name` field, but the service name is always read from the offering file
+3. **Listing filename pattern**: `listing-*.json` is convention; any filename with `schema: "listing_v1"` works
 
--   **Must match** the `name` field in `offering.json`/`offering.toml`
--   Name is normalized: lowercase with hyphens
--   Example: Service name `"GPT-4"` → directory `gpt-4/`
--   Located under: `${provider_name}/services/${service_name}/`
+### Recommended Structure
 
-### 4. Offering Files (Offering Data)
+Following conventions makes your data easier to navigate:
 
--   **offering.json** or **offering.toml**: Service offering metadata (required)
--   Schema must be `"offering_v1"`
--   **Exactly one** offering file per service directory
--   Contains upstream service details, pricing, access interfaces
--   Defines what the provider offers
--   Location: `${provider_name}/services/${service_name}/offering.json`
--   The offering automatically belongs to the provider in the parent directory
+| Component | Convention | Example |
+|-----------|-----------|---------|
+| Provider directory | Match `name` field | `openai/` for `name: "openai"` |
+| Services directory | Always `services/` | `openai/services/` |
+| Service directory | Match offering `name` | `gpt-4/` for `name: "gpt-4"` |
+| Provider file | `provider.json` or `provider.toml` | `openai/provider.json` |
+| Offering file | `offering.json` or `offering.toml` | `openai/services/gpt-4/offering.json` |
+| Listing files | `listing-{variant}.json` | `listing-premium.json`, `listing-basic.json` |
 
-### 5. Listing Files (Listing Data)
+### Multiple Listings Per Service
 
--   **listing-${variant}.json** or **listing-${variant}.toml**: Service listing (required)
--   File name pattern: `listing-*.json` or `listing-*.toml`
--   Commonly named: `listing-default.json`, `listing-premium.json`, `listing-basic.json`
--   Schema must be `"listing_v1"`
--   Contains user-facing information, downstream pricing, documentation
--   Defines how the seller presents/sells the service
--   Location: `${provider_name}/services/${service_name}/listing-*.json`
--   Automatically belongs to the single offering in the same directory
+When a single offering has multiple listings (different pricing tiers, marketplaces):
 
-#### Multiple Listings Per Service
+-   **Filename as identifier**: If the `name` field is omitted, the filename (without extension) becomes the listing name
+-   **Example**: `listing-premium.json` → `name: "listing-premium"`
+-   **Best practice**: Use descriptive filenames or explicitly set the `name` field
 
-When a single service offering has multiple listings (e.g., different pricing tiers, different marketplaces), the filename becomes significant:
+### External Files
 
--   **Filename as identifier**: If the `name` field is not provided in the listing file, the filename (without extension) is automatically used as the listing name
--   **Example**: `listing-premium.json`, `listing-basic.json`, `listing-enterprise.json` for different tiers
--   **Best practice**: Use descriptive filenames that indicate the listing variant, or explicitly set the `name` field in each file
-
-### 6. External Files (Documentation, Code Examples, etc.)
-
--   External files like code examples, documentation, images can be placed anywhere in the directory structure
--   They are referenced by **relative paths** from the referencing file
+-   Documentation, code examples, and images can be placed anywhere
+-   Referenced by **relative paths** from the referencing file
 -   This allows sharing files across multiple services
 
 ## File Formats
 
-Both JSON and TOML formats are supported for all data files:
+Both JSON and TOML formats are supported for all data files.
 
-### JSON Format
+### JSON Format (with JSON5 support)
+
+JSON files are read using JSON5, which allows:
+- Comments (`//` and `/* */`)
+- Trailing commas
+- Unquoted keys
+- Single-quoted strings
 
 ```json
 {
+    // This is a comment
     "schema": "offering_v1",
     "name": "my-service",
     "display_name": "My Service",
-    "description": "A high-performance digital service"
+    "description": "A high-performance digital service",  // trailing comma OK
 }
 ```
+
+**Note:** `usvc data format` outputs standard JSON (no comments), so formatting will strip comments.
 
 ### TOML Format
 
 ```toml
+# TOML natively supports comments
 schema = "offering_v1"
 name = "my-service"
 display_name = "My Service"
@@ -447,13 +457,13 @@ Each file must include a `schema` field identifying its type:
 
 ## Validation Rules
 
-The validator enforces these structure rules:
+The validator enforces these rules:
 
-1. **Single offering per directory**: Each service directory must have exactly **one** offering file (`offering_v1` schema)
-2. **Listing location**: Each listing file must be in the same directory as a valid offering file
-3. **Provider name matching**: Provider directory name must match the normalized `name` field in provider file
-4. **Service name matching**: Service directory name must match the normalized `name` field in offering file
-5. **Relationship by location**: Listings automatically belong to the offering in their directory—no explicit `service_name` or `provider_name` fields needed
+1. **Schema field required**: All data files must have a `schema` field
+2. **Single offering per directory**: Each service directory should have exactly one `offering_v1` file
+3. **Listing location**: Listings must be in the same directory as an `offering_v1` file
+4. **Provider name matching**: `provider_v1` files must have directory name matching the normalized `name` field
+5. **Relationship by location**: Listings belong to the offering in their directory—no explicit linking fields needed
 
 ## Shared Documentation Pattern
 
@@ -531,15 +541,15 @@ data/
                 └── usage-guide.md
 ```
 
-When publishing, each listing triggers a unified publish:
-- `listing-premium.json` → publishes openai provider + gpt-4 offering + premium listing
-- `listing-basic.json` → publishes openai provider + gpt-4 offering + basic listing
+When uploading, each listing triggers a unified upload:
+- `listing-premium.json` → uploads openai provider + gpt-4 offering + premium listing
+- `listing-basic.json` → uploads openai provider + gpt-4 offering + basic listing
 - etc.
 
-The provider and offering data are sent with each publish but are deduplicated on the backend (unchanged data returns "unchanged" status).
+The provider and offering data are sent with each upload but are deduplicated on the backend (unchanged data returns "unchanged" status).
 
 ## Next Steps
 
 -   [File Schemas](file-schemas.md) - Detailed schema specifications
--   [CLI Reference](cli-reference.md#publish) - Publishing command details
+-   [CLI Reference](cli-reference.md#upload) - Upload command details
 -   [Workflows](workflows.md) - Learn about manual and automated workflows

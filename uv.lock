@@ -435,6 +435,15 @@ wheels = [
 ]
 
 [[package]]
+name = "json5"
+version = "0.13.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/e8/a3f261a66e4663f22700bc8a17c08cb83e91fbf086726e7a228398968981/json5-0.13.0.tar.gz", hash = "sha256:b1edf8d487721c0bf64d83c28e91280781f6e21f4a797d3261c7c828d4c165bf", size = 52441, upload-time = "2026-01-01T19:42:14.99Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d7/9e/038522f50ceb7e74f1f991bf1b699f24b0c2bbe7c390dd36ad69f4582258/json5-0.13.0-py3-none-any.whl", hash = "sha256:9a08e1dd65f6a4d4c6fa82d216cf2477349ec2346a38fd70cc11d2557499fbcc", size = 36163, upload-time = "2026-01-01T19:42:13.962Z" },
+]
+
+[[package]]
 name = "jsonschema"
 version = "4.25.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1348,12 +1357,13 @@ wheels = [
 
 [[package]]
 name = "unitysvc-services"
-version = "0.2.20"
+version = "0.2.22"
 source = { editable = "." }
 dependencies = [
     { name = "email-validator" },
     { name = "httpx" },
     { name = "jinja2" },
+    { name = "json5" },
     { name = "jsonschema" },
     { name = "mistune" },
     { name = "pydantic" },
@@ -1369,6 +1379,7 @@ dev = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-material" },
+    { name = "pymdown-extensions" },
     { name = "pytest" },
     { name = "ruff" },
     { name = "ty" },
@@ -1377,6 +1388,7 @@ docs = [
     { name = "mkdocs" },
     { name = "mkdocs-autorefs" },
     { name = "mkdocs-material" },
+    { name = "pymdown-extensions" },
 ]
 test = [
     { name = "coverage" },
@@ -1395,6 +1407,7 @@ requires-dist = [
     { name = "ipdb", marker = "extra == 'dev'" },
     { name = "ipdb", marker = "extra == 'test'" },
     { name = "jinja2" },
+    { name = "json5" },
     { name = "jsonschema" },
     { name = "mistune", specifier = ">=3.0" },
     { name = "mkdocs", marker = "extra == 'dev'" },
@@ -1405,6 +1418,8 @@ requires-dist = [
     { name = "mkdocs-material", marker = "extra == 'docs'" },
     { name = "mypy", marker = "extra == 'test'" },
     { name = "pydantic" },
+    { name = "pymdown-extensions", marker = "extra == 'dev'" },
+    { name = "pymdown-extensions", marker = "extra == 'docs'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "rich" },
