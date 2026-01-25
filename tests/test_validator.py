@@ -196,3 +196,144 @@ def test_file_reference_validation(schema_dir, example_data_dir):
 
     # Should have no file reference errors in example data
     assert len(file_ref_errors) == 0, "File reference validation failed"
+
+
+class TestRequiredParameterDefaults:
+    """Tests for validate_required_parameter_defaults method."""
+
+    def test_no_user_parameters_schema(self, schema_dir, example_data_dir):
+        """Test validation passes when user_parameters_schema is not present."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {"schema": "listing_v1"}
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 0
+
+    def test_no_required_parameters(self, schema_dir, example_data_dir):
+        """Test validation passes when user_parameters_schema has no required field."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {"param1": {"type": "string"}},
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 0
+
+    def test_empty_required_parameters(self, schema_dir, example_data_dir):
+        """Test validation passes when required is an empty list."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {"param1": {"type": "string"}},
+                "required": [],
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 0
+
+    def test_required_params_with_defaults(self, schema_dir, example_data_dir):
+        """Test validation passes when all required params have defaults."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {
+                    "param1": {"type": "string"},
+                    "param2": {"type": "integer"},
+                },
+                "required": ["param1", "param2"],
+            },
+            "service_options": {
+                "default_parameters": {
+                    "param1": "default_value",
+                    "param2": 42,
+                }
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 0
+
+    def test_required_params_missing_service_options(self, schema_dir, example_data_dir):
+        """Test validation fails when required params exist but service_options is missing."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {"param1": {"type": "string"}},
+                "required": ["param1"],
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 1
+        assert "service_options is missing" in errors[0]
+
+    def test_required_params_missing_default_parameters(self, schema_dir, example_data_dir):
+        """Test validation fails when required params exist but default_parameters is missing."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {"param1": {"type": "string"}},
+                "required": ["param1"],
+            },
+            "service_options": {"other_option": "value"},
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 1
+        assert "default_parameters is missing" in errors[0]
+
+    def test_required_params_missing_some_defaults(self, schema_dir, example_data_dir):
+        """Test validation fails when some required params are missing defaults."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        data = {
+            "schema": "listing_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "properties": {
+                    "param1": {"type": "string"},
+                    "param2": {"type": "integer"},
+                    "param3": {"type": "boolean"},
+                },
+                "required": ["param1", "param2", "param3"],
+            },
+            "service_options": {
+                "default_parameters": {
+                    "param1": "default_value",
+                    # param2 and param3 are missing
+                }
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "listing_v1")
+        assert len(errors) == 1
+        assert "param2" in errors[0]
+        assert "param3" in errors[0]
+        assert "missing default values" in errors[0]
+
+    def test_non_listing_schema_skipped(self, schema_dir, example_data_dir):
+        """Test validation is skipped for non-listing_v1 schemas."""
+        validator = DataValidator(example_data_dir, schema_dir)
+
+        # This data would fail if validated, but should be skipped for offering_v1
+        data = {
+            "schema": "offering_v1",
+            "user_parameters_schema": {
+                "type": "object",
+                "required": ["param1"],
+            },
+        }
+        errors = validator.validate_required_parameter_defaults(data, "offering_v1")
+        assert len(errors) == 0

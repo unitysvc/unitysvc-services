@@ -6,6 +6,7 @@ import subprocess
 import tomllib
 from pathlib import Path
 
+import json5
 import typer
 from rich.console import Console
 
@@ -79,7 +80,7 @@ def populate(
                     provider_config = tomllib.load(f)
             else:
                 with open(provider_file) as f:
-                    provider_config = json.load(f)
+                    provider_config = json5.load(f)
 
             provider_name_in_file = provider_config.get("name", "unknown")
 

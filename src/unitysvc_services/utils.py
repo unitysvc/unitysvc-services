@@ -15,6 +15,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import json5
 import tomli_w
 from jinja2 import Template
 
@@ -207,7 +208,7 @@ def load_data_file(
     # Load the base file
     if file_path.suffix == ".json":
         with open(file_path, encoding="utf-8") as f:
-            data = json.load(f)
+            data = json5.load(f)
         file_format = "json"
     elif file_path.suffix == ".toml":
         with open(file_path, "rb") as f:
@@ -226,7 +227,7 @@ def load_data_file(
             # Load the override file (same format as base file)
             if override_path.suffix == ".json":
                 with open(override_path, encoding="utf-8") as f:
-                    override_data = json.load(f)
+                    override_data = json5.load(f)
             elif override_path.suffix == ".toml":
                 with open(override_path, "rb") as f:
                     override_data = tomllib.load(f)
@@ -307,7 +308,7 @@ def write_override_file(
     if override_path.exists():
         if file_format == "json":
             with open(override_path, encoding="utf-8") as f:
-                existing_data = json.load(f)
+                existing_data = json5.load(f)
         else:
             with open(override_path, "rb") as f:
                 existing_data = tomllib.load(f)
@@ -348,7 +349,7 @@ def read_override_file(base_file: Path) -> dict[str, Any]:
     # Determine format from base file extension
     if base_file.suffix == ".json":
         with open(override_path, encoding="utf-8") as f:
-            return json.load(f)
+            return json5.load(f)
     elif base_file.suffix == ".toml":
         with open(override_path, "rb") as f:
             return tomllib.load(f)
@@ -356,7 +357,7 @@ def read_override_file(base_file: Path) -> dict[str, Any]:
         # Try JSON first for unknown formats
         try:
             with open(override_path, encoding="utf-8") as f:
-                return json.load(f)
+                return json5.load(f)
         except Exception:
             return {}
 

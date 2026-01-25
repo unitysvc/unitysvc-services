@@ -26,16 +26,16 @@ flowchart TB
 
     subgraph Manual["Manual/Ongoing"]
         W3 --> A2[Edit Files]
-        A2 --> A3[usvc validate]
-        A3 --> A4[usvc format]
-        A4 --> A5[usvc publish]
+        A2 --> A3[usvc data validate]
+        A3 --> A4[usvc data format]
+        A4 --> A5[usvc services upload]
     end
 
     subgraph Automated["Automated Workflow"]
-        B1[Configure populate script] --> B2[usvc populate]
-        B2 --> B3[usvc validate]
-        B3 --> B4[usvc format]
-        B4 --> B5[usvc publish]
+        B1[Configure populate script] --> B2[usvc data populate]
+        B2 --> B3[usvc data validate]
+        B3 --> B4[usvc data format]
+        B4 --> B5[usvc services upload]
     end
 
     subgraph Platform["UnitySVC Platform"]
@@ -71,30 +71,30 @@ data/
             └── listing.json
 ```
 
-#### 3. Validate and Publish
+#### 3. Validate and Upload
 
 ```bash
-usvc validate
-usvc format
-usvc publish
+usvc data validate
+usvc data format
+usvc services upload
 ```
 
 #### 4. Ongoing Management
 
 After initial setup, manage changes locally:
 
--   Edit files directly
--   Use `usvc validate` to check changes
--   Commit to git for version control
--   Use CI/CD for automated publishing
+- Edit files directly
+- Use `usvc data validate` to check changes
+- Commit to git for version control
+- Use CI/CD for automated uploads
 
 ## Manual Workflow
 
 Best for:
 
--   Small number of services (< 20)
--   Teams comfortable editing JSON/TOML directly
--   Situations where web interface isn't preferred
+- Small number of services (< 20)
+- Teams comfortable editing JSON/TOML directly
+- Situations where web interface isn't preferred
 
 ### Step-by-Step Process
 
@@ -116,75 +116,64 @@ data/
 
 Fill in your service details:
 
--   Provider information (name, contact, metadata)
--   Service offering details (API endpoints, pricing, capabilities)
--   Service listing details (user-facing info, documentation)
+- Provider information (name, contact, metadata)
+- Service offering details (API endpoints, pricing, capabilities)
+- Service listing details (user-facing info, documentation)
 
 #### 3. Validate Data
 
 ```bash
-usvc validate
+usvc data validate
 ```
 
 Fix any validation errors. Common issues:
 
--   Directory names not matching field values
--   Missing required fields
--   Invalid file paths
+- Directory names not matching field values
+- Missing required fields
+- Invalid file paths
 
-#### 4. Format Files
+#### 4. Format Files (Optional)
 
 ```bash
-usvc format
+usvc data format
 ```
 
 This ensures:
 
--   JSON files have 2-space indentation
--   Files end with single newline
--   No trailing whitespace
+- JSON files have 2-space indentation
+- Files end with single newline
+- No trailing whitespace
 
-#### 5. Update Local Files as Needed
+#### 5. Edit Local Files as Needed
 
-```bash
-# Update service status
-usvc update offering --name my-service --status ready
+Edit JSON/TOML files directly to update service status or other fields. The file-based approach gives you full control and integrates naturally with version control.
 
-# Update multiple fields
-usvc update offering --name my-service \
-  --status ready \
-  --display-name "My Updated Service"
-
-# Update listing status
-usvc update listing --services my-service --status in_service
-```
-
-#### 6. Publish to Platform
+#### 6. Upload to Platform
 
 ```bash
 # Set credentials
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-api-key"
 
-# Publish all (handles order automatically: sellers → providers → offerings → listings)
+# Upload all services
 cd data
-usvc publish
+usvc services upload
 
 # Or from parent directory
-usvc publish --data-path ./data
+usvc services upload --data-path ./data
 ```
 
 #### 7. Verify on Platform
 
 ```bash
-# Query your services
-usvc query
+# List your services
+usvc services list
 
-# Or query with custom fields for focused output
-usvc query --fields id,name,status
+# Or list with custom fields for focused output
+usvc services list --fields id,name,status
 
 # Filter by status
-usvc query --status active
+usvc services list --status active
 ```
 
 ### Version Control Integration
@@ -195,19 +184,19 @@ git add data/
 git commit -m "Add new service: my-service"
 git push
 
-# Publish from CI/CD
-usvc validate
-usvc publish --data-path ./data
+# Upload from CI/CD
+usvc data validate
+usvc services upload --data-path ./data
 ```
 
 ## Automated Workflow
 
 Best for providers with:
 
--   Large service catalogs (> 20 services)
--   Frequently changing services
--   Dynamic pricing or availability
--   Services added/deprecated automatically
+- Large service catalogs (> 20 services)
+- Frequently changing services
+- Dynamic pricing or availability
+- Services added/deprecated automatically
 
 ### How It Works
 
@@ -309,20 +298,20 @@ if __name__ == "__main__":
 
 ```bash
 # Generate all services
-usvc populate
+usvc data populate
 
 # Generate for specific provider only
-usvc populate --provider my-provider
+usvc data populate --provider my-provider
 
 # Dry run to see what would execute
-usvc populate --dry-run
+usvc data populate --dry-run
 ```
 
 #### 4. Validate and Format
 
 ```bash
-usvc validate
-usvc format
+usvc data validate
+usvc data format
 ```
 
 #### 5. Review Changes
@@ -333,21 +322,21 @@ git add data/
 git commit -m "Update service catalog from API"
 ```
 
-#### 6. Publish
+#### 6. Upload
 
 ```bash
 cd data
-usvc publish
+usvc services upload
 ```
 
 #### 7. Verify
 
 ```bash
-# Query your services
-usvc query
+# List your services
+usvc services list
 
-# Or query with custom fields
-usvc query --fields id,name,status
+# Or list with custom fields
+usvc services list --fields id,name,status
 ```
 
 ### Automation with CI/CD
@@ -377,13 +366,13 @@ jobs:
               run: pip install unitysvc-services requests
 
             - name: Generate services
-              run: usvc populate
+              run: usvc data populate
 
             - name: Validate
-              run: usvc validate
+              run: usvc data validate
 
             - name: Format
-              run: usvc format
+              run: usvc data format
 
             - name: Commit changes
               run: |
@@ -393,12 +382,12 @@ jobs:
                   git diff --staged --quiet || git commit -m "Update services from API"
                   git push
 
-            - name: Publish to UnitySVC
+            - name: Upload to UnitySVC
               env:
                   UNITYSVC_BASE_URL: ${{ secrets.UNITYSVC_BASE_URL }}
                   UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
               run: |
-                  usvc publish --data-path ./data
+                  usvc services upload --data-path ./data
 ```
 
 ## Hybrid Workflow
@@ -407,34 +396,36 @@ Combine web interface and automated approaches:
 
 1. Use automated populate for most services
 2. Use web interface or manual files for special/custom services
-3. Use update commands to adjust individual services
+3. Edit files directly to adjust individual services
 
 ```bash
 # Generate bulk of services from provider API
-usvc populate
+usvc data populate
 
 # Create premium service via web interface and export, or create files manually
 # Place in: data/my-provider/services/premium-service/
 
-# Update specific service
-usvc update offering --name premium-service --status ready
+# Edit files directly to update status or other fields
+# Then validate and upload
+usvc data validate
+usvc services upload
 ```
 
-## Service Publishing Lifecycle
+## Service Upload Lifecycle
 
 Understanding how services are created and updated is essential for managing your catalog:
 
-### First Publish: New Service Creation
+### First Upload: New Service Creation
 
-When you publish a listing file for the **first time** (from a new repository or data directory):
+When you upload a listing file for the **first time** (from a new repository or data directory):
 
 1. **A new Service is always created** - even if the content is identical to an existing service
 2. The Service ID is generated by the backend
 3. **The SDK saves the `service_id`** to an override file (e.g., `listing.override.json`)
 
 ```bash
-# First publish - creates a new service
-$ usvc publish
+# First upload - creates a new service
+$ usvc services upload
   + Created service: my-service (provider: my-provider)
     Service ID: 550e8400-e29b-41d4-a716-446655440000
     → Saved to listing.override.json
@@ -447,32 +438,34 @@ After the first successful publish, the override file contains the stable servic
 ```json
 // listing.override.json (auto-generated)
 {
-  "service_id": "550e8400-e29b-41d4-a716-446655440000"
+    "service_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
 **Best practices for override files:**
+
 - **Commit to version control** - preserves service identity across team members
 - **Don't manually edit** - the SDK manages this file
 - **Keep per-environment** if deploying to staging/production separately
 
-### Subsequent Publishes: Service Updates
+### Subsequent Uploads: Service Updates
 
-On subsequent publishes, the SDK automatically loads the `service_id` from the override file:
+On subsequent uploads, the SDK automatically loads the `service_id` from the override file:
 
 ```bash
-# Subsequent publish - updates existing service
-$ usvc publish
+# Subsequent upload - updates existing service
+$ usvc services upload
   ~ Updated service: my-service (provider: my-provider)
     Service ID: 550e8400-e29b-41d4-a716-446655440000
 ```
 
 The Service ID remains stable, ensuring:
+
 - Subscriptions continue to work
 - Usage history is preserved
 - Customers experience no disruption
 
-### Publishing as New Service
+### Uploading as New Service
 
 To create a completely new service (ignoring existing `service_id`):
 
@@ -480,13 +473,13 @@ To create a completely new service (ignoring existing `service_id`):
 # Delete the override file
 rm listing.override.json
 
-# Publish creates a new service with a new ID
-usvc publish
+# Upload creates a new service with a new ID
+usvc services upload
 ```
 
-## Publishing Order
+## Upload Order
 
-**Recommended:** Use `usvc publish` without subcommands to publish all types automatically in the correct order:
+**Recommended:** Use `usvc services upload` to upload all types automatically in the correct order:
 
 ```mermaid
 flowchart LR
@@ -518,106 +511,32 @@ flowchart LR
 3. **Service Offerings** - Links providers to services
 4. **Service Listings** - Links sellers to offerings
 
-The CLI handles this order automatically when you use `publish` without a subcommand. You can also publish specific types individually if needed (e.g., `usvc publish providers`).
+The CLI handles this order automatically. Incorrect order will result in foreign key errors.
 
-Incorrect order will result in foreign key errors.
+## Deleting Services
 
-## Unpublishing Workflow
-
-The unpublish command allows you to remove data from the UnitySVC backend with full control over cascade behavior.
-
-### Understanding Cascade Deletions
-
-**⚠️ CRITICAL:** Unpublish operations cascade automatically to maintain referential integrity:
-
--   **Deleting a seller** → Removes ALL listings from that seller (across all providers/offerings)
--   **Deleting a provider** → Removes ALL offerings AND all listings from that provider
--   **Deleting an offering** → Removes ALL listings for that offering
--   **Deleting a listing** → Only removes that specific listing
-
-### Recommended Unpublish Process
-
-Always follow this safety-first workflow:
-
-#### 1. Preview Impact (Dryrun)
+Use `usvc services delete` to remove services from the backend:
 
 ```bash
-# See what would be deleted before committing
-usvc unpublish offerings --services "deprecated-service" --dryrun
-usvc unpublish providers openai --dryrun
-usvc unpublish sellers old-seller --dryrun
-```
+# Preview what would be deleted
+usvc services delete <service-id> --dryrun
 
-#### 2. Review Cascade Impact
+# Delete a service
+usvc services delete <service-id>
 
-Carefully review the dryrun output showing:
+# Delete multiple services
+usvc services delete <service-id-1> <service-id-2>
 
--   Number of offerings to be deleted
--   Number of listings to be deleted
--   Number of subscriptions to be deleted
-
-#### 3. Execute Deletion
-
-```bash
-# Delete with confirmation prompt
-usvc unpublish offerings --services "deprecated-service"
-
-# Or skip confirmation for automation
-usvc unpublish providers openai --yes
-```
-
-### Common Unpublish Scenarios
-
-#### Deprecate a Single Service
-
-```bash
-# 1. Check what will be affected
-usvc unpublish offerings --services "gpt-3" --dryrun
-
-# 2. Delete the offering and its listings
-usvc unpublish offerings --services "gpt-3"
-```
-
-#### Remove Multiple Services from a Provider
-
-```bash
-# Delete specific services
-usvc unpublish offerings --services "model-a,model-b,model-c"
-
-# Or delete all offerings from a provider
-usvc unpublish offerings --provider old-provider
-```
-
-#### Remove an Entire Provider
-
-```bash
-# ⚠️ This deletes provider + all offerings + all listings
-usvc unpublish providers deprecated-provider --dryrun
-usvc unpublish providers deprecated-provider
-```
-
-#### Remove a Seller's Listings
-
-```bash
-# ⚠️ This deletes all listings from the seller
-usvc unpublish sellers old-marketplace --dryrun
-usvc unpublish sellers old-marketplace
-```
-
-#### Force Delete with Active Subscriptions
-
-```bash
-# By default, deletions are blocked if subscriptions exist
-# Use --force to override (use with extreme caution!)
-usvc unpublish offerings --services "service-with-users" --force --yes
+# Force delete with active subscriptions (use with caution!)
+usvc services delete <service-id> --force --yes
 ```
 
 ### Integration with Version Control
 
-After unpublishing, update your local repository:
+After deleting services, update your local repository:
 
 ```bash
-# Delete local files after unpublishing
+# Delete local files after removing from backend
 rm -rf data/my-provider/deprecated-service/
 
 # Commit the change
@@ -626,105 +545,76 @@ git commit -m "Remove deprecated service from catalog"
 git push
 ```
 
-### Automation Example
-
-For scheduled cleanup of deprecated services:
-
-```bash
-#!/bin/bash
-# cleanup-deprecated.sh
-
-# Set credentials
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/api/v1"
-export UNITYSVC_API_KEY="${UNITYSVC_API_KEY}"
-
-# Query for suspended services
-# (assumes you have jq installed for JSON processing)
-suspended_services=$(usvc query --status suspended --format json | jq -r '.[].name' | tr '\n' ',')
-
-# Preview what would be deleted
-echo "Suspended services to remove: $suspended_services"
-
-# Note: Use the unpublish command to delete specific offerings/listings
-```
-
-### Best Practices for Unpublishing
+### Best Practices for Deleting Services
 
 **Safety:**
 
--   **Always dryrun first** - Preview impact before deleting
--   **Check subscriptions** - Avoid force-deleting services with active users
--   **Backup data** - Consider exporting data before large deletions
--   **Use version control** - Keep deleted files in git history
+- **Always dryrun first** - Preview impact before deleting
+- **Check subscriptions** - Avoid force-deleting services with active users
+- **Use version control** - Keep deleted files in git history
 
 **Communication:**
 
--   **Notify users** - Warn customers before removing services
--   **Deprecation period** - Mark as deprecated before deleting
--   **Document reasons** - Log why services were removed
-
-**Maintenance:**
-
--   **Clean up files** - Remove local files after unpublishing
--   **Update documentation** - Remove references to deleted services
--   **Audit regularly** - Review and remove unused services
+- **Notify users** - Warn customers before removing services
+- **Deprecation period** - Use `usvc services deprecate` before deleting
+- **Document reasons** - Log why services were removed
 
 ## Best Practices
 
 ### Version Control
 
--   Commit generated files to git
--   Review changes before publishing
--   Use meaningful commit messages
--   Tag releases
+- Commit generated files to git
+- Review changes before uploading
+- Use meaningful commit messages
+- Tag releases
 
 ### Validation
 
--   Always run `validate` before `publish`
--   Fix all validation errors
--   Use `format --check` in CI to enforce formatting
+- Always run `usvc data validate` before `usvc services upload`
+- Fix all validation errors
+- Use `usvc data format --check` in CI to enforce formatting
 
 ### Environment Management
 
--   Use different API keys for dev/staging/prod
--   Store secrets in environment variables, not files
+- Use different API keys for dev/staging/prod
+- Store secrets in environment variables, not files
 
 ### Error Handling
 
--   Check exit codes in scripts
--   Log populate script output
--   Retry failed publishes with exponential backoff
+- Check exit codes in scripts
+- Log populate script output
+- Retry failed publishes with exponential backoff
 
 ### Documentation
 
--   Document custom populate scripts
--   Keep README.md updated with service catalog
--   Explain any special services or pricing
+- Document custom populate scripts
+- Keep README.md updated with service catalog
+- Explain any special services or pricing
 
 ## Troubleshooting
 
 ### Populate Script Fails
 
--   Check API credentials in `services_populator.envs`
--   Verify script has execute permissions
--   Test script manually: `python3 populate_services.py`
+- Check API credentials in `services_populator.envs`
+- Verify script has execute permissions
+- Test script manually: `python3 populate_services.py`
 
 ### Validation Errors After Populate
 
--   Check generated file formats
--   Verify all required fields are populated
--   Ensure file paths are relative
+- Check generated file formats
+- Verify all required fields are populated
+- Ensure file paths are relative
 
-### Publishing Failures
+### Upload Failures
 
--   Verify credentials are set
--   Check network connectivity
--   Use `usvc publish` to handle publishing order automatically
--   Look for foreign key constraint errors
--   Verify you're in the correct directory or using `--data-path`
+- Verify credentials are set
+- Check network connectivity
+- Use `usvc services upload` to handle upload order automatically
+- Look for foreign key constraint errors
+- Verify you're in the correct directory or using `--data-path`
 
 ## Next Steps
 
--   [CLI Reference](cli-reference.md) - Detailed command documentation
--   [Data Structure](data-structure.md) - File organization rules
--   [File Schemas](file-schemas.md) - Schema specifications
+- [CLI Reference](cli-reference.md) - Detailed command documentation
+- [Data Structure](data-structure.md) - File organization rules
+- [File Schemas](file-schemas.md) - Schema specifications

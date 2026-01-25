@@ -1,12 +1,12 @@
 # Seller Lifecycle
 
-This guide explains what happens after you publish your services to UnitySVC - from approval through invoicing and payouts.
+This guide explains what happens after you upload your services to UnitySVC - from approval through invoicing and payouts.
 
 ## Overview
 
 ```mermaid
 flowchart TD
-    subgraph Publish["1. Publish"]
+    subgraph Upload["1. Upload"]
         A[ServiceOffering<br/>What seller offers TO UnitySVC]
         B[ServiceListing<br/>What seller offers TO Users]
     end
@@ -45,9 +45,9 @@ flowchart TD
     J --> K
 ```
 
-## 1. Publishing & Approval
+## 1. Upload & Approval
 
-When you run `usvc publish`, you submit:
+When you run `usvc services upload`, you submit:
 
 | Data Type           | Purpose                    | Key Fields                                    |
 | ------------------- | -------------------------- | --------------------------------------------- |

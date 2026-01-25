@@ -27,7 +27,9 @@
       "Bash(uv pip install:*)",
       "Bash(rm:*)",
       "Bash(ruff check:*)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(uv sync:*)"
     ]
   }
 }

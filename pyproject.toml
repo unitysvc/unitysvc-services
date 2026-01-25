@@ -23,6 +23,7 @@ dependencies = [
   "httpx",
   "tomli-w",
   "mistune>=3.0",    # Markdown parsing for attachment extraction
+  "json5",           # JSON5 support for reading JSON with comments
 ]
 requires-python = ">= 3.11"
 
@@ -43,8 +44,9 @@ dev = [
   "mkdocs",
   "mkdocs-material",
   "mkdocs-autorefs",
+  "pymdown-extensions",
 ]
-docs = ["mkdocs", "mkdocs-material", "mkdocs-autorefs"]
+docs = ["mkdocs", "mkdocs-material", "mkdocs-autorefs", "pymdown-extensions"]
 
 [project.urls]
 bugs = "https://github.com/unitysvc/unitysvc-services/issues"

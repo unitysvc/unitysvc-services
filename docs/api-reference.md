@@ -304,7 +304,7 @@ Create an authenticated API client.
 from unitysvc_services.publisher import get_api_client
 
 client = get_api_client(
-    backend_url="https://api.unitysvc.com/api/v1",
+    backend_url="https://api.unitysvc.com/v1",
     api_key="your-api-key"
 )
 ```
@@ -576,7 +576,7 @@ The SDK respects these environment variables:
 import os
 
 # Backend connection
-backend_url = os.getenv("UNITYSVC_BASE_URL", "https://api.unitysvc.com/api/v1")
+backend_url = os.getenv("UNITYSVC_BASE_URL", "https://api.unitysvc.com/v1")
 api_key = os.getenv("UNITYSVC_API_KEY")
 ```
 

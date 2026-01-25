@@ -28,9 +28,10 @@ The SDK enables a **local-first, version-controlled workflow** with key advantag
 
 -   **Version Control** - Track all changes in git, review diffs, roll back mistakes
 -   **Script-Based Generation** - Programmatically generate services from provider APIs
--   **CI/CD Automation** - Automatically check service status and publish updates via GitHub Actions
--   **Offline Work** - Edit locally, validate without network, publish when ready
--   **Code Review** - Use pull requests to review service changes before publishing
+-   **CI/CD Automation** - Automatically upload updates and manage service lifecycle via GitHub Actions
+-   **Offline Work** - Edit locally, validate without network, upload when ready
+-   **Code Review** - Use pull requests to review service changes before uploading
+-   **Service Lifecycle** - Submit services for review, deprecate outdated services, withdraw services from marketplace
 
 **Best for**: Large catalogs, dynamic services, automation, and teams with developer workflows.
 
@@ -52,7 +53,7 @@ Requires Python 3.11+
 
 ## Service Data Model
 
-A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These components are organized separately for reuse but **published together** as a single unit:
+A **Service** in UnitySVC is an identity layer that connects a seller to three complementary data components. These components are organized separately for reuse but **uploaded together** as a single unit:
 
 ```mermaid
 flowchart TB
@@ -61,7 +62,7 @@ flowchart TB
         S["<b>Service</b><br/>name, display_name, status<br/><i>derived from components</i>"]
     end
 
-    subgraph Content["Content Entities (Published Together)"]
+    subgraph Content["Content Entities (Uploaded Together)"]
         P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
         O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
         L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
@@ -78,7 +79,7 @@ flowchart TB
 
 ### Service Identity
 
-When you publish provider, offering, and listing data together, the platform creates a **Service** record that:
+When you upload provider, offering, and listing data together, the platform creates a **Service** record that:
 
 -   **Links** the seller to the content (provider, offering, listing)
 -   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
@@ -157,10 +158,10 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 
 ## Key Features
 
--   **Unified Publishing** - Provider, offering, and listing published together atomically
+-   **Unified Upload** - Provider, offering, and listing uploaded together atomically
 -   **Pydantic Models** - Type-safe data models for all entities
 -   **Data Validation** - Comprehensive schema validation
--   **Local-First** - Work offline, commit to git, publish when ready
+-   **Local-First** - Work offline, commit to git, upload when ready
 -   **CLI Tools** - Complete command-line interface
 -   **Automation** - Script-based service generation
 -   **Multiple Formats** - Support for JSON and TOML

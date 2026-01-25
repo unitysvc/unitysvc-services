@@ -12,9 +12,9 @@ usvc [OPTIONS] COMMAND [ARGS]...
 
 ### Options
 
--   `--install-completion` - Install shell completion
--   `--show-completion` - Show completion script
--   `--help` - Show help message
+- `--install-completion` - Install shell completion
+- `--show-completion` - Show completion script
+- `--help` - Show help message
 
 **Note:** All examples below use the shorter `usvc` alias. You can always replace `usvc` with `unitysvc_services` if preferred.
 
@@ -26,34 +26,34 @@ The CLI is organized into two main command groups with a clear separation of con
 
 Work with local data files - can be used offline without API credentials.
 
-| Command        | Description                                        |
-| -------------- | -------------------------------------------------- |
-| `validate`     | Validate data files against schemas                |
-| `format`       | Format/prettify data files                         |
-| `populate`     | Generate data files from provider scripts          |
-| `list`         | List local data files (services, providers, etc.)  |
-| `show`         | Show details of a local data object                |
-| `list-tests`   | List code examples in local data                   |
-| `run-tests`     | Run code examples locally with upstream credentials|
-| `show-test`    | Show details of a local test                       |
+| Command      | Description                                         |
+| ------------ | --------------------------------------------------- |
+| `validate`   | Validate data files against schemas                 |
+| `format`     | Format/prettify data files                          |
+| `populate`   | Generate data files from provider scripts           |
+| `list`       | List local data files (services, providers, etc.)   |
+| `show`       | Show details of a local data object                 |
+| `list-tests` | List code examples in local data                    |
+| `run-tests`  | Run code examples locally with upstream credentials |
+| `show-test`  | Show details of a local test                        |
 
 ### Remote Service Operations (`usvc services`)
 
 Manage services on the backend - can be run from anywhere with the right API key.
 
-| Command        | Description                                        |
-| -------------- | -------------------------------------------------- |
-| `upload`       | Upload services to backend (draft status)          |
-| `list`         | List deployed services on backend                  |
-| `show`         | Show details of a deployed service                 |
-| `submit`       | Submit draft service for ops review                |
-| `deprecate`    | Deprecate an active service                        |
-| `delete`       | Delete a service from backend                      |
-| `list-tests`   | List tests for deployed services                   |
-| `show-test`    | Show details of a test for a deployed service      |
-| `run-tests`     | Run tests via gateway (backend execution)          |
-| `skip-test`    | Mark a code example test as skipped                |
-| `unskip-test`  | Remove skip status from a test                     |
+| Command       | Description                                   |
+| ------------- | --------------------------------------------- |
+| `upload`      | Upload services to backend (draft status)     |
+| `list`        | List deployed services on backend             |
+| `show`        | Show details of a deployed service            |
+| `submit`      | Submit draft service for ops review           |
+| `deprecate`   | Deprecate an active service                   |
+| `delete`      | Delete a service from backend                 |
+| `list-tests`  | List tests for deployed services              |
+| `show-test`   | Show details of a test for a deployed service |
+| `run-tests`   | Run tests via gateway (backend execution)     |
+| `skip-test`   | Mark a code example test as skipped           |
+| `unskip-test` | Remove skip status from a test                |
 
 **Note:** To create initial service data, use the [UnitySVC web interface](https://unitysvc.com) which provides a visual editor with validation. You can export your data for use with this SDK.
 
@@ -73,7 +73,7 @@ usvc data list providers [DATA_DIR]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Examples:**
 
@@ -113,8 +113,8 @@ List all services with their provider, offering, and listing files.
 
 **Output:**
 
--   Table format with file paths and key fields
--   Color-coded status indicators
+- Table format with file paths and key fields
+- Color-coded status indicators
 
 ## usvc services - Remote Service Operations
 
@@ -130,11 +130,11 @@ usvc services list [OPTIONS]
 
 **Options:**
 
--   `--format, -f {table|json}` - Output format (default: table)
--   `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
--   `--skip SKIP` - Number of records to skip for pagination (default: 0)
--   `--limit LIMIT` - Maximum number of records to return (default: 100)
--   `--status STATUS` - Filter by status (draft, pending, testing, active, rejected, suspended)
+- `--format, -f {table|json}` - Output format (default: table)
+- `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
+- `--skip SKIP` - Number of records to skip for pagination (default: 0)
+- `--limit LIMIT` - Maximum number of records to return (default: 100)
+- `--status STATUS` - Filter by status (draft, pending, testing, active, rejected, suspended)
 
 **Available Fields:**
 
@@ -142,8 +142,8 @@ id, name, display_name, status, seller_id, provider_id, offering_id, listing_id,
 
 **Required Environment Variables:**
 
--   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
 
 **Examples:**
 
@@ -207,13 +207,13 @@ usvc services upload [OPTIONS]
 
 **Options:**
 
--   `--data-path, -d PATH` - Data directory or single listing file (default: current directory)
--   `--dryrun` - Preview what would be created/updated without making actual changes
+- `--data-path, -d PATH` - Data directory or single listing file (default: current directory)
+- `--dryrun` - Preview what would be created/updated without making actual changes
 
 **Required Environment Variables:**
 
--   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication (seller API key)
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication (seller API key)
 
 **Examples:**
 
@@ -235,16 +235,16 @@ usvc services upload --dryrun
 
 The `--dryrun` option allows you to preview what would happen during upload without making actual changes to the backend. This is useful for:
 
--   Verifying which services would be created vs updated
--   Checking that all required files exist (provider, offering, listing)
--   Confirming changes before committing them
+- Verifying which services would be created vs updated
+- Checking that all required files exist (provider, offering, listing)
+- Confirming changes before committing them
 
 In dryrun mode:
 
--   No actual data is sent to the backend
--   Backend returns what action would be taken (create/update/unchanged)
--   Missing files are reported as errors
--   Summary shows what would happen if uploaded
+- No actual data is sent to the backend
+- Backend returns what action would be taken (create/update/unchanged)
+- Missing files are reported as errors
+- Summary shows what would happen if uploaded
 
 **Output Format:**
 
@@ -253,7 +253,7 @@ Uploading displays progress for each service and a summary table:
 ```bash
 $ usvc services upload
 Uploading services from: /path/to/data
-Backend URL: https://api.unitysvc.com/api/v1
+Backend URL: https://api.unitysvc.com/v1
 
   + Created service: listing-premium (offering: gpt-4, provider: openai)
   ~ Updated service: listing-basic (offering: gpt-4, provider: openai)
@@ -271,21 +271,21 @@ Upload Summary
 
 **Status Indicators:**
 
-| Symbol | Status | Meaning |
-|--------|--------|---------|
-| `+` | Created | New service uploaded for the first time |
-| `~` | Updated | Existing service updated with changes |
-| `=` | Unchanged | Service already exists and is identical |
-| `⊘` | Skipped | Service has draft status, not uploaded |
-| `✗` | Failed | Error during uploading |
+| Symbol | Status    | Meaning                                 |
+| ------ | --------- | --------------------------------------- |
+| `+`    | Created   | New service uploaded for the first time |
+| `~`    | Updated   | Existing service updated with changes   |
+| `=`    | Unchanged | Service already exists and is identical |
+| `⊘`    | Skipped   | Service has draft status, not uploaded  |
+| `✗`    | Failed    | Error during uploading                  |
 
 **Skipped Services:**
 
 Services are skipped (not uploaded) when any of these conditions are true:
 
--   Provider has `status: draft` - provider still being configured
--   Offering has `status: draft` - offering still being configured
--   Listing has `status: draft` - listing still being configured
+- Provider has `status: draft` - provider still being configured
+- Offering has `status: draft` - offering still being configured
+- Listing has `status: draft` - listing still being configured
 
 This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
 
@@ -293,10 +293,10 @@ This allows you to work on services locally without uploading incomplete data. S
 
 If uploading fails for a service, the error is displayed and uploading continues with remaining services. Common errors:
 
--   Missing offering file in the same directory as the listing
--   Missing provider file in the parent directory
--   Invalid data that fails schema validation
--   Network/authentication errors
+- Missing offering file in the same directory as the listing
+- Missing provider file in the parent directory
+- Invalid data that fails schema validation
+- Network/authentication errors
 
 **Idempotent Uploading:**
 
@@ -312,9 +312,10 @@ listing.toml       →  listing.override.toml
 ```
 
 Example override file content:
+
 ```json
 {
-  "service_id": "550e8400-e29b-41d4-a716-446655440000"
+    "service_id": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -335,6 +336,7 @@ usvc services upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
 Use cases for uploading as new:
+
 - Accidentally deleted the service from the backend and need to recreate it
 - Deploying to a different environment (staging vs production)
 - Backend data was reset
@@ -358,6 +360,7 @@ usvc services upload --data-path ./my-provider/services/my-service/listing-enter
 **Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
 
 For multiple environment deployments, you can use different override files:
+
 ```bash
 # Production override
 listing.override.json          # service_id for production
@@ -376,11 +379,11 @@ usvc services deprecate <SERVICE_ID> [OPTIONS]
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service to deprecate (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service to deprecate (required)
 
 **Options:**
 
--   `--yes, -y` - Skip confirmation prompt
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -402,11 +405,11 @@ usvc services delete <SERVICE_ID> [OPTIONS]
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service to delete (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service to delete (required)
 
 **Options:**
 
--   `--yes, -y` - Skip confirmation prompt
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -428,7 +431,7 @@ usvc services submit <SERVICE_ID>
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service to submit (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service to submit (required)
 
 **Examples:**
 
@@ -439,8 +442,8 @@ usvc services submit abc123-uuid
 
 **Required Environment Variables:**
 
--   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
 
 ---
 
@@ -458,11 +461,11 @@ usvc services list-tests [SERVICE_ID] [OPTIONS]
 
 **Arguments:**
 
--   `[SERVICE_ID]` - UUID or partial UUID of the service (optional, lists all if omitted)
+- `[SERVICE_ID]` - UUID or partial UUID of the service (optional, lists all if omitted)
 
 **Options:**
 
--   `--format, -f TEXT` - Output format: table, json (default: table)
+- `--format, -f TEXT` - Output format: table, json (default: table)
 
 **Examples:**
 
@@ -487,12 +490,12 @@ usvc services show-test <SERVICE_ID> -t <TEST_TITLE> [OPTIONS]
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service (required)
 
 **Options:**
 
--   `--test-title, -t TEXT` - Test title (required)
--   `--format, -f TEXT` - Output format: table, json (default: table)
+- `--test-title, -t TEXT` - Test title (required)
+- `--format, -f TEXT` - Output format: table, json (default: table)
 
 **Examples:**
 
@@ -515,6 +518,7 @@ export API_KEY="svcpass_your_customer_api_key"
 ```
 
 To get an API key:
+
 1. Create a customer account (or use an existing one)
 2. Generate a customer API key for that account
 3. Export it as `API_KEY` in your shell
@@ -525,16 +529,16 @@ usvc services run-tests <SERVICE_ID> [OPTIONS]
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service (required)
 
 **Options:**
 
--   `--test-title, -t TEXT` - Run specific test by title (runs all if not specified)
--   `--doc-id, -d TEXT` - Run specific test by document ID (supports partial IDs)
--   `--verbose, -v` - Show detailed output including stdout/stderr
--   `--force` - Force rerun (ignore previous success status)
--   `--fail-fast, -x` - Stop on first failure
--   `--timeout INT` - Execution timeout in seconds (default: 30)
+- `--test-title, -t TEXT` - Run specific test by title (runs all if not specified)
+- `--doc-id, -d TEXT` - Run specific test by document ID (supports partial IDs)
+- `--verbose, -v` - Show detailed output including stdout/stderr
+- `--force` - Force rerun (ignore previous success status)
+- `--fail-fast, -x` - Stop on first failure
+- `--timeout INT` - Execution timeout in seconds (default: 30)
 
 **Examples:**
 
@@ -574,11 +578,11 @@ usvc services skip-test <SERVICE_ID> -t <TEST_TITLE>
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service (required)
 
 **Options:**
 
--   `--test-title, -t TEXT` - Test title (required)
+- `--test-title, -t TEXT` - Test title (required)
 
 **Examples:**
 
@@ -596,11 +600,11 @@ usvc services unskip-test <SERVICE_ID> -t <TEST_TITLE>
 
 **Arguments:**
 
--   `<SERVICE_ID>` - UUID or partial UUID of the service (required)
+- `<SERVICE_ID>` - UUID or partial UUID of the service (required)
 
 **Options:**
 
--   `--test-title, -t TEXT` - Test title (required)
+- `--test-title, -t TEXT` - Test title (required)
 
 **Examples:**
 
@@ -620,23 +624,23 @@ Unpublish (delete) data from UnitySVC backend. This command provides granular co
 
 **⚠️ IMPORTANT CASCADE BEHAVIOR:**
 
--   **Deleting a seller** will automatically delete ALL associated listings from that seller (across all providers and offerings)
--   **Deleting a provider** will automatically delete ALL associated offerings AND listings from that provider
--   **Deleting an offering** will automatically delete ALL associated listings for that offering
--   **Deleting a listing** only removes that specific listing
+- **Deleting a seller** will automatically delete ALL associated listings from that seller (across all providers and offerings)
+- **Deleting a provider** will automatically delete ALL associated offerings AND listings from that provider
+- **Deleting an offering** will automatically delete ALL associated listings for that offering
+- **Deleting a listing** only removes that specific listing
 
 By default, deletion is blocked if there are active subscriptions. Use `--force` to override this protection.
 
 **Common Options:**
 
--   `--dryrun` - Preview what would be deleted without actually deleting
--   `--force` - Force deletion even with active subscriptions
--   `--yes, -y` - Skip confirmation prompt
+- `--dryrun` - Preview what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
+- `--yes, -y` - Skip confirmation prompt
 
 **Required Environment Variables:**
 
--   `UNITYSVC_BASE_URL` - Backend API URL
--   `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
 
 ### unpublish offerings
 
@@ -650,15 +654,15 @@ unitysvc_services unpublish offerings [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Directory containing offering files (default: current directory)
+- `[DATA_DIR]` - Directory containing offering files (default: current directory)
 
 **Options:**
 
--   `--services, -s NAMES` - Comma-separated list of service names to unpublish
--   `--provider, -p NAME` - Unpublish offerings from specific provider
--   `--dryrun` - Show what would be deleted without actually deleting
--   `--force` - Force deletion even with active subscriptions
--   `--yes, -y` - Skip confirmation prompt
+- `--services, -s NAMES` - Comma-separated list of service names to unpublish
+- `--provider, -p NAME` - Unpublish offerings from specific provider
+- `--dryrun` - Show what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -693,13 +697,13 @@ unitysvc_services unpublish listings <listing-id> [OPTIONS]
 
 **Arguments:**
 
--   `<listing-id>` - UUID of the listing to unpublish (required)
+- `<listing-id>` - UUID of the listing to unpublish (required)
 
 **Options:**
 
--   `--dryrun` - Show what would be deleted without actually deleting
--   `--force` - Force deletion even with active subscriptions
--   `--yes, -y` - Skip confirmation prompt
+- `--dryrun` - Show what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -730,13 +734,13 @@ unitysvc_services unpublish providers <provider-name> [OPTIONS]
 
 **Arguments:**
 
--   `<provider-name>` - Name of the provider to unpublish (required)
+- `<provider-name>` - Name of the provider to unpublish (required)
 
 **Options:**
 
--   `--dryrun` - Show what would be deleted without actually deleting
--   `--force` - Force deletion even with active subscriptions
--   `--yes, -y` - Skip confirmation prompt
+- `--dryrun` - Show what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -755,9 +759,9 @@ usvc unpublish providers openai --force --yes
 
 Shows deletion summary including counts of:
 
--   Offerings deleted
--   Listings deleted
--   Subscriptions deleted
+- Offerings deleted
+- Listings deleted
+- Subscriptions deleted
 
 ### unpublish sellers
 
@@ -771,13 +775,13 @@ unitysvc_services unpublish sellers <seller-name> [OPTIONS]
 
 **Arguments:**
 
--   `<seller-name>` - Name of the seller to unpublish (required)
+- `<seller-name>` - Name of the seller to unpublish (required)
 
 **Options:**
 
--   `--dryrun` - Show what would be deleted without actually deleting
--   `--force` - Force deletion even with active subscriptions
--   `--yes, -y` - Skip confirmation prompt
+- `--dryrun` - Show what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
@@ -796,83 +800,31 @@ usvc unpublish sellers my-company --force --yes
 
 Shows deletion summary including counts of:
 
--   Providers deleted (if seller owns providers)
--   Offerings deleted (if seller owns providers with offerings)
--   Listings deleted
--   Subscriptions deleted
+- Providers deleted (if seller owns providers)
+- Offerings deleted (if seller owns providers with offerings)
+- Listings deleted
+- Subscriptions deleted
 
 **Important Notes:**
 
--   Always use `--dryrun` first to preview the impact before actual deletion
--   Cascade deletions are permanent and cannot be undone
--   Active subscriptions will block deletion unless `--force` is used
--   Use `--yes` flag in automated scripts to skip interactive confirmation
+- Always use `--dryrun` first to preview the impact before actual deletion
+- Cascade deletions are permanent and cannot be undone
+- Active subscriptions will block deletion unless `--force` is used
+- Use `--yes` flag in automated scripts to skip interactive confirmation
 
-## update - Update Local Files
+## Editing Local Files
 
-Update fields in local data files.
-
-### update offering
-
-```bash
-unitysvc_services update offering --name <name> [OPTIONS]
-```
-
-**Options:**
-
--   `--name, -n NAME` - Service offering name (required)
--   `--status, -s STATUS` - New status (draft|ready|deprecated)
--   `--display-name NAME` - New display name
--   `--description TEXT` - New description
--   `--data-dir, -d PATH` - Data directory (default: current directory)
-
-**Examples:**
-
-```bash
-# Update status
-usvc update offering --name my-service --status ready
-
-# Update multiple fields
-usvc update offering --name my-service \
-  --status ready \
-  --display-name "My Updated Service"
-```
-
-### update listing
-
-```bash
-unitysvc_services update listing --services <name> [OPTIONS]
-```
-
-**Options:**
-
--   `--services, -n NAME` - Service name (required)
--   `--status, -s STATUS` - New status (draft|ready|deprecated)
--   `--seller SELLER` - Filter by seller name
--   `--data-dir, -d PATH` - Data directory (default: current directory)
+To update fields in local data files, edit the JSON or TOML files directly. This file-based approach gives you full control and integrates naturally with version control.
 
 **Listing Status Values:**
 
-Seller-accessible statuses (can be set via CLI):
+Seller-accessible statuses:
 
--   `draft` - Listing is being worked on, skipped during publish (won't be sent to backend)
--   `ready` - Listing is complete and ready for admin review/testing
--   `deprecated` - Seller marks service as retired/replaced
+- `draft` - Listing is being worked on, skipped during upload (won't be sent to backend)
+- `ready` - Listing is complete and ready for admin review/testing
+- `deprecated` - Seller marks service as retired/replaced
 
-Note: Admin-managed workflow statuses (upstream_ready, downstream_ready, in_service) are set by the backend admin after testing and validation, not through the CLI tool.
-
-**Examples:**
-
-```bash
-# Update listing status
-usvc update listing --services my-service --status ready
-
-# Update for specific seller
-usvc update listing \
-  --services my-service \
-  --status in_service \
-  --seller svcreseller
-```
+Note: Admin-managed workflow statuses are set by the backend admin after testing and validation.
 
 ### usvc data validate - Validate Data
 
@@ -884,16 +836,16 @@ usvc data validate [DATA_DIR]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Checks:**
 
--   Schema compliance
--   Service name uniqueness
--   Listing references
--   Provider/service name matching
--   File path validity
--   Seller uniqueness
+- Schema compliance
+- Service name uniqueness
+- Listing references
+- Provider/service name matching
+- File path validity
+- Seller uniqueness
 
 **Examples:**
 
@@ -907,8 +859,8 @@ usvc data validate ./data
 
 **Exit Codes:**
 
--   `0` - All validations passed
--   `1` - Validation errors found
+- `0` - All validations passed
+- `1` - Validation errors found
 
 ### usvc data format - Format Files
 
@@ -920,18 +872,18 @@ usvc data format [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 
--   `--check` - Check formatting without modifying files
+- `--check` - Check formatting without modifying files
 
 **Actions:**
 
--   Format JSON with 2-space indentation
--   Remove trailing whitespace
--   Ensure single newline at end of file
--   Sort JSON keys
+- Format JSON with 2-space indentation
+- Remove trailing whitespace
+- Ensure single newline at end of file
+- Sort JSON keys
 
 **Examples:**
 
@@ -948,8 +900,8 @@ usvc data format ./data
 
 **Exit Codes:**
 
--   `0` - All files formatted or already formatted
--   `1` - Formatting errors or files need formatting (with --check)
+- `0` - All files formatted or already formatted
+- `1` - Formatting errors or files need formatting (with --check)
 
 ### usvc data populate - Generate Services
 
@@ -961,18 +913,18 @@ usvc data populate [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 
--   `--provider, -p NAME` - Only populate specific provider
--   `--dry-run` - Show what would execute without running
+- `--provider, -p NAME` - Only populate specific provider
+- `--dry-run` - Show what would execute without running
 
 **Requirements:**
 
--   Provider file must have `services_populator` configuration
--   Script specified in `services_populator.command`
--   Environment variables from `services_populator.envs`
+- Provider file must have `services_populator` configuration
+- Script specified in `services_populator.command`
+- Environment variables from `services_populator.envs`
 
 **Examples:**
 
@@ -1011,16 +963,16 @@ usvc data list-tests [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 
--   `--provider, -p NAME` - Only list code examples for a specific provider
--   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+- `--provider, -p NAME` - Only list code examples for a specific provider
+- `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
 
 **Output:**
 
--   Table showing: Service name, Provider, Title, File type, Relative file path
+- Table showing: Service name, Provider, Title, File type, Relative file path
 
 **Examples:**
 
@@ -1048,49 +1000,49 @@ usvc data run-tests [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 
--   `--provider, -p NAME` - Only test code examples for a specific provider
--   `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
--   `--test-file, -t FILENAME` - Only run a specific test file by filename (e.g., 'code-example.py.j2')
--   `--verbose, -v` - Show detailed output including stdout/stderr from scripts
--   `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
--   `--fail-fast, -x` - Stop testing on first failure
+- `--provider, -p NAME` - Only test code examples for a specific provider
+- `--services, -s PATTERNS` - Comma-separated list of service patterns (supports wildcards)
+- `--test-file, -t FILENAME` - Only run a specific test file by filename (e.g., 'code-example.py.j2')
+- `--verbose, -v` - Show detailed output including stdout/stderr from scripts
+- `--force, -f` - Force rerun all tests, ignoring existing .out and .err files
+- `--fail-fast, -x` - Stop testing on first failure
 
 **Test Pass Criteria:**
 
--   Exit code is 0 AND
--   If `expect` field is defined in document: expected string found in stdout
--   If `expect` field is NOT defined: only exit code matters
+- Exit code is 0 AND
+- If `expect` field is defined in document: expected string found in stdout
+- If `expect` field is NOT defined: only exit code matters
 
 **Test Result Caching:**
 
 By default, successful test results are cached to avoid re-running tests unnecessarily:
 
--   When a test passes, `.out` and `.err` files are saved in the same directory as the listing file
--   On subsequent runs, tests with existing result files are skipped
--   Use `--force` to ignore cached results and re-run all tests
--   Failed tests are always re-run (their output goes to current directory with `failed_` prefix)
+- When a test passes, `.out` and `.err` files are saved in the same directory as the listing file
+- On subsequent runs, tests with existing result files are skipped
+- Use `--force` to ignore cached results and re-run all tests
+- Failed tests are always re-run (their output goes to current directory with `failed_` prefix)
 
 **Failed Test Output:**
 
 When a test fails, the rendered content is saved to the current directory:
 
--   Filename format: `failed_{service}_{listing}_{filename}.{out|err|extension}`
--   `.out` file: stdout from the test
--   `.err` file: stderr from the test
--   Script file: Full rendered template content with environment variables
--   Can be run directly to reproduce the issue
+- Filename format: `failed_{service}_{listing}_{filename}.{out|err|extension}`
+- `.out` file: stdout from the test
+- `.err` file: stderr from the test
+- Script file: Full rendered template content with environment variables
+- Can be run directly to reproduce the issue
 
 **Successful Test Output:**
 
 When a test passes, output files are saved in the listing directory:
 
--   Filename format: `{service}_{listing}_{filename}.{out|err}`
--   Saved alongside the listing definition file
--   Used to skip re-running tests unless `--force` is specified
+- Filename format: `{service}_{listing}_{filename}.{out|err}`
+- Saved alongside the listing definition file
+- Used to skip re-running tests unless `--force` is specified
 
 **Examples:**
 
@@ -1129,15 +1081,15 @@ usvc data run-tests -f -x -v  # Short form
 
 **Interpreter Detection:**
 
--   `.py` files: Uses `python3` (falls back to `python`)
--   `.js` files: Uses `node` (Node.js required)
--   `.sh` files: Uses `bash`
--   Other files: Checks shebang line for interpreter
+- `.py` files: Uses `python3` (falls back to `python`)
+- `.js` files: Uses `node` (Node.js required)
+- `.sh` files: Uses `bash`
+- Other files: Checks shebang line for interpreter
 
 **Exit Codes:**
 
--   `0` - All tests passed
--   `1` - One or more tests failed
+- `0` - All tests passed
+- `1` - One or more tests failed
 
 ### usvc data show-test
 
@@ -1149,13 +1101,13 @@ usvc data show-test [DATA_DIR] [OPTIONS]
 
 **Arguments:**
 
--   `[DATA_DIR]` - Data directory (default: current directory)
+- `[DATA_DIR]` - Data directory (default: current directory)
 
 **Options:**
 
--   `--provider, -p NAME` - Filter by provider
--   `--services, -s NAME` - Filter by service name
--   `--test-file, -t FILENAME` - Show specific test file
+- `--provider, -p NAME` - Filter by provider
+- `--services, -s NAME` - Filter by service name
+- `--test-file, -t FILENAME` - Show specific test file
 
 **Examples:**
 
@@ -1167,15 +1119,15 @@ See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/
 
 ## Environment Variables
 
-| Variable            | Description            | Used By                                    |
-| ------------------- | ---------------------- | ------------------------------------------ |
-| `UNITYSVC_BASE_URL` | Backend API URL        | `usvc services` commands                   |
-| `UNITYSVC_API_KEY`  | API authentication key | `usvc services` commands                   |
+| Variable            | Description            | Used By                  |
+| ------------------- | ---------------------- | ------------------------ |
+| `UNITYSVC_BASE_URL` | Backend API URL        | `usvc services` commands |
+| `UNITYSVC_API_KEY`  | API authentication key | `usvc services` commands |
 
 **Example:**
 
 ```bash
-export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
+export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
 export UNITYSVC_API_KEY=your-api-key
 
 # Local operations (no API key needed)
@@ -1232,7 +1184,7 @@ Alternatively, create files manually following the [File Schemas](file-schemas.m
 
 ```bash
 # Set environment (only needed for remote operations)
-export UNITYSVC_BASE_URL=https://api.unitysvc.com/api/v1
+export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
 export UNITYSVC_API_KEY=your-key
 
 # Local operations: validate and format
@@ -1264,8 +1216,8 @@ usvc services submit <service-id>
 ### Update and Re-upload
 
 ```bash
-# Update local file
-usvc update offering --name my-service --status ready
+# Edit local files directly (JSON or TOML)
+# e.g., change "status": "draft" to "status": "ready"
 
 # Validate locally
 usvc data validate
@@ -1310,9 +1262,9 @@ usvc services show-test <service-id> -t "Python Example"
 
 ## See Also
 
--   [Getting Started](getting-started.md) - First steps tutorial
--   [Workflows](workflows.md) - Common usage patterns
--   [Data Structure](data-structure.md) - File organization rules
--   [Documenting Service Listings](documenting-services.md) - Add documentation to services
--   [Creating Code Examples](code-examples.md) - Develop and test code examples
--   [API Reference](api-reference.md) - Python API documentation
+- [Getting Started](getting-started.md) - First steps tutorial
+- [Workflows](workflows.md) - Common usage patterns
+- [Data Structure](data-structure.md) - File organization rules
+- [Documenting Service Listings](documenting-services.md) - Add documentation to services
+- [Creating Code Examples](code-examples.md) - Develop and test code examples
+- [API Reference](api-reference.md) - Python API documentation

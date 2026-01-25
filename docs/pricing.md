@@ -859,7 +859,7 @@ description = "Premium access with priority support"
 
 ## Validation
 
-When you run `usvc validate`, the pricing structure is validated:
+When you run `usvc data validate`, the pricing structure is validated:
 
 1. **JSON Schema Validation**: Ensures the structure matches the expected format
 2. **Pydantic Model Validation**: Enforces business rules:

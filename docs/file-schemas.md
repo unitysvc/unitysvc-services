@@ -36,14 +36,22 @@ Provider files define the service provider's metadata and access configuration f
 | `terms_of_service`        | string/URL           | Path to terms file or URL (converted to document during import)        |
 | `documents`               | dict of DocumentData | Documents keyed by title                                               |
 | `services_populator`      | object               | Automated service generation configuration                             |
-| `status`                  | enum                 | Provider status: `active` (default), `pending`, `disabled`, or `draft` |
+| `status`                  | enum                 | Provider status: `draft` (default), `ready`, or `deprecated`           |
 
 ### services_populator Object
 
-| Field     | Type              | Description                                                      |
-| --------- | ----------------- | ---------------------------------------------------------------- |
-| `command` | string            | Script filename to execute (relative to provider directory)      |
-| `envs`    | object (optional) | Environment variables to set when executing the populate command |
+Configuration for automatically populating service data using `usvc data populate`.
+
+| Field          | Type                    | Description                                                                                 |
+| -------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
+| `command`      | string or list[string]  | Command to execute (string or list of arguments). Relative to provider directory.           |
+| `requirements` | array of strings        | Python packages to install before executing (e.g., `["httpx", "any-llm-sdk[anthropic]"]`)   |
+| `envs`         | object                  | Environment variables to set when executing the command (values converted to strings)       |
+
+**Notes:**
+- Comment out or omit `command` to disable population for a provider
+- `requirements` packages are installed via pip before running the command
+- `envs` values are converted to strings and set as environment variables
 
 ### Example (TOML)
 
@@ -55,10 +63,11 @@ description = "Leading AI research laboratory"
 contact_email = "support@openai.com"
 homepage = "https://openai.com"
 time_created = "2024-01-15T10:00:00Z"
-status = "active"
+status = "ready"
 
 [services_populator]
 command = "populate_services.py"
+requirements = ["httpx", "openai"]
 
 [services_populator.envs]
 API_KEY = "sk-YOUR-API-KEY"
@@ -76,9 +85,10 @@ BASE_URL = "https://api.openai.com/v1"
     "contact_email": "support@openai.com",
     "homepage": "https://openai.com",
     "time_created": "2024-01-15T10:00:00Z",
-    "status": "active",
+    "status": "ready",
     "services_populator": {
         "command": "populate_services.py",
+        "requirements": ["httpx", "openai"],
         "envs": {
             "API_KEY": "sk-YOUR-API-KEY",
             "BASE_URL": "https://api.openai.com/v1"
@@ -115,7 +125,7 @@ Seller files define the marketplace or reseller information. **Only one seller f
 | `stripe_connect_id`       | string               | Stripe Connect account ID (max 255 chars)                                         |
 | `logo`                    | string/URL           | Path to logo file or URL (converted to document)                                  |
 | `documents`               | dict of DocumentData | Documents keyed by title (business registration, tax docs, etc.)                  |
-| `status`                  | enum                 | Seller status: `active` (default), `pending`, `disabled`, or `draft`              |
+| `status`                  | enum                 | Seller status: `draft` (default), `ready`, or `deprecated`                        |
 | `is_verified`             | boolean              | KYC/business verification status (default: false)                                 |
 
 ### Example (TOML)
@@ -129,7 +139,7 @@ description = "Premium AI services marketplace"
 contact_email = "business@acme.com"
 homepage = "https://acme.com"
 time_created = "2024-01-10T12:00:00Z"
-status = "active"
+status = "ready"
 is_verified = true
 ```
 
@@ -227,7 +237,7 @@ Listing files define how a seller presents/sells a service to end users.
 | --------------------------- | --------------------- | -------------------------------------------------------------------------- |
 | `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
 | `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
-| `status`                    | enum                  | Status: `draft` (skip publish), `ready` (ready for review), `deprecated`   |
+| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`   |
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
 | `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                |
 | `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
@@ -241,7 +251,7 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### status Values (Listing)
 
-- `draft` - Work in progress, skipped during publish (default)
+- `draft` - Work in progress, skipped during upload (default)
 - `ready` - Ready for admin review and testing
 - `deprecated` - No longer offered to new customers
 
