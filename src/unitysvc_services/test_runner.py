@@ -85,7 +85,7 @@ def list_tests(
         "table",
         "--format",
         "-f",
-        help="Output format: table, json",
+        help="Output format: table, json, tsv, csv",
     ),
 ):
     """List testable documents for a service or all services.
@@ -153,7 +153,26 @@ def list_tests(
                     doc["service_name"] = svc_name
                     all_docs_list.append(doc)
             console.print(json.dumps(all_docs_list, indent=2, default=str))
-        else:
+        elif format in ("tsv", "csv"):
+            sep = "\t" if format == "tsv" else ","
+            fields = ["service_id", "service_name", "doc_id", "title", "category", "status"]
+            print(sep.join(fields))
+            for svc_id, svc_name, docs in results:
+                for doc in docs:
+                    meta = doc.get("meta") or {}
+                    test_meta = meta.get("test") or {}
+                    row = [
+                        svc_id,
+                        svc_name,
+                        doc.get("id", ""),
+                        doc.get("title", ""),
+                        doc.get("category", ""),
+                        test_meta.get("status", "pending"),
+                    ]
+                    if format == "csv":
+                        row = [f'"{v}"' if "," in str(v) or '"' in str(v) else str(v) for v in row]
+                    print(sep.join(str(v) for v in row))
+        elif format == "table":
             total = 0
             for svc_id, svc_name, documents in results:
                 if not documents:
@@ -200,7 +219,12 @@ def list_tests(
                 console.print("[yellow]No testable documents found.[/yellow]")
             else:
                 console.print(f"\n[dim]Total: {total} document(s)[/dim]")
+        else:
+            console.print(f"[red]Unknown format: {format}[/red]")
+            raise typer.Exit(code=1)
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1)
@@ -249,7 +273,7 @@ def show_test(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show test details and metadata for a document.
@@ -303,7 +327,23 @@ def show_test(
 
         elif format == "json":
             console.print(json.dumps(document, indent=2, default=str))
-        else:
+        elif format in ("tsv", "csv"):
+            sep = "\t" if format == "tsv" else ","
+            meta = document.get("meta") or {}
+            test_meta = meta.get("test") or {}
+            fields = ["id", "title", "category", "mime_type", "status"]
+            print(sep.join(fields))
+            row = [
+                document.get("id", ""),
+                document.get("title", ""),
+                document.get("category", ""),
+                document.get("mime_type", ""),
+                test_meta.get("status", "pending"),
+            ]
+            if format == "csv":
+                row = [f'"{v}"' if "," in str(v) or '"' in str(v) else str(v) for v in row]
+            print(sep.join(str(v) for v in row))
+        elif format == "table":
             table = Table(title=f"Document: {title}")
             table.add_column("Field", style="cyan")
             table.add_column("Value", style="white")
@@ -326,7 +366,12 @@ def show_test(
                         table.add_row(f"  {key}", display_value)
 
             console.print(table)
+        else:
+            console.print(f"[red]Unknown format: {format}[/red]")
+            raise typer.Exit(code=1)
 
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1)

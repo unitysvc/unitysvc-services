@@ -196,7 +196,7 @@ def show_service(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show details of a service by ID.
@@ -221,6 +221,24 @@ def show_service(
 
         if format == "json":
             console.print(json.dumps(service, indent=2, default=str))
+        elif format in ("tsv", "csv"):
+            sep = "\t" if format == "tsv" else ","
+
+            def escape_value(value: Any) -> str:
+                if value is None:
+                    return ""
+                if isinstance(value, dict | list):
+                    s = json.dumps(value, default=str)
+                else:
+                    s = str(value)
+                if format == "csv" and ("," in s or '"' in s or "\n" in s):
+                    return '"' + s.replace('"', '""') + '"'
+                return s
+
+            # Output as key-value pairs
+            print(sep.join(["field", "value"]))
+            for key, value in service.items():
+                print(sep.join([key, escape_value(value)]))
         elif format == "table":
             # Display service metadata first
             name = service.get("service_name", service_id)
