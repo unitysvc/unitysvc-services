@@ -31,7 +31,7 @@ def query_services(
         "table",
         "--format",
         "-f",
-        help="Output format: table, json",
+        help="Output format: table, json, tsv, csv",
     ),
     fields: str = typer.Option(
         "id,name,status,provider_id,offering_id,listing_id",
@@ -128,7 +128,27 @@ def query_services(
                 console.print(json.dumps(filtered_services, indent=2))
             else:
                 console.print(json.dumps(services, indent=2))
-        else:
+        elif format in ("tsv", "csv"):
+            # Tab or comma-separated output
+            sep = "\t" if format == "tsv" else ","
+
+            def escape_value(value: Any) -> str:
+                """Escape value for CSV/TSV output."""
+                if value is None:
+                    return ""
+                s = str(value)
+                # For CSV, quote fields containing comma, quote, or newline
+                if format == "csv" and (sep in s or '"' in s or "\n" in s):
+                    return '"' + s.replace('"', '""') + '"'
+                return s
+
+            # Print header
+            print(sep.join(field_list))
+            # Print rows
+            for svc in services:
+                row = [escape_value(svc.get(field)) for field in field_list]
+                print(sep.join(row))
+        elif format == "table":
             if not services:
                 console.print("[yellow]No services found.[/yellow]")
             else:
@@ -159,6 +179,9 @@ def query_services(
 
                 console.print(table)
                 console.print(f"\n[green]Total:[/green] {len(services)} service(s)")
+        else:
+            console.print(f"[red]Unknown format: {format}[/red]")
+            raise typer.Exit(code=1)
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)
