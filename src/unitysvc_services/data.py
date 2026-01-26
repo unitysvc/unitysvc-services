@@ -34,7 +34,7 @@ def show_provider(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show details of a provider by name."""
@@ -69,7 +69,7 @@ def show_offering(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show details of an offering by name."""
@@ -104,7 +104,7 @@ def show_listing(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show details of a listing by name."""
@@ -144,7 +144,7 @@ def show_service(
         "json",
         "--format",
         "-f",
-        help="Output format: json, table",
+        help="Output format: json, table, tsv, csv",
     ),
 ):
     """Show details of a service by name (combines listing and offering data)."""
@@ -213,12 +213,31 @@ def show_service(
 
 def _display_data(data: dict, file_path: Path, output_format: str):
     """Display data in the specified format."""
-    console.print(f"[dim]File: {file_path}[/dim]\n")
+    if output_format not in ("tsv", "csv"):
+        console.print(f"[dim]File: {file_path}[/dim]\n")
 
     if output_format == "json":
         json_str = json.dumps(data, indent=2, default=str)
         syntax = Syntax(json_str, "json", theme="monokai", line_numbers=False)
         console.print(syntax)
+    elif output_format in ("tsv", "csv"):
+        sep = "\t" if output_format == "tsv" else ","
+
+        def escape_value(value: Any) -> str:
+            if value is None:
+                return ""
+            if isinstance(value, dict | list):
+                s = json.dumps(value, default=str)
+            else:
+                s = str(value)
+            if output_format == "csv" and ("," in s or '"' in s or "\n" in s):
+                return '"' + s.replace('"', '""') + '"'
+            return s
+
+        # Output as key-value pairs
+        print(sep.join(["field", "value"]))
+        for key, value in data.items():
+            print(sep.join([key, escape_value(value)]))
     elif output_format == "table":
         _display_as_table(data)
     else:
