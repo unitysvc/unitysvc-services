@@ -29,7 +29,27 @@
       "Bash(ruff check:*)",
       "Bash(wc:*)",
       "Bash(python3 -m pytest:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(~/.zshrc)",
+      "Bash(chmod:*)",
+      "Bash(while read f)",
+      "Bash(done)",
+      "Bash(git branch:*)",
+      "Bash(usvc data populate:*)",
+      "Bash(echo:*)",
+      "Bash(export FIREWORKS_API_BASE_URL=\"https://api.fireworks.ai/v1\")",
+      "Bash(export FIREWORKS_MODEL_BASE_URL=\"https://fireworks.ai/models/fireworks\")",
+      "Bash(PYTHONPATH=/Users/bpeng/unitysvc/unitysvc-services/src uv run python:*)",
+      "Bash(pkill:*)",
+      "Bash(env)",
+      "Bash(git reset:*)",
+      "Bash(git rm:*)",
+      "Bash(git init:*)",
+      "Bash(git remote add:*)",
+      "Bash(git remote:*)",
+      "Bash(ls:*)",
+      "Bash(conda env list:*)",
+      "Bash(usvc data validate:*)"
     ]
   }
 }

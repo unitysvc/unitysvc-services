@@ -87,7 +87,7 @@ class UsageData(BaseModel):
     Usage data for cost calculation.
 
     Different pricing types require different usage fields:
-    - one_million_tokens: input_tokens, output_tokens (or total_tokens)
+    - one_million_tokens: input_tokens, output_tokens, cached_input_tokens (or total_tokens)
     - one_second: seconds
     - image: count
     - step: count
@@ -99,6 +99,7 @@ class UsageData(BaseModel):
 
     # Token-based usage (for LLMs)
     input_tokens: int | None = None
+    cached_input_tokens: int | None = None  # For providers with discounted cached token rates
     output_tokens: int | None = None
     total_tokens: int | None = None  # Alternative to input/output for unified pricing
 
@@ -303,6 +304,8 @@ class TokenPriceData(BasePriceData):
     """
     Price data for token-based pricing (LLMs).
     Supports either unified pricing or separate input/output pricing.
+    Optionally supports cached_input pricing for providers that offer discounted rates
+    for cached/repeated input tokens.
 
     Price values use Decimal for precision. In JSON/TOML, specify as strings
     (e.g., "0.50") to avoid floating-point precision issues.
@@ -320,6 +323,10 @@ class TokenPriceData(BasePriceData):
     input: PriceStr | None = Field(
         default=None,
         description="Price per million input tokens",
+    )
+    cached_input: PriceStr | None = Field(
+        default=None,
+        description="Price per million cached input tokens (optional, for discounted cached rates)",
     )
     output: PriceStr | None = Field(
         default=None,
@@ -355,7 +362,7 @@ class TokenPriceData(BasePriceData):
         """Calculate cost for token-based pricing.
 
         Args:
-            usage: Usage data with token counts
+            usage: Usage data with token counts (input_tokens, cached_input_tokens, output_tokens)
             customer_charge: Not used for token pricing (ignored)
             request_count: Number of requests (ignored for token pricing)
 
@@ -363,6 +370,7 @@ class TokenPriceData(BasePriceData):
             Calculated cost based on token usage
         """
         input_tokens = usage.input_tokens or 0
+        cached_input_tokens = usage.cached_input_tokens or 0
         output_tokens = usage.output_tokens or 0
 
         if usage.total_tokens is not None and usage.input_tokens is None:
@@ -371,13 +379,17 @@ class TokenPriceData(BasePriceData):
 
         if self.input is not None and self.output is not None:
             input_cost = Decimal(self.input) * input_tokens / 1_000_000
+            # Use cached_input price if available, otherwise fall back to input price
+            cached_price = Decimal(self.cached_input) if self.cached_input else Decimal(self.input)
+            cached_input_cost = cached_price * cached_input_tokens / 1_000_000
             output_cost = Decimal(self.output) * output_tokens / 1_000_000
         else:
             price = Decimal(self.price)  # type: ignore[arg-type]
             input_cost = price * input_tokens / 1_000_000
+            cached_input_cost = price * cached_input_tokens / 1_000_000
             output_cost = price * output_tokens / 1_000_000
 
-        return input_cost + output_cost
+        return input_cost + cached_input_cost + output_cost
 
 
 class TimePriceData(BasePriceData):
@@ -1058,6 +1070,8 @@ class ServiceTypeEnum(StrEnum):
     llm = "llm"
     # generate embedding from texts
     embedding = "embedding"
+    # rerank documents by relevance
+    rerank = "rerank"
     # generation of images from prompts
     image_generation = "image_generation"
     # streaming trancription needs websocket connection forwarding, and cannot

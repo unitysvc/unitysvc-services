@@ -1,6 +1,7 @@
 """Populate command - populate services by executing provider scripts."""
 
 import os
+import shutil
 import subprocess
 import tomllib
 from pathlib import Path
@@ -14,6 +15,42 @@ from .utils import find_files_by_schema
 
 app = typer.Typer(help="Populate services")
 console = Console()
+
+
+def _install_requirements(requirements: list[str]) -> tuple[bool, str]:
+    """Install requirements using uv pip or pip.
+
+    Tries uv pip first (for uv-managed environments), then falls back to pip.
+
+    Args:
+        requirements: List of package names to install
+
+    Returns:
+        Tuple of (success, error_message)
+    """
+    # Try uv pip first if uv is available
+    if shutil.which("uv"):
+        result = subprocess.run(
+            ["uv", "pip", "install", "--quiet"] + requirements,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return True, ""
+        # If uv pip fails, try regular pip as fallback
+
+    # Try regular pip
+    if shutil.which("pip"):
+        result = subprocess.run(
+            ["pip", "install", "--quiet"] + requirements,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return True, ""
+        return False, result.stderr
+
+    return False, "Neither 'uv pip' nor 'pip' is available"
 
 
 @app.command()
@@ -113,23 +150,11 @@ def populate(
                     console.print(f"[yellow]  [DRY-RUN] Would install: {', '.join(requirements)}[/yellow]")
                 else:
                     console.print(f"[dim]  Installing requirements: {', '.join(requirements)}[/dim]")
-                    try:
-                        pip_result = subprocess.run(
-                            ["pip", "install", "--quiet"] + requirements,
-                            capture_output=True,
-                            text=True,
-                        )
-                        if pip_result.returncode != 0:
-                            console.print(
-                                f"[red]✗[/red] Failed to install requirements for "
-                                f"{provider_name_in_file}: {pip_result.stderr}",
-                                style="bold red",
-                            )
-                            total_failed += 1
-                            continue
-                    except subprocess.SubprocessError as e:
+                    success, error_msg = _install_requirements(requirements)
+                    if not success:
                         console.print(
-                            f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {e}",
+                            f"[red]✗[/red] Failed to install requirements for "
+                            f"{provider_name_in_file}: {error_msg}",
                             style="bold red",
                         )
                         total_failed += 1
