@@ -130,7 +130,7 @@ usvc services list [OPTIONS]
 
 **Options:**
 
-- `--format, -f {table|json}` - Output format (default: table)
+- `--format, -f {table|json|tsv|csv}` - Output format (default: table)
 - `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
 - `--skip SKIP` - Number of records to skip for pagination (default: 0)
 - `--limit LIMIT` - Maximum number of records to return (default: 100)
@@ -465,7 +465,7 @@ usvc services list-tests [SERVICE_ID] [OPTIONS]
 
 **Options:**
 
-- `--format, -f TEXT` - Output format: table, json (default: table)
+- `--format, -f TEXT` - Output format: table, json, tsv, csv (default: table)
 
 **Examples:**
 
@@ -495,7 +495,7 @@ usvc services show-test <SERVICE_ID> -t <TEST_TITLE> [OPTIONS]
 **Options:**
 
 - `--test-title, -t TEXT` - Test title (required)
-- `--format, -f TEXT` - Output format: table, json (default: table)
+- `--format, -f TEXT` - Output format: json, table, tsv, csv (default: json)
 
 **Examples:**
 
