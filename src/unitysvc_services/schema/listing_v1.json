@@ -1350,8 +1350,21 @@
     },
     "TokenPriceData": {
       "additionalProperties": false,
-      "description": "Price data for token-based pricing (LLMs).\nSupports either unified pricing or separate input/output pricing.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.50\") to avoid floating-point precision issues.",
+      "description": "Price data for token-based pricing (LLMs).\nSupports either unified pricing or separate input/output pricing.\nOptionally supports cached_input pricing for providers that offer discounted rates\nfor cached/repeated input tokens.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.50\") to avoid floating-point precision issues.",
       "properties": {
+        "cached_input": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Price per million cached input tokens (optional, for discounted cached rates)",
+          "title": "Cached Input"
+        },
         "description": {
           "anyOf": [
             {
