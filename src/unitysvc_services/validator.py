@@ -187,6 +187,66 @@ class DataValidator:
         # Dict keys are inherently unique, so no duplicate check needed
         return []
 
+    def validate_api_key_secrets(self, data: dict[str, Any]) -> list[str]:
+        """Validate that all api_key fields use the secrets reference format.
+
+        API keys must be specified as '${ secrets.VAR_NAME }' where VAR_NAME
+        starts with a letter or underscore and contains only letters, numbers,
+        and underscores. Spaces around the variable name are optional.
+
+        This applies to:
+        - upstream_access_interfaces.<name>.api_key
+        - user_access_interfaces.<name>.api_key
+        - service_options.default_parameters.api_key
+
+        Args:
+            data: The data to validate
+
+        Returns:
+            List of validation error messages
+        """
+        errors: list[str] = []
+
+        # Pattern: ${ secrets.VAR_NAME } with optional spaces
+        secrets_pattern = re.compile(r"^\$\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*\s*\}$")
+
+        # Paths where api_key is a schema definition or UI config, not an actual key
+        skip_prefixes = ("user_parameters_schema.properties.", "user_parameters_ui_schema.")
+
+        def check_api_key(obj: Any, path: str = "") -> None:
+            if isinstance(obj, dict):
+                for key, value in obj.items():
+                    new_path = f"{path}.{key}" if path else key
+
+                    # Check if this is an api_key field with a non-null value
+                    if key == "api_key" and value is not None:
+                        # Skip schema definitions and UI configs
+                        if any(new_path.startswith(p) for p in skip_prefixes):
+                            continue
+
+                        if not isinstance(value, str):
+                            errors.append(
+                                f"Invalid api_key at '{new_path}': expected string, got {type(value).__name__}"
+                            )
+                        elif not secrets_pattern.match(value):
+                            errors.append(
+                                f"Invalid api_key at '{new_path}': API keys must use secrets reference format. "
+                                f"Got '{value}', expected format: '${{ secrets.VAR_NAME }}'. "
+                                f"Create the secret in your Seller Dashboard and reference it here."
+                            )
+
+                    # Recurse into nested objects
+                    if isinstance(value, dict | list):
+                        check_api_key(value, new_path)
+
+            elif isinstance(obj, list):
+                for i, item in enumerate(obj):
+                    if isinstance(item, dict | list):
+                        check_api_key(item, f"{path}[{i}]")
+
+        check_api_key(data)
+        return errors
+
     def validate_required_parameter_defaults(self, data: dict[str, Any], schema_name: str) -> list[str]:
         """Validate that required user parameters have default values.
 
@@ -409,6 +469,10 @@ class DataValidator:
         # Validate required parameters have defaults (listing_v1 only)
         required_param_errors = self.validate_required_parameter_defaults(data, schema_name)
         errors.extend(required_param_errors)
+
+        # Validate api_key fields use secrets format
+        api_key_errors = self.validate_api_key_secrets(data)
+        errors.extend(api_key_errors)
 
         return len(errors) == 0, errors
 

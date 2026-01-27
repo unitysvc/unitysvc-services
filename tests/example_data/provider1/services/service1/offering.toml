@@ -70,7 +70,7 @@ message = ""
 [upstream_access_interfaces."Fireworks API"]
 access_method = "http"
 base_url = "https://api.fireworks.ai/inference/v1"
-api_key = "your_api_key_here"
+api_key = "${ secrets.FIREWORKS_API_KEY }"
 
 [documents."Python Code Example"]
 description = "Example code to use the model"
