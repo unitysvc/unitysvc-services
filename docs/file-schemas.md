@@ -935,7 +935,7 @@ The following fields require secrets references (plain text API keys are not all
 
 - `upstream_access_interfaces.<name>.api_key` - API keys for upstream provider access
 - `user_access_interfaces.<name>.api_key` - API keys for user-facing interfaces
-- `service_options.default_parameters.api_key` - Default API key parameters
+- `service_options.ops_testing_parameters.api_key` - Ops testing API key parameters
 
 ### Example Usage
 

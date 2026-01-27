@@ -480,28 +480,28 @@ class TestApiKeySecretsValidation:
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
-    def test_service_options_default_parameters_api_key(self, schema_dir, example_data_dir):
-        """Test that api_key in service_options.default_parameters is validated."""
+    def test_service_options_ops_testing_parameters_api_key(self, schema_dir, example_data_dir):
+        """Test that api_key in service_options.ops_testing_parameters is validated."""
         validator = DataValidator(example_data_dir, schema_dir)
 
         data = {
             "service_options": {
-                "default_parameters": {
+                "ops_testing_parameters": {
                     "api_key": "plain_text_key"
                 }
             }
         }
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
-        assert "service_options.default_parameters.api_key" in errors[0]
+        assert "service_options.ops_testing_parameters.api_key" in errors[0]
 
-    def test_service_options_default_parameters_api_key_valid(self, schema_dir, example_data_dir):
-        """Test that valid api_key in service_options.default_parameters passes."""
+    def test_service_options_ops_testing_parameters_api_key_valid(self, schema_dir, example_data_dir):
+        """Test that valid api_key in service_options.ops_testing_parameters passes."""
         validator = DataValidator(example_data_dir, schema_dir)
 
         data = {
             "service_options": {
-                "default_parameters": {
+                "ops_testing_parameters": {
                     "api_key": "${ secrets.USER_API_KEY }"
                 }
             }
@@ -532,7 +532,7 @@ class TestApiKeySecretsValidation:
                 "API2": {"api_key": "invalid2"}
             },
             "service_options": {
-                "default_parameters": {
+                "ops_testing_parameters": {
                     "api_key": "invalid3"
                 }
             }

@@ -197,7 +197,7 @@ class DataValidator:
         This applies to:
         - upstream_access_interfaces.<name>.api_key
         - user_access_interfaces.<name>.api_key
-        - service_options.default_parameters.api_key
+        - service_options.ops_testing_parameters.api_key
 
         Args:
             data: The data to validate
