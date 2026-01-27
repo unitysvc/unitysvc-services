@@ -210,6 +210,9 @@ class DataValidator:
         # Pattern: ${ secrets.VAR_NAME } with optional spaces
         secrets_pattern = re.compile(r"^\$\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*\s*\}$")
 
+        # Paths where api_key is a schema definition or UI config, not an actual key
+        skip_prefixes = ("user_parameters_schema.properties.", "user_parameters_ui_schema.")
+
         def check_api_key(obj: Any, path: str = "") -> None:
             if isinstance(obj, dict):
                 for key, value in obj.items():
@@ -217,6 +220,10 @@ class DataValidator:
 
                     # Check if this is an api_key field with a non-null value
                     if key == "api_key" and value is not None:
+                        # Skip schema definitions and UI configs
+                        if any(new_path.startswith(p) for p in skip_prefixes):
+                            continue
+
                         if not isinstance(value, str):
                             errors.append(
                                 f"Invalid api_key at '{new_path}': expected string, got {type(value).__name__}"

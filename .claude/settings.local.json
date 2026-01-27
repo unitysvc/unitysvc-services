@@ -50,7 +50,25 @@
       "Bash(ls:*)",
       "Bash(conda env list:*)",
       "Bash(usvc data validate:*)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(for repo in cerebras cohere deepseek groq huggingface inception mistral nebius sambanova)",
+      "Bash(do)",
+      "Bash(script=\"../unitysvc-services-$repo/data/*/scripts/update_services.py\")",
+      "Bash(if ls $script)",
+      "Bash(then)",
+      "Bash(fi)",
+      "Bash(python3:*)",
+      "Bash(for repo in cohere deepseek groq huggingface inception mistral nebius sambanova)",
+      "Bash(script=\"/Users/bpeng/unitysvc/unitysvc-services-$repo/data/$repo/scripts/update_services.py\")",
+      "Bash(if grep -q \"ui:placeholder\" \"$script\")",
+      "Bash(if grep -q 'model_id}\"\"\\)if' \"$script\")",
+      "Bash(if grep -q \"Skipped.*skipped\" \"$script\")",
+      "Bash(do echo \"=== $repo ===\" grep -A 5 \"envs\" /Users/bpeng/unitysvc/unitysvc-services-$repo/data/$repo/provider.toml)",
+      "Bash(for key in CEREBRAS_API_KEY CO_API_KEY DEEPSEEK_API_KEY GROQ_API_KEY HF_TOKEN INCEPTION_API_KEY MISTRAL_API_KEY NEBIUS_API_KEY SAMBANOVA_API_KEY)",
+      "Bash(if [ -n \"$!key\" ])",
+      "Bash(then echo \"$key: set\")",
+      "Bash(else echo \"$key: NOT SET\")",
+      "Bash(do echo \"=== $repo ===\" cd /Users/bpeng/unitysvc/unitysvc-services-$repo)"
     ]
   }
 }
