@@ -242,8 +242,65 @@ Listing files define how a seller presents/sells a service to end users.
 | `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                                                          |
 | `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                                           |
 | `user_parameters_schema`    | object                | JSON schema defining user parameters for subscriptions (see [User Parameters](#user-parameters))      |
-| `user_parameters_ui_schema` | object                | UI schema for user parameter form rendering (see [User Parameters](#user-parameters))                 |
-| `service_options`           | object                | Service-specific options including `ops_testing_parameters` (see [User Parameters](#user-parameters)) |
+| `user_parameters_ui_schema` | object                | UI schema for user parameter form rendering (see [User Parameters](#user-parameters))     |
+| `service_options`           | object                | Service-specific options (see [Service Options](#service-options))                       |
+
+### Service Options
+
+The `service_options` field configures backend behavior for service listings. All fields are optional.
+
+| Field                            | Type    | Description                                                                                                    |
+| -------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `ops_testing_parameters`         | object  | Default parameter values for testing (see [User Parameters](#user-parameters))                                 |
+| `subscription_limit`             | integer | Maximum total active subscriptions allowed for this service (global limit)                                     |
+| `subscription_limit_per_customer` | integer | Maximum active subscriptions per customer for this service                                                     |
+| `subscription_limit_per_user`    | integer | Maximum active subscriptions per user (creator) for this service                                               |
+| `subscription_code_name`         | string  | Parameter name for auto-generated subscription codes. If set, backend generates unique tokens for subscriptions |
+
+**Subscription Limits:**
+
+- Limits apply only to **active** subscriptions (cancelled/inactive subscriptions don't count)
+- Invalid values (non-integers, zero, negative, or boolean) are treated as "no limit"
+- Limits are checked when creating **new** subscriptions (not when updating existing ones)
+- Checks are performed in order: per-customer → per-user → global
+
+**Subscription Codes:**
+
+When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend automatically:
+1. Generates a unique action code token for each new subscription
+2. Adds the token to subscription parameters: `{subscription_code_name: "generated_token"}`
+3. Skips this field when comparing parameters to determine if a subscription is an update
+
+**Example (JSON):**
+
+```json
+{
+  "service_options": {
+    "ops_testing_parameters": {
+      "api_key": "${ secrets.SERVICE_API_KEY }",
+      "region": "us-east-1"
+    },
+    "subscription_limit": 100,
+    "subscription_limit_per_customer": 5,
+    "subscription_limit_per_user": 2,
+    "subscription_code_name": "subscription_code"
+  }
+}
+```
+
+**Example (TOML):**
+
+```toml
+[service_options]
+subscription_limit = 100
+subscription_limit_per_customer = 5
+subscription_limit_per_user = 2
+subscription_code_name = "subscription_code"
+
+[service_options.ops_testing_parameters]
+api_key = "${ secrets.SERVICE_API_KEY }"
+region = "us-east-1"
+```
 
 ### Listing Name Field
 
@@ -301,7 +358,7 @@ User parameters enable dynamic service configuration through:
 
 1. **`user_parameters_schema`** - JSON Schema defining parameters, validation rules, and UI components
 2. **`user_parameters_ui_schema`** - UI customization for form rendering
-3. **`service_options.ops_testing_parameters`** - Default values for testing services before deployment
+3. **`service_options.ops_testing_parameters`** - Default values for testing services before deployment (see [Service Options](#service-options))
 
 ### user_parameters_schema
 
@@ -951,6 +1008,7 @@ The SDK preserves the original format when updating files.
 
 ## See Also
 
+- [Service Options](#service-options) - Configure subscription limits and backend behavior
 - [User Parameters](#user-parameters) - Define and collect subscription configuration
 - [Pricing Specification](pricing.md) - Complete pricing documentation
 - [Data Structure](data-structure.md) - File organization rules
