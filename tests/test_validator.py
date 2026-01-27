@@ -253,7 +253,7 @@ class TestRequiredParameterDefaults:
                 "required": ["param1", "param2"],
             },
             "service_options": {
-                "default_parameters": {
+                "ops_testing_parameters": {
                     "param1": "default_value",
                     "param2": 42,
                 }
@@ -278,8 +278,8 @@ class TestRequiredParameterDefaults:
         assert len(errors) == 1
         assert "service_options is missing" in errors[0]
 
-    def test_required_params_missing_default_parameters(self, schema_dir, example_data_dir):
-        """Test validation fails when required params exist but default_parameters is missing."""
+    def test_required_params_missing_ops_testing_parameters(self, schema_dir, example_data_dir):
+        """Test validation fails when required params exist but ops_testing_parameters is missing."""
         validator = DataValidator(example_data_dir, schema_dir)
 
         data = {
@@ -293,7 +293,7 @@ class TestRequiredParameterDefaults:
         }
         errors = validator.validate_required_parameter_defaults(data, "listing_v1")
         assert len(errors) == 1
-        assert "default_parameters is missing" in errors[0]
+        assert "ops_testing_parameters is missing" in errors[0]
 
     def test_required_params_missing_some_defaults(self, schema_dir, example_data_dir):
         """Test validation fails when some required params are missing defaults."""
@@ -311,7 +311,7 @@ class TestRequiredParameterDefaults:
                 "required": ["param1", "param2", "param3"],
             },
             "service_options": {
-                "default_parameters": {
+                "ops_testing_parameters": {
                     "param1": "default_value",
                     # param2 and param3 are missing
                 }

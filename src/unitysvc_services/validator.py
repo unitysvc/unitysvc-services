@@ -252,7 +252,7 @@ class DataValidator:
 
         For listing_v1 data, if user_parameters_schema.required lists parameters,
         each of those parameters must have a corresponding default value in
-        service_options.default_parameters.
+        service_options.ops_testing_parameters.
 
         Args:
             data: The data to validate
@@ -281,21 +281,21 @@ class DataValidator:
         if len(required_params) == 0:
             return errors
 
-        # Get service_options.default_parameters
+        # Get service_options.ops_testing_parameters
         service_options = data.get("service_options")
         if not service_options or not isinstance(service_options, dict):
             errors.append(
                 f"user_parameters_schema has required parameters {required_params}, "
                 f"but service_options is missing. "
-                f"Add service_options.default_parameters with defaults for required parameters."
+                f"Add service_options.ops_testing_parameters with defaults for required parameters."
             )
             return errors
 
-        default_parameters = service_options.get("default_parameters")
-        if not default_parameters or not isinstance(default_parameters, dict):
+        ops_testing_parameters = service_options.get("ops_testing_parameters")
+        if not ops_testing_parameters or not isinstance(ops_testing_parameters, dict):
             errors.append(
                 f"user_parameters_schema has required parameters {required_params}, "
-                f"but service_options.default_parameters is missing. "
+                f"but service_options.ops_testing_parameters is missing. "
                 f"Add default values for all required parameters."
             )
             return errors
@@ -303,12 +303,12 @@ class DataValidator:
         # Check each required parameter has a default
         missing_defaults = []
         for param in required_params:
-            if param not in default_parameters:
+            if param not in ops_testing_parameters:
                 missing_defaults.append(param)
 
         if missing_defaults:
             errors.append(
-                f"Required parameters missing default values in service_options.default_parameters: "
+                f"Required parameters missing default values in service_options.ops_testing_parameters: "
                 f"{missing_defaults}. Each required parameter must have a default value."
             )
 

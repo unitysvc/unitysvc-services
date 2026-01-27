@@ -945,7 +945,7 @@ class ListingDataBuilder(BaseDataBuilder):
         self._data["user_parameters_ui_schema"] = ui_schema
 
         if default_api_key:
-            self._data["service_options"] = {"default_parameters": {"apikey": default_api_key}}
+            self._data["service_options"] = {"ops_testing_parameters": {"apikey": default_api_key}}
 
         return self
 
