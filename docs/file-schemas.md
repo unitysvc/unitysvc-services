@@ -299,7 +299,7 @@ The `AccessInterfaceData` object defines how to access a service (used in offeri
 | --------------------- | ------------------ | ------------------------------------------------------------------------- |
 | `access_method`       | enum               | Access method: `http` (default), `websocket`, `grpc`                      |
 | `base_url`            | string             | API endpoint URL (max 500 chars)                                          |
-| `api_key`             | string             | API key if required (max 2000 chars)                                      |
+| `api_key`             | string             | API key using secrets format: `${ secrets.VAR_NAME }` (see [Secrets](#secrets-for-sensitive-information)) |
 | `description`         | string             | Interface description (max 500 chars)                                     |
 | `request_transformer` | object             | Request transformation config (keys: `proxy_rewrite`, `body_transformer`) |
 | `routing_key`         | object             | Optional routing key for request matching                                 |
@@ -482,6 +482,78 @@ Comprehensive service constraints and policies. All fields are optional.
 - `max_concurrent_requests` - Max concurrent requests
 - `connection_timeout_seconds` - Connection timeout
 - `max_connections_per_ip` - Max connections per IP
+
+## Secrets for Sensitive Information
+
+API keys and other sensitive credentials must **never** be stored as plain text in data files. Instead, use the secrets reference format to specify credentials that will be securely retrieved at runtime.
+
+### Creating Secrets
+
+Before referencing secrets in your data files, you must create them in the UnitySVC platform:
+
+1. Log in to the UnitySVC website
+2. Navigate to **Seller Dashboard** → **Secrets**
+3. Click **Create Secret**
+4. Enter a name (e.g., `OPENAI_API_KEY`) and the secret value
+5. Save the secret
+
+Secret names must:
+- Start with a letter or underscore
+- Contain only letters, numbers, and underscores
+- Be unique within your seller account
+
+### Referencing Secrets in Data Files
+
+Use the `${ secrets.VAR_NAME }` format to reference secrets. Spaces around the variable name are optional.
+
+**Valid formats:**
+```
+${ secrets.OPENAI_API_KEY }
+${secrets.OPENAI_API_KEY}
+${ secrets.MY_PROVIDER_KEY }
+```
+
+### API Key Fields
+
+The following fields require secrets references (plain text API keys are not allowed):
+
+- `upstream_access_interfaces.<name>.api_key` - API keys for upstream provider access
+- `user_access_interfaces.<name>.api_key` - API keys for user-facing interfaces
+- `service_options.default_parameters.api_key` - Default API key parameters
+
+### Example Usage
+
+**TOML:**
+```toml
+[upstream_access_interfaces."OpenAI API"]
+access_method = "http"
+base_url = "https://api.openai.com/v1"
+api_key = "${ secrets.OPENAI_API_KEY }"
+```
+
+**JSON:**
+```json
+{
+    "upstream_access_interfaces": {
+        "OpenAI API": {
+            "access_method": "http",
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "${ secrets.OPENAI_API_KEY }"
+        }
+    }
+}
+```
+
+### How Secrets Work
+
+1. **Upload**: When you upload data files, the `${ secrets.VAR_NAME }` references are validated for correct format and the secret's existence is verified by the backend
+2. **Storage**: The reference string is stored as-is in the database (secrets are NOT expanded during upload)
+3. **Runtime**: When the API key is actually needed, the platform retrieves the decrypted value from the secure secrets storage
+
+This approach ensures that:
+- Sensitive credentials are never exposed in version-controlled files
+- Secrets can be rotated without re-uploading data files
+- Access to secrets is controlled through the seller dashboard
 
 ## Validation Rules
 
