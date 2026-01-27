@@ -27,28 +27,29 @@ Provider files define the service provider's metadata and access configuration f
 
 ### Optional Fields
 
-| Field                     | Type                 | Description                                                            |
-| ------------------------- | -------------------- | ---------------------------------------------------------------------- |
-| `display_name`            | string               | Human-readable provider name (max 200 chars)                           |
-| `description`             | string               | Provider description                                                   |
-| `secondary_contact_email` | string (email)       | Secondary contact email                                                |
-| `logo`                    | string/URL           | Path to logo file or URL (converted to document during import)         |
-| `terms_of_service`        | string/URL           | Path to terms file or URL (converted to document during import)        |
-| `documents`               | dict of DocumentData | Documents keyed by title                                               |
-| `services_populator`      | object               | Automated service generation configuration                             |
-| `status`                  | enum                 | Provider status: `draft` (default), `ready`, or `deprecated`           |
+| Field                     | Type                 | Description                                                     |
+| ------------------------- | -------------------- | --------------------------------------------------------------- |
+| `display_name`            | string               | Human-readable provider name (max 200 chars)                    |
+| `description`             | string               | Provider description                                            |
+| `secondary_contact_email` | string (email)       | Secondary contact email                                         |
+| `logo`                    | string/URL           | Path to logo file or URL (converted to document during import)  |
+| `terms_of_service`        | string/URL           | Path to terms file or URL (converted to document during import) |
+| `documents`               | dict of DocumentData | Documents keyed by title                                        |
+| `services_populator`      | object               | Automated service generation configuration                      |
+| `status`                  | enum                 | Provider status: `draft` (default), `ready`, or `deprecated`    |
 
 ### services_populator Object
 
 Configuration for automatically populating service data using `usvc data populate`.
 
-| Field          | Type                    | Description                                                                                 |
-| -------------- | ----------------------- | ------------------------------------------------------------------------------------------- |
-| `command`      | string or list[string]  | Command to execute (string or list of arguments). Relative to provider directory.           |
-| `requirements` | array of strings        | Python packages to install before executing (e.g., `["httpx", "any-llm-sdk[anthropic]"]`)   |
-| `envs`         | object                  | Environment variables to set when executing the command (values converted to strings)       |
+| Field          | Type                   | Description                                                                               |
+| -------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
+| `command`      | string or list[string] | Command to execute (string or list of arguments). Relative to provider directory.         |
+| `requirements` | array of strings       | Python packages to install before executing (e.g., `["httpx", "any-llm-sdk[anthropic]"]`) |
+| `envs`         | object                 | Environment variables to set when executing the command (values converted to strings)     |
 
 **Notes:**
+
 - Comment out or omit `command` to disable population for a provider
 - `requirements` packages are installed via pip before running the command
 - `envs` values are converted to strings and set as environment variables
@@ -233,15 +234,73 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Optional Fields
 
-| Field                       | Type                  | Description                                                                |
-| --------------------------- | --------------------- | -------------------------------------------------------------------------- |
-| `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars) |
-| `display_name`              | string                | Customer-facing name (max 200 chars)                                       |
-| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`   |
-| `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                               |
-| `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                |
-| `user_parameters_schema`    | object                | JSON schema for user configuration                                         |
-| `user_parameters_ui_schema` | object                | UI schema for user configuration                                           |
+| Field                       | Type                  | Description                                                                                           |
+| --------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
+| `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars)                            |
+| `display_name`              | string                | Customer-facing name (max 200 chars)                                                                  |
+| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`                               |
+| `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                                                          |
+| `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                                           |
+| `user_parameters_schema`    | object                | JSON schema defining user parameters for subscriptions (see [User Parameters](#user-parameters))      |
+| `user_parameters_ui_schema` | object                | UI schema for user parameter form rendering (see [User Parameters](#user-parameters))     |
+| `service_options`           | object                | Service-specific options (see [Service Options](#service-options))                       |
+
+### Service Options
+
+The `service_options` field configures backend behavior for service listings. All fields are optional.
+
+| Field                            | Type    | Description                                                                                                    |
+| -------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
+| `ops_testing_parameters`         | object  | Default parameter values for testing (see [User Parameters](#user-parameters))                                 |
+| `subscription_limit`             | integer | Maximum total active subscriptions allowed for this service (global limit)                                     |
+| `subscription_limit_per_customer` | integer | Maximum active subscriptions per customer for this service                                                     |
+| `subscription_limit_per_user`    | integer | Maximum active subscriptions per user (creator) for this service                                               |
+| `subscription_code_name`         | string  | Parameter name for auto-generated subscription codes. If set, backend generates unique tokens for subscriptions |
+
+**Subscription Limits:**
+
+- Limits apply only to **active** subscriptions (cancelled/inactive subscriptions don't count)
+- Invalid values (non-integers, zero, negative, or boolean) are treated as "no limit"
+- Limits are checked when creating **new** subscriptions (not when updating existing ones)
+- Checks are performed in order: per-customer → per-user → global
+
+**Subscription Codes:**
+
+When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend automatically:
+1. Generates a unique action code token for each new subscription
+2. Adds the token to subscription parameters: `{subscription_code_name: "generated_token"}`
+3. Skips this field when comparing parameters to determine if a subscription is an update
+
+**Example (JSON):**
+
+```json
+{
+  "service_options": {
+    "ops_testing_parameters": {
+      "api_key": "${ secrets.SERVICE_API_KEY }",
+      "region": "us-east-1"
+    },
+    "subscription_limit": 100,
+    "subscription_limit_per_customer": 5,
+    "subscription_limit_per_user": 2,
+    "subscription_code_name": "subscription_code"
+  }
+}
+```
+
+**Example (TOML):**
+
+```toml
+[service_options]
+subscription_limit = 100
+subscription_limit_per_customer = 5
+subscription_limit_per_user = 2
+subscription_code_name = "subscription_code"
+
+[service_options.ops_testing_parameters]
+api_key = "${ secrets.SERVICE_API_KEY }"
+region = "us-east-1"
+```
 
 ### Listing Name Field
 
@@ -288,6 +347,363 @@ file_path = "../../docs/quick-start.md"
 category = "getting_started"
 mime_type = "markdown"
 ```
+
+## User Parameters
+
+User parameters allow services to collect configuration values from subscribers when they create subscriptions. These parameters are defined using JSON Schema and rendered as interactive forms using the react-jsonschema-form library.
+
+### Overview
+
+User parameters enable dynamic service configuration through:
+
+1. **`user_parameters_schema`** - JSON Schema defining parameters, validation rules, and UI components
+2. **`user_parameters_ui_schema`** - UI customization for form rendering
+3. **`service_options.ops_testing_parameters`** - Default values for testing services before deployment (see [Service Options](#service-options))
+
+### user_parameters_schema
+
+Defines the parameters users must provide when subscribing to a service. Uses [JSON Schema](https://json-schema.org/) format with extensions from [react-jsonschema-form](https://rjsf-team.github.io/react-jsonschema-form/).
+
+**Common properties:**
+
+- `type` - Data type: `"string"`, `"number"`, `"boolean"`, `"object"`, `"array"`
+- `title` - Human-readable field label
+- `description` - Help text shown to users
+- `default` - Default value for the field
+- `enum` - List of allowed values (creates dropdown)
+- `required` - Array of required field names
+
+**Example:**
+
+```json
+{
+    "type": "object",
+    "title": "Service Configuration",
+    "properties": {
+        "api_key": {
+            "type": "string",
+            "title": "API Key",
+            "description": "Your API key for authentication"
+        },
+        "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "Model to use",
+            "enum": ["gpt-4", "gpt-3.5-turbo"],
+            "default": "gpt-4"
+        },
+        "temperature": {
+            "type": "number",
+            "title": "Temperature",
+            "description": "Sampling temperature (0-2)",
+            "default": 0.7,
+            "minimum": 0,
+            "maximum": 2
+        }
+    },
+    "required": ["api_key", "model"]
+}
+```
+
+### user_parameters_ui_schema
+
+Customizes how the form is rendered. Controls field order, visibility, widgets, and presentation.
+
+**Common UI options:**
+
+- `ui:widget` - Widget type: `"textarea"`, `"password"`, `"select"`, `"radio"`, `"checkbox"`
+- `ui:placeholder` - Placeholder text
+- `ui:help` - Additional help text
+- `ui:disabled` - Disable field (e.g., for secrets managed separately)
+- `ui:order` - Field display order
+
+**Example:**
+
+```json
+{
+    "api_key": {
+        "ui:widget": "password",
+        "ui:placeholder": "sk-...",
+        "ui:disabled": true,
+        "ui:help": "API key is managed through secrets. Add via the 'Add Secret' button."
+    },
+    "model": {
+        "ui:widget": "select"
+    },
+    "temperature": {
+        "ui:widget": "range"
+    },
+    "ui:order": ["model", "temperature", "api_key"]
+}
+```
+
+### Handling Secrets
+
+Sensitive values like API keys should be handled through the secrets management system, not collected directly through forms.
+
+**Best practices for secrets:**
+
+1. **Define in schema** - Include secret fields in `user_parameters_schema` for documentation
+2. **Disable in UI** - Set `"ui:disabled": true` in `user_parameters_ui_schema`
+3. **Add help text** - Guide users to add secrets separately
+4. **Use secret references** - In `ops_testing_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
+
+**Example with API key secret:**
+
+```json
+// user_parameters_schema
+{
+  "type": "object",
+  "properties": {
+    "api_key": {
+      "type": "string",
+      "title": "API Key",
+      "description": "Your service API key"
+    }
+  },
+  "required": ["api_key"]
+}
+
+// user_parameters_ui_schema
+{
+  "api_key": {
+    "ui:widget": "password",
+    "ui:disabled": true,
+    "ui:help": "Managed via secrets. Click 'Add Secret' to provide your API key."
+  }
+}
+```
+
+### service_options.ops_testing_parameters
+
+Provides default parameter values for testing services before deployment. This is **required** when `user_parameters_schema` defines required parameters that don't have default values in the schema itself.
+
+**Key requirements:**
+
+1. **All required parameters must have defaults** - Each parameter listed in `user_parameters_schema.required` must have either a `default` value in the schema OR a value in `ops_testing_parameters`
+2. **Secrets use special syntax** - Reference seller secrets using `${ secrets.SECRET_NAME }`
+3. **Must be testable** - Values must allow the service to be tested successfully
+
+**Example:**
+
+```json
+{
+    "service_options": {
+        "ops_testing_parameters": {
+            "api_key": "${ secrets.OPENAI_API_KEY }",
+            "model": "gpt-4",
+            "temperature": 0.7
+        }
+    }
+}
+```
+
+### Complete Example (JSON)
+
+```json
+{
+    "schema": "listing_v1",
+    "display_name": "Custom AI Service",
+    "status": "ready",
+    "time_created": "2024-01-25T16:00:00Z",
+    "user_parameters_schema": {
+        "type": "object",
+        "title": "Service Configuration",
+        "description": "Configure your AI service subscription",
+        "properties": {
+            "api_key": {
+                "type": "string",
+                "title": "API Key",
+                "description": "Your service API key for authentication"
+            },
+            "model": {
+                "type": "string",
+                "title": "Model",
+                "description": "AI model to use",
+                "enum": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
+                "default": "gpt-4"
+            },
+            "max_tokens": {
+                "type": "integer",
+                "title": "Max Tokens",
+                "description": "Maximum tokens per request",
+                "default": 1000,
+                "minimum": 1,
+                "maximum": 4096
+            },
+            "enable_streaming": {
+                "type": "boolean",
+                "title": "Enable Streaming",
+                "description": "Enable streaming responses",
+                "default": false
+            }
+        },
+        "required": ["api_key", "model"]
+    },
+    "user_parameters_ui_schema": {
+        "api_key": {
+            "ui:widget": "password",
+            "ui:disabled": true,
+            "ui:help": "API key is managed through secrets. Use 'Add Secret' to provide your key."
+        },
+        "model": {
+            "ui:widget": "select"
+        },
+        "max_tokens": {
+            "ui:widget": "range",
+            "ui:help": "Higher values allow longer responses but cost more"
+        },
+        "enable_streaming": {
+            "ui:widget": "checkbox"
+        },
+        "ui:order": ["model", "max_tokens", "enable_streaming", "api_key"]
+    },
+    "service_options": {
+        "ops_testing_parameters": {
+            "api_key": "${ secrets.SERVICE_API_KEY }",
+            "model": "gpt-4",
+            "max_tokens": 1000,
+            "enable_streaming": false
+        }
+    },
+    "user_access_interfaces": {
+        "API Access": {
+            "access_method": "http",
+            "base_url": "${GATEWAY_BASE_URL}/p/my-service"
+        }
+    }
+}
+```
+
+### Complete Example (TOML)
+
+```toml
+schema = "listing_v1"
+display_name = "Custom AI Service"
+status = "ready"
+time_created = "2024-01-25T16:00:00Z"
+
+[user_parameters_schema]
+type = "object"
+title = "Service Configuration"
+description = "Configure your AI service subscription"
+required = ["api_key", "model"]
+
+[user_parameters_schema.properties.api_key]
+type = "string"
+title = "API Key"
+description = "Your service API key for authentication"
+
+[user_parameters_schema.properties.model]
+type = "string"
+title = "Model"
+description = "AI model to use"
+default = "gpt-4"
+enum = ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
+
+[user_parameters_schema.properties.max_tokens]
+type = "integer"
+title = "Max Tokens"
+description = "Maximum tokens per request"
+default = 1000
+minimum = 1
+maximum = 4096
+
+[user_parameters_schema.properties.enable_streaming]
+type = "boolean"
+title = "Enable Streaming"
+description = "Enable streaming responses"
+default = false
+
+[user_parameters_ui_schema.api_key]
+"ui:widget" = "password"
+"ui:disabled" = true
+"ui:help" = "API key is managed through secrets. Use 'Add Secret' to provide your key."
+
+[user_parameters_ui_schema.model]
+"ui:widget" = "select"
+
+[user_parameters_ui_schema.max_tokens]
+"ui:widget" = "range"
+"ui:help" = "Higher values allow longer responses but cost more"
+
+[user_parameters_ui_schema.enable_streaming]
+"ui:widget" = "checkbox"
+
+[user_parameters_ui_schema]
+"ui:order" = ["model", "max_tokens", "enable_streaming", "api_key"]
+
+[service_options.ops_testing_parameters]
+api_key = "${ secrets.SERVICE_API_KEY }"
+model = "gpt-4"
+max_tokens = 1000
+enable_streaming = false
+
+[user_access_interfaces."API Access"]
+access_method = "http"
+base_url = "${GATEWAY_BASE_URL}/p/my-service"
+```
+
+### Validation Rules
+
+The SDK validates user parameters during the `usvc data validate` command:
+
+1. **Required parameter defaults** - All parameters in `user_parameters_schema.required` must have either:
+    - A `default` value in the parameter's schema definition, OR
+    - A corresponding value in `service_options.ops_testing_parameters`
+2. **Service options required** - If required parameters exist without defaults in the schema, `service_options` with `ops_testing_parameters` must be defined
+3. **Complete coverage** - Every required parameter must have a testable default value from one of the two sources
+
+**Valid scenarios:**
+
+```json
+// Scenario 1: All required params have defaults in schema (ops_testing_parameters not needed)
+{
+  "user_parameters_schema": {
+    "properties": {
+      "model": {"type": "string", "default": "gpt-4"}
+    },
+    "required": ["model"]
+  }
+}
+
+// Scenario 2: Required params without defaults need ops_testing_parameters
+{
+  "user_parameters_schema": {
+    "properties": {
+      "api_key": {"type": "string"}
+    },
+    "required": ["api_key"]
+  },
+  "service_options": {
+    "ops_testing_parameters": {
+      "api_key": "${ secrets.API_KEY }"
+    }
+  }
+}
+```
+
+**Validation errors:**
+
+```
+✗ Required parameters missing default values in service_options.ops_testing_parameters: ['api_key', 'model']
+```
+
+### Workflow
+
+1. **Define schema** - Create `user_parameters_schema` with required and optional parameters
+2. **Customize UI** - Create `user_parameters_ui_schema` for form customization
+3. **Disable secrets** - Set `"ui:disabled": true` for sensitive fields
+4. **Add testing defaults** - Create `service_options.ops_testing_parameters` with all required values
+5. **Reference secrets** - Use `${ secrets.SECRET_NAME }` format for API keys
+6. **Validate** - Run `usvc data validate` to check all required parameters have defaults
+7. **Test** - Services are tested using the values in `ops_testing_parameters` before deployment
+
+### Resources
+
+- [react-jsonschema-form Documentation](https://rjsf-team.github.io/react-jsonschema-form/)
+- [JSON Schema Specification](https://json-schema.org/)
+- [JSON Schema Validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
 
 ## Data Types
 
@@ -592,6 +1008,8 @@ The SDK preserves the original format when updating files.
 
 ## See Also
 
+- [Service Options](#service-options) - Configure subscription limits and backend behavior
+- [User Parameters](#user-parameters) - Define and collect subscription configuration
 - [Pricing Specification](pricing.md) - Complete pricing documentation
 - [Data Structure](data-structure.md) - File organization rules
 - [CLI Reference](cli-reference.md#validate) - Validation command
