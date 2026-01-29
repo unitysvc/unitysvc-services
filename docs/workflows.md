@@ -189,7 +189,7 @@ usvc data validate
 usvc services upload --data-path ./data
 ```
 
-## Automated Workflow
+## Automated Workflow (Template-Based)
 
 Best for providers with:
 
@@ -200,101 +200,243 @@ Best for providers with:
 
 ### How It Works
 
-1. Configure a populate script in your provider file
-2. Script fetches service data from provider's API
-3. Script generates service files automatically
-4. Validate, format, and publish as normal
+The template-based approach separates **structure** (Jinja2 templates) from **data** (Python iterator):
+
+```mermaid
+flowchart LR
+    subgraph "One-Time Setup"
+        A[Create service on unitysvc.com] --> B[Export offering.json & listing.json]
+        B --> C[Save as .j2 templates]
+        C --> D[Replace variables with {{ placeholders }}]
+    end
+
+    subgraph "Ongoing Population"
+        E[Script yields model dicts] --> F[populate_from_iterator]
+        D --> F
+        F --> G[services/model-name/offering.json]
+        F --> H[services/model-name/listing.json]
+    end
+```
 
 ### Step-by-Step Process
 
-#### 1. Create Provider with Populate Configuration
+#### 1. Create a Working Service on unitysvc.com
 
-Create `data/my-provider/provider.toml` (via web interface export or manually):
+Start by creating a single service through the web interface:
+
+1. Go to [unitysvc.com](https://unitysvc.com) and sign in
+2. Create your Provider and one Service manually
+3. Configure all fields, test that it works end-to-end
+4. Export the working `offering.json` and `listing.json` files
+
+#### 2. Convert Exported Files to Templates
+
+Create `data/my-provider/templates/` directory and save the exported files as `.j2` templates:
+
+```
+data/my-provider/
+├── provider.toml
+├── templates/
+│   ├── offering.json.j2    # Template for offering
+│   └── listing.json.j2     # Template for listing
+├── scripts/
+│   └── update_services.py  # Yields model dictionaries
+└── services/               # Generated output
+```
+
+#### 3. Replace Variable Parts with Template Variables
+
+Edit the `.j2` files to replace model-specific values with Jinja2 placeholders:
+
+**`templates/offering.json.j2`**:
+```jinja2
+{
+  "schema": "offering_v1",
+  "name": "{{ name }}",
+{%- if display_name %}
+  "display_name": "{{ display_name }}",
+{%- endif %}
+  "description": "{{ description | default('', true) }}",
+  "service_type": "{{ service_type }}",
+  "status": "{{ status | default('ready') }}",
+  "currency": "USD",
+  "details": {
+    "model_name": "{{ model_name }}"
+{%- for key, value in details.items() %},
+    "{{ key }}": {{ value | tojson }}
+{%- endfor %}
+  },
+  "payout_price": {
+    "type": "revenue_share",
+    "percentage": "100.00"
+  },
+  "upstream_access_interfaces": {
+    "{{ provider_display_name }} API": {
+      "access_method": "http",
+      "api_key": "${ secrets.{{ api_key_secret }} }",
+      "base_url": "{{ api_base_url }}"
+    }
+  }
+}
+```
+
+**`templates/listing.json.j2`**:
+```jinja2
+{
+  "schema": "listing_v1",
+  "display_name": "{{ display_name | default(name) }}",
+  "status": "{{ listing_status | default('ready') }}",
+  "currency": "USD",
+{%- if pricing %}
+  "list_price": {
+    "type": "{{ pricing.type }}"
+{%- if pricing.input is defined %},
+    "input": "{{ pricing.input }}",
+    "output": "{{ pricing.output }}"
+{%- elif pricing.price is defined %},
+    "price": "{{ pricing.price }}"
+{%- endif %}
+  },
+{%- endif %}
+  "user_access_interfaces": {
+    "Provider API": {
+      "access_method": "http",
+      "base_url": "${GATEWAY_BASE_URL}/p/{{ gateway_path }}"
+    }
+  },
+  "documents": {
+{%- if service_type == 'image_generation' %}
+    "Python code example": {
+      "category": "code_example",
+      "file_path": "../../docs/code_example_image.py.j2",
+      "mime_type": "python",
+      "is_public": true
+    }
+{%- else %}
+    "Python code example": {
+      "category": "code_example",
+      "file_path": "../../docs/code_example.py.j2",
+      "mime_type": "python",
+      "is_public": true
+    }
+{%- endif %}
+  }
+}
+```
+
+#### 4. Write Script to Yield Model Dictionaries
+
+Create `scripts/update_services.py` that fetches from your API and yields dictionaries:
+
+```python
+#!/usr/bin/env python3
+"""Generate services using templates."""
+
+import os
+from pathlib import Path
+from typing import Iterator
+from unitysvc_services import populate_from_iterator
+
+
+def iter_models() -> Iterator[dict]:
+    """Yield model dictionaries for template rendering."""
+    # Fetch from your provider's API
+    models = fetch_models_from_api()
+
+    for model in models:
+        # Skip models that shouldn't be published
+        if not model.get("is_available"):
+            continue
+
+        yield {
+            # Required - used for directory name
+            "name": model["id"],
+
+            # Offering fields
+            "display_name": model.get("display_name"),
+            "description": model.get("description", ""),
+            "service_type": determine_service_type(model),
+            "status": "ready" if model.get("active") else "draft",
+            "model_name": model["full_name"],
+            "details": {
+                "contextLength": model.get("context_length"),
+                "supportsTools": model.get("supports_tools", False),
+            },
+
+            # Listing fields
+            "listing_status": "ready",
+            "pricing": extract_pricing(model),
+
+            # Provider-specific (fixed for your provider)
+            "provider_display_name": "My Provider",
+            "api_key_secret": "MY_PROVIDER_API_KEY",
+            "api_base_url": "https://api.myprovider.com/v1",
+            "gateway_path": "myprovider",
+        }
+
+
+def fetch_models_from_api() -> list[dict]:
+    """Fetch models from provider API."""
+    import requests
+    api_key = os.environ["MY_PROVIDER_API_KEY"]
+    response = requests.get(
+        "https://api.myprovider.com/v1/models",
+        headers={"Authorization": f"Bearer {api_key}"}
+    )
+    response.raise_for_status()
+    return response.json()["models"]
+
+
+def determine_service_type(model: dict) -> str:
+    """Map model to service type."""
+    if "embedding" in model["id"].lower():
+        return "embedding"
+    if "image" in model["id"].lower():
+        return "image_generation"
+    return "llm"
+
+
+def extract_pricing(model: dict) -> dict | None:
+    """Extract pricing information."""
+    if "pricing" not in model:
+        return None
+    p = model["pricing"]
+    return {
+        "type": "one_million_tokens",
+        "input": str(p.get("input_per_million", 0)),
+        "output": str(p.get("output_per_million", 0)),
+    }
+
+
+if __name__ == "__main__":
+    script_dir = Path(__file__).parent
+    populate_from_iterator(
+        iterator=iter_models(),
+        templates_dir=script_dir.parent / "templates",
+        output_dir=script_dir.parent / "services",
+        # Optional: filter models
+        filter_func=lambda m: m.get("status") == "ready",
+    )
+```
+
+#### 5. Configure Provider to Run the Script
+
+Create `data/my-provider/provider.toml`:
 
 ```toml
+schema = "provider_v1"
 name = "my-provider"
 display_name = "My Service Provider"
 
 [services_populator]
-command = "populate_services.py"
+command = "scripts/update_services.py"
+requirements = ["requests"]
 
 [services_populator.envs]
-API_KEY = "your-provider-api-key"
-BASE_URL = "https://api.provider.com/v1"
-REGION = "us-east-1"
+MY_PROVIDER_API_KEY = ""  # Set via environment variable
 ```
 
-#### 2. Create Populate Script
-
-Create `data/my-provider/populate_services.py`:
-
-```python
-#!/usr/bin/env python3
-"""Generate service files from provider API."""
-
-import os
-import json
-from pathlib import Path
-import requests
-
-# Get environment variables from services_populator.envs
-api_key = os.getenv("API_KEY")
-base_url = os.getenv("BASE_URL")
-region = os.getenv("REGION")
-
-def fetch_services():
-    """Fetch services from provider API."""
-    response = requests.get(
-        f"{base_url}/services",
-        headers={"Authorization": f"Bearer {api_key}"},
-        params={"region": region}
-    )
-    response.raise_for_status()
-    return response.json()["services"]
-
-def create_service_files(service_data):
-    """Create offering.json and listing.json files."""
-    service_name = service_data["name"].lower().replace(" ", "-")
-    service_dir = Path(f"services/{service_name}")
-    service_dir.mkdir(parents=True, exist_ok=True)
-
-    # Create offering.json
-    offering = {
-        "schema": "offering_v1",
-        "name": service_name,
-        "display_name": service_data["display_name"],
-        "description": service_data["description"],
-        "service_type": "llm",
-        "status": "ready",
-        # ... map other fields
-    }
-
-    with open(service_dir / "offering.json", "w") as f:
-        json.dump(offering, f, indent=2, sort_keys=True)
-        f.write("\n")
-
-    # Create listing.json
-    # Note: No service_name or provider_name needed - relationships determined by file location
-    listing = {
-        "schema": "listing_v1",
-        "status": "ready",
-        # ... map other fields
-    }
-
-    with open(service_dir / f"listing-svcreseller.json", "w") as f:
-        json.dump(listing, f, indent=2, sort_keys=True)
-        f.write("\n")
-
-    print(f"Created service: {service_name}")
-
-if __name__ == "__main__":
-    services = fetch_services()
-    for service_data in services:
-        create_service_files(service_data)
-    print(f"Generated {len(services)} services")
-```
-
-#### 3. Run Populate Command
+#### 6. Run Populate Command
 
 ```bash
 # Generate all services
@@ -307,36 +449,79 @@ usvc data populate --provider my-provider
 usvc data populate --dry-run
 ```
 
-#### 4. Validate and Format
+Output shows progress:
+```
+[1/50] llama-3-70b
+  OK: llm
+[2/50] gpt-4-turbo
+  OK: llm
+...
+Done! Total: 50, Written: 45, Skipped: 3, Filtered: 2, Errors: 0
+```
+
+#### 7. Validate, Format, and Upload
 
 ```bash
 usvc data validate
 usvc data format
-```
 
-#### 5. Review Changes
-
-```bash
+# Review changes
 git diff
 git add data/
 git commit -m "Update service catalog from API"
-```
 
-#### 6. Upload
-
-```bash
-cd data
+# Upload
 usvc services upload
 ```
 
-#### 7. Verify
+### Template Tips
 
-```bash
-# List your services
-usvc services list
+**Conditional Fields:**
+```jinja2
+{%- if display_name %}
+  "display_name": "{{ display_name }}",
+{%- endif %}
+```
 
-# Or list with custom fields
-usvc services list --fields id,name,status
+**Iterating Over Details:**
+```jinja2
+"details": {
+{%- for key, value in details.items() %}
+    "{{ key }}": {{ value | tojson }}{{ "," if not loop.last else "" }}
+{%- endfor %}
+}
+```
+
+**Service Type Variations:**
+```jinja2
+{%- if service_type == 'image_generation' %}
+    "file_path": "../../docs/image_example.py.j2"
+{%- else %}
+    "file_path": "../../docs/chat_example.py.j2"
+{%- endif %}
+```
+
+**Default Values:**
+```jinja2
+"status": "{{ status | default('ready') }}"
+"description": "{{ description | default('', true) }}"
+```
+
+### Filtering Models
+
+Use `filter_func` to skip models without modifying the iterator:
+
+```python
+populate_from_iterator(
+    iterator=iter_models(),
+    templates_dir="templates",
+    output_dir="services",
+    # Only include ready LLM models
+    filter_func=lambda m: (
+        m.get("status") == "ready" and
+        m.get("service_type") == "llm"
+    ),
+)
 ```
 
 ### Automation with CI/CD
@@ -360,12 +545,14 @@ jobs:
             - name: Set up Python
               uses: actions/setup-python@v4
               with:
-                  python-: "3.11"
+                  python-version: "3.11"
 
             - name: Install dependencies
               run: pip install unitysvc-services requests
 
-            - name: Generate services
+            - name: Generate services from templates
+              env:
+                  MY_PROVIDER_API_KEY: ${{ secrets.MY_PROVIDER_API_KEY }}
               run: usvc data populate
 
             - name: Validate
@@ -389,6 +576,16 @@ jobs:
               run: |
                   usvc services upload --data-path ./data
 ```
+
+### Summary: Template-Based Workflow
+
+| Step | Action | Output |
+|------|--------|--------|
+| 1 | Create working service on unitysvc.com | Verified offering.json, listing.json |
+| 2 | Export and save as .j2 templates | templates/offering.json.j2, listing.json.j2 |
+| 3 | Replace variables with `{{ placeholders }}` | Parameterized templates |
+| 4 | Write script that yields model dicts | scripts/update_services.py |
+| 5 | Call `populate_from_iterator()` | services/{name}/offering.json, listing.json |
 
 ## Hybrid Workflow
 
