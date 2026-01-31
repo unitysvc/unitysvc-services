@@ -414,18 +414,21 @@ Customizes how the form is rendered. Controls field order, visibility, widgets, 
 - `ui:widget` - Widget type: `"textarea"`, `"password"`, `"select"`, `"radio"`, `"checkbox"`
 - `ui:placeholder` - Placeholder text
 - `ui:help` - Additional help text
+- `ui:description` - Field description text
 - `ui:disabled` - Disable field (e.g., for secrets managed separately)
 - `ui:order` - Field display order
+- `ui:options` - Additional options object (e.g., `{"secret": "SECRET_NAME"}` for secret-backed parameters)
 
 **Example:**
 
 ```json
 {
     "api_key": {
-        "ui:widget": "password",
-        "ui:placeholder": "sk-...",
+        "ui:options": {
+            "secret": "PROVIDER_API_KEY"
+        },
         "ui:disabled": true,
-        "ui:help": "API key is managed through secrets. Add via the 'Add Secret' button."
+        "ui:description": "Managed via secrets"
     },
     "model": {
         "ui:widget": "select"
@@ -444,27 +447,79 @@ Sensitive values like API keys should be handled through the secrets management 
 **Best practices for secrets:**
 
 1. **Define in schema** - Include secret fields in `user_parameters_schema` for documentation
-2. **Disable in UI** - Set `"ui:disabled": true` in `user_parameters_ui_schema`
-3. **Add help text** - Guide users to add secrets separately
-4. **Use secret references** - In `ops_testing_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
+2. **Mark as secret-backed** - Use `ui:options.secret` in `user_parameters_ui_schema` to specify which secret the parameter maps to
+3. **Disable in UI** - Set `"ui:disabled": true` in `user_parameters_ui_schema`
+4. **Add help text** - Guide users to add secrets separately
+5. **Use secret references** - In `ops_testing_parameters` and `service_options.default_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
 
-**Example with API key secret:**
+#### Secret-Backed Parameters with ui:options.secret
+
+The `ui:options.secret` field in `user_parameters_ui_schema` declares that a parameter's value should come from a customer's secret. This enables:
+
+- **Auto-population**: When a customer enrolls, the system checks if the required secret already exists and auto-populates the parameter
+- **Enrollment status**: If the secret exists, enrollment status is set to `active`; otherwise, it's set to `pending` until the customer provides the secret
+- **Secret management integration**: The UI can display appropriate prompts for secret creation
+
+**Example with secret-backed API key:**
 
 ```json
-// user_parameters_schema
 {
-  "type": "object",
-  "properties": {
+  "user_parameters_schema": {
+    "type": "object",
+    "title": "Be Your Own Provider",
+    "description": "Access service with your own api-key",
+    "properties": {
+      "api_key": {
+        "type": "string",
+        "title": "API Key (PROVIDER_API_KEY)",
+        "default": ""
+      }
+    },
+    "required": ["api_key"]
+  },
+  "user_parameters_ui_schema": {
     "api_key": {
-      "type": "string",
-      "title": "API Key",
-      "description": "Your service API key"
+      "ui:options": {
+        "secret": "PROVIDER_API_KEY"
+      },
+      "ui:disabled": true,
+      "ui:description": "Managed via secrets"
     }
   },
-  "required": ["api_key"]
+  "service_options": {
+    "default_parameters": {
+      "api_key": "${ secrets.PROVIDER_API_KEY }"
+    }
+  }
 }
+```
 
-// user_parameters_ui_schema
+**Key points:**
+
+- **`ui:options.secret`**: Specifies the secret name (e.g., `"PROVIDER_API_KEY"`) that this parameter maps to
+- **`title` with secret name**: Include the secret name in the title (e.g., `"API Key (PROVIDER_API_KEY)"`) for clarity
+- **`ui:disabled: true`**: Prevents direct editing since the value comes from secrets
+- **`service_options.default_parameters`**: Defines the runtime value using secret reference syntax
+
+#### Enrollment Workflow with Secrets
+
+When a customer enrolls in a service with secret-backed parameters:
+
+1. **Check for existing secret**: System checks if the customer has the required secret (e.g., `PROVIDER_API_KEY`)
+2. **If secret exists**: Enrollment is created with `status: active`, parameter auto-populated
+3. **If secret missing**: Enrollment is created with `status: pending`, prompting customer to add the secret
+4. **On secret creation**: All pending enrollments depending on that secret are updated to `active`
+
+```
+[not enrolled] → (enroll) → pending → (add secret) → active
+                     │
+                     └─→ active  (if secret already exists)
+```
+
+**Legacy format (deprecated):**
+
+```json
+// user_parameters_ui_schema - OLD FORMAT (still works but not recommended)
 {
   "api_key": {
     "ui:widget": "password",
@@ -473,6 +528,8 @@ Sensitive values like API keys should be handled through the secrets management 
   }
 }
 ```
+
+The legacy format without `ui:options.secret` still works but doesn't enable automatic secret detection and enrollment status management.
 
 ### service_options.ops_testing_parameters
 
