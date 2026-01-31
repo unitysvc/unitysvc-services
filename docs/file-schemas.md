@@ -516,21 +516,6 @@ When a customer enrolls in a service with secret-backed parameters:
                      └─→ active  (if secret already exists)
 ```
 
-**Legacy format (deprecated):**
-
-```json
-// user_parameters_ui_schema - OLD FORMAT (still works but not recommended)
-{
-  "api_key": {
-    "ui:widget": "password",
-    "ui:disabled": true,
-    "ui:help": "Managed via secrets. Click 'Add Secret' to provide your API key."
-  }
-}
-```
-
-The legacy format without `ui:options.secret` still works but doesn't enable automatic secret detection and enrollment status management.
-
 ### service_options.ops_testing_parameters
 
 Provides default parameter values for testing services before deployment. This is **required** when `user_parameters_schema` defines required parameters that don't have default values in the schema itself.
