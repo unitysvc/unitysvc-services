@@ -375,6 +375,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         listing_file: Path,
         max_retries: int = 3,
         dryrun: bool = False,
+        revision_to: str | None = None,
     ) -> dict[str, Any]:
         """
         Publish a complete service (provider, offering, and listing) together.
@@ -387,12 +388,18 @@ class ServiceDataPublisher(UnitySvcAPI):
             listing_file: Path to listing data file (listing_v1 schema)
             max_retries: Maximum number of retry attempts
             dryrun: If True, runs in dry run mode (no actual changes)
+            revision_to: If provided, service ID of an active service to create a revision for.
+                        Overrides any service_id in the override file.
 
         Returns:
             Response JSON from successful API call containing results for all three entities
         """
         # Load the listing data file
         listing_data, _ = load_data_file(listing_file)
+
+        # If revision_to is provided, set it as service_id (overrides override file)
+        if revision_to:
+            listing_data["service_id"] = revision_to
 
         # Extract provider directory from path structure
         # Expected: .../provider_name/services/service_name/listing.json
@@ -756,6 +763,11 @@ def upload_callback(
         "--dryrun",
         help="Run in dry run mode (no actual changes)",
     ),
+    revision_to: str | None = typer.Option(
+        None,
+        "--revision-to",
+        help="Service ID of an active service to create a revision for. Only valid when uploading a single service file.",
+    ),
 ):
     """
     Upload service data to backend.
@@ -771,6 +783,10 @@ def upload_callback(
 
     If service_id already exists (from a previous upload), this updates the existing
     service rather than creating a new one.
+
+    Use --revision-to to explicitly specify an active service ID to create a revision for.
+    This is useful when the override file is missing or has the wrong service_id.
+    Only valid when uploading a single service file.
 
     Required environment variables:
     - UNITYSVC_BASE_URL: Backend API URL
@@ -790,8 +806,19 @@ def upload_callback(
     # Handle single file vs directory
     is_single_file = data_path.is_file()
 
+    # Validate --revision-to is only used with single file
+    if revision_to and not is_single_file:
+        console.print(
+            "[red]✗[/red] --revision-to can only be used when uploading a single service file, "
+            "not a directory.",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
     if is_single_file:
         console.print(f"[bold blue]Uploading service from:[/bold blue] {data_path}")
+        if revision_to:
+            console.print(f"[bold blue]Creating revision of:[/bold blue] {revision_to}")
     else:
         console.print(f"[bold blue]Uploading services from:[/bold blue] {data_path}")
     console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
@@ -800,7 +827,9 @@ def upload_callback(
         async with ServiceDataPublisher() as uploader:
             if is_single_file:
                 # Upload single service from listing file
-                result = await uploader.post_service_async(data_path, dryrun=dryrun)
+                result = await uploader.post_service_async(
+                    data_path, dryrun=dryrun, revision_to=revision_to
+                )
                 return result, True
             else:
                 # Upload all services from directory

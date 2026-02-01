@@ -34,12 +34,13 @@ def query_services(
         help="Output format: table, json, tsv, csv",
     ),
     fields: str = typer.Option(
-        "id,name,status,provider_id,offering_id,listing_id",
+        "id,name,provider_name,service_type,status",
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
-            "id, name, display_name, status, seller_id, provider_id, offering_id, "
-            "listing_id, revision_of, created_by_id, updated_by_id, created_at, updated_at"
+            "id, name, display_name, status, service_type, provider_name, listing_type, "
+            "seller_id, provider_id, offering_id, listing_id, revision_of, pending_revision_id, "
+            "is_featured, review_count, average_rating, created_at, updated_at"
         ),
     ),
     skip: int = typer.Option(
@@ -88,13 +89,20 @@ def query_services(
         "name",
         "display_name",
         "status",
+        "service_type",
+        "provider_name",
+        "listing_type",
         "seller_id",
         "provider_id",
         "offering_id",
         "listing_id",
         "revision_of",
-        "created_by_id",
-        "updated_by_id",
+        "pending_revision_id",
+        "is_featured",
+        "review_count",
+        "average_rating",
+        "ops_subscription_id",
+        "ops_customer_id",
         "created_at",
         "updated_at",
     }
