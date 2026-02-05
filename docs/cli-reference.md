@@ -49,6 +49,7 @@ Manage services on the backend - can be run from anywhere with the right API key
 | `submit`      | Submit draft service for ops review           |
 | `deprecate`   | Deprecate an active service                   |
 | `delete`      | Delete a service from backend                 |
+| `dedup`       | Remove duplicate draft services               |
 | `list-tests`  | List tests for deployed services              |
 | `show-test`   | Show details of a test for a deployed service |
 | `run-tests`   | Run tests via gateway (backend execution)     |
@@ -455,6 +456,74 @@ usvc services submit <SERVICE_ID>
 # Submit a service for review
 usvc services submit abc123-uuid
 ```
+
+**Required Environment Variables:**
+
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
+
+### usvc services dedup - Remove Duplicate Drafts
+
+Remove duplicate draft services that have identical content. This is useful for cleaning up services that were cloned or repeatedly uploaded with the same data.
+
+```bash
+usvc services dedup [OPTIONS]
+```
+
+**Options:**
+
+- `--yes, -y` - Skip confirmation prompt
+
+**How It Works:**
+
+A draft service is considered a duplicate if another service (draft or non-draft) exists with identical content, meaning they share the same:
+
+- `provider_id` - Same provider content
+- `offering_id` - Same offering content
+- `listing_id` - Same listing content
+
+The dedup command processes draft services in creation order (oldest first) and:
+
+1. Keeps the first draft with unique content
+2. Removes subsequent drafts that have identical content to an earlier draft
+3. Removes drafts that duplicate a non-draft service (e.g., pending, active)
+
+**Why Use Dedup:**
+
+- **Cloning creates duplicates**: When you clone a service for editing, uploading without changes creates a duplicate
+- **Repeated uploads**: Uploading the same data multiple times creates duplicates
+- **Submit will fail**: Attempting to submit a duplicate service for review will fail with "A service with identical content already exists"
+
+**Examples:**
+
+```bash
+# Check for and remove duplicate drafts (with confirmation)
+usvc services dedup
+
+# Remove duplicates without confirmation
+usvc services dedup -y
+```
+
+**Output:**
+
+```bash
+$ usvc services dedup
+Checking for duplicate draft services...
+
+Remove duplicate draft services? [y/N]: y
+✓ Removed 2 duplicate draft(s):
+  • abc123-def456-...
+  • 789xyz-012abc-...
+
+Total drafts examined: 5
+```
+
+**Important Notes:**
+
+- Only draft services can be removed by dedup
+- Services with archived history (were previously active) cannot be removed
+- The oldest draft with unique content is always kept
+- Run `usvc services list --status draft` to see your draft services before deduping
 
 **Required Environment Variables:**
 
