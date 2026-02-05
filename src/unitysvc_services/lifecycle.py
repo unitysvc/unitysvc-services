@@ -64,6 +64,20 @@ class ServiceLifecycleAPI(UnitySvcAPI):
         """
         return await self.patch(f"/seller/services/{service_id}", json_data={"status": status})
 
+    async def dedup_services(self) -> dict[str, Any]:
+        """Remove duplicate draft services.
+
+        Finds draft services that have identical content (provider_id, offering_id,
+        listing_id) to another non-deprecated service and removes them.
+
+        Returns:
+            Response with deleted services info and counts
+
+        Raises:
+            httpx.HTTPStatusError: If dedup fails
+        """
+        return await self.post("/seller/services/dedup")
+
 
 def deprecate_service(
     service_ids: list[str] = typer.Argument(..., help="Service ID(s) to deprecate (supports partial IDs)"),
@@ -293,6 +307,66 @@ def withdraw_service(
         if error_count > 0:
             console.print(f"[red]✗ Failed:[/red] {error_count}/{count}")
             raise typer.Exit(code=1)
+
+
+def dedup_services(
+    yes: bool = typer.Option(
+        False,
+        "--yes",
+        "-y",
+        help="Skip confirmation prompt",
+    ),
+):
+    """Remove duplicate draft services.
+
+    Finds draft services that have identical content (provider_id, offering_id,
+    listing_id) to another non-deprecated service and removes them.
+
+    Duplicate drafts are identified when:
+    - A draft has the same provider/offering/listing IDs as another active/pending/etc. service
+    - Multiple drafts have the same provider/offering/listing IDs (only one is kept)
+
+    Examples:
+        # Check for and remove duplicate drafts
+        usvc services dedup
+
+        # Skip confirmation
+        usvc services dedup --yes
+    """
+    console.print("[cyan]Checking for duplicate draft services...[/cyan]\n")
+
+    if not yes:
+        confirm = typer.confirm("Remove duplicate draft services?")
+        if not confirm:
+            console.print("[yellow]Cancelled[/yellow]")
+            raise typer.Exit(code=0)
+
+    async def _dedup():
+        api = ServiceLifecycleAPI()
+        return await api.dedup_services()
+
+    try:
+        result = asyncio.run(_dedup())
+    except Exception as e:
+        console.print(f"[red]✗ Dedup failed:[/red] {e}")
+        raise typer.Exit(code=1)
+
+    deleted_count = result.get("deleted_count", 0)
+    kept_count = result.get("kept_count", 0)
+    total_drafts = result.get("total_drafts", 0)
+    deleted = result.get("deleted", [])
+
+    if deleted_count > 0:
+        console.print(f"[green]✓ Removed {deleted_count} duplicate draft(s):[/green]")
+        for item in deleted:
+            console.print(f"  • {item.get('id', 'unknown')}")
+    else:
+        console.print("[green]✓ No duplicate drafts found[/green]")
+
+    console.print()
+    console.print(f"[dim]Total drafts examined: {total_drafts}[/dim]")
+    console.print(f"[dim]Drafts kept: {kept_count}[/dim]")
+    console.print(f"[dim]Duplicates removed: {deleted_count}[/dim]")
 
 
 def delete_service(
