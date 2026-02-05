@@ -9,11 +9,11 @@ from rich.console import Console
 from rich.syntax import Syntax
 from rich.table import Table
 
-from . import example, format_data, populate, validator
+from . import example, format_data, populate, upload, validator
 from . import list as list_cmd
 from .utils import find_files_by_schema, resolve_service_name_for_listing
 
-app = typer.Typer(help="Local data file operations (validate, format, test, etc.)")
+app = typer.Typer(help="Local data file operations (validate, format, upload, test, etc.)")
 console = Console()
 
 
@@ -269,6 +269,9 @@ app.add_typer(show_app, name="show")
 app.command("validate")(validator.validate)
 app.command("format")(format_data.format_data)
 app.command("populate")(populate.populate)
+
+# upload already has subcommands, register as group
+app.add_typer(upload.app, name="upload")
 
 # Test commands - hyphenated for clarity (verb-noun)
 app.command("list-tests")(example.list_code_examples)

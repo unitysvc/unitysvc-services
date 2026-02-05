@@ -2,16 +2,13 @@
 
 import typer
 
-from . import query, test_runner, upload
+from . import query, test_runner
 from .lifecycle import delete_service, deprecate_service, submit_service, withdraw_service
 from .query import show_service
 
-app = typer.Typer(help="Remote service operations (upload, submit, list, show, deprecate, delete, etc.)")
+app = typer.Typer(help="Remote service operations (submit, list, show, deprecate, delete, etc.)")
 
 # Register subcommands
-# upload already has subcommands, register as group
-app.add_typer(upload.app, name="upload")
-
 # query becomes 'list' under services
 app.add_typer(query.app, name="list")
 

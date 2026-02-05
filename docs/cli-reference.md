@@ -24,13 +24,14 @@ The CLI is organized into two main command groups with a clear separation of con
 
 ### Local Data Operations (`usvc data`)
 
-Work with local data files - can be used offline without API credentials.
+Work with local data files - can be used offline without API credentials (except `upload`).
 
 | Command      | Description                                         |
 | ------------ | --------------------------------------------------- |
 | `validate`   | Validate data files against schemas                 |
 | `format`     | Format/prettify data files                          |
 | `populate`   | Generate data files from provider scripts           |
+| `upload`     | Upload local data to backend (draft status)         |
 | `list`       | List local data files (services, providers, etc.)   |
 | `show`       | Show details of a local data object                 |
 | `list-tests` | List code examples in local data                    |
@@ -43,7 +44,6 @@ Manage services on the backend - can be run from anywhere with the right API key
 
 | Command       | Description                                   |
 | ------------- | --------------------------------------------- |
-| `upload`      | Upload services to backend (draft status)     |
 | `list`        | List deployed services on backend             |
 | `show`        | Show details of a deployed service            |
 | `submit`      | Submit draft service for ops review           |
@@ -116,6 +116,224 @@ List all services with their provider, offering, and listing files.
 - Table format with file paths and key fields
 - Color-coded status indicators
 
+### usvc data upload - Upload Services to Backend
+
+Upload services to UnitySVC backend. The upload command uses a **listing-centric** approach where each listing file triggers a unified upload of provider + offering + listing together.
+
+#### How Uploading Works
+
+A **Service** in UnitySVC consists of three data components that are uploaded together:
+
+```mermaid
+flowchart TB
+    subgraph Service["Uploaded Together"]
+        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
+        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
+        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
+    end
+
+    P --> O --> L
+
+    style P fill:#e3f2fd
+    style O fill:#fff3e0
+    style L fill:#e8f5e9
+```
+
+When you run `usvc data upload`:
+
+1. **Finds** all listing files (`listing_v1` schema) in the directory tree
+2. For each listing, **locates** the offering file (`offering_v1`) in the same directory
+3. **Locates** the provider file (`provider_v1`) in the parent directory
+4. **Uploads** all three together to the `/seller/services` endpoint
+
+This ensures atomic uploading - all three components are validated and uploaded as a single unit.
+
+**Usage:**
+
+```bash
+usvc data upload [OPTIONS]
+```
+
+**Options:**
+
+- `--data-path, -d PATH` - Data directory or single listing file (default: current directory)
+- `--dryrun` - Preview what would be created/updated without making actual changes
+
+**Required Environment Variables:**
+
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication (seller API key)
+
+**Examples:**
+
+```bash
+# Upload all services from current directory
+usvc data upload
+
+# Upload all services from custom directory
+usvc data upload --data-path ./data
+
+# Upload a single service (specific listing file)
+usvc data upload --data-path ./data/my-provider/services/my-service/listing.json
+
+# Preview changes before uploading (dryrun mode)
+usvc data upload --dryrun
+```
+
+**Dryrun Mode:**
+
+The `--dryrun` option allows you to preview what would happen during upload without making actual changes to the backend. This is useful for:
+
+- Verifying which services would be created vs updated
+- Checking that all required files exist (provider, offering, listing)
+- Confirming changes before committing them
+
+In dryrun mode:
+
+- No actual data is sent to the backend
+- Backend returns what action would be taken (create/update/unchanged)
+- Missing files are reported as errors
+- Summary shows what would happen if uploaded
+
+**Output Format:**
+
+Uploading displays progress for each service and a summary table:
+
+```bash
+$ usvc data upload
+Uploading services from: /path/to/data
+Backend URL: https://api.unitysvc.com/v1
+
+  + Created service: listing-premium (offering: gpt-4, provider: openai)
+  ~ Updated service: listing-basic (offering: gpt-4, provider: openai)
+  = Unchanged service: listing-default (offering: claude-3, provider: anthropic)
+
+Upload Summary
+╭──────────┬───────┬─────────┬─────────┬────────┬─────────┬─────────┬───────────╮
+│ Type     │ Found │ Success │ Skipped │ Failed │ Created │ Updated │ Unchanged │
+├──────────┼───────┼─────────┼─────────┼────────┼─────────┼─────────┼───────────┤
+│ Services │ 3     │ 3       │         │        │ 1       │ 1       │ 1         │
+╰──────────┴───────┴─────────┴─────────┴────────┴─────────┴─────────┴───────────╯
+
+✓ All services uploaded successfully!
+```
+
+**Status Indicators:**
+
+| Symbol | Status    | Meaning                                 |
+| ------ | --------- | --------------------------------------- |
+| `+`    | Created   | New service uploaded for the first time |
+| `~`    | Updated   | Existing service updated with changes   |
+| `=`    | Unchanged | Service already exists and is identical |
+| `⊘`    | Skipped   | Service has draft status or deprecated without service_id |
+| `✗`    | Failed    | Error during uploading                  |
+
+**Upload Rules Based on Status:**
+
+The upload behavior depends on the `status` field of provider, offering, and listing:
+
+| Condition | Behavior |
+|-----------|----------|
+| Any status is `draft` | **Skip** - service not uploaded (still being configured) |
+| Any status is `deprecated` (none draft) | **Upload if `service_id` exists** - deprecates service on server |
+| Any status is `deprecated` (no `service_id`) | **Skip** - cannot deprecate a service that doesn't exist on server |
+| All statuses are `ready` | **Upload** - normal upload, service created/updated |
+
+**Draft Services:**
+
+Services with any component in `draft` status are skipped. This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
+
+**Deprecated Services:**
+
+When any component (provider, offering, or listing) has `status: deprecated`:
+
+- If `service_id` exists (from override file or `--revision-to`): The service is uploaded and the backend sets `Service.status` to `deprecated`
+- If no `service_id`: The service is skipped with message "cannot deprecate on server"
+
+This ensures deprecated services properly sync their status to the backend, while preventing creation of new deprecated services that never existed.
+
+**Error Handling:**
+
+If uploading fails for a service, the error is displayed and uploading continues with remaining services. Common errors:
+
+- Missing offering file in the same directory as the listing
+- Missing provider file in the parent directory
+- Invalid data that fails schema validation
+- Network/authentication errors
+
+**Idempotent Uploading:**
+
+Uploading is idempotent - running `usvc data upload` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
+
+**Override Files and Service ID Persistence:**
+
+After a successful first upload, the SDK automatically saves the `service_id` to an override file:
+
+```
+listing.json       →  listing.override.json
+listing.toml       →  listing.override.toml
+```
+
+Example override file content:
+
+```json
+{
+    "service_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Important:** The `service_id` is the stable identifier that subscriptions reference. When you first upload from a new repository or data directory, a **new Service is always created**, even if the content is identical to an existing service. The `service_id` in the override file ensures subsequent uploads update this specific service.
+
+On subsequent uploads, the `service_id` is automatically loaded from the override file and included in the upload request, ensuring the existing service is **updated** rather than creating a new one.
+
+**Uploading as New (Remove Existing Service ID):**
+
+If you need to upload as a completely new service (ignoring any existing `service_id`), delete the override file before uploading:
+
+```bash
+# Remove override file to upload as new service
+rm listing.override.json
+
+# Upload - will create a new service with a new service_id
+usvc data upload --data-path ./my-provider/services/my-service/listing.json
+```
+
+Use cases for uploading as new:
+
+- Accidentally deleted the service from the backend and need to recreate it
+- Deploying to a different environment (staging vs production)
+- Backend data was reset
+
+**Cloning a Service:**
+
+To create a variant or copy of an existing service (e.g., different pricing tier, different region):
+
+```bash
+# 1. Copy the listing file with a new name
+cp listing.json listing-enterprise.json
+
+# 2. Edit the new file to change name/configuration
+#    - Change "name" field to a unique value (e.g., "enterprise")
+#    - Modify pricing, parameters, etc. as needed
+
+# 3. Upload the new listing (no override file exists, so creates new service)
+usvc data upload --data-path ./my-provider/services/my-service/listing-enterprise.json
+```
+
+**Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
+
+For multiple environment deployments, you can use different override files:
+
+```bash
+# Production override
+listing.override.json          # service_id for production
+
+# Staging override (manually managed or gitignored)
+listing.staging.override.json  # service_id for staging
+```
+
+---
+
 ## usvc services - Remote Service Operations
 
 Commands for managing services on the backend. These commands require API credentials and can be run from anywhere.
@@ -165,208 +383,6 @@ usvc services list --limit 500
 
 # Pagination: get second page of 100 records
 usvc services list --skip 100 --limit 100
-```
-
-### usvc services upload - Upload Services to Backend
-
-Upload services to UnitySVC backend. The upload command uses a **listing-centric** approach where each listing file triggers a unified upload of provider + offering + listing together.
-
-#### How Uploading Works
-
-A **Service** in UnitySVC consists of three data components that are uploaded together:
-
-```mermaid
-flowchart TB
-    subgraph Service["Uploaded Together"]
-        P["<b>Provider Data</b><br/>WHO provides<br/><i>provider_v1</i>"]
-        O["<b>Offering Data</b><br/>WHAT is provided<br/><i>offering_v1</i>"]
-        L["<b>Listing Data</b><br/>HOW it's sold<br/><i>listing_v1</i>"]
-    end
-
-    P --> O --> L
-
-    style P fill:#e3f2fd
-    style O fill:#fff3e0
-    style L fill:#e8f5e9
-```
-
-When you run `usvc services upload`:
-
-1. **Finds** all listing files (`listing_v1` schema) in the directory tree
-2. For each listing, **locates** the offering file (`offering_v1`) in the same directory
-3. **Locates** the provider file (`provider_v1`) in the parent directory
-4. **Uploads** all three together to the `/seller/services` endpoint
-
-This ensures atomic uploading - all three components are validated and uploaded as a single unit.
-
-**Usage:**
-
-```bash
-usvc services upload [OPTIONS]
-```
-
-**Options:**
-
-- `--data-path, -d PATH` - Data directory or single listing file (default: current directory)
-- `--dryrun` - Preview what would be created/updated without making actual changes
-
-**Required Environment Variables:**
-
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication (seller API key)
-
-**Examples:**
-
-```bash
-# Upload all services from current directory
-usvc services upload
-
-# Upload all services from custom directory
-usvc services upload --data-path ./data
-
-# Upload a single service (specific listing file)
-usvc services upload --data-path ./data/my-provider/services/my-service/listing.json
-
-# Preview changes before uploading (dryrun mode)
-usvc services upload --dryrun
-```
-
-**Dryrun Mode:**
-
-The `--dryrun` option allows you to preview what would happen during upload without making actual changes to the backend. This is useful for:
-
-- Verifying which services would be created vs updated
-- Checking that all required files exist (provider, offering, listing)
-- Confirming changes before committing them
-
-In dryrun mode:
-
-- No actual data is sent to the backend
-- Backend returns what action would be taken (create/update/unchanged)
-- Missing files are reported as errors
-- Summary shows what would happen if uploaded
-
-**Output Format:**
-
-Uploading displays progress for each service and a summary table:
-
-```bash
-$ usvc services upload
-Uploading services from: /path/to/data
-Backend URL: https://api.unitysvc.com/v1
-
-  + Created service: listing-premium (offering: gpt-4, provider: openai)
-  ~ Updated service: listing-basic (offering: gpt-4, provider: openai)
-  = Unchanged service: listing-default (offering: claude-3, provider: anthropic)
-
-Upload Summary
-╭──────────┬───────┬─────────┬─────────┬────────┬─────────┬─────────┬───────────╮
-│ Type     │ Found │ Success │ Skipped │ Failed │ Created │ Updated │ Unchanged │
-├──────────┼───────┼─────────┼─────────┼────────┼─────────┼─────────┼───────────┤
-│ Services │ 3     │ 3       │         │        │ 1       │ 1       │ 1         │
-╰──────────┴───────┴─────────┴─────────┴────────┴─────────┴─────────┴───────────╯
-
-✓ All services uploaded successfully!
-```
-
-**Status Indicators:**
-
-| Symbol | Status    | Meaning                                 |
-| ------ | --------- | --------------------------------------- |
-| `+`    | Created   | New service uploaded for the first time |
-| `~`    | Updated   | Existing service updated with changes   |
-| `=`    | Unchanged | Service already exists and is identical |
-| `⊘`    | Skipped   | Service has draft status, not uploaded  |
-| `✗`    | Failed    | Error during uploading                  |
-
-**Skipped Services:**
-
-Services are skipped (not uploaded) when any of these conditions are true:
-
-- Provider has `status: draft` - provider still being configured
-- Offering has `status: draft` - offering still being configured
-- Listing has `status: draft` - listing still being configured
-
-This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
-
-**Error Handling:**
-
-If uploading fails for a service, the error is displayed and uploading continues with remaining services. Common errors:
-
-- Missing offering file in the same directory as the listing
-- Missing provider file in the parent directory
-- Invalid data that fails schema validation
-- Network/authentication errors
-
-**Idempotent Uploading:**
-
-Uploading is idempotent - running `usvc services upload` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
-
-**Override Files and Service ID Persistence:**
-
-After a successful first upload, the SDK automatically saves the `service_id` to an override file:
-
-```
-listing.json       →  listing.override.json
-listing.toml       →  listing.override.toml
-```
-
-Example override file content:
-
-```json
-{
-    "service_id": "550e8400-e29b-41d4-a716-446655440000"
-}
-```
-
-**Important:** The `service_id` is the stable identifier that subscriptions reference. When you first upload from a new repository or data directory, a **new Service is always created**, even if the content is identical to an existing service. The `service_id` in the override file ensures subsequent uploads update this specific service.
-
-On subsequent uploads, the `service_id` is automatically loaded from the override file and included in the upload request, ensuring the existing service is **updated** rather than creating a new one.
-
-**Uploading as New (Remove Existing Service ID):**
-
-If you need to upload as a completely new service (ignoring any existing `service_id`), delete the override file before uploading:
-
-```bash
-# Remove override file to upload as new service
-rm listing.override.json
-
-# Upload - will create a new service with a new service_id
-usvc services upload --data-path ./my-provider/services/my-service/listing.json
-```
-
-Use cases for uploading as new:
-
-- Accidentally deleted the service from the backend and need to recreate it
-- Deploying to a different environment (staging vs production)
-- Backend data was reset
-
-**Cloning a Service:**
-
-To create a variant or copy of an existing service (e.g., different pricing tier, different region):
-
-```bash
-# 1. Copy the listing file with a new name
-cp listing.json listing-enterprise.json
-
-# 2. Edit the new file to change name/configuration
-#    - Change "name" field to a unique value (e.g., "enterprise")
-#    - Modify pricing, parameters, etc. as needed
-
-# 3. Upload the new listing (no override file exists, so creates new service)
-usvc services upload --data-path ./my-provider/services/my-service/listing-enterprise.json
-```
-
-**Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
-
-For multiple environment deployments, you can use different override files:
-
-```bash
-# Production override
-listing.override.json          # service_id for production
-
-# Staging override (manually managed or gitignored)
-listing.staging.override.json  # service_id for staging
 ```
 
 ### usvc services deprecate - Deprecate a Service
@@ -905,7 +921,7 @@ usvc data format ./data
 
 ### usvc data populate - Generate Services
 
-Execute provider populate scripts to auto-generate service data.
+Execute provider populate scripts to auto-generate service data from upstream sources (APIs, web scraping, etc.).
 
 ```bash
 usvc data populate [DATA_DIR] [OPTIONS]
@@ -937,6 +953,42 @@ usvc data populate --provider openai
 
 # Dry run
 usvc data populate --dry-run
+```
+
+**Automatic Deprecation of Removed Services:**
+
+When a populate script runs, services that exist locally but are no longer returned by the upstream source are automatically marked as deprecated:
+
+1. Before running, the system records all existing service directories (those with `offering.json`)
+2. During population, services returned by the upstream API are created/updated
+3. After population, services that weren't touched are marked as deprecated
+
+**What gets updated:**
+
+- `offering.json` → `status` field set to `"deprecated"`
+- `listing.json` files are **not** modified (deprecation is conceptually an offering-level change)
+
+**Output includes deprecation count:**
+
+```
+Done! Total: 150, Written: 145, Skipped: 3, Filtered: 0, Errors: 0, Deprecated: 2
+  Deprecated: old-model-v1
+  Deprecated: legacy-service
+```
+
+**Important:** Deprecated services need a `service_id` (from override file) to sync the deprecation to the backend. Services without a `service_id` will be skipped during upload with message "cannot deprecate on server".
+
+**Disabling automatic deprecation:**
+
+For scripts using `populate_from_iterator()` directly, pass `deprecate_missing=False`:
+
+```python
+populate_from_iterator(
+    iterator=source.iter_models(),
+    templates_dir=templates_dir,
+    output_dir=output_dir,
+    deprecate_missing=False,  # Don't mark missing services as deprecated
+)
 ```
 
 ## usvc data test commands
@@ -1135,7 +1187,7 @@ usvc data validate
 usvc data format
 
 # Remote operations (requires API key)
-usvc services upload
+usvc data upload
 usvc services list
 ```
 
@@ -1197,10 +1249,10 @@ usvc data run-tests
 
 # Preview changes before uploading (recommended)
 cd data
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # If preview looks good, upload all (handles order automatically)
-usvc services upload
+usvc data upload
 
 # Verify on backend
 usvc services list
@@ -1223,10 +1275,10 @@ usvc services submit <service-id>
 usvc data validate
 
 # Preview changes
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # Upload changes
-usvc services upload
+usvc data upload
 ```
 
 ### Automated Generation
@@ -1241,10 +1293,10 @@ usvc data format
 
 # Preview generated data
 cd data
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # Upload all
-usvc services upload
+usvc data upload
 ```
 
 ### Managing Test Status

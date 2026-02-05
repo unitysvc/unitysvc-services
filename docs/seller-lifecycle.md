@@ -47,7 +47,7 @@ flowchart TD
 
 ## 1. Upload & Approval
 
-When you run `usvc services upload`, you submit:
+When you run `usvc data upload`, you submit:
 
 | Data Type           | Purpose                    | Key Fields                                    |
 | ------------------- | -------------------------- | --------------------------------------------- |

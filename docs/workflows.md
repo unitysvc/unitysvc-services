@@ -28,14 +28,14 @@ flowchart TB
         W3 --> A2[Edit Files]
         A2 --> A3[usvc data validate]
         A3 --> A4[usvc data format]
-        A4 --> A5[usvc services upload]
+        A4 --> A5[usvc data upload]
     end
 
     subgraph Automated["Automated Workflow"]
         B1[Configure populate script] --> B2[usvc data populate]
         B2 --> B3[usvc data validate]
         B3 --> B4[usvc data format]
-        B4 --> B5[usvc services upload]
+        B4 --> B5[usvc data upload]
     end
 
     subgraph Platform["UnitySVC Platform"]
@@ -76,7 +76,7 @@ data/
 ```bash
 usvc data validate
 usvc data format
-usvc services upload
+usvc data upload
 ```
 
 #### 4. Ongoing Management
@@ -157,10 +157,10 @@ export UNITYSVC_API_KEY="your-api-key"
 
 # Upload all services
 cd data
-usvc services upload
+usvc data upload
 
 # Or from parent directory
-usvc services upload --data-path ./data
+usvc data upload --data-path ./data
 ```
 
 #### 7. Verify on Platform
@@ -186,7 +186,7 @@ git push
 
 # Upload from CI/CD
 usvc data validate
-usvc services upload --data-path ./data
+usvc data upload --data-path ./data
 ```
 
 ## Automated Workflow (Template-Based)
@@ -416,6 +416,8 @@ if __name__ == "__main__":
         output_dir=script_dir.parent / "services",
         # Optional: filter models
         filter_func=lambda m: m.get("status") == "ready",
+        # Optional: disable auto-deprecation of removed services (default: True)
+        # deprecate_missing=False,
     )
 ```
 
@@ -456,8 +458,13 @@ Output shows progress:
 [2/50] gpt-4-turbo
   OK: llm
 ...
-Done! Total: 50, Written: 45, Skipped: 3, Filtered: 2, Errors: 0
+  Deprecated: old-model-v1
+  Deprecated: legacy-service
+
+Done! Total: 50, Written: 45, Skipped: 3, Filtered: 2, Errors: 0, Deprecated: 2
 ```
+
+**Note:** Services that exist locally but are no longer returned by the upstream API are automatically marked as deprecated (their `offering.json` status is set to `"deprecated"`). To sync this to the backend, run `usvc data upload` - deprecated services with a `service_id` will update the server-side status to deprecated.
 
 #### 7. Validate, Format, and Upload
 
@@ -471,7 +478,7 @@ git add data/
 git commit -m "Update service catalog from API"
 
 # Upload
-usvc services upload
+usvc data upload
 ```
 
 ### Template Tips
@@ -574,7 +581,7 @@ jobs:
                   UNITYSVC_BASE_URL: ${{ secrets.UNITYSVC_BASE_URL }}
                   UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
               run: |
-                  usvc services upload --data-path ./data
+                  usvc data upload --data-path ./data
 ```
 
 ### Summary: Template-Based Workflow
@@ -605,7 +612,7 @@ usvc data populate
 # Edit files directly to update status or other fields
 # Then validate and upload
 usvc data validate
-usvc services upload
+usvc data upload
 ```
 
 ## Service Upload Lifecycle
@@ -622,7 +629,7 @@ When you upload a listing file for the **first time** (from a new repository or 
 
 ```bash
 # First upload - creates a new service
-$ usvc services upload
+$ usvc data upload
   + Created service: my-service (provider: my-provider)
     Service ID: 550e8400-e29b-41d4-a716-446655440000
     → Saved to listing.override.json
@@ -651,7 +658,7 @@ On subsequent uploads, the SDK automatically loads the `service_id` from the ove
 
 ```bash
 # Subsequent upload - updates existing service
-$ usvc services upload
+$ usvc data upload
   ~ Updated service: my-service (provider: my-provider)
     Service ID: 550e8400-e29b-41d4-a716-446655440000
 ```
@@ -671,12 +678,12 @@ To create a completely new service (ignoring existing `service_id`):
 rm listing.override.json
 
 # Upload creates a new service with a new ID
-usvc services upload
+usvc data upload
 ```
 
 ## Upload Order
 
-**Recommended:** Use `usvc services upload` to upload all types automatically in the correct order:
+**Recommended:** Use `usvc data upload` to upload all types automatically in the correct order:
 
 ```mermaid
 flowchart LR
@@ -767,7 +774,7 @@ git push
 
 ### Validation
 
-- Always run `usvc data validate` before `usvc services upload`
+- Always run `usvc data validate` before `usvc data upload`
 - Fix all validation errors
 - Use `usvc data format --check` in CI to enforce formatting
 
@@ -806,7 +813,7 @@ git push
 
 - Verify credentials are set
 - Check network connectivity
-- Use `usvc services upload` to handle upload order automatically
+- Use `usvc data upload` to handle upload order automatically
 - Look for foreign key constraint errors
 - Verify you're in the correct directory or using `--data-path`
 

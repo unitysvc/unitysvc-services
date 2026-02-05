@@ -42,7 +42,10 @@ When you upload provider, offering, and listing data together, the platform crea
 -   **Links** the seller to the content (provider, offering, listing)
 -   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
 -   **Derives its display_name** from `listing.display_name`, `offering.display_name`, `listing.name`, or `offering.name` (first non-empty value)
--   **Derives its status** from the component statuses - a service is considered `draft` if any component is draft
+-   **Derives its status** from the component statuses:
+    - If any component is `draft` → Service is `draft` (upload skipped)
+    - If any component is `deprecated` (none draft) → Service is `deprecated`
+    - If all components are `ready` → Service is `draft` initially, then progresses through review workflow
 
 The Service provides a stable identity that subscriptions reference, while the content entities (Provider, Offering, Listing) are immutable and content-addressed.
 
@@ -68,7 +71,7 @@ This separation enables:
 
 ### Upload Model
 
-When you run `usvc services upload`, the SDK uses a **listing-centric** approach:
+When you run `usvc data upload`, the SDK uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory tree
 2. For each listing, locates the **single** offering file (`offering_v1`) in the same directory
@@ -167,7 +170,7 @@ To upload a service as completely new (ignoring any existing `service_id`), dele
 rm listing.override.json
 
 # Upload - will create a NEW service with a new service_id
-usvc services upload --data-path ./my-provider/services/my-service/listing.json
+usvc data upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
 Common use cases for uploading as new:

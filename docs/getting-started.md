@@ -146,18 +146,18 @@ Upload your services:
 ```bash
 # From data directory
 cd data
-usvc services upload
+usvc data upload
 
 # Or specify path
-usvc services upload --data-path ./data
+usvc data upload --data-path ./data
 
 # Or upload a single listing file
-usvc services upload --data-path ./data/my-provider/services/my-service/listing.toml
+usvc data upload --data-path ./data/my-provider/services/my-service/listing.toml
 ```
 
 #### How Uploading Works
 
-The `usvc services upload` command uses a **listing-centric** approach:
+The `usvc data upload` command uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory
 2. For each listing, locates the offering file in the same directory
@@ -172,7 +172,7 @@ flowchart TD
         C[Listing Data<br/>HOW it's sold]
     end
 
-    subgraph Upload["usvc services upload"]
+    subgraph Upload["usvc data upload"]
         D{Finds listings}
         E[Bundles provider + offering + listing]
     end
