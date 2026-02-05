@@ -79,10 +79,10 @@ export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 export UNITYSVC_API_KEY="your-seller-api-key"
 
 # 6. Preview what would be uploaded
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # 7. Upload to the platform
-usvc services upload
+usvc data upload
 
 # 8. Verify uploaded data
 usvc services list
@@ -112,7 +112,7 @@ data/
 
 ### Upload Behavior
 
-When you run `usvc services upload`:
+When you run `usvc data upload`:
 
 1. Finds all listing files in the directory
 2. For each listing, locates the offering in the same directory
@@ -141,7 +141,7 @@ Each listing is uploaded as a separate service, but they all share the same prov
 Always preview changes before uploading:
 
 ```bash
-usvc services upload --dryrun
+usvc data upload --dryrun
 ```
 
 This shows:

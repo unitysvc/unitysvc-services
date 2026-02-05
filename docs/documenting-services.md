@@ -649,7 +649,7 @@ Always validate documents before uploading:
 
 ```bash
 usvc data validate
-usvc services upload
+usvc data upload
 ```
 
 ## Next Steps

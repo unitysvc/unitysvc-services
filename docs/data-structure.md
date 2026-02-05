@@ -71,7 +71,7 @@ This separation enables:
 
 ### Upload Model
 
-When you run `usvc services upload`, the SDK uses a **listing-centric** approach:
+When you run `usvc data upload`, the SDK uses a **listing-centric** approach:
 
 1. Finds all listing files (`listing_v1` schema) in the directory tree
 2. For each listing, locates the **single** offering file (`offering_v1`) in the same directory
@@ -170,7 +170,7 @@ To upload a service as completely new (ignoring any existing `service_id`), dele
 rm listing.override.json
 
 # Upload - will create a NEW service with a new service_id
-usvc services upload --data-path ./my-provider/services/my-service/listing.json
+usvc data upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
 Common use cases for uploading as new:

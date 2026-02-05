@@ -24,13 +24,14 @@ The CLI is organized into two main command groups with a clear separation of con
 
 ### Local Data Operations (`usvc data`)
 
-Work with local data files - can be used offline without API credentials.
+Work with local data files - can be used offline without API credentials (except `upload`).
 
 | Command      | Description                                         |
 | ------------ | --------------------------------------------------- |
 | `validate`   | Validate data files against schemas                 |
 | `format`     | Format/prettify data files                          |
 | `populate`   | Generate data files from provider scripts           |
+| `upload`     | Upload local data to backend (draft status)         |
 | `list`       | List local data files (services, providers, etc.)   |
 | `show`       | Show details of a local data object                 |
 | `list-tests` | List code examples in local data                    |
@@ -43,7 +44,6 @@ Manage services on the backend - can be run from anywhere with the right API key
 
 | Command       | Description                                   |
 | ------------- | --------------------------------------------- |
-| `upload`      | Upload services to backend (draft status)     |
 | `list`        | List deployed services on backend             |
 | `show`        | Show details of a deployed service            |
 | `submit`      | Submit draft service for ops review           |
@@ -116,58 +116,7 @@ List all services with their provider, offering, and listing files.
 - Table format with file paths and key fields
 - Color-coded status indicators
 
-## usvc services - Remote Service Operations
-
-Commands for managing services on the backend. These commands require API credentials and can be run from anywhere.
-
-### usvc services list - Query Backend
-
-Query services for the current seller from UnitySVC backend API. Services are the identity layer that connects sellers to content versions (Provider, ServiceOffering, ServiceListing).
-
-```bash
-usvc services list [OPTIONS]
-```
-
-**Options:**
-
-- `--format, -f {table|json|tsv|csv}` - Output format (default: table)
-- `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
-- `--skip SKIP` - Number of records to skip for pagination (default: 0)
-- `--limit LIMIT` - Maximum number of records to return (default: 100)
-- `--status STATUS` - Filter by status (draft, pending, testing, active, rejected, suspended)
-
-**Available Fields:**
-
-id, name, display_name, status, seller_id, provider_id, offering_id, listing_id, revision_of, created_by_id, updated_by_id, created_at, updated_at
-
-**Required Environment Variables:**
-
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication
-
-**Examples:**
-
-```bash
-# Table output with default fields
-usvc services list
-
-# JSON output
-usvc services list --format json
-
-# Custom fields - show only specific columns
-usvc services list --fields id,name,status
-
-# Filter by status
-usvc services list --status active
-
-# Retrieve more than 100 records
-usvc services list --limit 500
-
-# Pagination: get second page of 100 records
-usvc services list --skip 100 --limit 100
-```
-
-### usvc services upload - Upload Services to Backend
+### usvc data upload - Upload Services to Backend
 
 Upload services to UnitySVC backend. The upload command uses a **listing-centric** approach where each listing file triggers a unified upload of provider + offering + listing together.
 
@@ -190,7 +139,7 @@ flowchart TB
     style L fill:#e8f5e9
 ```
 
-When you run `usvc services upload`:
+When you run `usvc data upload`:
 
 1. **Finds** all listing files (`listing_v1` schema) in the directory tree
 2. For each listing, **locates** the offering file (`offering_v1`) in the same directory
@@ -202,7 +151,7 @@ This ensures atomic uploading - all three components are validated and uploaded 
 **Usage:**
 
 ```bash
-usvc services upload [OPTIONS]
+usvc data upload [OPTIONS]
 ```
 
 **Options:**
@@ -219,16 +168,16 @@ usvc services upload [OPTIONS]
 
 ```bash
 # Upload all services from current directory
-usvc services upload
+usvc data upload
 
 # Upload all services from custom directory
-usvc services upload --data-path ./data
+usvc data upload --data-path ./data
 
 # Upload a single service (specific listing file)
-usvc services upload --data-path ./data/my-provider/services/my-service/listing.json
+usvc data upload --data-path ./data/my-provider/services/my-service/listing.json
 
 # Preview changes before uploading (dryrun mode)
-usvc services upload --dryrun
+usvc data upload --dryrun
 ```
 
 **Dryrun Mode:**
@@ -251,7 +200,7 @@ In dryrun mode:
 Uploading displays progress for each service and a summary table:
 
 ```bash
-$ usvc services upload
+$ usvc data upload
 Uploading services from: /path/to/data
 Backend URL: https://api.unitysvc.com/v1
 
@@ -314,7 +263,7 @@ If uploading fails for a service, the error is displayed and uploading continues
 
 **Idempotent Uploading:**
 
-Uploading is idempotent - running `usvc services upload` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
+Uploading is idempotent - running `usvc data upload` multiple times with the same data will result in "unchanged" status for services that haven't changed. The backend tracks content hashes to detect changes efficiently.
 
 **Override Files and Service ID Persistence:**
 
@@ -346,7 +295,7 @@ If you need to upload as a completely new service (ignoring any existing `servic
 rm listing.override.json
 
 # Upload - will create a new service with a new service_id
-usvc services upload --data-path ./my-provider/services/my-service/listing.json
+usvc data upload --data-path ./my-provider/services/my-service/listing.json
 ```
 
 Use cases for uploading as new:
@@ -368,7 +317,7 @@ cp listing.json listing-enterprise.json
 #    - Modify pricing, parameters, etc. as needed
 
 # 3. Upload the new listing (no override file exists, so creates new service)
-usvc services upload --data-path ./my-provider/services/my-service/listing-enterprise.json
+usvc data upload --data-path ./my-provider/services/my-service/listing-enterprise.json
 ```
 
 **Important:** Each listing file should have a unique `name` field. The new listing will get its own `service_id` saved to `listing-enterprise.override.json`.
@@ -381,6 +330,59 @@ listing.override.json          # service_id for production
 
 # Staging override (manually managed or gitignored)
 listing.staging.override.json  # service_id for staging
+```
+
+---
+
+## usvc services - Remote Service Operations
+
+Commands for managing services on the backend. These commands require API credentials and can be run from anywhere.
+
+### usvc services list - Query Backend
+
+Query services for the current seller from UnitySVC backend API. Services are the identity layer that connects sellers to content versions (Provider, ServiceOffering, ServiceListing).
+
+```bash
+usvc services list [OPTIONS]
+```
+
+**Options:**
+
+- `--format, -f {table|json|tsv|csv}` - Output format (default: table)
+- `--fields FIELDS` - Comma-separated list of fields to display (default: id,name,status,seller_id,provider_id,offering_id,listing_id)
+- `--skip SKIP` - Number of records to skip for pagination (default: 0)
+- `--limit LIMIT` - Maximum number of records to return (default: 100)
+- `--status STATUS` - Filter by status (draft, pending, testing, active, rejected, suspended)
+
+**Available Fields:**
+
+id, name, display_name, status, seller_id, provider_id, offering_id, listing_id, revision_of, created_by_id, updated_by_id, created_at, updated_at
+
+**Required Environment Variables:**
+
+- `UNITYSVC_BASE_URL` - Backend API URL
+- `UNITYSVC_API_KEY` - API key for authentication
+
+**Examples:**
+
+```bash
+# Table output with default fields
+usvc services list
+
+# JSON output
+usvc services list --format json
+
+# Custom fields - show only specific columns
+usvc services list --fields id,name,status
+
+# Filter by status
+usvc services list --status active
+
+# Retrieve more than 100 records
+usvc services list --limit 500
+
+# Pagination: get second page of 100 records
+usvc services list --skip 100 --limit 100
 ```
 
 ### usvc services deprecate - Deprecate a Service
@@ -1185,7 +1187,7 @@ usvc data validate
 usvc data format
 
 # Remote operations (requires API key)
-usvc services upload
+usvc data upload
 usvc services list
 ```
 
@@ -1247,10 +1249,10 @@ usvc data run-tests
 
 # Preview changes before uploading (recommended)
 cd data
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # If preview looks good, upload all (handles order automatically)
-usvc services upload
+usvc data upload
 
 # Verify on backend
 usvc services list
@@ -1273,10 +1275,10 @@ usvc services submit <service-id>
 usvc data validate
 
 # Preview changes
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # Upload changes
-usvc services upload
+usvc data upload
 ```
 
 ### Automated Generation
@@ -1291,10 +1293,10 @@ usvc data format
 
 # Preview generated data
 cd data
-usvc services upload --dryrun
+usvc data upload --dryrun
 
 # Upload all
-usvc services upload
+usvc data upload
 ```
 
 ### Managing Test Status
