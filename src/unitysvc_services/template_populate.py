@@ -8,9 +8,10 @@ instead of the DataBuilder APIs. This approach separates data from structure.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from collections.abc import Callable, Iterator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Callable, Iterator
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -202,12 +203,12 @@ def _smart_write_json(path: Path, data: dict) -> bool:
             if "time_created" in existing:
                 data["time_created"] = existing["time_created"]
 
-        except (json.JSONDecodeError, IOError):
+        except (json.JSONDecodeError, OSError):
             pass
 
     # Add time_created if not present
     if "time_created" not in data:
-        data["time_created"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        data["time_created"] = datetime.now(UTC).isoformat().replace("+00:00", "Z")
 
     # Write file with consistent formatting (sorted keys for deterministic output)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
@@ -243,5 +244,5 @@ def _deprecate_service(service_dir: Path) -> bool:
         offering_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
         return True
 
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, OSError):
         return False

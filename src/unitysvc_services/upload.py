@@ -782,7 +782,8 @@ def upload_callback(
     revision_to: str | None = typer.Option(
         None,
         "--revision-to",
-        help="Service ID of an active service to create a revision for. Only valid when uploading a single service file.",
+        help="Service ID of an active service to create a revision for. "
+        "Only valid when uploading a single service file.",
     ),
 ):
     """
