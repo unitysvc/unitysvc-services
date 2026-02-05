@@ -450,32 +450,48 @@ class ServiceDataPublisher(UnitySvcAPI):
             )
         provider_file, _format, provider_data = provider_files[0]
 
-        # Check provider status - skip if draft
+        # Collect statuses for upload decision
         provider_status = provider_data.get("status", ProviderStatusEnum.draft)
+        offering_status = offering_data.get("status", OfferingStatusEnum.draft)
+        listing_status = listing_data.get("status", ListingStatusEnum.draft)
+        service_name = offering_data.get("name", "unknown")
+
+        # Rule 1: If ANY status is draft, skip the entire service
         if provider_status == ProviderStatusEnum.draft:
             return {
                 "skipped": True,
-                "reason": f"Provider status is '{provider_status}' - not publishing to backend (still in draft)",
-                "service_name": offering_data.get("name", "unknown"),
+                "reason": f"Provider status is '{provider_status}' - not publishing (still in draft)",
+                "service_name": service_name,
             }
-
-        # Check offering status - skip if draft
-        offering_status = offering_data.get("status", OfferingStatusEnum.draft)
         if offering_status == OfferingStatusEnum.draft:
             return {
                 "skipped": True,
-                "reason": f"Offering status is '{offering_status}' - not publishing to backend (still in draft)",
-                "service_name": offering_data.get("name", "unknown"),
+                "reason": f"Offering status is '{offering_status}' - not publishing (still in draft)",
+                "service_name": service_name,
             }
-
-        # Check listing status - skip if draft
-        listing_status = listing_data.get("status", ListingStatusEnum.draft)
         if listing_status == ListingStatusEnum.draft:
             return {
                 "skipped": True,
-                "reason": f"Listing status is '{listing_status}' - not publishing to backend (still in draft)",
-                "service_name": offering_data.get("name", "unknown"),
+                "reason": f"Listing status is '{listing_status}' - not publishing (still in draft)",
+                "service_name": service_name,
             }
+
+        # Rule 2: If ANY status is deprecated (and none are draft), need service_id to deprecate on server
+        is_deprecated = (
+            provider_status == ProviderStatusEnum.deprecated
+            or offering_status == OfferingStatusEnum.deprecated
+            or listing_status == ListingStatusEnum.deprecated
+        )
+        if is_deprecated:
+            service_id = listing_data.get("service_id") or revision_to
+            if not service_id:
+                return {
+                    "skipped": True,
+                    "reason": "Service is deprecated but has no service_id - cannot deprecate on server",
+                    "service_name": service_name,
+                }
+
+        # Rule 3: All ready (or deprecated with service_id) - proceed with upload
 
         collected_attachments: list[Attachment] = []
 

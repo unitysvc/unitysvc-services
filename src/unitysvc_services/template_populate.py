@@ -27,6 +27,7 @@ def populate_from_iterator(
     name_field: str = "name",
     filter_func: Callable[[dict], bool] | None = None,
     dry_run: bool = False,
+    deprecate_missing: bool = True,
 ) -> dict:
     """
     Populate services from an iterator of model dictionaries.
@@ -44,9 +45,11 @@ def populate_from_iterator(
         filter_func: Optional function that takes a model dict and returns True to
             include it, False to skip. Useful for filtering without modifying iterator.
         dry_run: If True, don't write files, just report what would happen.
+        deprecate_missing: If True (default), mark services that exist locally but
+            are no longer in the iterator as deprecated (sets status="deprecated").
 
     Returns:
-        Stats dict: {"total": N, "written": N, "skipped": N, "filtered": N, "errors": N}
+        Stats dict: {"total": N, "written": N, "skipped": N, "filtered": N, "errors": N, "deprecated": N}
 
     Example:
         >>> def iter_models():
@@ -65,6 +68,16 @@ def populate_from_iterator(
     templates_dir = Path(templates_dir)
     output_dir = Path(output_dir)
 
+    # Track existing services before iteration (for deprecation)
+    existing_services: set[str] = set()
+    if deprecate_missing and output_dir.exists():
+        existing_services = {
+            d.name for d in output_dir.iterdir()
+            if d.is_dir() and (d / "offering.json").exists()
+        }
+
+    updated_services: set[str] = set()
+
     # Set up Jinja2 environment
     env = Environment(
         loader=FileSystemLoader(templates_dir),
@@ -77,7 +90,7 @@ def populate_from_iterator(
     offering_tpl = env.get_template(offering_template)
     listing_tpl = env.get_template(listing_template)
 
-    stats = {"total": 0, "written": 0, "skipped": 0, "filtered": 0, "errors": 0}
+    stats = {"total": 0, "written": 0, "skipped": 0, "filtered": 0, "errors": 0, "deprecated": 0}
 
     for model_data in iterator:
         stats["total"] += 1
@@ -97,6 +110,9 @@ def populate_from_iterator(
         # Sanitize directory name
         dir_name = _sanitize_dirname(service_name)
         service_dir = output_dir / dir_name
+
+        # Track this service as updated (for deprecation logic)
+        updated_services.add(dir_name)
 
         try:
             # Render templates
@@ -137,9 +153,18 @@ def populate_from_iterator(
             print(f"  Error processing {service_name}: {e}")
             stats["errors"] += 1
 
+    # Deprecate services no longer in upstream
+    if deprecate_missing and not dry_run:
+        missing_services = existing_services - updated_services
+        for service_name in sorted(missing_services):
+            service_dir = output_dir / service_name
+            if _deprecate_service(service_dir):
+                stats["deprecated"] += 1
+                print(f"  Deprecated: {service_name}")
+
     print(f"\nDone! Total: {stats['total']}, Written: {stats['written']}, "
           f"Skipped: {stats['skipped']}, Filtered: {stats['filtered']}, "
-          f"Errors: {stats['errors']}")
+          f"Errors: {stats['errors']}, Deprecated: {stats['deprecated']}")
 
     return stats
 
@@ -187,3 +212,36 @@ def _smart_write_json(path: Path, data: dict) -> bool:
     # Write file with consistent formatting (sorted keys for deterministic output)
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
     return True
+
+
+def _deprecate_service(service_dir: Path) -> bool:
+    """
+    Mark a service as deprecated by updating its offering.json.
+
+    Sets status="deprecated" if not already deprecated.
+
+    Args:
+        service_dir: Path to the service directory.
+
+    Returns:
+        True if the service was newly deprecated, False if already deprecated or error.
+    """
+    offering_path = service_dir / "offering.json"
+    if not offering_path.exists():
+        return False
+
+    try:
+        data = json.loads(offering_path.read_text())
+
+        # Skip if already deprecated
+        if data.get("status") == "deprecated":
+            return False
+
+        # Mark as deprecated
+        data["status"] = "deprecated"
+
+        offering_path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+        return True
+
+    except (json.JSONDecodeError, IOError):
+        return False
