@@ -416,6 +416,8 @@ if __name__ == "__main__":
         output_dir=script_dir.parent / "services",
         # Optional: filter models
         filter_func=lambda m: m.get("status") == "ready",
+        # Optional: disable auto-deprecation of removed services (default: True)
+        # deprecate_missing=False,
     )
 ```
 
@@ -456,8 +458,13 @@ Output shows progress:
 [2/50] gpt-4-turbo
   OK: llm
 ...
-Done! Total: 50, Written: 45, Skipped: 3, Filtered: 2, Errors: 0
+  Deprecated: old-model-v1
+  Deprecated: legacy-service
+
+Done! Total: 50, Written: 45, Skipped: 3, Filtered: 2, Errors: 0, Deprecated: 2
 ```
+
+**Note:** Services that exist locally but are no longer returned by the upstream API are automatically marked as deprecated (their `offering.json` status is set to `"deprecated"`). To sync this to the backend, run `usvc services upload` - deprecated services with a `service_id` will update the server-side status to deprecated.
 
 #### 7. Validate, Format, and Upload
 

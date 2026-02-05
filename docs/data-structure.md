@@ -42,7 +42,10 @@ When you upload provider, offering, and listing data together, the platform crea
 -   **Links** the seller to the content (provider, offering, listing)
 -   **Derives its name** from `listing.name`, or `offering.name` if listing name is unspecified
 -   **Derives its display_name** from `listing.display_name`, `offering.display_name`, `listing.name`, or `offering.name` (first non-empty value)
--   **Derives its status** from the component statuses - a service is considered `draft` if any component is draft
+-   **Derives its status** from the component statuses:
+    - If any component is `draft` → Service is `draft` (upload skipped)
+    - If any component is `deprecated` (none draft) → Service is `deprecated`
+    - If all components are `ready` → Service is `draft` initially, then progresses through review workflow
 
 The Service provides a stable identity that subscriptions reference, while the content entities (Provider, Offering, Listing) are immutable and content-addressed.
 

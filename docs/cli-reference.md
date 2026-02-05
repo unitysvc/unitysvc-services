@@ -276,18 +276,32 @@ Upload Summary
 | `+`    | Created   | New service uploaded for the first time |
 | `~`    | Updated   | Existing service updated with changes   |
 | `=`    | Unchanged | Service already exists and is identical |
-| `⊘`    | Skipped   | Service has draft status, not uploaded  |
+| `⊘`    | Skipped   | Service has draft status or deprecated without service_id |
 | `✗`    | Failed    | Error during uploading                  |
 
-**Skipped Services:**
+**Upload Rules Based on Status:**
 
-Services are skipped (not uploaded) when any of these conditions are true:
+The upload behavior depends on the `status` field of provider, offering, and listing:
 
-- Provider has `status: draft` - provider still being configured
-- Offering has `status: draft` - offering still being configured
-- Listing has `status: draft` - listing still being configured
+| Condition | Behavior |
+|-----------|----------|
+| Any status is `draft` | **Skip** - service not uploaded (still being configured) |
+| Any status is `deprecated` (none draft) | **Upload if `service_id` exists** - deprecates service on server |
+| Any status is `deprecated` (no `service_id`) | **Skip** - cannot deprecate a service that doesn't exist on server |
+| All statuses are `ready` | **Upload** - normal upload, service created/updated |
 
-This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
+**Draft Services:**
+
+Services with any component in `draft` status are skipped. This allows you to work on services locally without uploading incomplete data. Set status to `ready` when you're ready to upload.
+
+**Deprecated Services:**
+
+When any component (provider, offering, or listing) has `status: deprecated`:
+
+- If `service_id` exists (from override file or `--revision-to`): The service is uploaded and the backend sets `Service.status` to `deprecated`
+- If no `service_id`: The service is skipped with message "cannot deprecate on server"
+
+This ensures deprecated services properly sync their status to the backend, while preventing creation of new deprecated services that never existed.
 
 **Error Handling:**
 
@@ -905,7 +919,7 @@ usvc data format ./data
 
 ### usvc data populate - Generate Services
 
-Execute provider populate scripts to auto-generate service data.
+Execute provider populate scripts to auto-generate service data from upstream sources (APIs, web scraping, etc.).
 
 ```bash
 usvc data populate [DATA_DIR] [OPTIONS]
@@ -937,6 +951,42 @@ usvc data populate --provider openai
 
 # Dry run
 usvc data populate --dry-run
+```
+
+**Automatic Deprecation of Removed Services:**
+
+When a populate script runs, services that exist locally but are no longer returned by the upstream source are automatically marked as deprecated:
+
+1. Before running, the system records all existing service directories (those with `offering.json`)
+2. During population, services returned by the upstream API are created/updated
+3. After population, services that weren't touched are marked as deprecated
+
+**What gets updated:**
+
+- `offering.json` → `status` field set to `"deprecated"`
+- `listing.json` files are **not** modified (deprecation is conceptually an offering-level change)
+
+**Output includes deprecation count:**
+
+```
+Done! Total: 150, Written: 145, Skipped: 3, Filtered: 0, Errors: 0, Deprecated: 2
+  Deprecated: old-model-v1
+  Deprecated: legacy-service
+```
+
+**Important:** Deprecated services need a `service_id` (from override file) to sync the deprecation to the backend. Services without a `service_id` will be skipped during upload with message "cannot deprecate on server".
+
+**Disabling automatic deprecation:**
+
+For scripts using `populate_from_iterator()` directly, pass `deprecate_missing=False`:
+
+```python
+populate_from_iterator(
+    iterator=source.iter_models(),
+    templates_dir=templates_dir,
+    output_dir=output_dir,
+    deprecate_missing=False,  # Don't mark missing services as deprecated
+)
 ```
 
 ## usvc data test commands
