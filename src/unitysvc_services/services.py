@@ -2,10 +2,10 @@
 
 import typer
 
-from . import query, test_runner, upload
+from . import query, test_runner
 from .lifecycle import (
-    delete_service,
     dedup_services,
+    delete_service,
     deprecate_service,
     submit_service,
     withdraw_service,
