@@ -220,6 +220,7 @@ Manage services on the backend - can be run from anywhere with the right API key
 | `submit`       | Submit draft service for ops review                |
 | `deprecate`    | Deprecate an active service                        |
 | `delete`       | Delete a service from backend                      |
+| `dedup`        | Remove duplicate draft services                    |
 | `list-tests`   | List tests for deployed services                   |
 | `show-test`    | Show details of a test for a deployed service      |
 | `run-tests`    | Run tests via gateway (backend execution)          |

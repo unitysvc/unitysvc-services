@@ -3,7 +3,13 @@
 import typer
 
 from . import query, test_runner
-from .lifecycle import delete_service, deprecate_service, submit_service, withdraw_service
+from .lifecycle import (
+    dedup_services,
+    delete_service,
+    deprecate_service,
+    submit_service,
+    withdraw_service,
+)
 from .query import show_service
 
 app = typer.Typer(help="Remote service operations (submit, list, show, deprecate, delete, etc.)")
@@ -26,6 +32,9 @@ app.command("deprecate")(deprecate_service)
 
 # delete permanently removes service
 app.command("delete")(delete_service)
+
+# dedup removes duplicate draft services
+app.command("dedup")(dedup_services)
 
 # test commands - hyphenated for clarity (verb-noun)
 app.command("list-tests")(test_runner.list_tests)
