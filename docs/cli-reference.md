@@ -46,9 +46,10 @@ Manage services on the backend - can be run from anywhere with the right API key
 | ------------- | --------------------------------------------- |
 | `list`        | List deployed services on backend             |
 | `show`        | Show details of a deployed service            |
-| `submit`      | Submit draft service for ops review           |
-| `deprecate`   | Deprecate an active service                   |
-| `delete`      | Delete a service from backend                 |
+| `submit`      | Submit draft service(s) for ops review        |
+| `withdraw`    | Withdraw pending/rejected service(s) to draft |
+| `deprecate`   | Deprecate active service(s)                   |
+| `delete`      | Delete service(s) from backend                |
 | `dedup`       | Remove duplicate draft services               |
 | `list-tests`  | List tests for deployed services              |
 | `show-test`   | Show details of a test for a deployed service |
@@ -386,27 +387,67 @@ usvc services list --limit 500
 usvc services list --skip 100 --limit 100
 ```
 
-### usvc services deprecate - Deprecate a Service
+### usvc services withdraw - Withdraw to Draft
 
-Deprecate an active service. Deprecated services remain accessible but are marked as deprecated.
+Withdraw one or more services back to draft status (pending/rejected → draft).
 
 ```bash
-usvc services deprecate <SERVICE_ID> [OPTIONS]
+usvc services withdraw [SERVICE_ID...] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<SERVICE_ID>` - UUID or partial UUID of the service to deprecate (required)
+- `[SERVICE_ID...]` - UUID(s) or partial UUID(s) of the service(s) to withdraw (optional if using --all)
 
 **Options:**
 
+- `--all` - Withdraw all pending and rejected services
 - `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
 ```bash
-# Deprecate a service (with confirmation)
+# Withdraw a single service
+usvc services withdraw abc123-uuid
+
+# Withdraw multiple services
+usvc services withdraw abc123 def456
+
+# Withdraw all pending/rejected services
+usvc services withdraw --all
+
+# Withdraw all without confirmation
+usvc services withdraw --all -y
+```
+
+### usvc services deprecate - Deprecate a Service
+
+Deprecate one or more active services. Deprecated services remain accessible but are marked as deprecated.
+
+```bash
+usvc services deprecate [SERVICE_ID...] [OPTIONS]
+```
+
+**Arguments:**
+
+- `[SERVICE_ID...]` - UUID(s) or partial UUID(s) of the service(s) to deprecate (optional if using --all)
+
+**Options:**
+
+- `--all` - Deprecate all active services
+- `--yes, -y` - Skip confirmation prompt
+
+**Examples:**
+
+```bash
+# Deprecate a single service (with confirmation)
 usvc services deprecate abc123-uuid
+
+# Deprecate multiple services
+usvc services deprecate abc123 def456 ghi789
+
+# Deprecate all active services
+usvc services deprecate --all
 
 # Deprecate without confirmation
 usvc services deprecate abc123-uuid -y
@@ -414,25 +455,41 @@ usvc services deprecate abc123-uuid -y
 
 ### usvc services delete - Delete a Service
 
-Permanently delete a service from the backend.
+Permanently delete one or more services from the backend.
 
 ```bash
-usvc services delete <SERVICE_ID> [OPTIONS]
+usvc services delete [SERVICE_ID...] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<SERVICE_ID>` - UUID or partial UUID of the service to delete (required)
+- `[SERVICE_ID...]` - UUID(s) or partial UUID(s) of the service(s) to delete (optional if using --all)
 
 **Options:**
 
+- `--all` - Delete all deletable services (draft, pending, testing, rejected, suspended, deprecated)
+- `--status STATUS` - Filter by status when using --all (e.g., `--all --status draft`)
+- `--dryrun` - Show what would be deleted without actually deleting
+- `--force` - Force deletion even with active subscriptions
 - `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
 ```bash
-# Delete a service (with confirmation)
+# Delete a single service (with confirmation)
 usvc services delete abc123-uuid
+
+# Delete multiple services
+usvc services delete abc123 def456 ghi789
+
+# Delete all draft services
+usvc services delete --all --status draft
+
+# Delete all deletable services (use with caution!)
+usvc services delete --all
+
+# Dry-run to see what would be deleted
+usvc services delete --all --status draft --dryrun
 
 # Delete without confirmation
 usvc services delete abc123-uuid -y
@@ -440,21 +497,35 @@ usvc services delete abc123-uuid -y
 
 ### usvc services submit - Submit for Review
 
-Submit a draft service for ops review.
+Submit one or more draft services for ops review (draft → pending).
 
 ```bash
-usvc services submit <SERVICE_ID>
+usvc services submit [SERVICE_ID...] [OPTIONS]
 ```
 
 **Arguments:**
 
-- `<SERVICE_ID>` - UUID or partial UUID of the service to submit (required)
+- `[SERVICE_ID...]` - UUID(s) or partial UUID(s) of the service(s) to submit (optional if using --all)
+
+**Options:**
+
+- `--all` - Submit all draft services
+- `--yes, -y` - Skip confirmation prompt
 
 **Examples:**
 
 ```bash
-# Submit a service for review
+# Submit a single service for review
 usvc services submit abc123-uuid
+
+# Submit multiple services
+usvc services submit abc123 def456 ghi789
+
+# Submit all draft services
+usvc services submit --all
+
+# Submit all draft services without confirmation
+usvc services submit --all -y
 ```
 
 **Required Environment Variables:**

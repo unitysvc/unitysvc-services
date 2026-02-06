@@ -217,9 +217,10 @@ Manage services on the backend - can be run from anywhere with the right API key
 | -------------- | -------------------------------------------------- |
 | `list`         | List deployed services on backend                  |
 | `show`         | Show details of a deployed service                 |
-| `submit`       | Submit draft service for ops review                |
-| `deprecate`    | Deprecate an active service                        |
-| `delete`       | Delete a service from backend                      |
+| `submit`       | Submit draft service(s) for ops review (use --all) |
+| `withdraw`     | Withdraw pending/rejected service(s) to draft      |
+| `deprecate`    | Deprecate active service(s)                        |
+| `delete`       | Delete service(s) from backend                     |
 | `dedup`        | Remove duplicate draft services                    |
 | `list-tests`   | List tests for deployed services                   |
 | `show-test`    | Show details of a test for a deployed service      |
