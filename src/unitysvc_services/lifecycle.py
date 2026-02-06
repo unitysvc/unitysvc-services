@@ -529,7 +529,8 @@ def delete_service(
         deletable_statuses = ["draft", "pending", "testing", "rejected", "suspended", "deprecated"]
         if status:
             if status not in deletable_statuses:
-                console.print(f"[red]Error:[/red] Status '{status}' is not deletable. Use one of: {', '.join(deletable_statuses)}")
+                valid = ", ".join(deletable_statuses)
+                console.print(f"[red]Error:[/red] Status '{status}' is not deletable. Use one of: {valid}")
                 raise typer.Exit(code=1)
             deletable_statuses = [status]
         console.print(f"[cyan]Fetching services with status: {', '.join(deletable_statuses)}...[/cyan]")
