@@ -11,6 +11,33 @@ from .api import UnitySvcAPI
 console = Console()
 
 
+async def fetch_service_ids_by_status(statuses: list[str]) -> list[str]:
+    """Fetch all service IDs matching the given status(es).
+
+    Args:
+        statuses: List of status values to filter by (e.g., ["draft"], ["pending", "rejected"])
+
+    Returns:
+        List of service IDs matching any of the given statuses
+    """
+    api = UnitySvcAPI()
+    all_ids: list[str] = []
+
+    for status in statuses:
+        try:
+            # Fetch with high limit to get all services
+            services = await api.get("/seller/services", params={"status": status, "limit": 1000})
+            data = services.get("data", services) if isinstance(services, dict) else services
+            for svc in data:
+                if svc.get("id"):
+                    all_ids.append(svc["id"])
+        except Exception:
+            # If a status query fails, continue with others
+            pass
+
+    return all_ids
+
+
 class ServiceLifecycleAPI(UnitySvcAPI):
     """Manages service lifecycle operations on UnitySVC backend.
 
@@ -80,7 +107,12 @@ class ServiceLifecycleAPI(UnitySvcAPI):
 
 
 def deprecate_service(
-    service_ids: list[str] = typer.Argument(..., help="Service ID(s) to deprecate (supports partial IDs)"),
+    service_ids: list[str] = typer.Argument(None, help="Service ID(s) to deprecate (supports partial IDs)"),
+    all_active: bool = typer.Option(
+        False,
+        "--all",
+        help="Deprecate all active services",
+    ),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -102,9 +134,27 @@ def deprecate_service(
         # Deprecate multiple services
         usvc services deprecate 297040cd def-456 ghi-789
 
+        # Deprecate all active services
+        usvc services deprecate --all
+
         # Skip confirmation
         usvc services deprecate 297040cd --yes
     """
+    # Handle --all flag
+    if all_active:
+        if service_ids:
+            console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
+            raise typer.Exit(code=1)
+        console.print("[cyan]Fetching all active services...[/cyan]")
+        service_ids = asyncio.run(fetch_service_ids_by_status(["active"]))
+        if not service_ids:
+            console.print("[yellow]No active services found.[/yellow]")
+            raise typer.Exit(code=0)
+        console.print(f"[green]Found {len(service_ids)} active service(s)[/green]\n")
+    elif not service_ids:
+        console.print("[red]Error:[/red] Either provide service IDs or use --all flag")
+        raise typer.Exit(code=1)
+
     count = len(service_ids)
     if count == 1:
         console.print(f"[cyan]Deprecating service {service_ids[0]}...[/cyan]\n")
@@ -159,7 +209,12 @@ def deprecate_service(
 
 def submit_service(
     service_ids: list[str] = typer.Argument(
-        ..., help="Service ID(s) to submit (supports partial IDs, minimum 8 chars)"
+        None, help="Service ID(s) to submit (supports partial IDs, minimum 8 chars)"
+    ),
+    all_drafts: bool = typer.Option(
+        False,
+        "--all",
+        help="Submit all draft services",
     ),
     yes: bool = typer.Option(
         False,
@@ -182,9 +237,27 @@ def submit_service(
         # Submit multiple services
         usvc services submit 297040cd 112b499d
 
+        # Submit all draft services
+        usvc services submit --all
+
         # Skip confirmation
         usvc services submit 297040cd --yes
     """
+    # Handle --all flag
+    if all_drafts:
+        if service_ids:
+            console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
+            raise typer.Exit(code=1)
+        console.print("[cyan]Fetching all draft services...[/cyan]")
+        service_ids = asyncio.run(fetch_service_ids_by_status(["draft"]))
+        if not service_ids:
+            console.print("[yellow]No draft services found.[/yellow]")
+            raise typer.Exit(code=0)
+        console.print(f"[green]Found {len(service_ids)} draft service(s)[/green]\n")
+    elif not service_ids:
+        console.print("[red]Error:[/red] Either provide service IDs or use --all flag")
+        raise typer.Exit(code=1)
+
     count = len(service_ids)
     console.print(f"[cyan]Submitting {count} service(s) for review...[/cyan]\n")
     for sid in service_ids:
@@ -233,7 +306,12 @@ def submit_service(
 
 def withdraw_service(
     service_ids: list[str] = typer.Argument(
-        ..., help="Service ID(s) to withdraw (supports partial IDs, minimum 8 chars)"
+        None, help="Service ID(s) to withdraw (supports partial IDs, minimum 8 chars)"
+    ),
+    all_pending: bool = typer.Option(
+        False,
+        "--all",
+        help="Withdraw all pending and rejected services",
     ),
     yes: bool = typer.Option(
         False,
@@ -260,9 +338,27 @@ def withdraw_service(
         # Withdraw multiple services
         usvc services withdraw 297040cd 112b499d
 
+        # Withdraw all pending/rejected services
+        usvc services withdraw --all
+
         # Skip confirmation
         usvc services withdraw 297040cd --yes
     """
+    # Handle --all flag
+    if all_pending:
+        if service_ids:
+            console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
+            raise typer.Exit(code=1)
+        console.print("[cyan]Fetching all pending and rejected services...[/cyan]")
+        service_ids = asyncio.run(fetch_service_ids_by_status(["pending", "rejected"]))
+        if not service_ids:
+            console.print("[yellow]No pending or rejected services found.[/yellow]")
+            raise typer.Exit(code=0)
+        console.print(f"[green]Found {len(service_ids)} service(s)[/green]\n")
+    elif not service_ids:
+        console.print("[red]Error:[/red] Either provide service IDs or use --all flag")
+        raise typer.Exit(code=1)
+
     count = len(service_ids)
     console.print(f"[cyan]Withdrawing {count} service(s) to draft...[/cyan]\n")
     for sid in service_ids:
@@ -370,7 +466,17 @@ def dedup_services(
 
 
 def delete_service(
-    service_ids: list[str] = typer.Argument(..., help="Service ID(s) to delete (supports partial IDs)"),
+    service_ids: list[str] = typer.Argument(None, help="Service ID(s) to delete (supports partial IDs)"),
+    all_deletable: bool = typer.Option(
+        False,
+        "--all",
+        help="Delete all deletable services (draft, pending, testing, rejected, suspended, deprecated)",
+    ),
+    status: str = typer.Option(
+        None,
+        "--status",
+        help="Filter by status when using --all (e.g., --all --status draft)",
+    ),
     dryrun: bool = typer.Option(
         False,
         "--dryrun",
@@ -405,9 +511,38 @@ def delete_service(
         # Delete multiple services
         usvc services delete 297040cd def45678 ghi78901
 
+        # Delete all draft services
+        usvc services delete --all --status draft
+
+        # Delete all deletable services (use with caution!)
+        usvc services delete --all
+
         # Force delete without confirmation
         usvc services delete 297040cd def45678 --force --yes
     """
+    # Handle --all flag
+    if all_deletable:
+        if service_ids:
+            console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
+            raise typer.Exit(code=1)
+        # Deletable statuses (not active - those require deprecation first)
+        deletable_statuses = ["draft", "pending", "testing", "rejected", "suspended", "deprecated"]
+        if status:
+            if status not in deletable_statuses:
+                valid = ", ".join(deletable_statuses)
+                console.print(f"[red]Error:[/red] Status '{status}' is not deletable. Use one of: {valid}")
+                raise typer.Exit(code=1)
+            deletable_statuses = [status]
+        console.print(f"[cyan]Fetching services with status: {', '.join(deletable_statuses)}...[/cyan]")
+        service_ids = asyncio.run(fetch_service_ids_by_status(deletable_statuses))
+        if not service_ids:
+            console.print("[yellow]No deletable services found.[/yellow]")
+            raise typer.Exit(code=0)
+        console.print(f"[green]Found {len(service_ids)} service(s)[/green]\n")
+    elif not service_ids:
+        console.print("[red]Error:[/red] Either provide service IDs or use --all flag")
+        raise typer.Exit(code=1)
+
     count = len(service_ids)
     if count == 1:
         console.print(f"[cyan]Deleting service {service_ids[0]}...[/cyan]\n")

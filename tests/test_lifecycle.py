@@ -151,7 +151,7 @@ class TestDeprecateServiceCLI:
         """Test that deprecate command requires at least one service ID."""
         result = runner.invoke(cli_app, ["deprecate"])
         assert result.exit_code != 0
-        assert "Missing argument" in result.output or "Usage:" in result.output
+        assert "provide service IDs or use --all" in result.output
 
     def test_deprecate_accepts_single_service_id(self, cli_app):
         """Test deprecate accepts a single service ID."""
