@@ -1190,6 +1190,27 @@ Execute code examples and report results.
 usvc data run-tests [DATA_DIR] [OPTIONS]
 ```
 
+**Upstream Credentials (Secrets):**
+
+Offering files reference upstream API keys using `${ secrets.VAR_NAME }` instead
+of storing credentials in plain text. Before running tests, export the
+corresponding environment variables:
+
+```bash
+# Check which secrets your offerings reference
+grep -r 'secrets\.' data/ --include='*.json'
+# → "api_key": "${ secrets.AIONLABS_API_KEY }"
+
+# Export the required secrets
+export AIONLABS_API_KEY="your-upstream-api-key"
+
+# Now run tests
+usvc data run-tests
+```
+
+If a required secret is missing, the command will exit with an error showing
+which environment variable needs to be set.
+
 **Arguments:**
 
 - `[DATA_DIR]` - Data directory (default: current directory)
