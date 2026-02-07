@@ -110,6 +110,59 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
     return code_examples
 
 
+def discover_code_examples(
+    data_dir: Path,
+    *,
+    provider_name: str | None = None,
+    service_patterns: list[str] | None = None,
+) -> list[tuple[dict[str, Any], str]]:
+    """Discover code examples by scanning listing files.
+
+    Shared discovery logic used by list, show, and run commands.
+
+    Args:
+        data_dir: Root directory to scan for listing files.
+        provider_name: Only include examples from this provider (exact match).
+        service_patterns: Glob patterns for service directory names
+            (supports wildcards via fnmatch). Pass a literal name for exact match.
+
+    Returns:
+        List of (code_example_dict, provider_name) tuples.
+    """
+    listing_results = find_files_by_schema(data_dir, "listing_v1")
+
+    results: list[tuple[dict[str, Any], str]] = []
+
+    for listing_file, _format, listing_data in listing_results:
+        # Determine provider from directory structure
+        parts = listing_file.parts
+        prov_name = "unknown"
+        try:
+            services_idx = parts.index("services")
+            if services_idx > 0:
+                prov_name = parts[services_idx - 1]
+        except (ValueError, IndexError):
+            pass
+
+        # Filter by provider
+        if provider_name and prov_name != provider_name:
+            continue
+
+        # Filter by service patterns
+        if service_patterns:
+            service_dir = extract_service_directory_name(listing_file)
+            if not service_dir:
+                continue
+            if not any(fnmatch.fnmatch(service_dir, p) for p in service_patterns):
+                continue
+
+        # Extract code examples
+        for example in extract_code_examples_from_listing(listing_data, listing_file):
+            results.append((example, prov_name))
+
+    return results
+
+
 def load_related_data(listing_file: Path) -> dict[str, Any]:
     """Load offering, provider, and seller data related to a listing file.
 
@@ -439,80 +492,15 @@ def list_code_examples(
         raise typer.Exit(code=1)
 
     # Parse service patterns if provided
-    service_patterns: list[str] = []
+    service_patterns: list[str] | None = None
     if services:
         service_patterns = [s.strip() for s in services.split(",") if s.strip()]
 
     console.print(f"[blue]Scanning for code examples in:[/blue] {data_dir}\n")
 
-    # Find all provider files
-    provider_results = find_files_by_schema(data_dir, "provider_v1")
-    provider_names: set[str] = set()
-
-    for _provider_file, _format, provider_data in provider_results:
-        prov_name = provider_data.get("name", "unknown")
-        if not provider_name or prov_name == provider_name:
-            provider_names.add(prov_name)
-
-    if not provider_names:
-        console.print("[yellow]No providers found.[/yellow]")
-        raise typer.Exit(code=0)
-
-    # Find all listing files (override files are merged to include document IDs)
-    listing_results = find_files_by_schema(data_dir, "listing_v1")
-
-    if not listing_results:
-        console.print("[yellow]No listing files found.[/yellow]")
-        raise typer.Exit(code=0)
-
-    # Extract code examples from all listings
-    # Tuple: (example, provider_name, file_ext)
-    all_code_examples: list[tuple[dict[str, Any], str, str]] = []
-
-    for listing_file, _format, listing_data in listing_results:
-        # Determine provider for this listing
-        parts = listing_file.parts
-        prov_name = "unknown"
-
-        try:
-            services_idx = parts.index("services")
-            if services_idx > 0:
-                prov_name = parts[services_idx - 1]
-        except (ValueError, IndexError):
-            pass
-
-        # Skip if provider filter is set and doesn't match
-        if provider_name and prov_name != provider_name:
-            continue
-
-        # Skip if provider not in our list
-        if prov_name not in provider_names:
-            continue
-
-        # Filter by service directory name if patterns are provided
-        if service_patterns:
-            service_dir = extract_service_directory_name(listing_file)
-            if not service_dir:
-                continue
-
-            # Check if service matches any of the patterns
-            matches = any(fnmatch.fnmatch(service_dir, pattern) for pattern in service_patterns)
-            if not matches:
-                continue
-
-        code_examples = extract_code_examples_from_listing(listing_data, listing_file)
-
-        for example in code_examples:
-            # Get file extension (strip .j2 if present to show actual type)
-            file_path = example.get("file_path", "")
-            path = Path(file_path)
-            # If it's a .j2 template, get the extension before .j2
-            if path.suffix == ".j2":
-                file_ext = Path(path.stem).suffix or "unknown"
-            else:
-                file_ext = path.suffix or "unknown"
-
-            all_code_examples.append((example, prov_name, file_ext))
+    all_code_examples = discover_code_examples(
+        data_dir, provider_name=provider_name, service_patterns=service_patterns,
+    )
 
     if not all_code_examples:
         console.print("[yellow]No code examples found.[/yellow]")
@@ -520,9 +508,16 @@ def list_code_examples(
 
     # Build rows as dicts for all output formats
     rows: list[dict[str, str]] = []
-    for example, _prov_name, file_ext in all_code_examples:
+    for example, _prov_name in all_code_examples:
         file_path = example.get("file_path", "N/A")
         category = example.get("category", "unknown")
+
+        # Get file extension (strip .j2 if present to show actual type)
+        path = Path(file_path)
+        if path.suffix == ".j2":
+            file_ext = Path(path.stem).suffix or "unknown"
+        else:
+            file_ext = path.suffix or "unknown"
 
         # Show path relative to data directory
         if file_path != "N/A":
@@ -590,69 +585,55 @@ def show_test(
         console.print(f"[red]Data directory not found: {data_dir}[/red]")
         raise typer.Exit(code=1)
 
-    # Find listing files for the service
-    listing_results = find_files_by_schema(data_dir, "listing_v1")
+    examples = discover_code_examples(data_dir, service_patterns=[service])
 
-    found = False
-    for listing_file, _format, listing_data in listing_results:
-        # Check if this listing is for the requested service
-        service_dir = extract_service_directory_name(listing_file)
-        if service_dir != service:
-            continue
-
-        found = True
-        code_examples = extract_code_examples_from_listing(listing_data, listing_file)
-
-        if not code_examples:
-            console.print(f"[yellow]No code examples found for service: {service}[/yellow]")
-            continue
-
-        # Filter by title if specified
-        if title:
-            code_examples = [e for e in code_examples if e.get("title") == title]
-            if not code_examples:
-                console.print(f"[yellow]No test found with title: {title}[/yellow]")
-                continue
-
-        for example in code_examples:
-            example_title = example.get("title", "Unknown")
-            file_path = Path(example.get("file_path", ""))
-
-            console.print(f"\n[bold cyan]{example_title}[/bold cyan]")
-            console.print(f"[dim]File: {file_path.name}[/dim]")
-
-            # Get output file paths
-            out_path, err_path = get_output_file_paths(file_path, listing_file)
-            status_path = out_path.with_suffix(".status")
-
-            # Show status
-            if status_path.exists():
-                status = status_path.read_text().strip()
-                if status == "pass":
-                    console.print("[green]Status: PASS[/green]")
-                else:
-                    console.print("[red]Status: FAIL[/red]")
-            else:
-                console.print("[yellow]Status: NOT RUN[/yellow]")
-                continue
-
-            # Show stdout
-            if out_path.exists():
-                stdout = out_path.read_text()
-                if stdout.strip():
-                    console.print("\n[bold]stdout:[/bold]")
-                    console.print(stdout[:1000] if len(stdout) > 1000 else stdout)
-
-            # Show stderr
-            if err_path.exists():
-                stderr = err_path.read_text()
-                if stderr.strip():
-                    console.print("\n[bold]stderr:[/bold]")
-                    console.print(stderr[:1000] if len(stderr) > 1000 else stderr)
-
-    if not found:
+    if not examples:
         console.print(f"[red]Service not found: {service}[/red]")
         raise typer.Exit(code=1)
+
+    # Filter by title if specified
+    if title:
+        examples = [(e, p) for e, p in examples if e.get("title") == title]
+        if not examples:
+            console.print(f"[yellow]No test found with title: {title}[/yellow]")
+            raise typer.Exit(code=0)
+
+    for example, _prov_name in examples:
+        example_title = example.get("title", "Unknown")
+        file_path = Path(example.get("file_path", ""))
+        listing_file = Path(example["listing_file"])
+
+        console.print(f"\n[bold cyan]{example_title}[/bold cyan]")
+        console.print(f"[dim]File: {file_path.name}[/dim]")
+
+        # Get output file paths
+        out_path, err_path = get_output_file_paths(file_path, listing_file)
+        status_path = out_path.with_suffix(".status")
+
+        # Show status
+        if status_path.exists():
+            status = status_path.read_text().strip()
+            if status == "pass":
+                console.print("[green]Status: PASS[/green]")
+            else:
+                console.print("[red]Status: FAIL[/red]")
+        else:
+            console.print("[yellow]Status: NOT RUN[/yellow]")
+            continue
+
+        # Show stdout
+        if out_path.exists():
+            stdout = out_path.read_text()
+            if stdout.strip():
+                console.print("\n[bold]stdout:[/bold]")
+                console.print(stdout[:1000] if len(stdout) > 1000 else stdout)
+
+        # Show stderr
+        if err_path.exists():
+            stderr = err_path.read_text()
+            if stderr.strip():
+                console.print("\n[bold]stderr:[/bold]")
+                console.print(stderr[:1000] if len(stderr) > 1000 else stderr)
 
 
 @app.command("run")
@@ -752,7 +733,7 @@ def run_local(
         raise typer.Exit(code=1)
 
     # Parse service patterns if provided
-    service_patterns: list[str] = []
+    service_patterns: list[str] | None = None
     if services:
         service_patterns = [s.strip() for s in services.split(",") if s.strip()]
         console.print(f"[blue]Service filter patterns:[/blue] {', '.join(service_patterns)}\n")
@@ -763,63 +744,28 @@ def run_local(
 
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
-    # Find all listing files (override files are merged to include document IDs)
-    listing_results = find_files_by_schema(data_dir, "listing_v1")
+    discovered = discover_code_examples(
+        data_dir, provider_name=provider_name, service_patterns=service_patterns,
+    )
 
-    if not listing_results:
-        console.print("[yellow]No listing files found.[/yellow]")
-        raise typer.Exit(code=0)
+    # Filter by test file name if provided
+    if test_file:
+        discovered = [(e, p) for e, p in discovered if e.get("file_path", "").endswith(test_file)]
 
-    console.print(f"[cyan]Found {len(listing_results)} listing file(s)[/cyan]\n")
-
-    # Extract code examples from all listings
+    # Load credentials per listing file (cached to avoid redundant disk reads)
+    credentials_cache: dict[str, dict[str, str] | None] = {}
     all_code_examples: list[tuple[dict[str, Any], str, dict[str, str]]] = []
 
-    for listing_file, _format, listing_data in listing_results:
-        # Determine provider for this listing
-        # Provider is the directory name before "services"
-        parts = listing_file.parts
-        prov_name = "unknown"
-
-        try:
-            services_idx = parts.index("services")
-            if services_idx > 0:
-                prov_name = parts[services_idx - 1]
-        except (ValueError, IndexError):
-            pass
-
-        # Skip if provider filter is set and doesn't match
-        if provider_name and prov_name != provider_name:
-            continue
-
-        # Load credentials from service offering for this listing
-        credentials = load_provider_credentials(listing_file)
-        if not credentials:
-            console.print(f"[yellow]⚠ No credentials found for listing: {listing_file}[/yellow]")
-            continue
-
-        # Filter by service directory name if patterns are provided
-        if service_patterns:
-            service_dir = extract_service_directory_name(listing_file)
-            if not service_dir:
-                continue
-
-            # Check if service matches any of the patterns
-            matches = any(fnmatch.fnmatch(service_dir, pattern) for pattern in service_patterns)
-            if not matches:
-                continue
-
-        code_examples = extract_code_examples_from_listing(listing_data, listing_file)
-
-        for example in code_examples:
-            # Filter by test file name if provided
-            if test_file:
-                file_path = example.get("file_path", "")
-                # Check if the file path ends with the test file name
-                if not file_path.endswith(test_file):
-                    continue
-
-            all_code_examples.append((example, prov_name, credentials))
+    for example, prov_name in discovered:
+        listing_file_str = str(example.get("listing_file", ""))
+        if listing_file_str not in credentials_cache:
+            creds = load_provider_credentials(Path(listing_file_str)) if listing_file_str else None
+            if not creds:
+                console.print(f"[yellow]⚠ No credentials found for listing: {listing_file_str}[/yellow]")
+            credentials_cache[listing_file_str] = creds
+        creds = credentials_cache[listing_file_str]
+        if creds:
+            all_code_examples.append((example, prov_name, creds))
 
     if not all_code_examples:
         console.print("[yellow]No code examples found in listings.[/yellow]")
