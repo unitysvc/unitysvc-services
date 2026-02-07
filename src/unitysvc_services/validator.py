@@ -314,6 +314,27 @@ class DataValidator:
 
         return errors
 
+    def validate_service_options_keys(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """Validate service_options keys and value types for listing_v1 files.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'listing_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        if schema_name != "listing_v1":
+            return []
+
+        service_options = data.get("service_options")
+        if not service_options or not isinstance(service_options, dict):
+            return []
+
+        from unitysvc_services.models.base import validate_service_options
+
+        return validate_service_options(service_options)
+
     def validate_name_consistency(self, data: dict[str, Any], file_path: Path, schema_name: str) -> list[str]:
         """Validate that the name field matches the directory name.
 
@@ -473,6 +494,10 @@ class DataValidator:
         # Validate api_key fields use secrets format
         api_key_errors = self.validate_api_key_secrets(data)
         errors.extend(api_key_errors)
+
+        # Validate service_options keys and value types (listing_v1 only)
+        service_options_errors = self.validate_service_options_keys(data, schema_name)
+        errors.extend(service_options_errors)
 
         return len(errors) == 0, errors
 
