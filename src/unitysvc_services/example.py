@@ -8,6 +8,8 @@ making it easy to track results in version control.
 """
 
 import fnmatch
+import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -17,11 +19,7 @@ from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
 from .output import format_output
-from .utils import (
-    execute_script_content,
-    find_files_by_schema,
-    render_template_file,
-)
+from .utils import execute_script_content, find_files_by_schema, render_template_file
 
 app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
@@ -219,8 +217,40 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
     return result
 
 
-def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
+_SECRETS_RE = re.compile(r"^\$\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}$")
+
+
+def resolve_secret_ref(value: str, field_name: str) -> str:
+    """Resolve a ``${ secrets.VAR_NAME }`` reference from the environment.
+
+    If *value* is a literal string (not a secrets reference) it is returned
+    as-is.  If it matches the ``${ secrets.VAR_NAME }`` pattern the
+    corresponding environment variable is looked up and returned.
+
+    Raises:
+        typer.Exit: When the environment variable is not set.
+    """
+    m = _SECRETS_RE.match(value)
+    if not m:
+        return value
+
+    var_name = m.group(1)
+    env_value = os.environ.get(var_name)
+    if not env_value:
+        console.print(
+            f"[red]Error:[/red] {field_name} references secret [bold]{var_name}[/bold] "
+            f"but the environment variable is not set.\n"
+            f"  Set it with: [cyan]export {var_name}=<value>[/cyan]",
+        )
+        raise typer.Exit(code=1)
+    return env_value
+
+
+def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
     """Load API key and endpoint from service offering file.
+
+    Secrets references (``${ secrets.VAR_NAME }``) are resolved from the
+    current environment.
 
     Args:
         listing_file: Path to the listing file (used to locate the service offering)
@@ -239,15 +269,19 @@ def load_provider_credentials(listing_file: Path) -> dict[str, str] | None:
         # Extract credentials from upstream_access_interfaces (dict keyed by name)
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_interfaces", {})
-        first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
+        first_interface: dict[str, Any] = (
+            next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
+        )
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
         if api_key and base_url:
             return {
-                "api_key": str(api_key),
-                "base_url": str(base_url),
+                "api_key": resolve_secret_ref(str(api_key), "api_key"),
+                "base_url": resolve_secret_ref(str(base_url), "base_url"),
             }
+    except typer.Exit:
+        raise
     except Exception as e:
         console.print(f"[yellow]Warning: Failed to load service credentials: {e}[/yellow]")
 
@@ -499,7 +533,9 @@ def list_code_examples(
     console.print(f"[blue]Scanning for code examples in:[/blue] {data_dir}\n")
 
     all_code_examples = discover_code_examples(
-        data_dir, provider_name=provider_name, service_patterns=service_patterns,
+        data_dir,
+        provider_name=provider_name,
+        service_patterns=service_patterns,
     )
 
     if not all_code_examples:
@@ -528,13 +564,15 @@ def list_code_examples(
             except ValueError:
                 file_path = str(file_path)
 
-        rows.append({
-            "service": example["service_name"],
-            "title": example["title"],
-            "category": category,
-            "type": file_ext,
-            "file_path": file_path,
-        })
+        rows.append(
+            {
+                "service": example["service_name"],
+                "title": example["title"],
+                "category": category,
+                "type": file_ext,
+                "file_path": file_path,
+            }
+        )
 
     format_output(
         rows,
@@ -555,9 +593,7 @@ def list_code_examples(
 @app.command("show")
 def show_test(
     service: str = typer.Argument(..., help="Service name to show test results for"),
-    title: str = typer.Option(
-        None, "--title", "-t", help="Only show results for specific test title"
-    ),
+    title: str = typer.Option(None, "--title", "-t", help="Only show results for specific test title"),
     data_dir: Path | None = typer.Option(
         None,
         "--data-dir",
@@ -745,7 +781,9 @@ def run_local(
     console.print(f"[blue]Scanning for listing files in:[/blue] {data_dir}\n")
 
     discovered = discover_code_examples(
-        data_dir, provider_name=provider_name, service_patterns=service_patterns,
+        data_dir,
+        provider_name=provider_name,
+        service_patterns=service_patterns,
     )
 
     # Filter by test file name if provided
@@ -759,7 +797,7 @@ def run_local(
     for example, prov_name in discovered:
         listing_file_str = str(example.get("listing_file", ""))
         if listing_file_str not in credentials_cache:
-            creds = load_provider_credentials(Path(listing_file_str)) if listing_file_str else None
+            creds = load_upstream_access_interface(Path(listing_file_str)) if listing_file_str else None
             if not creds:
                 console.print(f"[yellow]⚠ No credentials found for listing: {listing_file_str}[/yellow]")
             credentials_cache[listing_file_str] = creds
@@ -783,8 +821,10 @@ def run_local(
 
         # Check if test previously passed (skip if not forcing)
         code_example_path = Path(example.get("file_path", ""))
-        if not force and example_listing_file and has_passing_output_files(
-            code_example_path, Path(example_listing_file)
+        if (
+            not force
+            and example_listing_file
+            and has_passing_output_files(code_example_path, Path(example_listing_file))
         ):
             console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
             console.print("  [yellow]⊘ Skipped[/yellow] (previously passed)")
