@@ -1366,6 +1366,63 @@ def validate_name(name: str, entity_type: str, display_name: str | None = None, 
     return name
 
 
+SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
+    "enrollment_limit": int,
+    "enrollment_limit_per_customer": int,
+    "enrollment_limit_per_user": int,
+    "enrollment_code_name": str,
+    "ops_testing_parameters": dict,
+}
+
+
+def validate_service_options(service_options: dict[str, Any] | None) -> list[str]:
+    """Validate service_options keys and value types.
+
+    Returns list of error messages for unrecognized keys, wrong types, or invalid values.
+    """
+    if not service_options:
+        return []
+
+    errors: list[str] = []
+    supported_keys = sorted(SUPPORTED_SERVICE_OPTIONS.keys())
+
+    for key, value in service_options.items():
+        if key not in SUPPORTED_SERVICE_OPTIONS:
+            errors.append(
+                f"Unrecognized service_option '{key}'. "
+                f"Supported options: {', '.join(supported_keys)}"
+            )
+            continue
+
+        expected_type = SUPPORTED_SERVICE_OPTIONS[key]
+
+        # Reject booleans for int keys (isinstance(True, int) is True in Python)
+        if expected_type is int and isinstance(value, bool):
+            errors.append(
+                f"service_options.{key} must be int, got bool"
+            )
+            continue
+
+        if not isinstance(value, expected_type):
+            if isinstance(expected_type, tuple):
+                type_name = " or ".join(t.__name__ for t in expected_type)
+            else:
+                type_name = expected_type.__name__
+            errors.append(
+                f"service_options.{key} must be {type_name}, got {type(value).__name__}"
+            )
+            continue
+
+        # Non-positive integers for enrollment_limit* keys
+        if expected_type is int and key.startswith("enrollment_limit"):
+            if value <= 0:
+                errors.append(
+                    f"service_options.{key} must be a positive integer, got {value}"
+                )
+
+    return errors
+
+
 def suggest_valid_name(display_name: str, *, allow_slash: bool = False) -> str:
     """
     Suggest a valid name based on a display name.

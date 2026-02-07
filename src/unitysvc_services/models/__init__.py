@@ -1,4 +1,5 @@
 from .base import (
+    SUPPORTED_SERVICE_OPTIONS,
     AddPriceData,
     BasePriceData,
     ConstantPriceData,
@@ -21,6 +22,7 @@ from .base import (
     UpstreamStatusEnum,  # Backwards compatibility alias for OfferingStatusEnum
     UsageData,
     validate_pricing,
+    validate_service_options,
 )
 from .listing_data import ServiceListingData
 from .listing_v1 import ListingV1
@@ -62,6 +64,9 @@ __all__ = [
     "GraduatedPriceData",
     "ExprPriceData",
     "validate_pricing",
+    # Service options validation
+    "SUPPORTED_SERVICE_OPTIONS",
+    "validate_service_options",
     # Cost calculation
     "UsageData",
 ]

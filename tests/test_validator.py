@@ -539,3 +539,127 @@ class TestApiKeySecretsValidation:
         }
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 3
+
+
+class TestServiceOptionsValidation:
+    """Tests for service_options key and value type validation."""
+
+    def test_valid_options_pass(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "enrollment_limit": 10,
+                "enrollment_limit_per_customer": 2,
+                "enrollment_limit_per_user": 3,
+                "enrollment_code_name": "invite",
+                "ops_testing_parameters": {"model": "gpt-4"},
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_unrecognized_key_produces_error(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_limt": 5},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "Unrecognized service_option 'enrollment_limt'" in errors[0]
+        assert "Supported options:" in errors[0]
+
+    def test_wrong_type_enrollment_limit(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_limit": "five"},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be int, got str" in errors[0]
+
+    def test_wrong_type_enrollment_code_name(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_code_name": 42},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be str, got int" in errors[0]
+
+    def test_wrong_type_ops_testing_parameters(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"ops_testing_parameters": "not a dict"},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be dict, got str" in errors[0]
+
+    def test_non_positive_enrollment_limit(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_limit": 0},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be a positive integer, got 0" in errors[0]
+
+    def test_negative_enrollment_limit(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_limit_per_user": -1},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be a positive integer, got -1" in errors[0]
+
+    def test_boolean_enrollment_limit_rejected(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"enrollment_limit": True},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be int, got bool" in errors[0]
+
+    def test_none_service_options_passes(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {"schema": "listing_v1", "service_options": None}
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_missing_service_options_passes(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {"schema": "listing_v1"}
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_non_listing_schema_skipped(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "offering_v1",
+            "service_options": {"bogus_key": 123},
+        }
+        errors = validator.validate_service_options_keys(data, "offering_v1")
+        assert errors == []
+
+    def test_multiple_errors_at_once(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "enrollment_limt": 5,
+                "enrollment_limit": "bad",
+                "enrollment_code_name": 42,
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 3
