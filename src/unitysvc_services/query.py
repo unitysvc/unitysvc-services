@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .api import UnitySvcAPI
+from .output import format_output
 
 app = typer.Typer(help="Query backend API for data")
 console = Console()
@@ -129,67 +130,13 @@ def query_services(
     try:
         services = asyncio.run(_query_services_async())
 
-        if format == "json":
-            # For JSON, filter fields if not all are requested
-            if set(field_list) != allowed_fields:
-                filtered_services = [{k: v for k, v in svc.items() if k in field_list} for svc in services]
-                console.print(json.dumps(filtered_services, indent=2))
-            else:
-                console.print(json.dumps(services, indent=2))
-        elif format in ("tsv", "csv"):
-            # Tab or comma-separated output
-            sep = "\t" if format == "tsv" else ","
-
-            def escape_value(value: Any) -> str:
-                """Escape value for CSV/TSV output."""
-                if value is None:
-                    return ""
-                s = str(value)
-                # For CSV, quote fields containing comma, quote, or newline
-                if format == "csv" and (sep in s or '"' in s or "\n" in s):
-                    return '"' + s.replace('"', '""') + '"'
-                return s
-
-            # Print header
-            print(sep.join(field_list))
-            # Print rows
-            for svc in services:
-                row = [escape_value(svc.get(field)) for field in field_list]
-                print(sep.join(row))
-        elif format == "table":
-            if not services:
-                console.print("[yellow]No services found.[/yellow]")
-            else:
-                table = Table(title="Services")
-
-                # Add columns dynamically based on selected fields
-                for field in field_list:
-                    # Capitalize and format field names for display
-                    column_name = field.replace("_", " ").title()
-                    # Show id field in full without wrapping
-                    if field == "id":
-                        table.add_column(column_name, no_wrap=True)
-                    else:
-                        table.add_column(column_name)
-
-                # Add rows
-                for svc in services:
-                    row = []
-                    for field in field_list:
-                        value = svc.get(field)
-                        if value is None:
-                            row.append("N/A")
-                        elif isinstance(value, dict | list):
-                            row.append(str(value)[:50])  # Truncate complex types
-                        else:
-                            row.append(str(value))
-                    table.add_row(*row)
-
-                console.print(table)
-                console.print(f"\n[green]Total:[/green] {len(services)} service(s)")
-        else:
-            console.print(f"[red]Unknown format: {format}[/red]")
-            raise typer.Exit(code=1)
+        format_output(
+            services,
+            output_format=format,
+            columns=field_list,
+            title="Services",
+            console=console,
+        )
     except ValueError as e:
         console.print(f"[red]✗[/red] {e}", style="bold red")
         raise typer.Exit(code=1)

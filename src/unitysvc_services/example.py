@@ -16,6 +16,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
+from .output import format_output
 from .utils import (
     execute_script_content,
     find_files_by_schema,
@@ -396,6 +397,12 @@ def list_code_examples(
         "-s",
         help="Comma-separated list of service patterns (supports wildcards, e.g., 'llama*,gpt-4*')",
     ),
+    output_format: str = typer.Option(
+        "table",
+        "--format",
+        "-f",
+        help="Output format: json, table, tsv, csv",
+    ),
 ):
     """List available code examples without running them.
 
@@ -413,6 +420,9 @@ def list_code_examples(
 
         # List for specific services
         usvc data list examples --services "llama*,gpt-4*"
+
+        # List as JSON
+        usvc data list examples --format json
     """
     # Set data directory
     if data_dir is None:
@@ -508,14 +518,8 @@ def list_code_examples(
         console.print("[yellow]No code examples found.[/yellow]")
         raise typer.Exit(code=0)
 
-    # Display results in table
-    table = Table(title="Available Code Examples")
-    table.add_column("Service", style="cyan")
-    table.add_column("Title", style="white")
-    table.add_column("Category", style="green")
-    table.add_column("Type", style="magenta")
-    table.add_column("File Path", style="dim")
-
+    # Build rows as dicts for all output formats
+    rows: list[dict[str, str]] = []
     for example, _prov_name, file_ext in all_code_examples:
         file_path = example.get("file_path", "N/A")
         category = example.get("category", "unknown")
@@ -527,21 +531,30 @@ def list_code_examples(
                 rel_path = abs_path.relative_to(data_dir.resolve())
                 file_path = str(rel_path)
             except ValueError:
-                # If relative_to fails, just show the path as-is
                 file_path = str(file_path)
 
-        row = [
-            example["service_name"],
-            example["title"],
-            category,
-            file_ext,
-            file_path,
-        ]
+        rows.append({
+            "service": example["service_name"],
+            "title": example["title"],
+            "category": category,
+            "type": file_ext,
+            "file_path": file_path,
+        })
 
-        table.add_row(*row)
-
-    console.print(table)
-    console.print(f"\n[green]Total:[/green] {len(all_code_examples)} code example(s)")
+    format_output(
+        rows,
+        output_format=output_format,
+        columns=["service", "title", "category", "type", "file_path"],
+        column_styles={
+            "service": "cyan",
+            "title": "white",
+            "category": "green",
+            "type": "magenta",
+            "file_path": "dim",
+        },
+        title="Available Code Examples",
+        console=console,
+    )
 
 
 @app.command("show")
