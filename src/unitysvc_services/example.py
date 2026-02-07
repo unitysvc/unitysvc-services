@@ -19,11 +19,7 @@ from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
 from .output import format_output
-from .utils import (
-    execute_script_content,
-    find_files_by_schema,
-    render_template_file,
-)
+from .utils import execute_script_content, find_files_by_schema, render_template_file
 
 app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
