@@ -106,14 +106,12 @@ def list_tests(
     """
 
     async def _list():
-        gateway_base = os.environ.get("UNITYSVC_BASE_URL", "")
-
         async def _fetch_interfaces(runner: TestRunner, svc_id: str) -> list[tuple[str, str]]:
             try:
                 interfaces = await runner.list_interfaces(svc_id)
-                return _resolve_interfaces(interfaces, gateway_base)
+                return _resolve_interfaces(interfaces)
             except Exception:
-                return [("default", gateway_base)]
+                return [("default", "")]
 
         async with TestRunner() as runner:
             if service_id:
@@ -220,26 +218,21 @@ def _find_document(documents: list[dict], title: str | None, doc_id: str | None)
         raise ValueError("Either --title or --doc-id must be specified")
 
 
-def _resolve_interfaces(interfaces: list[dict], gateway_base: str) -> list[tuple[str, str]]:
-    """Extract (name, resolved_base_url) pairs from interface list.
+def _resolve_interfaces(interfaces: list[dict]) -> list[tuple[str, str]]:
+    """Extract (name, base_url) pairs from interface list.
 
-    Resolves ${GATEWAY_BASE_URL} placeholders in each interface's base_url.
-    Filters out inactive interfaces. Falls back to a single "default" entry
-    if no interfaces are provided.
+    Filters out inactive interfaces. The backend resolves
+    ``${GATEWAY_BASE_URL}`` placeholders before returning data,
+    so base_url values are ready to use as-is.
     """
     result = []
     for iface in interfaces:
         if not iface.get("is_active", True):
             continue
-        iface_base_url = iface.get("base_url", "")
-        if iface_base_url and gateway_base:
-            resolved = iface_base_url.replace("${GATEWAY_BASE_URL}", gateway_base)
-        else:
-            resolved = gateway_base
-        result.append((iface.get("name", "default"), resolved))
+        result.append((iface.get("name", "default"), iface.get("base_url", "")))
 
     if not result:
-        result.append(("default", gateway_base))
+        result.append(("default", ""))
 
     return result
 
@@ -470,24 +463,23 @@ def run_test(
                 doc = _find_document(documents, title, doc_id)
                 documents = [doc]
 
-            # Fetch access interfaces from the backend
-            gateway_base = os.environ.get("UNITYSVC_BASE_URL", "")
+            # Fetch access interfaces from the backend (URLs already resolved)
             try:
                 interfaces_data = await runner.list_interfaces(service_id)
-                interfaces_list = _resolve_interfaces(interfaces_data, gateway_base)
+                interfaces_list = _resolve_interfaces(interfaces_data)
             except Exception:
-                interfaces_list = [("default", gateway_base)]
+                interfaces_list = [("default", "")]
 
             # Show environment context before running tests
             api_key = os.environ.get("UNITYSVC_API_KEY", "")
-            if gateway_base or api_key:
+            if interfaces_list or api_key:
                 for iface_name, iface_url in interfaces_list:
                     console.print(f"[dim]{iface_name}: UNITYSVC_BASE_URL={iface_url}[/dim]")
                 api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
                 console.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
                 console.print()
             else:
-                console.print("[yellow]Warning: UNITYSVC_BASE_URL and UNITYSVC_API_KEY are not set[/yellow]")
+                console.print("[yellow]Warning: No interfaces found and UNITYSVC_API_KEY is not set[/yellow]")
                 console.print()
 
             multi_interface = len(interfaces_list) > 1
