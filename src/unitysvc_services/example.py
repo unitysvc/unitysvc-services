@@ -351,8 +351,8 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
 
         # Prepare environment variables
         env_vars = {
-            "API_KEY": credentials["api_key"],
-            "BASE_URL": credentials["base_url"],
+            "UNITYSVC_API_KEY": credentials["api_key"],
+            "UNITYSVC_BASE_URL": credentials["base_url"],
         }
 
         # Execute script using shared utility
@@ -722,7 +722,7 @@ def run_local(
     2. Extracts code example documents
     3. Loads provider credentials from offering file
     4. Skips tests that previously passed (unless --force is used)
-    5. Executes each code example with API_KEY and BASE_URL set to upstream values
+    5. Executes each code example with UNITYSVC_API_KEY and UNITYSVC_BASE_URL set to upstream values
     6. Saves output to .out and .err files for tracking
     7. Displays test results
 
@@ -913,8 +913,8 @@ def run_local(
                 env_filename = f"{failed_filename}.env"
                 try:
                     with open(env_filename, "w", encoding="utf-8") as f:
-                        f.write(f"API_KEY={credentials['api_key']}\n")
-                        f.write(f"BASE_URL={credentials['base_url']}\n")
+                        f.write(f"UNITYSVC_API_KEY={credentials['api_key']}\n")
+                        f.write(f"UNITYSVC_BASE_URL={credentials['base_url']}\n")
                     console.print(f"  [yellow]→ Environment variables saved to:[/yellow] {env_filename}")
                     console.print(f"  [dim]  (source this file to reproduce: source {env_filename})[/dim]")
                 except Exception as e:

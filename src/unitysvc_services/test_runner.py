@@ -311,8 +311,8 @@ def show_test(
 
             # Remind user about environment setup
             console.print("[bold yellow]Environment Variables (set these before running):[/bold yellow]")
-            console.print("  BASE_URL=<gateway_url>")
-            console.print("  API_KEY=<your_customer_api_key>")
+            console.print("  UNITYSVC_BASE_URL=<gateway_url>")
+            console.print("  UNITYSVC_API_KEY=<your_customer_api_key>")
             console.print()
 
             # Show script content
@@ -417,11 +417,11 @@ def run_test(
     to run a specific test.
 
     Fetches scripts from the backend and executes locally. Test scripts should use
-    BASE_URL (or GATEWAY_BASE_URL) and API_KEY environment variables for gateway access.
+    UNITYSVC_BASE_URL and UNITYSVC_API_KEY environment variables for gateway access.
     Set these in your environment before running tests:
 
-        export BASE_URL=https://gateway.unitysvc.com
-        export API_KEY=svcpass_your_customer_api_key
+        export UNITYSVC_BASE_URL=https://gateway.unitysvc.com
+        export UNITYSVC_API_KEY=svcpass_your_customer_api_key
 
     Results are submitted back to the backend to update test metadata.
 

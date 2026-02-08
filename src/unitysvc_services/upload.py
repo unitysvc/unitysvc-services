@@ -806,8 +806,8 @@ def upload_callback(
     Only valid when uploading a single service file.
 
     Required environment variables:
-    - UNITYSVC_BASE_URL: Backend API URL
-    - UNITYSVC_API_KEY: API key for authentication (seller API key)
+    - UNITYSVC_API_URL: Backend API URL
+    - UNITYSVC_SELLER_API_KEY: API key for authentication (seller API key)
     """
     # Set data path
     if data_path is None:
@@ -838,7 +838,7 @@ def upload_callback(
             console.print(f"[bold blue]Creating revision of:[/bold blue] {revision_to}")
     else:
         console.print(f"[bold blue]Uploading services from:[/bold blue] {data_path}")
-    console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_BASE_URL', 'N/A')}\n")
+    console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_API_URL', 'N/A')}\n")
 
     async def _upload_async():
         async with ServiceDataPublisher() as uploader:

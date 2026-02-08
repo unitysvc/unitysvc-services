@@ -35,8 +35,8 @@ class TestServiceLifecycleAPI:
     @pytest.fixture
     def api(self, monkeypatch):
         """Create a ServiceLifecycleAPI instance with mocked env vars."""
-        monkeypatch.setenv("UNITYSVC_BASE_URL", "https://test.api.example.com")
-        monkeypatch.setenv("UNITYSVC_API_KEY", "test-api-key")
+        monkeypatch.setenv("UNITYSVC_API_URL", "https://test.api.example.com")
+        monkeypatch.setenv("UNITYSVC_SELLER_API_KEY", "test-api-key")
         return ServiceLifecycleAPI()
 
     def test_delete_service_basic(self, api):
