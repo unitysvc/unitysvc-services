@@ -234,28 +234,28 @@ Listing files define how a seller presents/sells a service to end users.
 
 ### Optional Fields
 
-| Field                       | Type                  | Description                                                                                           |
-| --------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------- |
-| `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars)                            |
-| `display_name`              | string                | Customer-facing name (max 200 chars)                                                                  |
-| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`                               |
-| `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                                                          |
-| `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                                           |
-| `user_parameters_schema`    | object                | JSON schema defining user parameters for subscriptions (see [User Parameters](#user-parameters))      |
-| `user_parameters_ui_schema` | object                | UI schema for user parameter form rendering (see [User Parameters](#user-parameters))     |
-| `service_options`           | object                | Service-specific options (see [Service Options](#service-options))                       |
+| Field                       | Type                  | Description                                                                                      |
+| --------------------------- | --------------------- | ------------------------------------------------------------------------------------------------ |
+| `name`                      | string                | Listing identifier (defaults to filename without extension, max 255 chars)                       |
+| `display_name`              | string                | Customer-facing name (max 200 chars)                                                             |
+| `status`                    | enum                  | Status: `draft` (skip upload), `ready` (ready for review), `deprecated`                          |
+| `list_price`                | [Pricing](pricing.md) | Customer-facing pricing (what customer pays)                                                     |
+| `documents`                 | dict of DocumentData  | SLAs, documentation, guides, keyed by title                                                      |
+| `user_parameters_schema`    | object                | JSON schema defining user parameters for subscriptions (see [User Parameters](#user-parameters)) |
+| `user_parameters_ui_schema` | object                | UI schema for user parameter form rendering (see [User Parameters](#user-parameters))            |
+| `service_options`           | object                | Service-specific options (see [Service Options](#service-options))                               |
 
 ### Service Options
 
 The `service_options` field configures backend behavior for service listings. All fields are optional.
 
-| Field                            | Type    | Description                                                                                                    |
-| -------------------------------- | ------- | -------------------------------------------------------------------------------------------------------------- |
-| `ops_testing_parameters`         | object  | Default parameter values for testing (see [User Parameters](#user-parameters))                                 |
-| `subscription_limit`             | integer | Maximum total active subscriptions allowed for this service (global limit)                                     |
-| `subscription_limit_per_customer` | integer | Maximum active subscriptions per customer for this service                                                     |
-| `subscription_limit_per_user`    | integer | Maximum active subscriptions per user (creator) for this service                                               |
-| `subscription_code_name`         | string  | Parameter name for auto-generated subscription codes. If set, backend generates unique tokens for subscriptions |
+| Field                             | Type    | Description                                                                                                     |
+| --------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `ops_testing_parameters`          | object  | Default parameter values for testing (see [User Parameters](#user-parameters))                                  |
+| `subscription_limit`              | integer | Maximum total active subscriptions allowed for this service (global limit)                                      |
+| `subscription_limit_per_customer` | integer | Maximum active subscriptions per customer for this service                                                      |
+| `subscription_limit_per_user`     | integer | Maximum active subscriptions per user (creator) for this service                                                |
+| `subscription_code_name`          | string  | Parameter name for auto-generated subscription codes. If set, backend generates unique tokens for subscriptions |
 
 **Subscription Limits:**
 
@@ -267,6 +267,7 @@ The `service_options` field configures backend behavior for service listings. Al
 **Subscription Codes:**
 
 When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend automatically:
+
 1. Generates a unique action code token for each new subscription
 2. Adds the token to subscription parameters: `{subscription_code_name: "generated_token"}`
 3. Skips this field when comparing parameters to determine if a subscription is an update
@@ -275,16 +276,16 @@ When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend 
 
 ```json
 {
-  "service_options": {
-    "ops_testing_parameters": {
-      "api_key": "${ secrets.SERVICE_API_KEY }",
-      "region": "us-east-1"
-    },
-    "subscription_limit": 100,
-    "subscription_limit_per_customer": 5,
-    "subscription_limit_per_user": 2,
-    "subscription_code_name": "subscription_code"
-  }
+    "service_options": {
+        "ops_testing_parameters": {
+            "api_key": "${ secrets.SERVICE_API_KEY }",
+            "region": "us-east-1"
+        },
+        "subscription_limit": 100,
+        "subscription_limit_per_customer": 5,
+        "subscription_limit_per_user": 2,
+        "subscription_code_name": "subscription_code"
+    }
 }
 ```
 
@@ -450,7 +451,7 @@ Sensitive values like API keys should be handled through the secrets management 
 2. **Mark as secret-backed** - Use `ui:options.secret` in `user_parameters_ui_schema` to specify which secret the parameter maps to
 3. **Disable in UI** - Set `"ui:disabled": true` in `user_parameters_ui_schema`
 4. **Add help text** - Guide users to add secrets separately
-5. **Use secret references** - In `ops_testing_parameters` and `service_options.default_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
+5. **Use secret references** - In `ops_testing_parameters` and `service_options.ops_testing_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
 
 #### Secret-Backed Parameters with ui:options.secret
 
@@ -464,33 +465,33 @@ The `ui:options.secret` field in `user_parameters_ui_schema` declares that a par
 
 ```json
 {
-  "user_parameters_schema": {
-    "type": "object",
-    "title": "Be Your Own Provider",
-    "description": "Access service with your own api-key",
-    "properties": {
-      "api_key": {
-        "type": "string",
-        "title": "API Key (PROVIDER_API_KEY)",
-        "default": ""
-      }
+    "user_parameters_schema": {
+        "type": "object",
+        "title": "Be Your Own Provider",
+        "description": "Access service with your own api-key",
+        "properties": {
+            "api_key": {
+                "type": "string",
+                "title": "API Key (PROVIDER_API_KEY)",
+                "default": ""
+            }
+        },
+        "required": ["api_key"]
     },
-    "required": ["api_key"]
-  },
-  "user_parameters_ui_schema": {
-    "api_key": {
-      "ui:options": {
-        "secret": "PROVIDER_API_KEY"
-      },
-      "ui:disabled": true,
-      "ui:description": "Managed via secrets"
+    "user_parameters_ui_schema": {
+        "api_key": {
+            "ui:options": {
+                "secret": "PROVIDER_API_KEY"
+            },
+            "ui:disabled": true,
+            "ui:description": "Managed via secrets"
+        }
+    },
+    "service_options": {
+        "ops_testing_parameters": {
+            "api_key": "${ secrets.PROVIDER_API_KEY }"
+        }
     }
-  },
-  "service_options": {
-    "default_parameters": {
-      "api_key": "${ secrets.PROVIDER_API_KEY }"
-    }
-  }
 }
 ```
 
@@ -499,7 +500,7 @@ The `ui:options.secret` field in `user_parameters_ui_schema` declares that a par
 - **`ui:options.secret`**: Specifies the secret name (e.g., `"PROVIDER_API_KEY"`) that this parameter maps to
 - **`title` with secret name**: Include the secret name in the title (e.g., `"API Key (PROVIDER_API_KEY)"`) for clarity
 - **`ui:disabled: true`**: Prevents direct editing since the value comes from secrets
-- **`service_options.default_parameters`**: Defines the runtime value using secret reference syntax
+- **`service_options.ops_testing_parameters`**: Defines the runtime value using secret reference syntax
 
 #### Enrollment Workflow with Secrets
 
@@ -753,19 +754,19 @@ The SDK validates user parameters during the `usvc data validate` command:
 
 The `AccessInterfaceData` object defines how to access a service (used in offerings and listings). The interface name is the dict key, not a field in the object.
 
-| Field                 | Type               | Description                                                               |
-| --------------------- | ------------------ | ------------------------------------------------------------------------- |
-| `access_method`       | enum               | Access method: `http` (default), `websocket`, `grpc`                      |
-| `base_url`            | string             | API endpoint URL (max 500 chars)                                          |
+| Field                 | Type               | Description                                                                                               |
+| --------------------- | ------------------ | --------------------------------------------------------------------------------------------------------- |
+| `access_method`       | enum               | Access method: `http` (default), `websocket`, `grpc`                                                      |
+| `base_url`            | string             | API endpoint URL (max 500 chars)                                                                          |
 | `api_key`             | string             | API key using secrets format: `${ secrets.VAR_NAME }` (see [Secrets](#secrets-for-sensitive-information)) |
-| `description`         | string             | Interface description (max 500 chars)                                     |
-| `request_transformer` | object             | Request transformation config (keys: `proxy_rewrite`, `body_transformer`) |
-| `routing_key`         | object             | Optional routing key for request matching                                 |
-| `rate_limits`         | array of RateLimit | Rate limiting rules                                                       |
-| `constraints`         | ServiceConstraints | Service constraints                                                       |
-| `is_active`           | boolean            | Whether interface is active (default: true)                               |
-| `is_primary`          | boolean            | Whether this is primary interface (default: false)                        |
-| `sort_order`          | integer            | Display order (default: 0)                                                |
+| `description`         | string             | Interface description (max 500 chars)                                                                     |
+| `request_transformer` | object             | Request transformation config (keys: `proxy_rewrite`, `body_transformer`)                                 |
+| `routing_key`         | object             | Optional routing key for request matching                                                                 |
+| `rate_limits`         | array of RateLimit | Rate limiting rules                                                                                       |
+| `constraints`         | ServiceConstraints | Service constraints                                                                                       |
+| `is_active`           | boolean            | Whether interface is active (default: true)                                                               |
+| `is_primary`          | boolean            | Whether this is primary interface (default: false)                                                        |
+| `sort_order`          | integer            | Display order (default: 0)                                                                                |
 
 **Note:** The interface name is specified as the dict key, not as a field within the object.
 
@@ -956,6 +957,7 @@ Before referencing secrets in your data files, you must create them in the Unity
 5. Save the secret
 
 Secret names must:
+
 - Start with a letter or underscore
 - Contain only letters, numbers, and underscores
 - Be unique within your seller account
@@ -965,6 +967,7 @@ Secret names must:
 Use the `${ secrets.VAR_NAME }` format to reference secrets. Spaces around the variable name are optional.
 
 **Valid formats:**
+
 ```
 ${ secrets.OPENAI_API_KEY }
 ${secrets.OPENAI_API_KEY}
@@ -982,6 +985,7 @@ The following fields require secrets references (plain text API keys are not all
 ### Example Usage
 
 **TOML:**
+
 ```toml
 [upstream_access_interfaces."OpenAI API"]
 access_method = "http"
@@ -990,6 +994,7 @@ api_key = "${ secrets.OPENAI_API_KEY }"
 ```
 
 **JSON:**
+
 ```json
 {
     "upstream_access_interfaces": {
@@ -1009,6 +1014,7 @@ api_key = "${ secrets.OPENAI_API_KEY }"
 3. **Runtime**: When the API key is actually needed, the platform retrieves the decrypted value from the secure secrets storage
 
 This approach ensures that:
+
 - Sensitive credentials are never exposed in version-controlled files
 - Secrets can be rotated without re-uploading data files
 - Access to secrets is controlled through the seller dashboard

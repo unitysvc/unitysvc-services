@@ -108,6 +108,29 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
     return code_examples
 
 
+def extract_upstream_interfaces_from_offering(
+    listing_file: Path,
+) -> dict[str, dict[str, Any]]:
+    """Load upstream_access_interfaces from the offering file for a listing.
+
+    Returns the raw interface data (secrets are NOT resolved here).
+
+    Args:
+        listing_file: Path to the listing file (offering is in the same directory)
+
+    Returns:
+        Dict keyed by interface name, or empty dict if not found.
+    """
+    try:
+        offering_results = find_files_by_schema(listing_file.parent, "offering_v1")
+        if not offering_results:
+            return {}
+        _file_path, _format, offering_data = offering_results[0]
+        return offering_data.get("upstream_access_interfaces", {}) or {}
+    except Exception:
+        return {}
+
+
 def discover_code_examples(
     data_dir: Path,
     *,
@@ -117,6 +140,9 @@ def discover_code_examples(
     """Discover code examples by scanning listing files.
 
     Shared discovery logic used by list, show, and run commands.
+    Returns one entry per (document × upstream_interface) pair.
+    Each example dict includes ``upstream_interface_name`` and
+    ``upstream_interface`` (raw data, secrets not resolved).
 
     Args:
         data_dir: Root directory to scan for listing files.
@@ -154,9 +180,37 @@ def discover_code_examples(
             if not any(fnmatch.fnmatch(service_dir, p) for p in service_patterns):
                 continue
 
-        # Extract code examples
+        # Load upstream interfaces from offering (cross-product with documents)
+        upstream_interfaces = extract_upstream_interfaces_from_offering(listing_file)
+
+        # For BYOP services, ops_testing_parameters provides upstream credentials
+        service_options = listing_data.get("service_options", {}) or {}
+        default_params = service_options.get("ops_testing_parameters", {}) or {}
+
+        if not upstream_interfaces and default_params:
+            # No upstream interfaces defined — create one from ops_testing_parameters
+            upstream_interfaces = {"default": dict(default_params)}
+        elif upstream_interfaces and default_params:
+            # Fill missing api_key/base_url from ops_testing_parameters
+            for _name, iface_data in upstream_interfaces.items():
+                for field in ("api_key", "base_url"):
+                    if not iface_data.get(field) and default_params.get(field):
+                        iface_data[field] = default_params[field]
+
+        # Extract code examples × upstream interfaces
         for example in extract_code_examples_from_listing(listing_data, listing_file):
-            results.append((example, prov_name))
+            if upstream_interfaces:
+                for iface_name, iface_data in upstream_interfaces.items():
+                    ex = {
+                        **example,
+                        "upstream_interface_name": iface_name,
+                        "upstream_interface": iface_data,
+                    }
+                    results.append((ex, prov_name))
+            else:
+                example["upstream_interface_name"] = "default"
+                example["upstream_interface"] = {}
+                results.append((example, prov_name))
 
     return results
 
@@ -269,9 +323,7 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Extract credentials from upstream_access_interfaces (dict keyed by name)
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_interfaces", {})
-        first_interface: dict[str, Any] = (
-            next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
-        )
+        first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
@@ -569,6 +621,7 @@ def list_code_examples(
                 "service": example["service_name"],
                 "title": example["title"],
                 "category": category,
+                "interface": example.get("upstream_interface_name", "default"),
                 "type": file_ext,
                 "file_path": file_path,
             }
@@ -577,11 +630,12 @@ def list_code_examples(
     format_output(
         rows,
         output_format=output_format,
-        columns=["service", "title", "category", "type", "file_path"],
+        columns=["service", "title", "category", "interface", "type", "file_path"],
         column_styles={
             "service": "cyan",
             "title": "white",
             "category": "green",
+            "interface": "magenta",
             "type": "magenta",
             "file_path": "dim",
         },
@@ -790,51 +844,60 @@ def run_local(
     if test_file:
         discovered = [(e, p) for e, p in discovered if e.get("file_path", "").endswith(test_file)]
 
-    # Load credentials per listing file (cached to avoid redundant disk reads)
-    credentials_cache: dict[str, dict[str, str] | None] = {}
+    # Resolve credentials from upstream_interface in each discovered example
     all_code_examples: list[tuple[dict[str, Any], str, dict[str, str]]] = []
+    warned_listings: set[str] = set()
 
     for example, prov_name in discovered:
-        listing_file_str = str(example.get("listing_file", ""))
-        if listing_file_str not in credentials_cache:
-            creds = load_upstream_access_interface(Path(listing_file_str)) if listing_file_str else None
-            if not creds:
+        iface = example.get("upstream_interface", {})
+        api_key = iface.get("api_key")
+        base_url = iface.get("base_url")
+        if api_key and base_url:
+            iface_name = example.get("upstream_interface_name", "default")
+            credentials = {
+                "api_key": resolve_secret_ref(str(api_key), f"{iface_name}.api_key"),
+                "base_url": resolve_secret_ref(str(base_url), f"{iface_name}.base_url"),
+            }
+            all_code_examples.append((example, prov_name, credentials))
+        else:
+            listing_file_str = str(example.get("listing_file", ""))
+            if listing_file_str not in warned_listings:
                 console.print(f"[yellow]⚠ No credentials found for listing: {listing_file_str}[/yellow]")
-            credentials_cache[listing_file_str] = creds
-        creds = credentials_cache[listing_file_str]
-        if creds:
-            all_code_examples.append((example, prov_name, creds))
+                warned_listings.add(listing_file_str)
 
     if not all_code_examples:
         console.print("[yellow]No code examples found in listings.[/yellow]")
         raise typer.Exit(code=0)
 
-    console.print(f"[cyan]Found {len(all_code_examples)} code example(s)[/cyan]\n")
+    console.print(f"[cyan]Found {len(all_code_examples)} test case(s)[/cyan]\n")
 
-    # Execute each code example
+    # Execute each test case (one entry per document × upstream interface)
     results = []
 
     for example, prov_name, credentials in all_code_examples:
         service_name = example["service_name"]
-        title = example["title"]
+        example_title = example["title"]
+        iface_name = example.get("upstream_interface_name", "default")
         example_listing_file = example.get("listing_file")
+        code_example_path = Path(example.get("file_path", ""))
+
+        label = f"{service_name} - {example_title} [{iface_name}]"
 
         # Check if test previously passed (skip if not forcing)
-        code_example_path = Path(example.get("file_path", ""))
         if (
             not force
             and example_listing_file
             and has_passing_output_files(code_example_path, Path(example_listing_file))
         ):
-            console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
+            console.print(f"[bold]Testing:[/bold] {label}")
             console.print("  [yellow]⊘ Skipped[/yellow] (previously passed)")
             console.print()
-            # Add a skipped result for the summary
             results.append(
                 {
                     "service_name": service_name,
                     "provider": prov_name,
-                    "title": title,
+                    "title": example_title,
+                    "interface": iface_name,
                     "result": {
                         "success": True,
                         "exit_code": None,
@@ -844,7 +907,7 @@ def run_local(
             )
             continue
 
-        console.print(f"[bold]Testing:[/bold] {service_name} - {title}")
+        console.print(f"[bold]Testing:[/bold] {label}")
 
         result = execute_code_example(example, credentials)
         result["skipped"] = False
@@ -853,7 +916,8 @@ def run_local(
             {
                 "service_name": service_name,
                 "provider": prov_name,
-                "title": title,
+                "title": example_title,
+                "interface": iface_name,
                 "result": result,
             }
         )
@@ -898,8 +962,9 @@ def run_local(
                 result_actual_filename = result["actual_filename"]
                 result_listing_stem = result_listing_file.stem
 
-                # Create filename: failed_{service_name}_{listing_stem}_{actual_filename}
-                failed_filename = f"failed_{service_name}_{result_listing_stem}_{result_actual_filename}"
+                # Include interface name for disambiguation
+                safe_iface = iface_name.replace(" ", "_").replace("/", "_")
+                failed_filename = f"failed_{service_name}_{result_listing_stem}_{safe_iface}_{result_actual_filename}"
 
                 # Write failed test script content to current directory (for debugging)
                 try:
@@ -936,6 +1001,7 @@ def run_local(
     table.add_column("Service", style="cyan")
     table.add_column("Provider", style="blue")
     table.add_column("Example", style="white")
+    table.add_column("Interface", style="magenta")
     table.add_column("Status", style="green")
     table.add_column("Exit Code", style="white")
 
@@ -960,6 +1026,7 @@ def run_local(
             test["service_name"],
             test["provider"],
             test["title"],
+            test.get("interface", ""),
             status,
             exit_code,
         )

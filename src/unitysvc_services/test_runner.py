@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from datetime import UTC, datetime
 from typing import Any
 
@@ -18,9 +19,7 @@ console = Console()
 class TestRunner(UnitySvcAPI):
     """Run tests for services locally and submit results to backend."""
 
-    async def list_documents(
-        self, service_id: str, executable_only: bool = True
-    ) -> list[dict[str, Any]]:
+    async def list_documents(self, service_id: str, executable_only: bool = True) -> list[dict[str, Any]]:
         """List documents for a service."""
         params = {"executable_only": "true"} if executable_only else {}
         result = await self.get(f"/seller/services/{service_id}/documents", params=params)
@@ -29,9 +28,7 @@ class TestRunner(UnitySvcAPI):
             return result
         return result.get("data", [])
 
-    async def get_document(
-        self, document_id: str, file_content: bool = False
-    ) -> dict[str, Any]:
+    async def get_document(self, document_id: str, file_content: bool = False) -> dict[str, Any]:
         """Get document details, optionally with file content."""
         params = {"file_content": "true"} if file_content else {}
         return await self.get(f"/seller/documents/{document_id}", params=params)
@@ -60,6 +57,10 @@ class TestRunner(UnitySvcAPI):
             data["error"] = error
 
         return await self.patch(f"/seller/documents/{document_id}", json_data=data)
+
+    async def get_service_data(self, service_id: str) -> dict[str, Any]:
+        """Get full service data including listing with user_access_interfaces."""
+        return await self.get(f"/seller/services/{service_id}/data")
 
     async def skip_test(self, document_id: str) -> dict[str, Any]:
         """Mark a test as skipped."""
@@ -101,6 +102,15 @@ def list_tests(
     """
 
     async def _list():
+        gateway_base = os.environ.get("UNITYSVC_BASE_URL", "")
+
+        async def _fetch_interfaces(runner: TestRunner, svc_id: str) -> list[tuple[str, str]]:
+            try:
+                service_data = await runner.get_service_data(svc_id)
+                return _resolve_interfaces(service_data, gateway_base)
+            except Exception:
+                return [("default", gateway_base)]
+
         async with TestRunner() as runner:
             if service_id:
                 # List documents for specific service
@@ -122,7 +132,8 @@ def list_tests(
                 full_id = str(matched_svc.get("id", ""))
                 svc_name = matched_svc.get("name", full_id[:8])
                 docs = await runner.list_documents(full_id, executable_only=not all_docs)
-                return [(full_id, svc_name, docs)]  # (svc_id, svc_name, docs)
+                interfaces = await _fetch_interfaces(runner, full_id)
+                return [(full_id, svc_name, docs, interfaces)]
             else:
                 # List all services first, then get documents for each
                 services = await runner.get("/seller/services")
@@ -135,7 +146,8 @@ def list_tests(
                     try:
                         docs = await runner.list_documents(svc_id, executable_only=not all_docs)
                         if docs:
-                            results.append((svc_id, svc_name, docs))
+                            interfaces = await _fetch_interfaces(runner, svc_id)
+                            results.append((svc_id, svc_name, docs, interfaces))
                     except Exception:
                         # Skip services that fail (e.g., no documents)
                         pass
@@ -145,36 +157,42 @@ def list_tests(
         results = asyncio.run(_list())
 
         if format == "json":
-            # Flatten for JSON output
+            # Flatten for JSON output: one entry per (doc, interface) pair
             all_docs_list = []
-            for svc_id, svc_name, docs in results:
+            for svc_id, svc_name, docs, interfaces in results:
                 for doc in docs:
-                    doc["service_id"] = svc_id
-                    doc["service_name"] = svc_name
-                    all_docs_list.append(doc)
+                    for iface_name, iface_url in interfaces:
+                        entry = {**doc}
+                        entry["service_id"] = svc_id
+                        entry["service_name"] = svc_name
+                        entry["interface"] = iface_name
+                        entry["interface_base_url"] = iface_url
+                        all_docs_list.append(entry)
             console.print(json.dumps(all_docs_list, indent=2, default=str))
         elif format in ("tsv", "csv"):
             sep = "\t" if format == "tsv" else ","
-            fields = ["service_id", "service_name", "doc_id", "title", "category", "status"]
+            fields = ["service_id", "service_name", "doc_id", "title", "category", "interface", "status"]
             print(sep.join(fields))
-            for svc_id, svc_name, docs in results:
+            for svc_id, svc_name, docs, interfaces in results:
                 for doc in docs:
                     meta = doc.get("meta") or {}
                     test_meta = meta.get("test") or {}
-                    row = [
-                        svc_id,
-                        svc_name,
-                        doc.get("id", ""),
-                        doc.get("title", ""),
-                        doc.get("category", ""),
-                        test_meta.get("status", "pending"),
-                    ]
-                    if format == "csv":
-                        row = [f'"{v}"' if "," in str(v) or '"' in str(v) else str(v) for v in row]
-                    print(sep.join(str(v) for v in row))
+                    for iface_name, _ in interfaces:
+                        row = [
+                            svc_id,
+                            svc_name,
+                            doc.get("id", ""),
+                            doc.get("title", ""),
+                            doc.get("category", ""),
+                            iface_name,
+                            test_meta.get("status", "pending"),
+                        ]
+                        if format == "csv":
+                            row = [f'"{v}"' if "," in str(v) or '"' in str(v) else str(v) for v in row]
+                        print(sep.join(str(v) for v in row))
         elif format == "table":
             total = 0
-            for svc_id, svc_name, documents in results:
+            for svc_id, svc_name, documents, interfaces in results:
                 if not documents:
                     continue
 
@@ -185,6 +203,7 @@ def list_tests(
                 table.add_column("Doc ID", style="yellow", no_wrap=True)
                 table.add_column("Title", style="cyan")
                 table.add_column("Category", style="blue")
+                table.add_column("Interface", style="magenta")
                 table.add_column("Status", style="white")
 
                 for doc in documents:
@@ -205,20 +224,22 @@ def list_tests(
                     else:
                         status_display = status
 
-                    table.add_row(
-                        doc_id[:8] + "..." if doc_id else "-",
-                        doc.get("title", ""),
-                        doc.get("category", ""),
-                        status_display,
-                    )
-                    total += 1
+                    for iface_name, _ in interfaces:
+                        table.add_row(
+                            doc_id[:8] + "..." if doc_id else "-",
+                            doc.get("title", ""),
+                            doc.get("category", ""),
+                            iface_name,
+                            status_display,
+                        )
+                        total += 1
 
                 console.print(table)
 
             if total == 0:
                 console.print("[yellow]No testable documents found.[/yellow]")
             else:
-                console.print(f"\n[dim]Total: {total} document(s)[/dim]")
+                console.print(f"\n[dim]Total: {total} test case(s)[/dim]")
         else:
             console.print(f"[red]Unknown format: {format}[/red]")
             raise typer.Exit(code=1)
@@ -234,10 +255,7 @@ def _find_document(documents: list[dict], title: str | None, doc_id: str | None)
     """Find a document by title or document ID."""
     if doc_id:
         # Find by document ID (supports partial)
-        doc = next(
-            (d for d in documents if str(d.get("id", "")).startswith(doc_id)),
-            None
-        )
+        doc = next((d for d in documents if str(d.get("id", "")).startswith(doc_id)), None)
         if not doc:
             raise ValueError(f"Document not found with ID: {doc_id}")
         return doc
@@ -252,17 +270,38 @@ def _find_document(documents: list[dict], title: str | None, doc_id: str | None)
         raise ValueError("Either --title or --doc-id must be specified")
 
 
+def _resolve_interfaces(service_data: dict, gateway_base: str) -> list[tuple[str, str]]:
+    """Extract access interface (name, resolved_base_url) pairs from service data.
+
+    Resolves ${GATEWAY_BASE_URL} placeholders in each interface's base_url.
+    Filters out inactive interfaces. Falls back to a single "default" entry
+    if no interfaces are defined.
+    """
+    listing_data = service_data.get("listing", {}) or {}
+    interfaces = listing_data.get("user_access_interfaces", {}) or {}
+
+    result = []
+    for iface_name, iface_data in interfaces.items():
+        if not iface_data.get("is_active", True):
+            continue
+        iface_base_url = iface_data.get("base_url", "")
+        if iface_base_url and gateway_base:
+            resolved = iface_base_url.replace("${GATEWAY_BASE_URL}", gateway_base)
+        else:
+            resolved = gateway_base
+        result.append((iface_name, resolved))
+
+    if not result:
+        result.append(("default", gateway_base))
+
+    return result
+
+
 @app.command("show")
 def show_test(
-    service_id: str = typer.Argument(
-        ..., help="Service ID (supports partial IDs, minimum 8 chars)"
-    ),
-    title: str = typer.Option(
-        None, "--title", "-t", help="Document title to show"
-    ),
-    doc_id: str = typer.Option(
-        None, "--doc-id", "-d", help="Document ID (supports partial IDs)"
-    ),
+    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to show"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
     script: bool = typer.Option(
         False,
         "--script",
@@ -379,15 +418,9 @@ def show_test(
 
 @app.command("run")
 def run_test(
-    service_id: str = typer.Argument(
-        ..., help="Service ID (supports partial IDs, minimum 8 chars)"
-    ),
-    title: str = typer.Option(
-        None, "--title", "-t", help="Only run test with this title (runs all if not specified)"
-    ),
-    doc_id: str = typer.Option(
-        None, "--doc-id", "-d", help="Only run test with this document ID (supports partial)"
-    ),
+    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
+    title: str = typer.Option(None, "--title", "-t", help="Only run test with this title (runs all if not specified)"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Only run test with this document ID (supports partial)"),
     timeout: int = typer.Option(
         30,
         "--timeout",
@@ -446,36 +479,11 @@ def run_test(
     """
     from .utils import execute_script_content
 
-    async def _run_single(runner: TestRunner, doc: dict) -> dict:
-        """Run a single test and return result."""
-        document_id = doc["id"]
-        doc_title = doc.get("title", "")
-
-        # Check status from list response (avoids fetching document if skipped)
-        meta = doc.get("meta") or {}
-        test_meta = meta.get("test") or {}
-
-        if not force:
-            status = test_meta.get("status")
-            if status == "success":
-                return {"title": doc_title, "status": "skipped", "reason": "already passed"}
-            if status == "skip":
-                return {"title": doc_title, "status": "skipped", "reason": "marked as skip"}
-
-        # Fetch document with file content and execution environment
-        full_doc = await runner.get_document(document_id, file_content=True)
-
-        file_content = full_doc.get("file_content")
-        if not file_content:
-            return {"title": doc_title, "status": "skipped", "reason": "no file content"}
-
-        mime_type = full_doc.get("mime_type", "")
-        full_meta = full_doc.get("meta") or {}
-        # output_contains is defined at meta level by sellers, not under meta.test
-        output_contains = full_meta.get("output_contains")
-
-        # Use environment variables from user's shell (empty dict = inherit current env)
+    def _execute_script(file_content: str, mime_type: str, output_contains: str | None, resolved_base_url: str) -> dict:
+        """Execute a single script with the given base URL. Returns result dict."""
         exec_env: dict[str, str] = {}
+        if resolved_base_url:
+            exec_env["UNITYSVC_BASE_URL"] = resolved_base_url
 
         try:
             result = execute_script_content(
@@ -485,41 +493,21 @@ def run_test(
                 timeout=timeout,
                 output_contains=output_contains,
             )
-
-            exit_code = result.get("exit_code", -1)
-            stdout = result.get("stdout", "")
-            stderr = result.get("stderr", "")
-            status = result.get("status", "task_failed")
-            error = result.get("error")
-
+            return {
+                "exit_code": result.get("exit_code", -1),
+                "stdout": result.get("stdout", ""),
+                "stderr": result.get("stderr", ""),
+                "status": result.get("status", "task_failed"),
+                "error": result.get("error"),
+            }
         except Exception as e:
-            exit_code = -1
-            stdout = ""
-            stderr = str(e)
-            status = "task_failed"
-            error = str(e)
-
-        # Update test metadata on backend
-        try:
-            await runner.update_test_result(
-                document_id=document_id,
-                status=status,
-                exit_code=exit_code,
-                stdout=stdout,
-                stderr=stderr,
-                error=error,
-            )
-        except Exception as update_error:
-            console.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
-
-        return {
-            "title": doc_title,
-            "status": status,
-            "exit_code": exit_code,
-            "stdout": stdout,
-            "stderr": stderr,
-            "error": error,
-        }
+            return {
+                "exit_code": -1,
+                "stdout": "",
+                "stderr": str(e),
+                "status": "task_failed",
+                "error": str(e),
+            }
 
     async def _run():
         async with TestRunner() as runner:
@@ -535,35 +523,141 @@ def run_test(
                 doc = _find_document(documents, title, doc_id)
                 documents = [doc]
 
+            # Fetch service data to resolve all access interfaces
+            gateway_base = os.environ.get("UNITYSVC_BASE_URL", "")
+            try:
+                service_data = await runner.get_service_data(service_id)
+                interfaces_list = _resolve_interfaces(service_data, gateway_base)
+            except Exception:
+                interfaces_list = [("default", gateway_base)]
+
+            # Show environment context before running tests
+            api_key = os.environ.get("UNITYSVC_API_KEY", "")
+            if gateway_base or api_key:
+                for iface_name, iface_url in interfaces_list:
+                    console.print(f"[dim]{iface_name}: UNITYSVC_BASE_URL={iface_url}[/dim]")
+                api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
+                console.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
+                console.print()
+            else:
+                console.print("[yellow]Warning: UNITYSVC_BASE_URL and UNITYSVC_API_KEY are not set[/yellow]")
+                console.print()
+
+            multi_interface = len(interfaces_list) > 1
+            stop_early = False
             results = []
             for doc in documents:
-                doc_title = doc.get("title", doc.get("id", ""))
-                console.print(f"[cyan]Running: {doc_title}...[/cyan]")
-
-                result = await _run_single(runner, doc)
-                results.append(result)
-
-                # Display result
-                if result["status"] == "success":
-                    console.print("  [green]PASS[/green]")
-                elif result["status"] == "skipped":
-                    console.print(f"  [yellow]SKIP[/yellow] ({result.get('reason', '')})")
-                else:
-                    console.print(f"  [red]FAIL[/red] ({result['status']})")
-                    if result.get("error"):
-                        console.print(f"  [red]Error: {result['error']}[/red]")
-
-                # Show verbose output
-                if verbose and result["status"] not in ("skipped", "success"):
-                    if result.get("stdout"):
-                        console.print(f"  [dim]stdout: {result['stdout'][:500]}[/dim]")
-                    if result.get("stderr"):
-                        console.print(f"  [dim]stderr: {result['stderr'][:500]}[/dim]")
-
-                # Fail fast
-                if fail_fast and result["status"] not in ("success", "skipped"):
-                    console.print("[red]Stopping on first failure (--fail-fast)[/red]")
+                if stop_early:
                     break
+
+                doc_title = doc.get("title", doc.get("id", ""))
+                document_id = doc["id"]
+
+                # Check status from list response (avoids fetching document if skipped)
+                meta = doc.get("meta") or {}
+                test_meta = meta.get("test") or {}
+                if not force:
+                    status = test_meta.get("status")
+                    if status == "success":
+                        label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
+                        console.print(f"[cyan]Running: {label}...[/cyan]")
+                        console.print("  [yellow]SKIP[/yellow] (already passed)")
+                        results.append({"title": doc_title, "status": "skipped", "reason": "already passed"})
+                        continue
+                    if status == "skip":
+                        label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
+                        console.print(f"[cyan]Running: {label}...[/cyan]")
+                        console.print("  [yellow]SKIP[/yellow] (marked as skip)")
+                        results.append({"title": doc_title, "status": "skipped", "reason": "marked as skip"})
+                        continue
+
+                # Fetch document with file content once per document
+                full_doc = await runner.get_document(document_id, file_content=True)
+                file_content = full_doc.get("file_content")
+                if not file_content:
+                    console.print(f"[cyan]Running: {doc_title}...[/cyan]")
+                    console.print("  [yellow]SKIP[/yellow] (no file content)")
+                    results.append({"title": doc_title, "status": "skipped", "reason": "no file content"})
+                    continue
+
+                mime_type = full_doc.get("mime_type", "")
+                full_meta = full_doc.get("meta") or {}
+                output_contains = full_meta.get("output_contains")
+
+                # Run script against each access interface
+                doc_results = []
+                for iface_name, resolved_url in interfaces_list:
+                    label = f"{doc_title} [{iface_name}]" if multi_interface else doc_title
+                    console.print(f"[cyan]Running: {label}...[/cyan]")
+
+                    result = _execute_script(file_content, mime_type, output_contains, resolved_url)
+                    result["title"] = label
+                    result["interface"] = iface_name
+                    result["resolved_base_url"] = resolved_url
+                    result["file_content"] = file_content
+                    doc_results.append(result)
+                    results.append(result)
+
+                    # Display result
+                    if result["status"] == "success":
+                        console.print("  [green]PASS[/green]")
+                    else:
+                        console.print(f"  [red]FAIL[/red] ({result['status']})")
+                        if result.get("error"):
+                            console.print(f"  [red]Error: {result['error']}[/red]")
+
+                    # Save debug files on failure
+                    if result["status"] != "success":
+                        filename = doc.get("filename", "")
+                        script_stem = os.path.splitext(filename)[0] if filename else doc.get("id", "unknown")[:8]
+                        # Include interface name in debug file names for disambiguation
+                        safe_iface = iface_name.replace(" ", "_").replace("/", "_")
+                        base_name = f"failed_{service_id}_{script_stem}_{safe_iface}"
+                        if result.get("file_content"):
+                            ext = os.path.splitext(filename)[1] if filename else ""
+                            script_name = f"{base_name}{ext}"
+                            with open(script_name, "w") as f:
+                                f.write(result["file_content"])
+                            os.chmod(script_name, 0o755)
+                            console.print(f"  [dim]script: {script_name}[/dim]")
+                        if result.get("stdout"):
+                            with open(f"{base_name}.out", "w") as f:
+                                f.write(result["stdout"])
+                            console.print(f"  [dim]stdout: {base_name}.out[/dim]")
+                        if result.get("stderr"):
+                            with open(f"{base_name}.err", "w") as f:
+                                f.write(result["stderr"])
+                            console.print(f"  [dim]stderr: {base_name}.err[/dim]")
+                        env_path = f"{base_name}.env"
+                        with open(env_path, "w") as f:
+                            f.write(f"UNITYSVC_BASE_URL={resolved_url}\n")
+                            f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
+                        console.print(f"  [dim]   env: {env_path}[/dim]")
+
+                    # Fail fast
+                    if fail_fast and result["status"] != "success":
+                        console.print("[red]Stopping on first failure (--fail-fast)[/red]")
+                        stop_early = True
+                        break
+
+                # Update backend with worst status across all interfaces for this doc
+                if doc_results:
+                    failed = [r for r in doc_results if r["status"] not in ("success", "skipped")]
+                    if failed:
+                        worst = failed[0]
+                    else:
+                        worst = doc_results[0]
+                    try:
+                        await runner.update_test_result(
+                            document_id=document_id,
+                            status=worst["status"],
+                            exit_code=worst.get("exit_code"),
+                            stdout=worst.get("stdout"),
+                            stderr=worst.get("stderr"),
+                            error=worst.get("error"),
+                        )
+                    except Exception as update_error:
+                        console.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
 
             return results
 
@@ -591,15 +685,9 @@ def run_test(
 
 @app.command("skip")
 def skip_test(
-    service_id: str = typer.Argument(
-        ..., help="Service ID (supports partial IDs, minimum 8 chars)"
-    ),
-    title: str = typer.Option(
-        None, "--title", "-t", help="Document title to skip"
-    ),
-    doc_id: str = typer.Option(
-        None, "--doc-id", "-d", help="Document ID (supports partial IDs)"
-    ),
+    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to skip"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
 ):
     """Mark a test as skipped.
 
@@ -634,15 +722,9 @@ def skip_test(
 
 @app.command("unskip")
 def unskip_test(
-    service_id: str = typer.Argument(
-        ..., help="Service ID (supports partial IDs, minimum 8 chars)"
-    ),
-    title: str = typer.Option(
-        None, "--title", "-t", help="Document title to unskip"
-    ),
-    doc_id: str = typer.Option(
-        None, "--doc-id", "-d", help="Document ID (supports partial IDs)"
-    ),
+    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to unskip"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
 ):
     """Remove skip status from a test.
 

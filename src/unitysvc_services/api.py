@@ -27,19 +27,27 @@ class UnitySvcAPI:
     - AdminQuery (administrative operations)
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        api_url_env: str = "UNITYSVC_API_URL",
+        api_key_env: str = "UNITYSVC_SELLER_API_KEY",
+    ) -> None:
         """Initialize API client from environment variables.
+
+        Args:
+            api_url_env: Environment variable name for the API URL
+            api_key_env: Environment variable name for the API key
 
         Raises:
             ValueError: If required environment variables are not set
         """
-        self.base_url = os.environ.get("UNITYSVC_API_URL")
+        self.base_url = os.environ.get(api_url_env)
         if not self.base_url:
-            raise ValueError("UNITYSVC_API_URL environment variable not set")
+            raise ValueError(f"{api_url_env} environment variable not set")
 
-        self.api_key = os.environ.get("UNITYSVC_SELLER_API_KEY")
+        self.api_key = os.environ.get(api_key_env)
         if not self.api_key:
-            raise ValueError("UNITYSVC_SELLER_API_KEY environment variable not set")
+            raise ValueError(f"{api_key_env} environment variable not set")
 
         self.base_url = self.base_url.rstrip("/")
         self.use_curl_fallback = False
