@@ -35,6 +35,7 @@ def format_output(
     columns: list[str] | None = None,
     column_styles: dict[str, str] | None = None,
     title: str | None = None,
+    total_count: int | None = None,
     console: Console | None = None,
 ) -> None:
     """Format and print tabular data in the requested format.
@@ -46,6 +47,8 @@ def format_output(
             Defaults to all keys from the first row.
         column_styles: Rich styles per column name (table mode only).
         title: Table title (table mode only).
+        total_count: Total number of items (for paginated results).
+            Defaults to len(data) if not provided.
         console: Rich Console instance. Defaults to module-level console.
     """
     con = console or _console
@@ -94,7 +97,8 @@ def format_output(
             table.add_row(*values)
 
         con.print(table)
-        con.print(f"\n[green]Total:[/green] {len(data)} item(s)")
+        count = total_count if total_count is not None else len(data)
+        con.print(f"\n[green]Total:[/green] {count} item(s)")
 
     else:
         con.print(f"[red]Unknown format: {output_format}[/red]")
