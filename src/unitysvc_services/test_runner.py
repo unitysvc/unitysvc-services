@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from .api import UnitySvcAPI
+from .output import format_output
 
 app = typer.Typer(help="Run and manage service tests")
 console = Console()
@@ -58,9 +59,12 @@ class TestRunner(UnitySvcAPI):
 
         return await self.patch(f"/seller/documents/{document_id}", json_data=data)
 
-    async def get_service_data(self, service_id: str) -> dict[str, Any]:
-        """Get full service data including listing with user_access_interfaces."""
-        return await self.get(f"/seller/services/{service_id}/data")
+    async def list_interfaces(self, service_id: str) -> list[dict[str, Any]]:
+        """List all access interfaces for a service from the backend."""
+        result = await self.get(f"/seller/services/{service_id}/interfaces")
+        if isinstance(result, list):
+            return result
+        return result.get("data", [])
 
     async def skip_test(self, document_id: str) -> dict[str, Any]:
         """Mark a test as skipped."""
@@ -106,8 +110,8 @@ def list_tests(
 
         async def _fetch_interfaces(runner: TestRunner, svc_id: str) -> list[tuple[str, str]]:
             try:
-                service_data = await runner.get_service_data(svc_id)
-                return _resolve_interfaces(service_data, gateway_base)
+                interfaces = await runner.list_interfaces(svc_id)
+                return _resolve_interfaces(interfaces, gateway_base)
             except Exception:
                 return [("default", gateway_base)]
 
@@ -156,93 +160,39 @@ def list_tests(
     try:
         results = asyncio.run(_list())
 
-        if format == "json":
-            # Flatten for JSON output: one entry per (doc, interface) pair
-            all_docs_list = []
-            for svc_id, svc_name, docs, interfaces in results:
-                for doc in docs:
-                    for iface_name, iface_url in interfaces:
-                        entry = {**doc}
-                        entry["service_id"] = svc_id
-                        entry["service_name"] = svc_name
-                        entry["interface"] = iface_name
-                        entry["interface_base_url"] = iface_url
-                        all_docs_list.append(entry)
-            console.print(json.dumps(all_docs_list, indent=2, default=str))
-        elif format in ("tsv", "csv"):
-            sep = "\t" if format == "tsv" else ","
-            fields = ["service_id", "service_name", "doc_id", "title", "category", "interface", "status"]
-            print(sep.join(fields))
-            for svc_id, svc_name, docs, interfaces in results:
-                for doc in docs:
-                    meta = doc.get("meta") or {}
-                    test_meta = meta.get("test") or {}
-                    for iface_name, _ in interfaces:
-                        row = [
-                            svc_id,
-                            svc_name,
-                            doc.get("id", ""),
-                            doc.get("title", ""),
-                            doc.get("category", ""),
-                            iface_name,
-                            test_meta.get("status", "pending"),
-                        ]
-                        if format == "csv":
-                            row = [f'"{v}"' if "," in str(v) or '"' in str(v) else str(v) for v in row]
-                        print(sep.join(str(v) for v in row))
-        elif format == "table":
-            total = 0
-            for svc_id, svc_name, documents, interfaces in results:
-                if not documents:
-                    continue
+        # Flatten into one row per (doc, interface) pair
+        rows: list[dict[str, str]] = []
+        for svc_id, svc_name, docs, interfaces in results:
+            for doc in docs:
+                meta = doc.get("meta") or {}
+                test_meta = meta.get("test") or {}
+                doc_id = doc.get("id", "")
+                for iface_name, iface_url in interfaces:
+                    rows.append({
+                        "service_id": svc_id,
+                        "service_name": svc_name,
+                        "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                        "title": doc.get("title", ""),
+                        "category": doc.get("category", ""),
+                        "interface": iface_name,
+                        "interface_base_url": iface_url,
+                        "status": test_meta.get("status", "pending"),
+                    })
 
-                # Show service header with full ID
-                console.print(f"\n[bold cyan]{svc_name}[/bold cyan] [dim]({svc_id})[/dim]")
-
-                table = Table()
-                table.add_column("Doc ID", style="yellow", no_wrap=True)
-                table.add_column("Title", style="cyan")
-                table.add_column("Category", style="blue")
-                table.add_column("Interface", style="magenta")
-                table.add_column("Status", style="white")
-
-                for doc in documents:
-                    meta = doc.get("meta") or {}
-                    test_meta = meta.get("test") or {}
-                    status = test_meta.get("status", "pending")
-                    doc_id = doc.get("id", "")
-
-                    # Color status
-                    if status == "success":
-                        status_display = f"[green]{status}[/green]"
-                    elif status in ("script_failed", "task_failed", "unexpected_output"):
-                        status_display = f"[red]{status}[/red]"
-                    elif status == "skip":
-                        status_display = f"[yellow]{status}[/yellow]"
-                    elif status == "running":
-                        status_display = f"[blue]{status}[/blue]"
-                    else:
-                        status_display = status
-
-                    for iface_name, _ in interfaces:
-                        table.add_row(
-                            doc_id[:8] + "..." if doc_id else "-",
-                            doc.get("title", ""),
-                            doc.get("category", ""),
-                            iface_name,
-                            status_display,
-                        )
-                        total += 1
-
-                console.print(table)
-
-            if total == 0:
-                console.print("[yellow]No testable documents found.[/yellow]")
-            else:
-                console.print(f"\n[dim]Total: {total} test case(s)[/dim]")
-        else:
-            console.print(f"[red]Unknown format: {format}[/red]")
-            raise typer.Exit(code=1)
+        format_output(
+            rows,
+            output_format=format,
+            columns=["service_name", "doc_id", "title", "category", "interface", "status"],
+            column_styles={
+                "service_name": "cyan",
+                "doc_id": "yellow",
+                "title": "white",
+                "category": "blue",
+                "interface": "magenta",
+            },
+            title="Service Tests",
+            console=console,
+        )
 
     except typer.Exit:
         raise
@@ -270,26 +220,23 @@ def _find_document(documents: list[dict], title: str | None, doc_id: str | None)
         raise ValueError("Either --title or --doc-id must be specified")
 
 
-def _resolve_interfaces(service_data: dict, gateway_base: str) -> list[tuple[str, str]]:
-    """Extract access interface (name, resolved_base_url) pairs from service data.
+def _resolve_interfaces(interfaces: list[dict], gateway_base: str) -> list[tuple[str, str]]:
+    """Extract (name, resolved_base_url) pairs from interface list.
 
     Resolves ${GATEWAY_BASE_URL} placeholders in each interface's base_url.
     Filters out inactive interfaces. Falls back to a single "default" entry
-    if no interfaces are defined.
+    if no interfaces are provided.
     """
-    listing_data = service_data.get("listing", {}) or {}
-    interfaces = listing_data.get("user_access_interfaces", {}) or {}
-
     result = []
-    for iface_name, iface_data in interfaces.items():
-        if not iface_data.get("is_active", True):
+    for iface in interfaces:
+        if not iface.get("is_active", True):
             continue
-        iface_base_url = iface_data.get("base_url", "")
+        iface_base_url = iface.get("base_url", "")
         if iface_base_url and gateway_base:
             resolved = iface_base_url.replace("${GATEWAY_BASE_URL}", gateway_base)
         else:
             resolved = gateway_base
-        result.append((iface_name, resolved))
+        result.append((iface.get("name", "default"), resolved))
 
     if not result:
         result.append(("default", gateway_base))
@@ -523,11 +470,11 @@ def run_test(
                 doc = _find_document(documents, title, doc_id)
                 documents = [doc]
 
-            # Fetch service data to resolve all access interfaces
+            # Fetch access interfaces from the backend
             gateway_base = os.environ.get("UNITYSVC_BASE_URL", "")
             try:
-                service_data = await runner.get_service_data(service_id)
-                interfaces_list = _resolve_interfaces(service_data, gateway_base)
+                interfaces_data = await runner.list_interfaces(service_id)
+                interfaces_list = _resolve_interfaces(interfaces_data, gateway_base)
             except Exception:
                 interfaces_list = [("default", gateway_base)]
 
