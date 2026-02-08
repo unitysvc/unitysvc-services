@@ -191,11 +191,22 @@ def discover_code_examples(
             # No upstream interfaces defined — create one from ops_testing_parameters
             upstream_interfaces = {"default": dict(default_params)}
         elif upstream_interfaces and default_params:
-            # Fill missing api_key/base_url from ops_testing_parameters
+            # Override api_key/base_url with ops_testing_parameters
             for _name, iface_data in upstream_interfaces.items():
                 for field in ("api_key", "base_url"):
-                    if not iface_data.get(field) and default_params.get(field):
+                    if field in default_params:
                         iface_data[field] = default_params[field]
+
+        # Validate that each upstream interface has required fields
+        for iface_name, iface_data in upstream_interfaces.items():
+            missing = [f for f in ("api_key", "base_url") if not iface_data.get(f)]
+            if missing:
+                service_dir = extract_service_directory_name(listing_file) or listing_file
+                raise ValueError(
+                    f"Upstream interface '{iface_name}' in {service_dir} is missing: "
+                    f"{', '.join(missing)}. Add them to offering upstream_access_interfaces "
+                    f"or listing service_options.ops_testing_parameters."
+                )
 
         # Extract code examples × upstream interfaces
         for example in extract_code_examples_from_listing(listing_data, listing_file):
