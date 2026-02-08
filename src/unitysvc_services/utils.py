@@ -771,7 +771,7 @@ def execute_script_content(
         if process.returncode != 0:
             result["status"] = "script_failed"
             result["error"] = f"Script exited with code {process.returncode}"
-        elif output_contains and (not process.stdout or output_contains not in process.stdout):
+        elif output_contains and (not process.stdout or output_contains.lower() not in process.stdout.lower()):
             result["status"] = "unexpected_output"
             result["error"] = f"Output does not contain: {output_contains}"
         else:
