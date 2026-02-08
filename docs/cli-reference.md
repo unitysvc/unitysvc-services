@@ -163,8 +163,8 @@ usvc data upload [OPTIONS]
 
 **Required Environment Variables:**
 
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication (seller API key)
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication (seller API key)
 
 **Examples:**
 
@@ -362,8 +362,8 @@ id, name, display_name, status, seller_id, provider_id, offering_id, listing_id,
 
 **Required Environment Variables:**
 
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
 
 **Examples:**
 
@@ -530,8 +530,8 @@ usvc services submit --all -y
 
 **Required Environment Variables:**
 
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
 
 ### usvc services dedup - Remove Duplicate Drafts
 
@@ -598,8 +598,8 @@ Total drafts examined: 5
 
 **Required Environment Variables:**
 
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
 
 ---
 
@@ -665,19 +665,20 @@ Run tests **locally** on your machine. Fetches test scripts from the backend, ex
 
 **Environment Setup Required:**
 
-Before running tests, you must set up your environment with gateway credentials:
+Before running tests, you need a **customer API key** for gateway access (separate from your seller API key). Follow these steps once:
+
+1. **Join the unitysvc-ops team** — Contact [support@unitysvc.com](mailto:support@unitysvc.com) to request an invitation code
+2. **Apply the invitation code** — In the web interface, go to **Add a Role** → **Join a Team** and enter the code
+3. **Create a customer API key** — Navigate to **API Keys** (under your team/customer role) and create a new key
+4. **Export environment variables** — Save the key and set up your shell:
 
 ```bash
-# Set gateway URL and your customer API key
-export BASE_URL="https://gateway.unitysvc.com"
-export API_KEY="svcpass_your_customer_api_key"
+# Gateway credentials (used by test scripts)
+export UNITYSVC_API_KEY="svcpass_your_customer_api_key"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 ```
 
-To get an API key:
-
-1. Create a customer account (or use an existing one)
-2. Generate a customer API key for that account
-3. Export it as `API_KEY` in your shell
+Your existing `UNITYSVC_SELLER_API_KEY` (seller key) and `UNITYSVC_API_URL` are still used for backend API access.
 
 ```bash
 usvc services run-tests <SERVICE_ID> [OPTIONS]
@@ -699,10 +700,6 @@ usvc services run-tests <SERVICE_ID> [OPTIONS]
 **Examples:**
 
 ```bash
-# Set up environment first
-export BASE_URL="https://gateway.unitysvc.com"
-export API_KEY="svcpass_your_customer_api_key"
-
 # Run all tests for a service
 usvc services run-tests abc123
 
@@ -722,7 +719,7 @@ usvc services run-tests abc123 --force
 usvc services run-tests abc123 --fail-fast
 ```
 
-**Note:** This differs from web-based testing (frontend "Test" button) which uses the platform's ops customer API key. Local CLI testing gives you full control over the test environment but requires you to manage your own credentials.
+**Note:** Two API keys are involved. `UNITYSVC_SELLER_API_KEY` (seller key) authenticates with the backend to fetch scripts and submit results. `UNITYSVC_API_KEY` (customer key) is used by the test scripts themselves to access services through the gateway. See the environment setup steps above for how to obtain a customer API key.
 
 ### usvc services skip-test
 
@@ -795,8 +792,8 @@ By default, deletion is blocked if there are active subscriptions. Use `--force`
 
 **Required Environment Variables:**
 
-- `UNITYSVC_BASE_URL` - Backend API URL
-- `UNITYSVC_API_KEY` - API key for authentication
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
 
 ### unpublish offerings
 
@@ -1141,7 +1138,7 @@ Test code examples locally with upstream API credentials. These commands discove
 2. Extracts code example documents (category = `code_examples`)
 3. Loads provider credentials from provider files
 4. Renders Jinja2 templates with listing, offering, provider, and seller data
-5. Sets environment variables (API_KEY, BASE_URL) from provider credentials
+5. Sets environment variables (UNITYSVC_API_KEY, UNITYSVC_BASE_URL) from provider credentials
 6. Executes code examples using appropriate interpreter (python3, node, bash)
 7. Validates results based on exit code and optional `expect` field
 
@@ -1334,14 +1331,14 @@ See [Creating Code Examples](https://unitysvc-services.readthedocs.io/en/latest/
 
 | Variable            | Description            | Used By                  |
 | ------------------- | ---------------------- | ------------------------ |
-| `UNITYSVC_BASE_URL` | Backend API URL        | `usvc services` commands |
-| `UNITYSVC_API_KEY`  | API authentication key | `usvc services` commands |
+| `UNITYSVC_API_URL`      | Backend API URL        | `usvc services` commands |
+| `UNITYSVC_SELLER_API_KEY` | API authentication key | `usvc services` commands |
 
 **Example:**
 
 ```bash
-export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
-export UNITYSVC_API_KEY=your-api-key
+export UNITYSVC_API_URL=https://api.unitysvc.com/v1
+export UNITYSVC_SELLER_API_KEY=your-api-key
 
 # Local operations (no API key needed)
 usvc data validate
@@ -1396,9 +1393,9 @@ Alternatively, create files manually following the [File Schemas](file-schemas.m
 ### Full Upload Flow
 
 ```bash
-# Set environment (only needed for remote operations)
-export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
-export UNITYSVC_API_KEY=your-key
+# Set seller environment (only needed for remote operations)
+export UNITYSVC_API_URL=https://api.unitysvc.com/v1
+export UNITYSVC_SELLER_API_KEY=your-seller-api-key
 
 # Local operations: validate and format
 usvc data validate
@@ -1417,6 +1414,10 @@ usvc data upload
 
 # Verify on backend
 usvc services list
+
+# Set gateway credentials for testing (one-time setup, see "usvc services run-tests")
+export UNITYSVC_API_KEY=your-customer-api-key
+export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
 
 # Run tests via gateway
 usvc services list-tests

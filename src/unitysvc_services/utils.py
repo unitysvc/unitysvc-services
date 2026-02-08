@@ -703,7 +703,7 @@ def execute_script_content(
     Args:
         script: The script content to execute (expanded, not a template)
         mime_type: Document MIME type ("python", "javascript", "bash")
-        env_vars: Environment variables to set (e.g., {"API_KEY": "...", "BASE_URL": "..."})
+        env_vars: Environment variables to set (e.g., {"UNITYSVC_API_KEY": "...", "UNITYSVC_BASE_URL": "..."})
         output_contains: Optional substring that must appear in stdout for success
         timeout: Execution timeout in seconds (default: 30)
 

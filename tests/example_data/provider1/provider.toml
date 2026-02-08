@@ -10,5 +10,5 @@ secondary_contact_email = "inquiries@fireworks.ai"
 command = "scripts/update_fireworks_services.py --force"
 
 [services_populator.envs]
-API_KEY = "sk_example_key"
-BASE_URL = "https://api.fireworks.ai/inference/v1"
+UNITYSVC_API_KEY = "sk_example_key"
+UNITYSVC_BASE_URL = "https://api.fireworks.ai/inference/v1"

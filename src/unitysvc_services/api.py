@@ -33,13 +33,13 @@ class UnitySvcAPI:
         Raises:
             ValueError: If required environment variables are not set
         """
-        self.base_url = os.environ.get("UNITYSVC_BASE_URL")
+        self.base_url = os.environ.get("UNITYSVC_API_URL")
         if not self.base_url:
-            raise ValueError("UNITYSVC_BASE_URL environment variable not set")
+            raise ValueError("UNITYSVC_API_URL environment variable not set")
 
-        self.api_key = os.environ.get("UNITYSVC_API_KEY")
+        self.api_key = os.environ.get("UNITYSVC_SELLER_API_KEY")
         if not self.api_key:
-            raise ValueError("UNITYSVC_API_KEY environment variable not set")
+            raise ValueError("UNITYSVC_SELLER_API_KEY environment variable not set")
 
         self.base_url = self.base_url.rstrip("/")
         self.use_curl_fallback = False

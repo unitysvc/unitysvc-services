@@ -71,8 +71,8 @@ command = "populate_services.py"
 requirements = ["httpx", "openai"]
 
 [services_populator.envs]
-API_KEY = "sk-YOUR-API-KEY"
-BASE_URL = "https://api.openai.com/v1"
+UNITYSVC_API_KEY = "sk-YOUR-API-KEY"
+UNITYSVC_BASE_URL = "https://api.openai.com/v1"
 ```
 
 ### Example (JSON)
@@ -91,8 +91,8 @@ BASE_URL = "https://api.openai.com/v1"
         "command": "populate_services.py",
         "requirements": ["httpx", "openai"],
         "envs": {
-            "API_KEY": "sk-YOUR-API-KEY",
-            "BASE_URL": "https://api.openai.com/v1"
+            "UNITYSVC_API_KEY": "sk-YOUR-API-KEY",
+            "UNITYSVC_BASE_URL": "https://api.openai.com/v1"
         }
     }
 }

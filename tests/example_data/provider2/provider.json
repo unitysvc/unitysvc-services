@@ -7,8 +7,8 @@
   "services_populator": {
     "command": "scripts/update_openai_services.py --force",
     "envs": {
-      "API_KEY": "sk_example_key",
-      "BASE_URL": "https://api.openai.com/v1"
+      "UNITYSVC_API_KEY": "sk_example_key",
+      "UNITYSVC_BASE_URL": "https://api.openai.com/v1"
     }
   },
   "terms_of_service": "https://openai.com/policies/terms-of-use",

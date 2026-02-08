@@ -119,8 +119,8 @@ usvc data run-tests --provider my-provider
 usvc data populate
 
 # 5. Upload to platform (uploads provider + offering + listing together)
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
-export UNITYSVC_API_KEY="your-seller-api-key"
+export UNITYSVC_API_URL="https://api.unitysvc.com/v1"
+export UNITYSVC_SELLER_API_KEY="your-seller-api-key"
 usvc data upload
 
 # 6. Test via gateway and submit for review

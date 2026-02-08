@@ -137,8 +137,8 @@ This step is optional and not required for upload. It ensures consistent formatt
 Set your credentials using your **seller API key**:
 
 ```bash
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
-export UNITYSVC_API_KEY="svcpass_your_seller_api_key"
+export UNITYSVC_API_URL="https://api.unitysvc.com/v1"
+export UNITYSVC_SELLER_API_KEY="svcpass_your_seller_api_key"
 ```
 
 Upload your services:

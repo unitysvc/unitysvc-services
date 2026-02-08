@@ -20,8 +20,8 @@ There are two ways to test code examples that access services through the UnityS
 
 When you click the "Test" button in the UnitySVC web interface (admin panel or seller dashboard), the platform executes your code examples using:
 
--   **`BASE_URL`**: Platform-provided gateway URL
--   **`API_KEY`**: Platform's ops customer API key (shared across all sellers)
+-   **`UNITYSVC_BASE_URL`**: Platform-provided gateway URL
+-   **`UNITYSVC_API_KEY`**: Platform's ops customer API key (shared across all sellers)
 
 **Characteristics:**
 
@@ -39,22 +39,49 @@ When you click the "Test" button in the UnitySVC web interface (admin panel or s
 
 ### SDK-Based Testing (Local CLI)
 
-When you run tests locally using the `usvc` CLI, you must configure your own environment:
+When you run tests locally using the `usvc` CLI, you must configure your own environment with a customer API key for gateway access. Follow these steps:
+
+**Step 1: Join the unitysvc-ops team**
+
+Request to join the **unitysvc-ops** team by contacting [support@unitysvc.com](mailto:support@unitysvc.com). You will receive an invitation code.
+
+**Step 2: Apply the invitation code**
+
+In the UnitySVC web interface, go to **Add a Role** → **Join a Team** and enter the invitation code you received.
+
+**Step 3: Create a customer API key**
+
+Navigate to **API Keys** in the web interface (under your team/customer role) and create a new API key.
+
+**Step 4: Set environment variables**
+
+Save the API key and export it along with the gateway base URL:
 
 ```bash
-# Set up your environment before running tests
-export BASE_URL="https://gateway.unitysvc.com"
-export API_KEY="svcpass_your_customer_api_key"
-
-# Run tests
-usvc services test run <service_id>
+# Gateway credentials (for test script execution)
+export UNITYSVC_API_KEY="svcpass_your_customer_api_key"
+export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
 ```
 
-**Setup Requirements:**
+**Step 5: Run tests**
 
-1. **Create a Customer**: Create your own customer account for testing
-2. **Create an API Key**: Generate a customer API key for gateway access
-3. **Set Environment Variables**: Export `BASE_URL` and `API_KEY` in your shell
+With your existing seller credentials (`UNITYSVC_SELLER_API_KEY` and `UNITYSVC_API_URL`) already configured, run tests:
+
+```bash
+# Run all tests for a service
+usvc services run-tests <service_id>
+
+# Run with verbose output
+usvc services run-tests <service_id> --verbose
+
+# Force rerun previously passed tests
+usvc services run-tests <service_id> --force
+```
+
+**Note:** Two API keys are involved:
+
+-   `UNITYSVC_SELLER_API_KEY` (seller key) — authenticates with the backend API to fetch test scripts and submit results
+-   `UNITYSVC_API_KEY` (customer key) — used by test scripts to access services through the gateway
 
 **Characteristics:**
 
@@ -75,9 +102,9 @@ usvc services test run <service_id>
 
 | Feature | Web-Based | SDK-Based (Local) |
 |---------|-----------|-------------------|
-| Setup | None required | Requires customer + API key |
-| `BASE_URL` | Platform-provided | Seller-configured |
-| `API_KEY` | Platform ops customer | Seller's own customer |
+| Setup | None required | Join unitysvc-ops team + create customer API key |
+| `UNITYSVC_BASE_URL` | Platform-provided | `https://api.unitysvc.com/v1` |
+| `UNITYSVC_API_KEY` | Platform ops customer | Your own customer API key |
 | Execution | Backend (Celery) | Local machine |
 | Script Types | Simple (curl, Python, JS) | Any (including complex SDKs) |
 | Debugging | Limited | Full local access |
@@ -85,9 +112,10 @@ usvc services test run <service_id>
 
 ### Recommended Workflow
 
-1. **Development**: Use SDK-based local testing for iterative development
-2. **Validation**: Use web-based testing for final validation before publishing
-3. **CI/CD**: Either method works; web-based is simpler, SDK-based offers more control
+1. **One-time setup**: Join the unitysvc-ops team and create a customer API key (see SDK-Based Testing steps above)
+2. **Development**: Use SDK-based local testing for iterative development
+3. **Validation**: Use web-based testing for final validation before publishing
+4. **CI/CD**: Either method works; web-based is simpler, SDK-based offers more control
 
 ## Basic Concepts
 
@@ -104,8 +132,8 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['BASE_URL']}/chat/completions",
-    headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
+    f"{os.environ['UNITYSVC_BASE_URL']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['UNITYSVC_API_KEY']}"},
     json={"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]}
 )
 print(response.json())
@@ -120,19 +148,19 @@ response = api.chat(...)  # What is 'api'? How to initialize it?
 
 ```python
 # ✗ BAD: Hardcoded credentials
-API_KEY = "sk-abc123xyz789"  # NEVER DO THIS!
+UNITYSVC_API_KEY = "sk-abc123xyz789"  # NEVER DO THIS!
 
 # ✓ GOOD: Use environment variables
-API_KEY = os.environ.get("API_KEY")
-BASE_URL = os.environ.get("BASE_URL")
+UNITYSVC_API_KEY = os.environ.get("UNITYSVC_API_KEY")
+UNITYSVC_BASE_URL = os.environ.get("UNITYSVC_BASE_URL")
 ```
 
 **Standard Environment Variables:**
 
 The test framework automatically sets these environment variables when running code examples from `services_populator.envs`:
 
--   `API_KEY` - Provider API key
--   `BASE_URL` - Provider API endpoint
+-   `UNITYSVC_API_KEY` - Provider API key
+-   `UNITYSVC_BASE_URL` - Provider API endpoint
 
 Your code examples should **always** read credentials from these environment variables.
 
@@ -235,8 +263,8 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['BASE_URL']}/chat/completions",
-    headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
+    f"{os.environ['UNITYSVC_BASE_URL']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['UNITYSVC_API_KEY']}"},
     json={
         "model": "{{ offering.name }}",  # Dynamic: changes per service
         "messages": [{"role": "user", "content": "Hello"}]
@@ -324,7 +352,7 @@ usvc test run --force --fail-fast --verbose
 1. Test framework discovers code examples from listing files (category = `code_examples`)
 2. **Checks for cached results**: If both `.out` and `.err` files exist in the listing directory, skips the test (unless `--force` is used)
 3. Renders Jinja2 templates with `listing`, `offering`, `provider`, and `seller` data
-4. Sets environment variables (`API_KEY`, `BASE_URL`) from provider credentials
+4. Sets environment variables (`UNITYSVC_API_KEY`, `UNITYSVC_BASE_URL`) from provider credentials
 5. Executes the code example using appropriate interpreter (python3, node, bash)
 6. Validates results:
     - Test passes if exit code is 0 AND (no `meta.expect` field OR expected string found in stdout)
@@ -346,7 +374,7 @@ Testing: llama-3-1-405b - Python code example
   → Test content saved to: failed_llama-3-1-405b_Python_code_example.py
 
 # The saved file includes:
-# - Environment variables used (API_KEY, BASE_URL)
+# - Environment variables used (UNITYSVC_API_KEY, UNITYSVC_BASE_URL)
 # - Full rendered template content
 # - You can run it directly to reproduce the issue
 ```
@@ -405,12 +433,12 @@ import httpx
 import os
 
 # Use environment variables
-API_KEY = os.environ.get("API_KEY")
-BASE_URL = os.environ.get("BASE_URL")
+UNITYSVC_API_KEY = os.environ.get("UNITYSVC_API_KEY")
+UNITYSVC_BASE_URL = os.environ.get("UNITYSVC_BASE_URL")
 
 response = httpx.post(
-    f"{BASE_URL}/chat/completions",
-    headers={"Authorization": f"Bearer {API_KEY}"},
+    f"{UNITYSVC_BASE_URL}/chat/completions",
+    headers={"Authorization": f"Bearer {UNITYSVC_API_KEY}"},
     json={
         "model": "accounts/fireworks/models/llama-v3p1-405b-instruct",
         "messages": [{"role": "user", "content": "Say hello"}],
@@ -426,8 +454,8 @@ if response.status_code == 200 and "choices" in response.json():
 **Test with environment variables:**
 
 ```bash
-export API_KEY="fw_abc123xyz789"
-export BASE_URL="https://api.fireworks.ai/inference/v1"
+export UNITYSVC_API_KEY="fw_abc123xyz789"
+export UNITYSVC_BASE_URL="https://api.fireworks.ai/inference/v1"
 python3 test.py
 ```
 
@@ -444,12 +472,12 @@ import httpx
 import os
 
 # Use environment variables (set by test framework)
-API_KEY = os.environ.get("API_KEY")
-BASE_URL = os.environ.get("BASE_URL")
+UNITYSVC_API_KEY = os.environ.get("UNITYSVC_API_KEY")
+UNITYSVC_BASE_URL = os.environ.get("UNITYSVC_BASE_URL")
 
 response = httpx.post(
-    f"{BASE_URL}/chat/completions",
-    headers={"Authorization": f"Bearer {API_KEY}"},
+    f"{UNITYSVC_BASE_URL}/chat/completions",
+    headers={"Authorization": f"Bearer {UNITYSVC_API_KEY}"},
     json={
         "model": "{{ offering.name }}",  # Template variable
         "messages": [{"role": "user", "content": "Say hello"}],
@@ -588,7 +616,7 @@ If tests fail, the rendered content is saved to the current directory for debugg
 cat failed_llama-3-1-405b_Python_code_example.py
 
 # The file will contain:
-# - Environment variables used (API_KEY, BASE_URL)
+# - Environment variables used (UNITYSVC_API_KEY, UNITYSVC_BASE_URL)
 # - Full rendered template content
 # - You can run it directly to reproduce the issue
 ```
@@ -610,9 +638,9 @@ usvc data upload
 #!/bin/bash
 # Simple test that outputs JSON response
 
-curl ${BASE_URL}/chat/completions \
+curl ${UNITYSVC_BASE_URL}/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer ${API_KEY}" \
+  -H "Authorization: Bearer ${UNITYSVC_API_KEY}" \
   -d '{"model": "{{ offering.name }}", "messages": [{"role": "user", "content": "test"}]}'
 ```
 
@@ -641,8 +669,8 @@ import httpx
 import os
 
 response = httpx.post(
-    f"{os.environ['BASE_URL']}/chat/completions",
-    headers={"Authorization": f"Bearer {os.environ['API_KEY']}"},
+    f"{os.environ['UNITYSVC_BASE_URL']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['UNITYSVC_API_KEY']}"},
     json={"model": "{{ offering.name }}", "messages": [{"role": "user", "content": "test"}]}
 )
 
@@ -676,11 +704,11 @@ if "choices" in data:
 
 ```javascript
 #!/usr/bin/env node
-const response = await fetch(`${process.env.BASE_URL}/chat/completions`, {
+const response = await fetch(`${process.env.UNITYSVC_BASE_URL}/chat/completions`, {
     method: "POST",
     headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.API_KEY}`,
+        Authorization: `Bearer ${process.env.UNITYSVC_API_KEY}`,
     },
     body: JSON.stringify({
         model: "{{ offering.name }}",
@@ -724,14 +752,14 @@ import httpx
 import os
 import time
 
-API_KEY = os.environ.get("API_KEY")
-BASE_URL = os.environ.get("BASE_URL")
+UNITYSVC_API_KEY = os.environ.get("UNITYSVC_API_KEY")
+UNITYSVC_BASE_URL = os.environ.get("UNITYSVC_BASE_URL")
 
 # Measure response time
 start = time.time()
 response = httpx.post(
-    f"{BASE_URL}/chat/completions",
-    headers={"Authorization": f"Bearer {API_KEY}"},
+    f"{UNITYSVC_BASE_URL}/chat/completions",
+    headers={"Authorization": f"Bearer {UNITYSVC_API_KEY}"},
     json={
         "model": "{{ offering.name }}",
         "messages": [{"role": "user", "content": "ping"}],
@@ -803,7 +831,7 @@ Provider metadata (Provider_v1 schema)
 -   `provider.display_name` - Human-readable provider name
 -   All other fields from the provider schema
 
-Note: For API credentials (`API_KEY`, `BASE_URL`), use environment variables instead of template variables. These are set from `services_populator.envs` during testing.
+Note: For API credentials (`UNITYSVC_API_KEY`, `UNITYSVC_BASE_URL`), use environment variables instead of template variables. These are set from `services_populator.envs` during testing.
 
 ### seller
 
@@ -841,8 +869,8 @@ vim test.py
 python3 test.py
 
 # 2. Use environment variables
-export API_KEY="..."
-export BASE_URL="..."
+export UNITYSVC_API_KEY="..."
+export UNITYSVC_BASE_URL="..."
 python3 test.py
 
 # 3. Convert to template
@@ -975,7 +1003,7 @@ If the required interpreter is not found, the test will fail with a clear error 
 
 **Solution:**
 
--   Check that you're using environment variables (API_KEY, BASE_URL)
+-   Check that you're using environment variables (UNITYSVC_API_KEY, UNITYSVC_BASE_URL)
 -   Verify template variables are correct
 -   Run `usvc test run --verbose` to see full output
 

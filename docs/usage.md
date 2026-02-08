@@ -75,8 +75,8 @@ usvc data validate
 usvc data format
 
 # 5. Set environment variables
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
-export UNITYSVC_API_KEY="your-seller-api-key"
+export UNITYSVC_API_URL="https://api.unitysvc.com/v1"
+export UNITYSVC_SELLER_API_KEY="your-seller-api-key"
 
 # 6. Preview what would be uploaded
 usvc data upload --dryrun
@@ -171,8 +171,8 @@ usvc services list --format json
 
 | Variable            | Description                                           |
 | ------------------- | ----------------------------------------------------- |
-| `UNITYSVC_BASE_URL` | Backend API URL (e.g., `https://api.unitysvc.com/v1`) |
-| `UNITYSVC_API_KEY`  | Your seller API key for authentication                |
+| `UNITYSVC_API_URL`      | Backend API URL (e.g., `https://api.unitysvc.com/v1`) |
+| `UNITYSVC_SELLER_API_KEY` | Your seller API key for authentication              |
 
 ## Next Steps
 

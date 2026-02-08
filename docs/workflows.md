@@ -152,8 +152,8 @@ Edit JSON/TOML files directly to update service status or other fields. The file
 
 ```bash
 # Set credentials
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
-export UNITYSVC_API_KEY="your-api-key"
+export UNITYSVC_API_URL="https://api.unitysvc.com/v1"
+export UNITYSVC_SELLER_API_KEY="your-api-key"
 
 # Upload all services
 cd data
@@ -578,8 +578,8 @@ jobs:
 
             - name: Upload to UnitySVC
               env:
-                  UNITYSVC_BASE_URL: ${{ secrets.UNITYSVC_BASE_URL }}
-                  UNITYSVC_API_KEY: ${{ secrets.UNITYSVC_API_KEY }}
+                  UNITYSVC_API_URL: ${{ secrets.UNITYSVC_API_URL }}
+                  UNITYSVC_SELLER_API_KEY: ${{ secrets.UNITYSVC_SELLER_API_KEY }}
               run: |
                   usvc data upload --data-path ./data
 ```
