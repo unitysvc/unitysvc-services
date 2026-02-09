@@ -38,24 +38,15 @@ class TestRunner(UnitySvcAPI):
         self,
         document_id: str,
         status: str,
-        exit_code: int | None = None,
-        stdout: str | None = None,
-        stderr: str | None = None,
-        error: str | None = None,
+        tests: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Update document test metadata with execution results."""
         data: dict[str, Any] = {
             "status": status,
             "executed_at": datetime.now(UTC).isoformat(),
         }
-        if exit_code is not None:
-            data["exit_code"] = exit_code
-        if stdout is not None:
-            data["stdout"] = stdout[:10000]  # Truncate to 10KB
-        if stderr is not None:
-            data["stderr"] = stderr[:10000]
-        if error is not None:
-            data["error"] = error
+        if tests is not None:
+            data["tests"] = tests
 
         return await self.patch(f"/seller/documents/{document_id}", json_data=data)
 
@@ -389,11 +380,10 @@ def run_test(
     By default, runs ALL executable tests for the service. Use --title or --doc-id
     to run a specific test.
 
-    Fetches scripts from the backend and executes locally. Test scripts should use
-    UNITYSVC_BASE_URL and UNITYSVC_API_KEY environment variables for gateway access.
-    Set these in your environment before running tests:
+    Fetches scripts from the backend and executes locally. UNITYSVC_BASE_URL is set
+    automatically per access interface. Set UNITYSVC_API_KEY to your ops_customer
+    team API key before running tests:
 
-        export UNITYSVC_BASE_URL=https://gateway.unitysvc.com
         export UNITYSVC_API_KEY=svcpass_your_customer_api_key
 
     Results are submitted back to the backend to update test metadata.
@@ -579,21 +569,28 @@ def run_test(
                         stop_early = True
                         break
 
-                # Update backend with worst status across all interfaces for this doc
+                # Update backend with worst status + per-interface breakdown
                 if doc_results:
                     failed = [r for r in doc_results if r["status"] not in ("success", "skipped")]
-                    if failed:
-                        worst = failed[0]
-                    else:
-                        worst = doc_results[0]
+                    worst = failed[0] if failed else doc_results[0]
+                    # Build per-interface results
+                    iface_results: dict[str, Any] = {}
+                    for r in doc_results:
+                        entry: dict[str, Any] = {"status": r["status"]}
+                        if r.get("exit_code") is not None:
+                            entry["exit_code"] = r["exit_code"]
+                        if r.get("error"):
+                            entry["error"] = r["error"]
+                        if r.get("stdout"):
+                            entry["stdout"] = r["stdout"][:10000]
+                        if r.get("stderr"):
+                            entry["stderr"] = r["stderr"][:10000]
+                        iface_results[r.get("interface", "default")] = entry
                     try:
                         await runner.update_test_result(
                             document_id=document_id,
                             status=worst["status"],
-                            exit_code=worst.get("exit_code"),
-                            stdout=worst.get("stdout"),
-                            stderr=worst.get("stderr"),
-                            error=worst.get("error"),
+                            tests=iface_results,
                         )
                     except Exception as update_error:
                         console.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
