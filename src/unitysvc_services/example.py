@@ -201,7 +201,7 @@ def discover_code_examples(
         for iface_name, iface_data in upstream_interfaces.items():
             missing = [f for f in ("api_key", "base_url") if not iface_data.get(f)]
             if missing:
-                service_dir = extract_service_directory_name(listing_file) or listing_file
+                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
                 raise ValueError(
                     f"Upstream interface '{iface_name}' in {service_dir} is missing: "
                     f"{', '.join(missing)}. Add them to offering upstream_access_interfaces "
