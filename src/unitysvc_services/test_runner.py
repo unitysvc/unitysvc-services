@@ -230,8 +230,8 @@ def _resolve_interfaces(interfaces: list[dict]) -> list[tuple[str, str]]:
 
 @app.command("show")
 def show_test(
-    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
-    title: str = typer.Option(None, "--title", "-t", help="Document title to show"),
+    service_id: str = typer.Argument(None, help="Service ID (required when using --title)"),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to show (requires service_id)"),
     doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
     script: bool = typer.Option(
         False,
@@ -248,26 +248,34 @@ def show_test(
 ):
     """Show test details and metadata for a document.
 
+    When --doc-id is provided, service_id is not required since the document ID
+    uniquely identifies the document. When --title is used, service_id is required
+    to search within the service's documents.
+
     Examples:
+        usvc services show-test -d abc123
+        usvc services show-test -d abc123 --script
         usvc services show-test 297040cd --title "Quick Start"
-        usvc services show-test 297040cd -d abc123
         usvc services show-test 297040cd -t "Connectivity Test" --format table
-        usvc services show-test 297040cd -d abc123 --script  # Show script and env
     """
     if not title and not doc_id:
         console.print("[red]Error: Either --title or --doc-id must be specified[/red]")
         raise typer.Exit(code=1)
 
+    if title and not service_id:
+        console.print("[red]Error: service_id is required when using --title[/red]")
+        raise typer.Exit(code=1)
+
     async def _show():
         async with TestRunner() as runner:
-            # First, list documents to find the one with matching title or ID
-            documents = await runner.list_documents(service_id, executable_only=False)
-
-            # Find document by title or ID
-            doc = _find_document(documents, title, doc_id)
-
-            # Get full document details (with file_content if --script flag)
-            return await runner.get_document(doc["id"], file_content=script)
+            if doc_id:
+                # doc_id uniquely identifies the document, no need for service_id
+                return await runner.get_document(doc_id, file_content=script)
+            else:
+                # --title requires listing documents for the service first
+                documents = await runner.list_documents(service_id, executable_only=False)
+                doc = _find_document(documents, title, doc_id)
+                return await runner.get_document(doc["id"], file_content=script)
 
     try:
         document = asyncio.run(_show())
