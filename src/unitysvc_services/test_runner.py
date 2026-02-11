@@ -57,6 +57,32 @@ class TestRunner(UnitySvcAPI):
             return result
         return result.get("data", [])
 
+    async def resolve_service_id_from_document(self, document_id: str) -> str:
+        """Look up the service ID that owns a document.
+
+        Fetches the document to get its entity_id, then searches seller
+        services to find the one whose listing or offering matches.
+
+        Raises:
+            ValueError: When the owning service cannot be found.
+        """
+        doc = await self.get_document(document_id)
+        entity_id = doc.get("entity_id", "")
+
+        services = await self.get("/seller/services")
+        service_list = services.get("data", services) if isinstance(services, dict) else services
+
+        for svc in service_list:
+            svc_id = str(svc.get("id", ""))
+            listing_id = str(svc.get("listing_id", ""))
+            offering_id = str(svc.get("offering_id", ""))
+            if entity_id and entity_id in (svc_id, listing_id, offering_id):
+                return svc_id
+
+        raise ValueError(
+            f"Cannot find service for document {document_id} (entity_id={entity_id})"
+        )
+
     async def skip_test(self, document_id: str) -> dict[str, Any]:
         """Mark a test as skipped."""
         return await self.post(f"/seller/documents/{document_id}/skip")
@@ -158,7 +184,7 @@ def list_tests(
                 doc_id = doc.get("id", "")
                 for iface_name, iface_url in interfaces:
                     rows.append({
-                        "service_id": svc_id,
+                        "service_id": svc_id[:8] + "..." if svc_id else "-",
                         "service_name": svc_name,
                         "doc_id": doc_id[:8] + "..." if doc_id else "-",
                         "title": doc.get("title", ""),
@@ -171,9 +197,10 @@ def list_tests(
         format_output(
             rows,
             output_format=format,
-            columns=["service_name", "doc_id", "title", "category", "interface", "status"],
+            columns=["service_name", "service_id", "doc_id", "title", "category", "interface", "status"],
             column_styles={
                 "service_name": "cyan",
+                "service_id": "dim",
                 "doc_id": "yellow",
                 "title": "white",
                 "category": "blue",
@@ -357,9 +384,9 @@ def show_test(
 
 @app.command("run")
 def run_test(
-    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
+    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required unless --doc-id is provided."),
     title: str = typer.Option(None, "--title", "-t", help="Only run test with this title (runs all if not specified)"),
-    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Only run test with this document ID (supports partial)"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Only run test with this document ID (supports partial). When provided, service_id is optional."),
     timeout: int = typer.Option(
         30,
         "--timeout",
@@ -388,6 +415,9 @@ def run_test(
     By default, runs ALL executable tests for the service. Use --title or --doc-id
     to run a specific test.
 
+    When --doc-id is provided, service_id is optional — the service is inferred
+    from the document's entity.
+
     Fetches scripts from the backend and executes locally. UNITYSVC_BASE_URL is set
     automatically per access interface. Set UNITYSVC_API_KEY to your ops_customer
     team API key before running tests:
@@ -403,7 +433,10 @@ def run_test(
         # Run specific test by title
         usvc services run-tests 297040cd --title "Quick Start"
 
-        # Run specific test by document ID
+        # Run specific test by document ID (no service_id needed)
+        usvc services run-tests -d abc123
+
+        # Run specific test by document ID with explicit service
         usvc services run-tests 297040cd -d abc123
 
         # Run with verbose output
@@ -415,6 +448,9 @@ def run_test(
         # Stop on first failure
         usvc services run-tests 297040cd --fail-fast
     """
+    if not service_id and not doc_id:
+        console.print("[red]Error: Either SERVICE_ID argument or --doc-id must be provided[/red]")
+        raise typer.Exit(code=1)
     from .utils import execute_script_content
 
     def _execute_script(file_content: str, mime_type: str, output_contains: str | None, resolved_base_url: str) -> dict:
@@ -449,8 +485,16 @@ def run_test(
 
     async def _run():
         async with TestRunner() as runner:
+            # Resolve service_id from doc_id if not provided
+            resolved_service_id = service_id
+            if not resolved_service_id:
+                # doc_id is guaranteed to be set (checked above)
+                console.print(f"[dim]Resolving service from document {doc_id}...[/dim]")
+                resolved_service_id = await runner.resolve_service_id_from_document(doc_id)
+                console.print(f"[dim]Found service: {resolved_service_id}[/dim]\n")
+
             # List all executable documents
-            documents = await runner.list_documents(service_id, executable_only=True)
+            documents = await runner.list_documents(resolved_service_id, executable_only=True)
 
             if not documents:
                 console.print("[yellow]No testable documents found.[/yellow]")
@@ -463,7 +507,7 @@ def run_test(
 
             # Fetch access interfaces from the backend (URLs already resolved)
             try:
-                interfaces_data = await runner.list_interfaces(service_id)
+                interfaces_data = await runner.list_interfaces(resolved_service_id)
                 interfaces_list = _resolve_interfaces(interfaces_data)
             except Exception:
                 interfaces_list = [("default", "")]
@@ -549,7 +593,7 @@ def run_test(
                         script_stem = os.path.splitext(filename)[0] if filename else doc.get("id", "unknown")[:8]
                         # Include interface name in debug file names for disambiguation
                         safe_iface = iface_name.replace(" ", "_").replace("/", "_")
-                        base_name = f"failed_{service_id}_{script_stem}_{safe_iface}"
+                        base_name = f"failed_{resolved_service_id}_{script_stem}_{safe_iface}"
                         if result.get("file_content"):
                             ext = os.path.splitext(filename)[1] if filename else ""
                             script_name = f"{base_name}{ext}"
@@ -629,30 +673,39 @@ def run_test(
 
 @app.command("skip")
 def skip_test(
-    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
-    title: str = typer.Option(None, "--title", "-t", help="Document title to skip"),
-    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
+    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required when using --title."),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to skip (requires service_id)"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs, no service_id needed)"),
 ):
     """Mark a test as skipped.
 
     Skipped tests won't be required to pass for service approval.
     Only code_example documents can be skipped (connectivity_test cannot).
 
+    When --doc-id is provided, service_id is not required.
+
     Examples:
         usvc services skip-test 297040cd --title "Optional Demo"
-        usvc services skip-test 297040cd -d abc123
+        usvc services skip-test -d abc123
     """
     if not title and not doc_id:
         console.print("[red]Error: Either --title or --doc-id must be specified[/red]")
         raise typer.Exit(code=1)
 
+    if title and not service_id:
+        console.print("[red]Error: service_id is required when using --title[/red]")
+        raise typer.Exit(code=1)
+
     async def _skip():
         async with TestRunner() as runner:
-            # Find document by title or ID
-            documents = await runner.list_documents(service_id, executable_only=True)
-            doc = _find_document(documents, title, doc_id)
-
-            return await runner.skip_test(doc["id"])
+            if doc_id and not service_id:
+                # doc_id uniquely identifies the document
+                return await runner.skip_test(doc_id)
+            else:
+                # Find document by title or ID within the service
+                documents = await runner.list_documents(service_id, executable_only=True)
+                doc = _find_document(documents, title, doc_id)
+                return await runner.skip_test(doc["id"])
 
     try:
         asyncio.run(_skip())
@@ -666,29 +719,38 @@ def skip_test(
 
 @app.command("unskip")
 def unskip_test(
-    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs, minimum 8 chars)"),
-    title: str = typer.Option(None, "--title", "-t", help="Document title to unskip"),
-    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs)"),
+    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required when using --title."),
+    title: str = typer.Option(None, "--title", "-t", help="Document title to unskip (requires service_id)"),
+    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Document ID (supports partial IDs, no service_id needed)"),
 ):
     """Remove skip status from a test.
 
     The test will be set to 'pending' status and can be executed again.
 
+    When --doc-id is provided, service_id is not required.
+
     Examples:
         usvc services unskip-test 297040cd --title "Optional Demo"
-        usvc services unskip-test 297040cd -d abc123
+        usvc services unskip-test -d abc123
     """
     if not title and not doc_id:
         console.print("[red]Error: Either --title or --doc-id must be specified[/red]")
         raise typer.Exit(code=1)
 
+    if title and not service_id:
+        console.print("[red]Error: service_id is required when using --title[/red]")
+        raise typer.Exit(code=1)
+
     async def _unskip():
         async with TestRunner() as runner:
-            # Find document by title or ID
-            documents = await runner.list_documents(service_id, executable_only=True)
-            doc = _find_document(documents, title, doc_id)
-
-            return await runner.unskip_test(doc["id"])
+            if doc_id and not service_id:
+                # doc_id uniquely identifies the document
+                return await runner.unskip_test(doc_id)
+            else:
+                # Find document by title or ID within the service
+                documents = await runner.list_documents(service_id, executable_only=True)
+                doc = _find_document(documents, title, doc_id)
+                return await runner.unskip_test(doc["id"])
 
     try:
         asyncio.run(_unskip())
