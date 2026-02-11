@@ -381,7 +381,9 @@ def show_test(
                 resolved_sid = service_id
                 if not resolved_sid:
                     try:
-                        resolved_sid = await runner.resolve_service_id_from_document(document.get("id", doc_id or ""))
+                        resolved_sid = await runner.resolve_service_id_from_document(
+                            document.get("id", doc_id or "")
+                        )
                     except Exception:
                         pass
                 if resolved_sid:
