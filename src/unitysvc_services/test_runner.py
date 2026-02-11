@@ -297,15 +297,35 @@ def show_test(
         async with TestRunner() as runner:
             if doc_id:
                 # doc_id uniquely identifies the document, no need for service_id
-                return await runner.get_document(doc_id, file_content=script)
+                document = await runner.get_document(doc_id, file_content=script)
             else:
                 # --title requires listing documents for the service first
                 documents = await runner.list_documents(service_id, executable_only=False)
                 doc = _find_document(documents, title, doc_id)
-                return await runner.get_document(doc["id"], file_content=script)
+                document = await runner.get_document(doc["id"], file_content=script)
+
+            # Resolve interfaces to get actual UNITYSVC_BASE_URL when showing script
+            interfaces_list = []
+            if script:
+                resolved_sid = service_id
+                if not resolved_sid:
+                    try:
+                        resolved_sid = await runner.resolve_service_id_from_document(
+                            document.get("id", doc_id or "")
+                        )
+                    except Exception:
+                        pass
+                if resolved_sid:
+                    try:
+                        interfaces_data = await runner.list_interfaces(resolved_sid)
+                        interfaces_list = _resolve_interfaces(interfaces_data)
+                    except Exception:
+                        pass
+
+            return document, interfaces_list
 
     try:
-        document = asyncio.run(_show())
+        document, interfaces_list = asyncio.run(_show())
 
         if script:
             # Show script content for debugging
@@ -314,9 +334,17 @@ def show_test(
             console.print(f"[dim]MIME type: {document.get('mime_type')}[/dim]")
             console.print()
 
-            # Remind user about environment setup
-            console.print("[bold yellow]Environment Variables (set these before running):[/bold yellow]")
-            console.print("  UNITYSVC_BASE_URL=<gateway_url>")
+            # Show environment variables needed to run the script
+            if interfaces_list:
+                console.print("[bold yellow]Environment Variables:[/bold yellow]")
+                for iface_name, iface_url in interfaces_list:
+                    if len(interfaces_list) > 1:
+                        console.print(f"  # {iface_name}")
+                    console.print(f"  UNITYSVC_BASE_URL={iface_url or '<gateway_url>'}")
+                console.print("[bold yellow]Set before running:[/bold yellow]")
+            else:
+                console.print("[bold yellow]Environment Variables (set these before running):[/bold yellow]")
+                console.print("  UNITYSVC_BASE_URL=<gateway_url>")
             console.print("  UNITYSVC_API_KEY=<your_customer_api_key>")
             console.print()
 
