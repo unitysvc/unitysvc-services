@@ -346,11 +346,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key with spaces in secrets format is valid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${ secrets.MY_API_KEY }"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${ secrets.MY_API_KEY }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -358,11 +354,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key without spaces in secrets format is valid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${secrets.MY_API_KEY}"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${secrets.MY_API_KEY}"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -370,11 +362,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key with underscore prefix is valid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${ secrets._PRIVATE_KEY }"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${ secrets._PRIVATE_KEY }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -382,11 +370,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key with numbers in name is valid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${ secrets.API_KEY_V2 }"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${ secrets.API_KEY_V2 }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -394,11 +378,7 @@ class TestApiKeySecretsValidation:
         """Test that plain text api_key is invalid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "sk-abc123xyz"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "sk-abc123xyz"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "secrets reference format" in errors[0]
@@ -408,11 +388,7 @@ class TestApiKeySecretsValidation:
         """Test that placeholder api_key is invalid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "your_api_key_here"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "your_api_key_here"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "secrets reference format" in errors[0]
@@ -421,11 +397,7 @@ class TestApiKeySecretsValidation:
         """Test that missing 'secrets.' prefix is invalid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${ MY_API_KEY }"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${ MY_API_KEY }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "secrets reference format" in errors[0]
@@ -434,11 +406,7 @@ class TestApiKeySecretsValidation:
         """Test that wrong brace format is invalid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "{{ secrets.MY_API_KEY }}"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "{{ secrets.MY_API_KEY }}"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "secrets reference format" in errors[0]
@@ -447,11 +415,7 @@ class TestApiKeySecretsValidation:
         """Test that secret name starting with number is invalid."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": "${ secrets.123_KEY }"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": "${ secrets.123_KEY }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "secrets reference format" in errors[0]
@@ -460,11 +424,7 @@ class TestApiKeySecretsValidation:
         """Test that null/None api_key is valid (optional field)."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"api_key": None}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"api_key": None}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -472,11 +432,7 @@ class TestApiKeySecretsValidation:
         """Test that missing api_key field is valid (optional field)."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "upstream_access_interfaces": {
-                "API": {"base_url": "https://api.example.com"}
-            }
-        }
+        data = {"upstream_access_interfaces": {"API": {"base_url": "https://api.example.com"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -484,13 +440,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key in service_options.ops_testing_parameters is validated."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "service_options": {
-                "ops_testing_parameters": {
-                    "api_key": "plain_text_key"
-                }
-            }
-        }
+        data = {"service_options": {"ops_testing_parameters": {"api_key": "plain_text_key"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "service_options.ops_testing_parameters.api_key" in errors[0]
@@ -499,13 +449,7 @@ class TestApiKeySecretsValidation:
         """Test that valid api_key in service_options.ops_testing_parameters passes."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "service_options": {
-                "ops_testing_parameters": {
-                    "api_key": "${ secrets.USER_API_KEY }"
-                }
-            }
-        }
+        data = {"service_options": {"ops_testing_parameters": {"api_key": "${ secrets.USER_API_KEY }"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 0
 
@@ -513,11 +457,7 @@ class TestApiKeySecretsValidation:
         """Test that api_key in user_access_interfaces is validated."""
         validator = DataValidator(example_data_dir, schema_dir)
 
-        data = {
-            "user_access_interfaces": {
-                "User API": {"api_key": "invalid_key"}
-            }
-        }
+        data = {"user_access_interfaces": {"User API": {"api_key": "invalid_key"}}}
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 1
         assert "user_access_interfaces.User API.api_key" in errors[0]
@@ -527,15 +467,8 @@ class TestApiKeySecretsValidation:
         validator = DataValidator(example_data_dir, schema_dir)
 
         data = {
-            "upstream_access_interfaces": {
-                "API1": {"api_key": "invalid1"},
-                "API2": {"api_key": "invalid2"}
-            },
-            "service_options": {
-                "ops_testing_parameters": {
-                    "api_key": "invalid3"
-                }
-            }
+            "upstream_access_interfaces": {"API1": {"api_key": "invalid1"}, "API2": {"api_key": "invalid2"}},
+            "service_options": {"ops_testing_parameters": {"api_key": "invalid3"}},
         }
         errors = validator.validate_api_key_secrets(data)
         assert len(errors) == 3
@@ -552,7 +485,6 @@ class TestServiceOptionsValidation:
                 "enrollment_limit": 10,
                 "enrollment_limit_per_customer": 2,
                 "enrollment_limit_per_user": 3,
-                "enrollment_code_name": "invite",
                 "ops_testing_parameters": {"model": "gpt-4"},
             },
         }
@@ -579,16 +511,6 @@ class TestServiceOptionsValidation:
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
         assert "must be int, got str" in errors[0]
-
-    def test_wrong_type_enrollment_code_name(self, schema_dir, example_data_dir):
-        validator = DataValidator(example_data_dir, schema_dir)
-        data = {
-            "schema": "listing_v1",
-            "service_options": {"enrollment_code_name": 42},
-        }
-        errors = validator.validate_service_options_keys(data, "listing_v1")
-        assert len(errors) == 1
-        assert "must be str, got int" in errors[0]
 
     def test_wrong_type_ops_testing_parameters(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
@@ -658,8 +580,7 @@ class TestServiceOptionsValidation:
             "service_options": {
                 "enrollment_limt": 5,
                 "enrollment_limit": "bad",
-                "enrollment_code_name": 42,
             },
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
-        assert len(errors) == 3
+        assert len(errors) == 2

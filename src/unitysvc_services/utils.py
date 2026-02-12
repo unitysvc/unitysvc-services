@@ -177,9 +177,7 @@ def deep_merge_dicts(base: dict[str, Any], override: dict[str, Any]) -> dict[str
     return result
 
 
-def load_data_file(
-    file_path: Path, *, skip_override: bool = False
-) -> tuple[dict[str, Any], str]:
+def load_data_file(file_path: Path, *, skip_override: bool = False) -> tuple[dict[str, Any], str]:
     """
     Load a data file (JSON or TOML) and return (data, format).
 
@@ -791,9 +789,7 @@ def execute_script_content(
     return result
 
 
-def determine_interpreter(
-    script: str, mime_type: str
-) -> tuple[str | None, str, str | None]:
+def determine_interpreter(script: str, mime_type: str) -> tuple[str | None, str, str | None]:
     """
     Determine the interpreter command for executing a script.
 

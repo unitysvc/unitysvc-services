@@ -249,28 +249,19 @@ Listing files define how a seller presents/sells a service to end users.
 
 The `service_options` field configures backend behavior for service listings. All fields are optional.
 
-| Field                             | Type    | Description                                                                                                     |
-| --------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
-| `ops_testing_parameters`          | object  | Default parameter values for testing (see [User Parameters](#user-parameters))                                  |
-| `subscription_limit`              | integer | Maximum total active subscriptions allowed for this service (global limit)                                      |
-| `subscription_limit_per_customer` | integer | Maximum active subscriptions per customer for this service                                                      |
-| `subscription_limit_per_user`     | integer | Maximum active subscriptions per user (creator) for this service                                                |
-| `subscription_code_name`          | string  | Parameter name for auto-generated subscription codes. If set, backend generates unique tokens for subscriptions |
+| Field                             | Type    | Description                                                                    |
+| --------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `ops_testing_parameters`          | object  | Default parameter values for testing (see [User Parameters](#user-parameters)) |
+| `enrollment_limit`                | integer | Maximum total active enrollments allowed for this service (global limit)       |
+| `enrollment_limit_per_customer`   | integer | Maximum active enrollments per customer for this service                       |
+| `enrollment_limit_per_user`       | integer | Maximum active enrollments per user (creator) for this service                 |
 
-**Subscription Limits:**
+**Enrollment Limits:**
 
-- Limits apply only to **active** subscriptions (cancelled/inactive subscriptions don't count)
+- Limits apply only to **active** enrollments (cancelled/inactive enrollments don't count)
 - Invalid values (non-integers, zero, negative, or boolean) are treated as "no limit"
-- Limits are checked when creating **new** subscriptions (not when updating existing ones)
+- Limits are checked when creating **new** enrollments (not when updating existing ones)
 - Checks are performed in order: per-customer → per-user → global
-
-**Subscription Codes:**
-
-When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend automatically:
-
-1. Generates a unique action code token for each new subscription
-2. Adds the token to subscription parameters: `{subscription_code_name: "generated_token"}`
-3. Skips this field when comparing parameters to determine if a subscription is an update
 
 **Example (JSON):**
 
@@ -281,10 +272,9 @@ When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend 
             "api_key": "${ secrets.SERVICE_API_KEY }",
             "region": "us-east-1"
         },
-        "subscription_limit": 100,
-        "subscription_limit_per_customer": 5,
-        "subscription_limit_per_user": 2,
-        "subscription_code_name": "subscription_code"
+        "enrollment_limit": 100,
+        "enrollment_limit_per_customer": 5,
+        "enrollment_limit_per_user": 2
     }
 }
 ```
@@ -293,10 +283,9 @@ When `subscription_code_name` is set (e.g., `"subscription_code"`), the backend 
 
 ```toml
 [service_options]
-subscription_limit = 100
-subscription_limit_per_customer = 5
-subscription_limit_per_user = 2
-subscription_code_name = "subscription_code"
+enrollment_limit = 100
+enrollment_limit_per_customer = 5
+enrollment_limit_per_user = 2
 
 [service_options.ops_testing_parameters]
 api_key = "${ secrets.SERVICE_API_KEY }"
@@ -769,6 +758,57 @@ The `AccessInterfaceData` object defines how to access a service (used in offeri
 | `sort_order`          | integer            | Display order (default: 0)                                                                                |
 
 **Note:** The interface name is specified as the dict key, not as a field within the object.
+
+#### Jinja2 Template Values
+
+String values in `user_access_interfaces` and `upstream_access_interfaces` can use **Jinja2 template syntax** for dynamic rendering at enrollment time. Templates are rendered with an enrollment context that includes enrollment parameters, customer ID, and enrollment ID.
+
+**Template context variables:**
+
+| Variable                     | Type   | Description                     |
+| ---------------------------- | ------ | ------------------------------- |
+| `enrollment.id`              | string | Enrollment UUID                 |
+| `enrollment.customer_id`     | string | Customer UUID                   |
+| `enrollment.parameters`      | dict   | All enrollment parameters       |
+
+**Template functions:**
+
+| Function               | Returns | Description                                                              |
+| ---------------------- | ------- | ------------------------------------------------------------------------ |
+| `generate_code(length=6)` | string  | Generate (or retrieve) a unique action code token for this enrollment |
+
+The `generate_code` function is idempotent — calling it multiple times for the same enrollment returns the same token. The generated code is persisted in the `action_code` table.
+
+**Behavior:**
+
+- Interfaces containing `{{` or `{%` syntax are treated as templates and rendered per-enrollment (enrollment-scoped)
+- Interfaces without template syntax are treated as static and shared across enrollments (listing-scoped)
+- On template rendering errors, the original string value is preserved
+
+**Example (TOML):**
+
+```toml
+[user_access_interfaces.ntfy-gateway]
+access_method = "http"
+base_url = "${GATEWAY_BASE_URL}/ntfy/{{ generate_code(6) }}"
+description = "Your ntfy notification endpoint"
+```
+
+**Example (JSON):**
+
+```json
+{
+    "user_access_interfaces": {
+        "ntfy-gateway": {
+            "access_method": "http",
+            "base_url": "${GATEWAY_BASE_URL}/ntfy/{{ generate_code(6) }}",
+            "description": "Your ntfy notification endpoint"
+        }
+    }
+}
+```
+
+After enrollment, the `base_url` is rendered with the generated code (e.g., `${GATEWAY_BASE_URL}/ntfy/VTXBNM`), creating an enrollment-scoped access interface visible only to that enrollment.
 
 #### Routing Key
 

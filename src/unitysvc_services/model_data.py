@@ -202,9 +202,7 @@ class ModelDataFetcher:
             self._openrouter_data = {}
             return self._openrouter_data
 
-    def fetch_huggingface_model_details(
-        self, model_id: str, quiet: bool = False
-    ) -> dict[str, Any] | None:
+    def fetch_huggingface_model_details(self, model_id: str, quiet: bool = False) -> dict[str, Any] | None:
         """Fetch detailed model information from Hugging Face Model Hub API.
 
         Attempts to fetch model details using various ID format variations
@@ -276,9 +274,7 @@ class ModelDataLookup:
     """
 
     @staticmethod
-    def lookup_model_details(
-        model_id: str, litellm_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def lookup_model_details(model_id: str, litellm_data: dict[str, Any]) -> dict[str, Any] | None:
         """Look up additional model details from LiteLLM data.
 
         Performs fuzzy matching to find model data, trying:
@@ -313,9 +309,7 @@ class ModelDataLookup:
         return None
 
     @staticmethod
-    def lookup_hf_leaderboard_details(
-        model_id: str, hf_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def lookup_hf_leaderboard_details(model_id: str, hf_data: dict[str, Any]) -> dict[str, Any] | None:
         """Look up model evaluation details from Hugging Face leaderboard data.
 
         Performs fuzzy matching with various transformations including
@@ -356,20 +350,14 @@ class ModelDataLookup:
                 return hf_data[key]
 
             # Try matching without common prefixes
-            key_clean = (
-                key_lower.replace("huggingface/", "")
-                .replace("microsoft/", "")
-                .replace("meta-llama/", "")
-            )
+            key_clean = key_lower.replace("huggingface/", "").replace("microsoft/", "").replace("meta-llama/", "")
             if model_lower in key_clean or key_clean in model_lower:
                 return hf_data[key]
 
         return None
 
     @staticmethod
-    def lookup_openrouter_details(
-        model_id: str, openrouter_data: dict[str, Any]
-    ) -> dict[str, Any] | None:
+    def lookup_openrouter_details(model_id: str, openrouter_data: dict[str, Any]) -> dict[str, Any] | None:
         """Look up model details from OpenRouter data.
 
         Performs fuzzy matching with case-insensitive comparison
