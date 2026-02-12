@@ -220,7 +220,7 @@ def list_tests(
                                 }
                             )
                     else:
-                        for iface_name, iface_url in interfaces:
+                        for iface_name, _iface_url in interfaces:
                             rows.append(
                                 {
                                     "service_name": svc_name,
