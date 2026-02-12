@@ -20,8 +20,8 @@ runner = CliRunner()
 
 def strip_ansi(text: str) -> str:
     """Remove ANSI escape codes from text."""
-    ansi_pattern = re.compile(r'\x1b\[[0-9;]*m')
-    return ansi_pattern.sub('', text)
+    ansi_pattern = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_pattern.sub("", text)
 
 
 # =============================================================================
@@ -56,9 +56,7 @@ class TestServiceLifecycleAPI:
 
             result = asyncio.run(api.delete_service("test-id", dryrun=True))
 
-            mock_delete.assert_called_once_with(
-                "/seller/services/test-id", params={"dryrun": "true"}
-            )
+            mock_delete.assert_called_once_with("/seller/services/test-id", params={"dryrun": "true"})
             assert result == {"would_delete": True}
 
     def test_delete_service_with_force(self, api):
@@ -68,9 +66,7 @@ class TestServiceLifecycleAPI:
 
             result = asyncio.run(api.delete_service("test-id", force=True))
 
-            mock_delete.assert_called_once_with(
-                "/seller/services/test-id", params={"force": "true"}
-            )
+            mock_delete.assert_called_once_with("/seller/services/test-id", params={"force": "true"})
             assert result == {"deleted": True, "forced": True}
 
     def test_delete_service_with_all_flags(self, api):
@@ -80,9 +76,7 @@ class TestServiceLifecycleAPI:
 
             asyncio.run(api.delete_service("test-id", dryrun=True, force=True))
 
-            mock_delete.assert_called_once_with(
-                "/seller/services/test-id", params={"dryrun": "true", "force": "true"}
-            )
+            mock_delete.assert_called_once_with("/seller/services/test-id", params={"dryrun": "true", "force": "true"})
 
     def test_update_service_status_deprecated(self, api):
         """Test update_service_status with deprecated status."""
@@ -91,9 +85,7 @@ class TestServiceLifecycleAPI:
 
             result = asyncio.run(api.update_service_status("test-id", status="deprecated"))
 
-            mock_patch.assert_called_once_with(
-                "/seller/services/test-id", json_data={"status": "deprecated"}
-            )
+            mock_patch.assert_called_once_with("/seller/services/test-id", json_data={"status": "deprecated"})
             assert result == {"status": "deprecated"}
 
     def test_update_service_status_pending(self, api):
@@ -103,9 +95,7 @@ class TestServiceLifecycleAPI:
 
             result = asyncio.run(api.update_service_status("test-id", status="pending"))
 
-            mock_patch.assert_called_once_with(
-                "/seller/services/test-id", json_data={"status": "pending"}
-            )
+            mock_patch.assert_called_once_with("/seller/services/test-id", json_data={"status": "pending"})
             assert result == {"status": "pending"}
 
     def test_update_service_status_draft(self, api):
@@ -115,9 +105,7 @@ class TestServiceLifecycleAPI:
 
             result = asyncio.run(api.update_service_status("test-id", status="draft"))
 
-            mock_patch.assert_called_once_with(
-                "/seller/services/test-id", json_data={"status": "draft"}
-            )
+            mock_patch.assert_called_once_with("/seller/services/test-id", json_data={"status": "draft"})
             assert result == {"status": "draft"}
 
 
@@ -357,9 +345,7 @@ class TestErrorHandling:
     def test_delete_shows_cascade_info(self, cli_app):
         """Test delete shows cascade deletion information."""
         with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
-            mock_run.return_value = [
-                ("test-id", {"deleted": True, "cascade_deleted": {"subscriptions": 5}}, None)
-            ]
+            mock_run.return_value = [("test-id", {"deleted": True, "cascade_deleted": {"subscriptions": 5}}, None)]
             result = runner.invoke(cli_app, ["delete", "test-id", "--yes"])
             assert result.exit_code == 0
             assert "subscription" in result.output.lower()

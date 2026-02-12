@@ -153,8 +153,7 @@ def populate(
                     success, error_msg = _install_requirements(requirements)
                     if not success:
                         console.print(
-                            f"[red]✗[/red] Failed to install requirements for "
-                            f"{provider_name_in_file}: {error_msg}",
+                            f"[red]✗[/red] Failed to install requirements for {provider_name_in_file}: {error_msg}",
                             style="bold red",
                         )
                         total_failed += 1

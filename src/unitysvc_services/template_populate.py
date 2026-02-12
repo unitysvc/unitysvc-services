@@ -72,10 +72,7 @@ def populate_from_iterator(
     # Track existing services before iteration (for deprecation)
     existing_services: set[str] = set()
     if deprecate_missing and output_dir.exists():
-        existing_services = {
-            d.name for d in output_dir.iterdir()
-            if d.is_dir() and (d / "offering.json").exists()
-        }
+        existing_services = {d.name for d in output_dir.iterdir() if d.is_dir() and (d / "offering.json").exists()}
 
     updated_services: set[str] = set()
 
@@ -163,9 +160,11 @@ def populate_from_iterator(
                 stats["deprecated"] += 1
                 print(f"  Deprecated: {service_name}")
 
-    print(f"\nDone! Total: {stats['total']}, Written: {stats['written']}, "
-          f"Skipped: {stats['skipped']}, Filtered: {stats['filtered']}, "
-          f"Errors: {stats['errors']}, Deprecated: {stats['deprecated']}")
+    print(
+        f"\nDone! Total: {stats['total']}, Written: {stats['written']}, "
+        f"Skipped: {stats['skipped']}, Filtered: {stats['filtered']}, "
+        f"Errors: {stats['errors']}, Deprecated: {stats['deprecated']}"
+    )
 
     return stats
 

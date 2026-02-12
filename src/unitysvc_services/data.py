@@ -359,13 +359,15 @@ def _list_services_impl(data_dir: Path | None):
         except ValueError:
             listing_rel = listing_file
 
-        services.append({
-            "service_name": service_name,
-            "provider_name": provider_name,
-            "status": service_status,
-            "listing_file": str(listing_rel),
-            "service_id": service_id,
-        })
+        services.append(
+            {
+                "service_name": service_name,
+                "provider_name": provider_name,
+                "status": service_status,
+                "listing_file": str(listing_rel),
+                "service_id": service_id,
+            }
+        )
 
     # Display results in table
     table = Table(title="Services")

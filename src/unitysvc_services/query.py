@@ -165,6 +165,7 @@ def show_service(
         # Show service by partial ID
         usvc services show 297040cd
     """
+
     async def _show_service():
         async with ServiceDataQuery() as query:
             # Pass partial ID directly to backend - it handles resolution

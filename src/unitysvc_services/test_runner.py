@@ -79,9 +79,7 @@ class TestRunner(UnitySvcAPI):
             if entity_id and entity_id in (svc_id, listing_id, offering_id):
                 return svc_id
 
-        raise ValueError(
-            f"Cannot find service for document {document_id} (entity_id={entity_id})"
-        )
+        raise ValueError(f"Cannot find service for document {document_id} (entity_id={entity_id})")
 
     async def skip_test(self, document_id: str) -> dict[str, Any]:
         """Mark a test as skipped."""
@@ -207,47 +205,63 @@ def list_tests(
                     test_results = test_meta.get("tests") or {}
                     if test_results:
                         for iface_name, iface_data in test_results.items():
-                            rows.append({
-                                "service_name": svc_name,
-                                "service_id": svc_id[:8] + "..." if svc_id else "-",
-                                "doc_id": doc_id[:8] + "..." if doc_id else "-",
-                                "title": doc.get("title", ""),
-                                "category": doc.get("category", ""),
-                                "interface": iface_name,
-                                "status": iface_data.get("status", doc_status),
-                                "exit_code": str(iface_data.get("exit_code", "")),
-                                "stdout": (iface_data.get("stdout", "") or "").strip(),
-                                "stderr": (iface_data.get("stderr", "") or "").strip(),
-                            })
+                            rows.append(
+                                {
+                                    "service_name": svc_name,
+                                    "service_id": svc_id[:8] + "..." if svc_id else "-",
+                                    "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                                    "title": doc.get("title", ""),
+                                    "category": doc.get("category", ""),
+                                    "interface": iface_name,
+                                    "status": iface_data.get("status", doc_status),
+                                    "exit_code": str(iface_data.get("exit_code", "")),
+                                    "stdout": (iface_data.get("stdout", "") or "").strip(),
+                                    "stderr": (iface_data.get("stderr", "") or "").strip(),
+                                }
+                            )
                     else:
                         for iface_name, iface_url in interfaces:
-                            rows.append({
-                                "service_name": svc_name,
+                            rows.append(
+                                {
+                                    "service_name": svc_name,
+                                    "service_id": svc_id[:8] + "..." if svc_id else "-",
+                                    "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                                    "title": doc.get("title", ""),
+                                    "category": doc.get("category", ""),
+                                    "interface": iface_name,
+                                    "status": doc_status,
+                                    "exit_code": "",
+                                    "stdout": "",
+                                    "stderr": "",
+                                }
+                            )
+                else:
+                    for iface_name, iface_url in interfaces:
+                        rows.append(
+                            {
                                 "service_id": svc_id[:8] + "..." if svc_id else "-",
+                                "service_name": svc_name,
                                 "doc_id": doc_id[:8] + "..." if doc_id else "-",
                                 "title": doc.get("title", ""),
                                 "category": doc.get("category", ""),
                                 "interface": iface_name,
+                                "interface_base_url": iface_url,
                                 "status": doc_status,
-                                "exit_code": "",
-                                "stdout": "",
-                                "stderr": "",
-                            })
-                else:
-                    for iface_name, iface_url in interfaces:
-                        rows.append({
-                            "service_id": svc_id[:8] + "..." if svc_id else "-",
-                            "service_name": svc_name,
-                            "doc_id": doc_id[:8] + "..." if doc_id else "-",
-                            "title": doc.get("title", ""),
-                            "category": doc.get("category", ""),
-                            "interface": iface_name,
-                            "interface_base_url": iface_url,
-                            "status": doc_status,
-                        })
+                            }
+                        )
 
         if verbose:
-            columns = ["service_name", "service_id", "doc_id", "title", "interface", "status", "exit_code", "stdout", "stderr"]
+            columns = [
+                "service_name",
+                "service_id",
+                "doc_id",
+                "title",
+                "interface",
+                "status",
+                "exit_code",
+                "stdout",
+                "stderr",
+            ]
         else:
             columns = ["service_name", "service_id", "doc_id", "title", "category", "interface", "status"]
 
@@ -367,9 +381,7 @@ def show_test(
                 resolved_sid = service_id
                 if not resolved_sid:
                     try:
-                        resolved_sid = await runner.resolve_service_id_from_document(
-                            document.get("id", doc_id or "")
-                        )
+                        resolved_sid = await runner.resolve_service_id_from_document(document.get("id", doc_id or ""))
                     except Exception:
                         pass
                 if resolved_sid:
@@ -469,9 +481,16 @@ def show_test(
 
 @app.command("run")
 def run_test(
-    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required unless --doc-id or --all is provided."),
+    service_id: str = typer.Argument(
+        None, help="Service ID (supports partial IDs). Required unless --doc-id or --all is provided."
+    ),
     title: str = typer.Option(None, "--title", "-t", help="Only run test with this title (runs all if not specified)"),
-    doc_id: str = typer.Option(None, "--doc-id", "-d", help="Only run test with this document ID (supports partial). When provided, service_id is optional."),
+    doc_id: str = typer.Option(
+        None,
+        "--doc-id",
+        "-d",
+        help="Only run test with this document ID (supports partial). When provided, service_id is optional.",
+    ),
     all_services: bool = typer.Option(
         False,
         "--all",
@@ -665,7 +684,11 @@ def run_test(
                 out.print(f"[cyan]Running: {label}...[/cyan]")
 
                 result = await asyncio.to_thread(
-                    _execute_script, file_content, mime_type, output_contains, resolved_url,
+                    _execute_script,
+                    file_content,
+                    mime_type,
+                    output_contains,
+                    resolved_url,
                 )
                 result["title"] = label
                 result["interface"] = iface_name
@@ -759,7 +782,10 @@ def run_test(
                         console.print(f"[bold cyan]\\[{idx}/{total}] {svc_name}[/bold cyan] ({svc_id[:8]}...)")
                         try:
                             svc_results, stop = await _run_for_service(
-                                runner, svc_id, out=console, svc_name=svc_name,
+                                runner,
+                                svc_id,
+                                out=console,
+                                svc_name=svc_name,
                             )
                             all_results.extend(svc_results)
                             if stop:
@@ -786,7 +812,10 @@ def run_test(
                             buf_console.print(f"[bold cyan]\\[{idx}/{total}] {svc_name}[/bold cyan] ({svc_id[:8]}...)")
                             try:
                                 svc_results, stop = await _run_for_service(
-                                    runner, svc_id, out=buf_console, svc_name=svc_name,
+                                    runner,
+                                    svc_id,
+                                    out=buf_console,
+                                    svc_name=svc_name,
                                 )
                                 if stop and fail_fast:
                                     stop_all.set()
@@ -815,8 +844,11 @@ def run_test(
                     console.print(f"[dim]Found service: {resolved_service_id}[/dim]\n")
 
                 results, _ = await _run_for_service(
-                    runner, resolved_service_id, out=console,
-                    filter_title=title, filter_doc_id=doc_id,
+                    runner,
+                    resolved_service_id,
+                    out=console,
+                    filter_title=title,
+                    filter_doc_id=doc_id,
                 )
                 return results
 

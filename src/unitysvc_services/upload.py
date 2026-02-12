@@ -734,8 +734,7 @@ class ServiceDataPublisher(UnitySvcAPI):
         # Create semaphore to limit concurrent requests
         semaphore = asyncio.Semaphore(self.max_concurrent_requests)
         tasks = [
-            self._upload_service_task(listing_file, console, semaphore, dryrun=dryrun)
-            for listing_file in listing_files
+            self._upload_service_task(listing_file, console, semaphore, dryrun=dryrun) for listing_file in listing_files
         ]
         task_results = await asyncio.gather(*tasks)
 
@@ -826,8 +825,7 @@ def upload_callback(
     # Validate --revision-to is only used with single file
     if revision_to and not is_single_file:
         console.print(
-            "[red]✗[/red] --revision-to can only be used when uploading a single service file, "
-            "not a directory.",
+            "[red]✗[/red] --revision-to can only be used when uploading a single service file, not a directory.",
             style="bold red",
         )
         raise typer.Exit(code=1)
@@ -844,9 +842,7 @@ def upload_callback(
         async with ServiceDataPublisher() as uploader:
             if is_single_file:
                 # Upload single service from listing file
-                result = await uploader.post_service_async(
-                    data_path, dryrun=dryrun, revision_to=revision_to
-                )
+                result = await uploader.post_service_async(data_path, dryrun=dryrun, revision_to=revision_to)
                 return result, True
             else:
                 # Upload all services from directory
