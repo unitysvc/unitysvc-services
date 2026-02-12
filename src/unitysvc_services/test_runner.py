@@ -103,6 +103,18 @@ def list_tests(
         "-a",
         help="Show all documents, not just executable ones",
     ),
+    verbose: bool = typer.Option(
+        False,
+        "--verbose",
+        "-v",
+        help="Include test result details (exit_code, stdout, stderr)",
+    ),
+    status_filter: str = typer.Option(
+        None,
+        "--status",
+        "-s",
+        help="Filter by test status (e.g. success, script_failed, pending)",
+    ),
     format: str = typer.Option(
         "table",
         "--format",
@@ -113,13 +125,16 @@ def list_tests(
     """List testable documents for a service or all services.
 
     By default, shows only executable documents (code_example, connectivity_test).
-    Use --all to show all documents.
+    Use --all to show all documents. Use --verbose to include stdout/stderr from
+    test results.
 
     Examples:
-        usvc services test list                 # All services
-        usvc services test list 297040cd        # Specific service
-        usvc services test list --all           # Include non-executable docs
-        usvc services test list --format json
+        usvc services list-tests                        # All services
+        usvc services list-tests 297040cd               # Specific service
+        usvc services list-tests --all                  # Include non-executable docs
+        usvc services list-tests --format json
+        usvc services list-tests -v --status success    # Successful tests with stdout
+        usvc services list-tests -v -f json             # Full results as JSON
     """
 
     async def _list():
@@ -182,22 +197,64 @@ def list_tests(
                 meta = doc.get("meta") or {}
                 test_meta = meta.get("test") or {}
                 doc_id = doc.get("id", "")
-                for iface_name, iface_url in interfaces:
-                    rows.append({
-                        "service_id": svc_id[:8] + "..." if svc_id else "-",
-                        "service_name": svc_name,
-                        "doc_id": doc_id[:8] + "..." if doc_id else "-",
-                        "title": doc.get("title", ""),
-                        "category": doc.get("category", ""),
-                        "interface": iface_name,
-                        "interface_base_url": iface_url,
-                        "status": test_meta.get("status", "pending"),
-                    })
+                doc_status = test_meta.get("status", "pending")
+
+                if status_filter and doc_status != status_filter:
+                    continue
+
+                if verbose:
+                    # Build one row per interface from test results
+                    test_results = test_meta.get("tests") or {}
+                    if test_results:
+                        for iface_name, iface_data in test_results.items():
+                            rows.append({
+                                "service_name": svc_name,
+                                "service_id": svc_id[:8] + "..." if svc_id else "-",
+                                "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                                "title": doc.get("title", ""),
+                                "category": doc.get("category", ""),
+                                "interface": iface_name,
+                                "status": iface_data.get("status", doc_status),
+                                "exit_code": str(iface_data.get("exit_code", "")),
+                                "stdout": (iface_data.get("stdout", "") or "").strip(),
+                                "stderr": (iface_data.get("stderr", "") or "").strip(),
+                            })
+                    else:
+                        for iface_name, iface_url in interfaces:
+                            rows.append({
+                                "service_name": svc_name,
+                                "service_id": svc_id[:8] + "..." if svc_id else "-",
+                                "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                                "title": doc.get("title", ""),
+                                "category": doc.get("category", ""),
+                                "interface": iface_name,
+                                "status": doc_status,
+                                "exit_code": "",
+                                "stdout": "",
+                                "stderr": "",
+                            })
+                else:
+                    for iface_name, iface_url in interfaces:
+                        rows.append({
+                            "service_id": svc_id[:8] + "..." if svc_id else "-",
+                            "service_name": svc_name,
+                            "doc_id": doc_id[:8] + "..." if doc_id else "-",
+                            "title": doc.get("title", ""),
+                            "category": doc.get("category", ""),
+                            "interface": iface_name,
+                            "interface_base_url": iface_url,
+                            "status": doc_status,
+                        })
+
+        if verbose:
+            columns = ["service_name", "service_id", "doc_id", "title", "interface", "status", "exit_code", "stdout", "stderr"]
+        else:
+            columns = ["service_name", "service_id", "doc_id", "title", "category", "interface", "status"]
 
         format_output(
             rows,
             output_format=format,
-            columns=["service_name", "service_id", "doc_id", "title", "category", "interface", "status"],
+            columns=columns,
             column_styles={
                 "service_name": "cyan",
                 "service_id": "dim",
@@ -412,9 +469,15 @@ def show_test(
 
 @app.command("run")
 def run_test(
-    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required unless --doc-id is provided."),
+    service_id: str = typer.Argument(None, help="Service ID (supports partial IDs). Required unless --doc-id or --all is provided."),
     title: str = typer.Option(None, "--title", "-t", help="Only run test with this title (runs all if not specified)"),
     doc_id: str = typer.Option(None, "--doc-id", "-d", help="Only run test with this document ID (supports partial). When provided, service_id is optional."),
+    all_services: bool = typer.Option(
+        False,
+        "--all",
+        "-a",
+        help="Run tests for ALL services (ignores SERVICE_ID)",
+    ),
     timeout: int = typer.Option(
         30,
         "--timeout",
@@ -437,11 +500,18 @@ def run_test(
         "-x",
         help="Stop on first failure",
     ),
+    concurrency: int = typer.Option(
+        1,
+        "--concurrency",
+        "-j",
+        help="Number of services to test in parallel (only with --all)",
+    ),
 ):
     """Run tests locally and submit results to backend.
 
     By default, runs ALL executable tests for the service. Use --title or --doc-id
-    to run a specific test.
+    to run a specific test. Use --all to run tests for every service.
+    Use --all -j 4 to run 4 services in parallel.
 
     When --doc-id is provided, service_id is optional — the service is inferred
     from the document's entity.
@@ -457,6 +527,9 @@ def run_test(
     Examples:
         # Run all tests for a service
         usvc services run-tests 297040cd
+
+        # Run tests for ALL services
+        usvc services run-tests --all
 
         # Run specific test by title
         usvc services run-tests 297040cd --title "Quick Start"
@@ -476,8 +549,8 @@ def run_test(
         # Stop on first failure
         usvc services run-tests 297040cd --fail-fast
     """
-    if not service_id and not doc_id:
-        console.print("[red]Error: Either SERVICE_ID argument or --doc-id must be provided[/red]")
+    if not service_id and not doc_id and not all_services:
+        console.print("[red]Error: Either SERVICE_ID argument, --doc-id, or --all must be provided[/red]")
         raise typer.Exit(code=1)
     from .utils import execute_script_content
 
@@ -511,171 +584,241 @@ def run_test(
                 "error": str(e),
             }
 
-    async def _run():
-        async with TestRunner() as runner:
-            # Resolve service_id from doc_id if not provided
-            resolved_service_id = service_id
-            if not resolved_service_id:
-                # doc_id is guaranteed to be set (checked above)
-                console.print(f"[dim]Resolving service from document {doc_id}...[/dim]")
-                resolved_service_id = await runner.resolve_service_id_from_document(doc_id)
-                console.print(f"[dim]Found service: {resolved_service_id}[/dim]\n")
+    async def _run_for_service(
+        runner: TestRunner,
+        resolved_service_id: str,
+        out: Console,
+        svc_name: str = "",
+        filter_title: str | None = None,
+        filter_doc_id: str | None = None,
+    ) -> tuple[list[dict], bool]:
+        """Run tests for a single service. Returns (results, stop_early)."""
+        documents = await runner.list_documents(resolved_service_id, executable_only=True)
 
-            # List all executable documents
-            documents = await runner.list_documents(resolved_service_id, executable_only=True)
+        if not documents:
+            out.print("[yellow]No testable documents found.[/yellow]")
+            return [], False
 
-            if not documents:
-                console.print("[yellow]No testable documents found.[/yellow]")
-                return []
+        if filter_title or filter_doc_id:
+            doc = _find_document(documents, filter_title, filter_doc_id)
+            documents = [doc]
 
-            # Filter by title or doc_id if specified
-            if title or doc_id:
-                doc = _find_document(documents, title, doc_id)
-                documents = [doc]
+        try:
+            interfaces_data = await runner.list_interfaces(resolved_service_id)
+            interfaces_list = _resolve_interfaces(interfaces_data)
+        except Exception:
+            interfaces_list = [("default", "")]
 
-            # Fetch access interfaces from the backend (URLs already resolved)
-            try:
-                interfaces_data = await runner.list_interfaces(resolved_service_id)
-                interfaces_list = _resolve_interfaces(interfaces_data)
-            except Exception:
-                interfaces_list = [("default", "")]
+        api_key = os.environ.get("UNITYSVC_API_KEY", "")
+        if interfaces_list or api_key:
+            for iface_name, iface_url in interfaces_list:
+                out.print(f"[dim]{iface_name}: UNITYSVC_BASE_URL={iface_url}[/dim]")
+            api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
+            out.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
+            out.print()
+        else:
+            out.print("[yellow]Warning: No interfaces found and UNITYSVC_API_KEY is not set[/yellow]")
+            out.print()
 
-            # Show environment context before running tests
-            api_key = os.environ.get("UNITYSVC_API_KEY", "")
-            if interfaces_list or api_key:
-                for iface_name, iface_url in interfaces_list:
-                    console.print(f"[dim]{iface_name}: UNITYSVC_BASE_URL={iface_url}[/dim]")
-                api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
-                console.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
-                console.print()
-            else:
-                console.print("[yellow]Warning: No interfaces found and UNITYSVC_API_KEY is not set[/yellow]")
-                console.print()
+        multi_interface = len(interfaces_list) > 1
+        stop_early = False
+        results = []
+        for doc in documents:
+            if stop_early:
+                break
 
-            multi_interface = len(interfaces_list) > 1
-            stop_early = False
-            results = []
-            for doc in documents:
-                if stop_early:
-                    break
+            doc_title = doc.get("title", doc.get("id", ""))
+            document_id = doc["id"]
 
-                doc_title = doc.get("title", doc.get("id", ""))
-                document_id = doc["id"]
-
-                # Check status from list response (avoids fetching document if skipped)
-                meta = doc.get("meta") or {}
-                test_meta = meta.get("test") or {}
-                if not force:
-                    status = test_meta.get("status")
-                    if status == "success":
-                        label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
-                        console.print(f"[cyan]Running: {label}...[/cyan]")
-                        console.print("  [yellow]SKIP[/yellow] (already passed)")
-                        results.append({"title": doc_title, "status": "skipped", "reason": "already passed"})
-                        continue
-                    if status == "skip":
-                        label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
-                        console.print(f"[cyan]Running: {label}...[/cyan]")
-                        console.print("  [yellow]SKIP[/yellow] (marked as skip)")
-                        results.append({"title": doc_title, "status": "skipped", "reason": "marked as skip"})
-                        continue
-
-                # Fetch document with file content once per document
-                full_doc = await runner.get_document(document_id, file_content=True)
-                file_content = full_doc.get("file_content")
-                if not file_content:
-                    console.print(f"[cyan]Running: {doc_title}...[/cyan]")
-                    console.print("  [yellow]SKIP[/yellow] (no file content)")
-                    results.append({"title": doc_title, "status": "skipped", "reason": "no file content"})
+            meta = doc.get("meta") or {}
+            test_meta = meta.get("test") or {}
+            if not force:
+                status = test_meta.get("status")
+                if status == "success":
+                    label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
+                    out.print(f"[cyan]Running: {label}...[/cyan]")
+                    out.print("  [yellow]SKIP[/yellow] (already passed)")
+                    results.append({"title": doc_title, "status": "skipped", "reason": "already passed"})
+                    continue
+                if status == "skip":
+                    label = f"{doc_title} (all interfaces)" if multi_interface else doc_title
+                    out.print(f"[cyan]Running: {label}...[/cyan]")
+                    out.print("  [yellow]SKIP[/yellow] (marked as skip)")
+                    results.append({"title": doc_title, "status": "skipped", "reason": "marked as skip"})
                     continue
 
-                mime_type = full_doc.get("mime_type", "")
-                full_meta = full_doc.get("meta") or {}
-                output_contains = full_meta.get("output_contains")
+            full_doc = await runner.get_document(document_id, file_content=True)
+            file_content = full_doc.get("file_content")
+            if not file_content:
+                out.print(f"[cyan]Running: {doc_title}...[/cyan]")
+                out.print("  [yellow]SKIP[/yellow] (no file content)")
+                results.append({"title": doc_title, "status": "skipped", "reason": "no file content"})
+                continue
 
-                # Run script against each access interface
-                doc_results = []
-                for iface_name, resolved_url in interfaces_list:
-                    label = f"{doc_title} [{iface_name}]" if multi_interface else doc_title
-                    console.print(f"[cyan]Running: {label}...[/cyan]")
+            mime_type = full_doc.get("mime_type", "")
+            full_meta = full_doc.get("meta") or {}
+            output_contains = full_meta.get("output_contains")
 
-                    result = _execute_script(file_content, mime_type, output_contains, resolved_url)
-                    result["title"] = label
-                    result["interface"] = iface_name
-                    result["resolved_base_url"] = resolved_url
-                    result["file_content"] = file_content
-                    doc_results.append(result)
-                    results.append(result)
+            doc_results = []
+            for iface_name, resolved_url in interfaces_list:
+                label = f"{doc_title} [{iface_name}]" if multi_interface else doc_title
+                out.print(f"[cyan]Running: {label}...[/cyan]")
 
-                    # Display result
-                    if result["status"] == "success":
-                        console.print("  [green]PASS[/green]")
-                    else:
-                        console.print(f"  [red]FAIL[/red] ({result['status']})")
-                        if result.get("error"):
-                            console.print(f"  [red]Error: {result['error']}[/red]")
+                result = await asyncio.to_thread(
+                    _execute_script, file_content, mime_type, output_contains, resolved_url,
+                )
+                result["title"] = label
+                result["interface"] = iface_name
+                result["resolved_base_url"] = resolved_url
+                result["file_content"] = file_content
+                doc_results.append(result)
+                results.append(result)
 
-                    # Save debug files on failure
-                    if result["status"] != "success":
-                        filename = doc.get("filename", "")
-                        script_stem = os.path.splitext(filename)[0] if filename else doc.get("id", "unknown")[:8]
-                        # Include interface name in debug file names for disambiguation
-                        safe_iface = iface_name.replace(" ", "_").replace("/", "_")
-                        base_name = f"failed_{resolved_service_id}_{script_stem}_{safe_iface}"
-                        if result.get("file_content"):
-                            ext = os.path.splitext(filename)[1] if filename else ""
-                            script_name = f"{base_name}{ext}"
-                            with open(script_name, "w") as f:
-                                f.write(result["file_content"])
-                            os.chmod(script_name, 0o755)
-                            console.print(f"  [dim]script: {script_name}[/dim]")
-                        if result.get("stdout"):
-                            with open(f"{base_name}.out", "w") as f:
-                                f.write(result["stdout"])
-                            console.print(f"  [dim]stdout: {base_name}.out[/dim]")
-                        if result.get("stderr"):
-                            with open(f"{base_name}.err", "w") as f:
-                                f.write(result["stderr"])
-                            console.print(f"  [dim]stderr: {base_name}.err[/dim]")
-                        env_path = f"{base_name}.env"
-                        with open(env_path, "w") as f:
-                            f.write(f"UNITYSVC_BASE_URL={resolved_url}\n")
-                            f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
-                        console.print(f"  [dim]   env: {env_path}[/dim]")
+                if result["status"] == "success":
+                    out.print("  [green]PASS[/green]")
+                else:
+                    out.print(f"  [red]FAIL[/red] ({result['status']})")
+                    if result.get("error"):
+                        out.print(f"  [red]Error: {result['error']}[/red]")
 
-                    # Fail fast
-                    if fail_fast and result["status"] != "success":
-                        console.print("[red]Stopping on first failure (--fail-fast)[/red]")
-                        stop_early = True
-                        break
+                if result["status"] != "success":
+                    filename = doc.get("filename", "")
+                    script_stem = os.path.splitext(filename)[0] if filename else doc.get("id", "unknown")[:8]
+                    safe_iface = iface_name.replace(" ", "_").replace("/", "_")
+                    base_name = f"failed_{resolved_service_id}_{script_stem}_{safe_iface}"
+                    if result.get("file_content"):
+                        ext = os.path.splitext(filename)[1] if filename else ""
+                        script_name = f"{base_name}{ext}"
+                        with open(script_name, "w") as f:
+                            f.write(result["file_content"])
+                        os.chmod(script_name, 0o755)
+                        out.print(f"  [dim]script: {script_name}[/dim]")
+                    if result.get("stdout"):
+                        with open(f"{base_name}.out", "w") as f:
+                            f.write(result["stdout"])
+                        out.print(f"  [dim]stdout: {base_name}.out[/dim]")
+                    if result.get("stderr"):
+                        with open(f"{base_name}.err", "w") as f:
+                            f.write(result["stderr"])
+                        out.print(f"  [dim]stderr: {base_name}.err[/dim]")
+                    env_path = f"{base_name}.env"
+                    with open(env_path, "w") as f:
+                        f.write(f"UNITYSVC_BASE_URL={resolved_url}\n")
+                        f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
+                    out.print(f"  [dim]   env: {env_path}[/dim]")
 
-                # Update backend with worst status + per-interface breakdown
-                if doc_results:
-                    failed = [r for r in doc_results if r["status"] not in ("success", "skipped")]
-                    worst = failed[0] if failed else doc_results[0]
-                    # Build per-interface results
-                    iface_results: dict[str, Any] = {}
-                    for r in doc_results:
-                        entry: dict[str, Any] = {"status": r["status"]}
-                        if r.get("exit_code") is not None:
-                            entry["exit_code"] = r["exit_code"]
-                        if r.get("error"):
-                            entry["error"] = r["error"]
-                        if r.get("stdout"):
-                            entry["stdout"] = r["stdout"][:10000]
-                        if r.get("stderr"):
-                            entry["stderr"] = r["stderr"][:10000]
-                        iface_results[r.get("interface", "default")] = entry
-                    try:
-                        await runner.update_test_result(
-                            document_id=document_id,
-                            status=worst["status"],
-                            tests=iface_results,
-                        )
-                    except Exception as update_error:
-                        console.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
+                if fail_fast and result["status"] != "success":
+                    out.print("[red]Stopping on first failure (--fail-fast)[/red]")
+                    stop_early = True
+                    break
 
-            return results
+            if doc_results:
+                failed = [r for r in doc_results if r["status"] not in ("success", "skipped")]
+                worst = failed[0] if failed else doc_results[0]
+                iface_results: dict[str, Any] = {}
+                for r in doc_results:
+                    entry: dict[str, Any] = {"status": r["status"]}
+                    if r.get("exit_code") is not None:
+                        entry["exit_code"] = r["exit_code"]
+                    if r.get("error"):
+                        entry["error"] = r["error"]
+                    if r.get("stdout"):
+                        entry["stdout"] = r["stdout"][:10000]
+                    if r.get("stderr"):
+                        entry["stderr"] = r["stderr"][:10000]
+                    iface_results[r.get("interface", "default")] = entry
+                try:
+                    await runner.update_test_result(
+                        document_id=document_id,
+                        status=worst["status"],
+                        tests=iface_results,
+                    )
+                except Exception as update_error:
+                    out.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
+
+        return results, stop_early
+
+    async def _run():
+        import io
+
+        async with TestRunner() as runner:
+            if all_services:
+                services = await runner.get("/seller/services")
+                service_list = services.get("data", services) if isinstance(services, dict) else services
+                total = len(service_list)
+                console.print(f"[bold]Running tests for {total} services (concurrency={concurrency})...[/bold]\n")
+
+                all_results: list[dict] = []
+                completed = 0
+
+                if concurrency <= 1:
+                    # Sequential mode — print directly to console
+                    for idx, svc in enumerate(service_list, 1):
+                        svc_id = str(svc.get("id", ""))
+                        svc_name = svc.get("name", svc_id[:8])
+                        console.print(f"[bold cyan]\\[{idx}/{total}] {svc_name}[/bold cyan] ({svc_id[:8]}...)")
+                        try:
+                            svc_results, stop = await _run_for_service(
+                                runner, svc_id, out=console, svc_name=svc_name,
+                            )
+                            all_results.extend(svc_results)
+                            if stop:
+                                break
+                        except Exception as e:
+                            console.print(f"  [red]Error: {e}[/red]")
+                        console.print()
+                else:
+                    # Parallel mode — buffer output per service, flush when done
+                    sem = asyncio.Semaphore(concurrency)
+                    stop_all = asyncio.Event()
+
+                    async def _worker(idx: int, svc: dict) -> list[dict]:
+                        nonlocal completed
+                        if stop_all.is_set():
+                            return []
+                        async with sem:
+                            if stop_all.is_set():
+                                return []
+                            svc_id = str(svc.get("id", ""))
+                            svc_name = svc.get("name", svc_id[:8])
+                            buf = io.StringIO()
+                            buf_console = Console(file=buf, force_terminal=True)
+                            buf_console.print(f"[bold cyan]\\[{idx}/{total}] {svc_name}[/bold cyan] ({svc_id[:8]}...)")
+                            try:
+                                svc_results, stop = await _run_for_service(
+                                    runner, svc_id, out=buf_console, svc_name=svc_name,
+                                )
+                                if stop and fail_fast:
+                                    stop_all.set()
+                            except Exception as e:
+                                buf_console.print(f"  [red]Error: {e}[/red]")
+                                svc_results = []
+                            buf_console.print()
+                            # Flush buffered output atomically
+                            completed += 1
+                            console.print(buf.getvalue(), end="", highlight=False, markup=False)
+                            console.print(f"[dim]  ({completed}/{total} services completed)[/dim]")
+                            return svc_results
+
+                    tasks = [_worker(idx, svc) for idx, svc in enumerate(service_list, 1)]
+                    results_per_svc = await asyncio.gather(*tasks)
+                    for svc_results in results_per_svc:
+                        all_results.extend(svc_results)
+
+                return all_results
+            else:
+                # Single service mode
+                resolved_service_id = service_id
+                if not resolved_service_id:
+                    console.print(f"[dim]Resolving service from document {doc_id}...[/dim]")
+                    resolved_service_id = await runner.resolve_service_id_from_document(doc_id)
+                    console.print(f"[dim]Found service: {resolved_service_id}[/dim]\n")
+
+                results, _ = await _run_for_service(
+                    runner, resolved_service_id, out=console,
+                    filter_title=title, filter_doc_id=doc_id,
+                )
+                return results
 
     try:
         results = asyncio.run(_run())

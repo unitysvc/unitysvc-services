@@ -552,7 +552,6 @@ class TestServiceOptionsValidation:
                 "enrollment_limit": 10,
                 "enrollment_limit_per_customer": 2,
                 "enrollment_limit_per_user": 3,
-                "enrollment_code_name": "invite",
                 "ops_testing_parameters": {"model": "gpt-4"},
             },
         }
@@ -579,16 +578,6 @@ class TestServiceOptionsValidation:
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
         assert "must be int, got str" in errors[0]
-
-    def test_wrong_type_enrollment_code_name(self, schema_dir, example_data_dir):
-        validator = DataValidator(example_data_dir, schema_dir)
-        data = {
-            "schema": "listing_v1",
-            "service_options": {"enrollment_code_name": 42},
-        }
-        errors = validator.validate_service_options_keys(data, "listing_v1")
-        assert len(errors) == 1
-        assert "must be str, got int" in errors[0]
 
     def test_wrong_type_ops_testing_parameters(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
@@ -658,8 +647,7 @@ class TestServiceOptionsValidation:
             "service_options": {
                 "enrollment_limt": 5,
                 "enrollment_limit": "bad",
-                "enrollment_code_name": 42,
             },
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
-        assert len(errors) == 3
+        assert len(errors) == 2
