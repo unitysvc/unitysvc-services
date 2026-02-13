@@ -9,10 +9,13 @@ making it easy to track results in version control.
 
 import fnmatch
 import os
+import random
 import re
+import string
 from pathlib import Path
 from typing import Any
 
+import jinja2
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -23,6 +26,37 @@ from .utils import execute_script_content, find_files_by_schema, render_template
 
 app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
+
+_jinja_env = jinja2.Environment()
+
+# Fixed test code reused across a single run so all templates resolve consistently
+_test_enrollment_code: str | None = None
+
+
+def _get_test_enrollment_code(length: int = 6) -> str:
+    """Return a fixed random code for local testing (no real enrollment)."""
+    global _test_enrollment_code
+    if _test_enrollment_code is None:
+        _test_enrollment_code = "".join(random.choices(string.ascii_uppercase, k=length))
+    return _test_enrollment_code
+
+
+def expand_template_strings(data: dict[str, Any]) -> dict[str, Any]:
+    """Expand Jinja2 template syntax in string values of a dict.
+
+    Uses a fake enrollment_code() for local testing. Only processes
+    values that contain {{ or {%.
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, str) and ("{{" in value or "{%" in value):
+            try:
+                template = _jinja_env.from_string(value)
+                value = template.render(enrollment_code=_get_test_enrollment_code)
+            except jinja2.TemplateError:
+                pass
+        result[key] = value
+    return result
 
 
 def extract_service_directory_name(listing_file: Path) -> str | None:
@@ -199,13 +233,19 @@ def discover_code_examples(
 
         # Validate that each upstream interface has required fields
         for iface_name, iface_data in upstream_interfaces.items():
-            missing = [f for f in ("api_key", "base_url") if not iface_data.get(f)]
-            if missing:
+            if not iface_data.get("base_url"):
                 service_dir = extract_service_directory_name(listing_file) or str(listing_file)
                 raise ValueError(
                     f"Upstream interface '{iface_name}' in {service_dir} is missing: "
-                    f"{', '.join(missing)}. Add them to offering upstream_access_interfaces "
+                    f"base_url. Add it to offering upstream_access_interfaces "
                     f"or listing service_options.ops_testing_parameters."
+                )
+            if not iface_data.get("api_key"):
+                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
+                console.print(
+                    f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key. "
+                    f"If this service requires authentication, add api_key to offering "
+                    f"upstream_access_interfaces or listing service_options.ops_testing_parameters.[/yellow]"
                 )
 
         # Extract code examples × upstream interfaces
@@ -335,12 +375,13 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_interfaces", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
+        first_interface = expand_template_strings(first_interface)
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
-        if api_key and base_url:
+        if base_url:
             return {
-                "api_key": resolve_secret_ref(str(api_key), "api_key"),
+                "api_key": resolve_secret_ref(str(api_key), "api_key") if api_key else "",
                 "base_url": resolve_secret_ref(str(base_url), "base_url"),
             }
     except typer.Exit:
@@ -860,13 +901,13 @@ def run_local(
     warned_listings: set[str] = set()
 
     for example, prov_name in discovered:
-        iface = example.get("upstream_interface", {})
+        iface = expand_template_strings(example.get("upstream_interface", {}))
         api_key = iface.get("api_key")
         base_url = iface.get("base_url")
-        if api_key and base_url:
+        if base_url:
             iface_name = example.get("upstream_interface_name", "default")
             credentials = {
-                "api_key": resolve_secret_ref(str(api_key), f"{iface_name}.api_key"),
+                "api_key": resolve_secret_ref(str(api_key), f"{iface_name}.api_key") if api_key else "",
                 "base_url": resolve_secret_ref(str(base_url), f"{iface_name}.base_url"),
             }
             all_code_examples.append((example, prov_name, credentials))
