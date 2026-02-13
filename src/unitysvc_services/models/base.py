@@ -210,10 +210,9 @@ class MimeTypeEnum(StrEnum):
     url = "url"
 
 
-class InterfaceContextTypeEnum(StrEnum):
-    service_offering = "service_offering"  # Pricing from upstream provider
-    service_listing = "service_listing"  # Pricing shown to end users
-    service_enrollment = "service_enrollment"  # User's subscription to a service
+class InterfaceEntityTypeEnum(StrEnum):
+    service_offering = "service_offering"
+    service_listing = "service_listing"
 
 
 class SellerTypeEnum(StrEnum):
