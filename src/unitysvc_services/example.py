@@ -9,10 +9,13 @@ making it easy to track results in version control.
 
 import fnmatch
 import os
+import random
 import re
+import string
 from pathlib import Path
 from typing import Any
 
+import jinja2
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -23,6 +26,37 @@ from .utils import execute_script_content, find_files_by_schema, render_template
 
 app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
+
+_jinja_env = jinja2.Environment()
+
+# Fixed test code reused across a single run so all templates resolve consistently
+_test_enrollment_code: str | None = None
+
+
+def _get_test_enrollment_code(length: int = 6) -> str:
+    """Return a fixed random code for local testing (no real enrollment)."""
+    global _test_enrollment_code
+    if _test_enrollment_code is None:
+        _test_enrollment_code = "".join(random.choices(string.ascii_uppercase, k=length))
+    return _test_enrollment_code
+
+
+def expand_template_strings(data: dict[str, Any]) -> dict[str, Any]:
+    """Expand Jinja2 template syntax in string values of a dict.
+
+    Uses a fake enrollment_code() for local testing. Only processes
+    values that contain {{ or {%.
+    """
+    result = {}
+    for key, value in data.items():
+        if isinstance(value, str) and ("{{" in value or "{%" in value):
+            try:
+                template = _jinja_env.from_string(value)
+                value = template.render(enrollment_code=_get_test_enrollment_code)
+            except jinja2.TemplateError:
+                pass
+        result[key] = value
+    return result
 
 
 def extract_service_directory_name(listing_file: Path) -> str | None:
@@ -335,6 +369,7 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_interfaces", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
+        first_interface = expand_template_strings(first_interface)
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
@@ -860,7 +895,7 @@ def run_local(
     warned_listings: set[str] = set()
 
     for example, prov_name in discovered:
-        iface = example.get("upstream_interface", {})
+        iface = expand_template_strings(example.get("upstream_interface", {}))
         api_key = iface.get("api_key")
         base_url = iface.get("base_url")
         if api_key and base_url:

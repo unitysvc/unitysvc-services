@@ -155,7 +155,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `schema`                     | string                      | Must be `"offering_v1"`                                                      |
 | `name`                       | string                      | Service identifier (must match directory name, allows slashes for hierarchy) |
 | `service_type`               | enum                        | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
-| `upstream_access_interfaces` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name                     |
+| `upstream_access_interfaces` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name. Supports Jinja2 templates (e.g. `{{ enrollment_code(6) }}`); expanded at gateway routing time using enrollment context. |
 | `time_created`               | datetime (ISO 8601)         | Timestamp when offering was created                                          |
 
 ### Optional Fields
@@ -775,22 +775,23 @@ String values in `user_access_interfaces` and `upstream_access_interfaces` can u
 
 | Function               | Returns | Description                                                              |
 | ---------------------- | ------- | ------------------------------------------------------------------------ |
-| `generate_code(length=6)` | string  | Generate (or retrieve) a unique action code token for this enrollment |
+| `enrollment_code(length=6)` | string  | Create or retrieve a random code tied to a specific enrollment |
 
-The `generate_code` function is idempotent — calling it multiple times for the same enrollment returns the same token. The generated code is persisted in the `action_code` table.
+The `enrollment_code` function is idempotent — calling it multiple times for the same enrollment returns the same code. The code is persisted in the `action_code` table and can be referenced from both `user_access_interfaces` and `upstream_access_interfaces` templates.
 
 **Behavior:**
 
-- Interfaces containing `{{` or `{%` syntax are treated as templates and rendered per-enrollment (enrollment-scoped)
+- `user_access_interfaces`: templates are rendered at **enrollment time**, creating enrollment-scoped `AccessInterface` records
+- `upstream_access_interfaces`: templates are rendered at **gateway routing time**, using the enrollment context to resolve the upstream target per-request (no enrollment-scoped records are created)
 - Interfaces without template syntax are treated as static and shared across enrollments (listing-scoped)
 - On template rendering errors, the original string value is preserved
 
-**Example (TOML):**
+**Example — user access interface (TOML):**
 
 ```toml
 [user_access_interfaces.ntfy-gateway]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/ntfy/{{ generate_code(6) }}"
+base_url = "${GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}"
 description = "Your ntfy notification endpoint"
 ```
 
@@ -801,7 +802,7 @@ description = "Your ntfy notification endpoint"
     "user_access_interfaces": {
         "ntfy-gateway": {
             "access_method": "http",
-            "base_url": "${GATEWAY_BASE_URL}/ntfy/{{ generate_code(6) }}",
+            "base_url": "${GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}",
             "description": "Your ntfy notification endpoint"
         }
     }
@@ -809,6 +810,24 @@ description = "Your ntfy notification endpoint"
 ```
 
 After enrollment, the `base_url` is rendered with the generated code (e.g., `${GATEWAY_BASE_URL}/ntfy/VTXBNM`), creating an enrollment-scoped access interface visible only to that enrollment.
+
+**Example — upstream access interface with template:**
+
+The corresponding upstream interface in the offering can reference the same `enrollment_code()` to route requests to the correct upstream target:
+
+```json
+{
+    "upstream_access_interfaces": {
+        "ntfy-upstream": {
+            "access_method": "http",
+            "base_url": "https://ntfy.svcpass.com/{{ enrollment_code(6) }}",
+            "description": "Private ntfy instance"
+        }
+    }
+}
+```
+
+Unlike user interfaces, upstream templates are **not** materialized at enrollment time. They are rendered at gateway routing time — the gateway identifies the enrollment from the inbound request, then expands the upstream template with the enrollment's `enrollment_code()` to determine the final upstream URL.
 
 #### Routing Key
 
