@@ -203,7 +203,7 @@ def show_service(
             table.add_column("Value", style="white")
 
             # Show metadata fields first
-            metadata_fields = ["service_id", "service_name", "status", "provider_name"]
+            metadata_fields = ["service_id", "service_name", "status", "status_message", "provider_name"]
             for field in metadata_fields:
                 if field in service:
                     table.add_row(field, str(service[field]) if service[field] is not None else "-")
