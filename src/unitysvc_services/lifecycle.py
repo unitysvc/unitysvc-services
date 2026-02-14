@@ -214,7 +214,7 @@ def submit_service(
     all_drafts: bool = typer.Option(
         False,
         "--all",
-        help="Submit all draft services",
+        help="Submit all draft and rejected services",
     ),
     yes: bool = typer.Option(
         False,
@@ -248,12 +248,12 @@ def submit_service(
         if service_ids:
             console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
             raise typer.Exit(code=1)
-        console.print("[cyan]Fetching all draft services...[/cyan]")
-        service_ids = asyncio.run(fetch_service_ids_by_status(["draft"]))
+        console.print("[cyan]Fetching all draft and rejected services...[/cyan]")
+        service_ids = asyncio.run(fetch_service_ids_by_status(["draft", "rejected"]))
         if not service_ids:
-            console.print("[yellow]No draft services found.[/yellow]")
+            console.print("[yellow]No draft or rejected services found.[/yellow]")
             raise typer.Exit(code=0)
-        console.print(f"[green]Found {len(service_ids)} draft service(s)[/green]\n")
+        console.print(f"[green]Found {len(service_ids)} service(s)[/green]\n")
     elif not service_ids:
         console.print("[red]Error:[/red] Either provide service IDs or use --all flag")
         raise typer.Exit(code=1)
