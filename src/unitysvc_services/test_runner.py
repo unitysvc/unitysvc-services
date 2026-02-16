@@ -145,24 +145,10 @@ def list_tests(
 
         async with TestRunner() as runner:
             if service_id:
-                # List documents for specific service
-                # First get service details to get full ID and name
-                services = await runner.get("/seller/services")
-                service_list = services.get("data", services) if isinstance(services, dict) else services
-
-                # Find matching service by partial ID
-                matched_svc = None
-                for svc in service_list:
-                    svc_id = str(svc.get("id", ""))
-                    if svc_id.startswith(service_id) or service_id in svc_id:
-                        matched_svc = svc
-                        break
-
-                if not matched_svc:
-                    raise ValueError(f"Service not found: {service_id}")
-
-                full_id = str(matched_svc.get("id", ""))
-                svc_name = matched_svc.get("name", full_id[:8])
+                # Pass partial ID directly to backend - it handles resolution
+                svc_data = await runner.get(f"/seller/services/{service_id}/data")
+                full_id = svc_data.get("service_id", service_id)
+                svc_name = svc_data.get("service_name", full_id[:8])
                 docs = await runner.list_documents(full_id, executable_only=not all_docs)
                 interfaces = await _fetch_interfaces(runner, full_id)
                 return [(full_id, svc_name, docs, interfaces)]

@@ -148,10 +148,10 @@ def query_services(
 def show_service(
     service_id: str = typer.Argument(..., help="Service ID to show (supports partial IDs, minimum 8 chars)"),
     format: str = typer.Option(
-        "json",
+        "table",
         "--format",
         "-f",
-        help="Output format: json, table, tsv, csv",
+        help="Output format: table, json",
     ),
 ):
     """Show details of a service by ID.
@@ -177,50 +177,92 @@ def show_service(
 
         if format == "json":
             console.print(json.dumps(service, indent=2, default=str))
-        elif format in ("tsv", "csv"):
-            sep = "\t" if format == "tsv" else ","
-
-            def escape_value(value: Any) -> str:
-                if value is None:
-                    return ""
-                if isinstance(value, dict | list):
-                    s = json.dumps(value, default=str)
-                else:
-                    s = str(value)
-                if format == "csv" and ("," in s or '"' in s or "\n" in s):
-                    return '"' + s.replace('"', '""') + '"'
-                return s
-
-            # Output as key-value pairs
-            print(sep.join(["field", "value"]))
-            for key, value in service.items():
-                print(sep.join([key, escape_value(value)]))
         elif format == "table":
-            # Display service metadata first
-            name = service.get("service_name", service_id)
-            table = Table(title=f"Service: {name}")
-            table.add_column("Field", style="cyan")
-            table.add_column("Value", style="white")
+            # Service Identity
+            console.print("\n[bold]Service Identity[/bold]")
+            id_table = Table(show_header=False, box=None)
+            id_table.add_column("Field", style="cyan")
+            id_table.add_column("Value")
 
-            # Show metadata fields first
-            metadata_fields = ["service_id", "service_name", "status", "status_message", "provider_name"]
-            for field in metadata_fields:
-                if field in service:
-                    table.add_row(field, str(service[field]) if service[field] is not None else "-")
+            id_table.add_row("ID", str(service.get("service_id", "N/A")))
+            id_table.add_row("Name", str(service.get("service_name", "N/A")))
+            id_table.add_row("Status", str(service.get("status", "N/A")))
+            if service.get("status_message"):
+                id_table.add_row("Status Message", str(service["status_message"]))
+            id_table.add_row("Provider Name", str(service.get("provider_name", "N/A")))
 
-            # Show content sections
-            for key in ["provider", "offering", "listing"]:
-                if key in service and isinstance(service[key], dict):
-                    table.add_row(f"[bold]{key}[/bold]", "")
-                    for k, v in service[key].items():
-                        if isinstance(v, dict | list):
-                            v_str = json.dumps(v, indent=2, default=str)
-                            display = v_str[:100] + "..." if len(v_str) > 100 else v_str
-                            table.add_row(f"  {k}", display)
-                        else:
-                            table.add_row(f"  {k}", str(v) if v is not None else "-")
+            console.print(id_table)
 
-            console.print(table)
+            # Provider Information
+            provider = service.get("provider")
+            if provider and isinstance(provider, dict):
+                console.print("\n[bold]Provider (Content)[/bold]")
+                provider_table = Table(show_header=False, box=None)
+                provider_table.add_column("Field", style="cyan")
+                provider_table.add_column("Value")
+
+                provider_table.add_row("ID", str(provider.get("id", "N/A")))
+                provider_table.add_row("Name", str(provider.get("name", "N/A")))
+                provider_table.add_row("Display Name", str(provider.get("display_name", "N/A")))
+                provider_table.add_row("Status", str(provider.get("status", "N/A")))
+                if provider.get("contact_email"):
+                    provider_table.add_row("Contact Email", str(provider["contact_email"]))
+                if provider.get("homepage"):
+                    provider_table.add_row("Homepage", str(provider["homepage"]))
+                if provider.get("description"):
+                    desc = str(provider["description"])
+                    provider_table.add_row("Description", desc[:80] + "..." if len(desc) > 80 else desc)
+
+                console.print(provider_table)
+
+            # Offering Information
+            offering = service.get("offering")
+            if offering and isinstance(offering, dict):
+                console.print("\n[bold]Service Offering (Content)[/bold]")
+                offering_table = Table(show_header=False, box=None)
+                offering_table.add_column("Field", style="cyan")
+                offering_table.add_column("Value")
+
+                offering_table.add_row("ID", str(offering.get("id", "N/A")))
+                offering_table.add_row("Name", str(offering.get("name", "N/A")))
+                offering_table.add_row("Display Name", str(offering.get("display_name", "N/A")))
+                offering_table.add_row("Service Type", str(offering.get("service_type", "N/A")))
+                offering_table.add_row("Status", str(offering.get("status", "N/A")))
+                if offering.get("tagline"):
+                    offering_table.add_row("Tagline", str(offering["tagline"]))
+                if offering.get("payout_price"):
+                    offering_table.add_row("Payout Price", json.dumps(offering["payout_price"]))
+                if offering.get("description"):
+                    desc = str(offering["description"])
+                    offering_table.add_row("Description", desc[:80] + "..." if len(desc) > 80 else desc)
+
+                console.print(offering_table)
+
+            # Listing Information
+            listing = service.get("listing")
+            if listing and isinstance(listing, dict):
+                console.print("\n[bold]Service Listing (Content)[/bold]")
+                listing_table = Table(show_header=False, box=None)
+                listing_table.add_column("Field", style="cyan")
+                listing_table.add_column("Value")
+
+                listing_table.add_row("ID", str(listing.get("id", "N/A")))
+                listing_table.add_row("Name", str(listing.get("name", "N/A")))
+                listing_table.add_row("Display Name", str(listing.get("display_name", "N/A")))
+                listing_table.add_row("Status", str(listing.get("status", "N/A")))
+                if listing.get("list_price"):
+                    listing_table.add_row("List Price", json.dumps(listing["list_price"]))
+                if listing.get("currency"):
+                    listing_table.add_row("Currency", str(listing["currency"]))
+                if listing.get("tags"):
+                    listing_table.add_row("Tags", str(listing["tags"]))
+                if listing.get("parameters_schema"):
+                    required = listing["parameters_schema"].get("required", [])
+                    listing_table.add_row("Required Params", ", ".join(required) if required else "None")
+
+                console.print(listing_table)
+
+            console.print()
         else:
             console.print(f"[red]Unknown format: {format}[/red]")
             raise typer.Exit(code=1)

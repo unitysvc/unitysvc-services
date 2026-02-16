@@ -314,6 +314,47 @@ class DataValidator:
 
         return errors
 
+    def validate_connectivity_test_exists(self, data: dict[str, Any], schema_name: str) -> list[str]:
+        """Validate that at least one connectivity_test document exists.
+
+        For listing_v1 data, the documents section must contain at least one
+        document with category "connectivity_test". This is required for
+        automated service testing during the publish workflow.
+
+        Args:
+            data: The data to validate
+            schema_name: The schema name (e.g., 'listing_v1')
+
+        Returns:
+            List of validation error messages
+        """
+        errors: list[str] = []
+
+        # Only validate listing_v1 schema
+        if schema_name != "listing_v1":
+            return errors
+
+        documents = data.get("documents")
+        if not documents or not isinstance(documents, dict):
+            errors.append(
+                "Listing must contain at least one document with category 'connectivity_test'. "
+                "No documents section found."
+            )
+            return errors
+
+        has_connectivity_test = any(
+            isinstance(doc, dict) and doc.get("category") == "connectivity_test"
+            for doc in documents.values()
+        )
+
+        if not has_connectivity_test:
+            errors.append(
+                "Listing must contain at least one document with category 'connectivity_test'. "
+                "Add a connectivity test script to verify the service is reachable."
+            )
+
+        return errors
+
     def validate_service_options_keys(self, data: dict[str, Any], schema_name: str) -> list[str]:
         """Validate service_options keys and value types for listing_v1 files.
 
@@ -498,6 +539,10 @@ class DataValidator:
         # Validate service_options keys and value types (listing_v1 only)
         service_options_errors = self.validate_service_options_keys(data, schema_name)
         errors.extend(service_options_errors)
+
+        # Validate at least one connectivity_test document exists (listing_v1 only)
+        connectivity_errors = self.validate_connectivity_test_exists(data, schema_name)
+        errors.extend(connectivity_errors)
 
         return len(errors) == 0, errors
 
