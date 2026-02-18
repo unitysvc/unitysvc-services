@@ -18,6 +18,14 @@
       "is_active": true,
       "is_public": true,
       "mime_type": "python"
+    },
+    "Connectivity Test": {
+      "category": "connectivity_test",
+      "description": "Connectivity test script",
+      "file_path": "connectivity.sh",
+      "is_active": true,
+      "is_public": false,
+      "mime_type": "bash"
     }
   },
   "currency": "USD",

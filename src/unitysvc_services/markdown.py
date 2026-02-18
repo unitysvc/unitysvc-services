@@ -60,7 +60,7 @@ class AttachmentExtractor(MarkdownRenderer):
 
     def image(self, token: dict[str, Any], state: Any) -> str:
         """Extract image references."""
-        src = token.get("src", "")
+        src = token.get("attrs", {}).get("url", "")
         if src and not src.startswith(("http://", "https://", "$UNITYSVC_S3_BASE_URL")):
             self.attachments.append(
                 {
@@ -72,7 +72,8 @@ class AttachmentExtractor(MarkdownRenderer):
 
     def link(self, token: dict[str, Any], state: Any) -> str:
         """Extract link references to local files."""
-        href = token.get("link", "")
+        attrs = token.get("attrs", {})
+        href = attrs.get("url", "")
         if href and not href.startswith(("http://", "https://", "#", "mailto:", "$UNITYSVC_S3_BASE_URL")):
             # Check if it looks like a file reference (has extension or is a path)
             if "." in Path(href).name or "/" in href:
@@ -134,6 +135,13 @@ def process_markdown_content(
     md = mistune.create_markdown(renderer=extractor)
     md(markdown_content)
 
+    # Also extract from HTML <img> tags (mistune passes these through as raw HTML)
+    html_img_pattern = re.compile(r'<img\s[^>]*\bsrc=["\']([^"\']+)["\']', re.IGNORECASE)
+    for match in html_img_pattern.finditer(markdown_content):
+        src = match.group(1)
+        if not src.startswith(("http://", "https://", "$UNITYSVC_S3_BASE_URL")):
+            extractor.attachments.append({"path": src, "is_image": True})
+
     if not extractor.attachments:
         return MarkdownProcessingResult(content=markdown_content, attachments=[])
 
@@ -182,6 +190,10 @@ def process_markdown_content(
         pattern = rf"(!?\[[^\]]*\]\()({escaped_path})(\))"
         new_url = f"$UNITYSVC_S3_BASE_URL/{attachment.object_key}"
         result = re.sub(pattern, rf"\g<1>{new_url}\g<3>", result)
+
+        # Also replace in HTML src attributes: src="path" or src='path'
+        html_pattern = rf'(\bsrc=["\'])({escaped_path})(["\'])'
+        result = re.sub(html_pattern, rf'\g<1>{new_url}\g<3>', result)
 
     return MarkdownProcessingResult(content=result, attachments=unique_attachments)
 

@@ -54,7 +54,6 @@ class UnitySvcAPI:
         self.client = httpx.AsyncClient(
             headers={
                 "Authorization": f"Bearer {self.api_key}",
-                "Content-Type": "application/json",
             },
             timeout=30.0,
         )
