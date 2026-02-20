@@ -817,7 +817,7 @@
       "enum": [
         "proxy_rewrite",
         "body_transformer",
-        "body"
+        "set_body"
       ],
       "title": "RequestTransformEnum",
       "type": "string"

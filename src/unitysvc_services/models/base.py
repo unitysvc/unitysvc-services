@@ -1064,7 +1064,7 @@ class RequestTransformEnum(StrEnum):
     # https://docs.api7.ai/hub/body-transformer
     body_transformer = "body_transformer"
     # Simple body replacement from rendered enrollment data
-    body = "body"
+    set_body = "set_body"
 
 
 class ServiceTypeEnum(StrEnum):
