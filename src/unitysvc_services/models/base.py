@@ -1063,6 +1063,8 @@ class RequestTransformEnum(StrEnum):
     proxy_rewrite = "proxy_rewrite"
     # https://docs.api7.ai/hub/body-transformer
     body_transformer = "body_transformer"
+    # Simple body replacement from rendered enrollment data
+    body = "body"
 
 
 class ServiceTypeEnum(StrEnum):
@@ -1260,7 +1262,7 @@ class AccessInterfaceData(BaseModel):
 
     description: str | None = Field(default=None, max_length=500, description="Interface description")
 
-    request_transformer: dict[RequestTransformEnum, dict[str, Any]] | None = Field(
+    request_transformer: dict[RequestTransformEnum, dict[str, Any] | str] | None = Field(
         default=None, description="Request transformation configuration"
     )
 

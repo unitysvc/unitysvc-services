@@ -87,8 +87,15 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "additionalProperties": true,
-                "type": "object"
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
               },
               "propertyNames": {
                 "$ref": "#/$defs/RequestTransformEnum"
@@ -809,7 +816,8 @@
     "RequestTransformEnum": {
       "enum": [
         "proxy_rewrite",
-        "body_transformer"
+        "body_transformer",
+        "body"
       ],
       "title": "RequestTransformEnum",
       "type": "string"
