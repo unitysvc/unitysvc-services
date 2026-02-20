@@ -50,7 +50,8 @@ class ServiceOfferingData(BaseModel):
     display_name: str | None = Field(
         default=None,
         max_length=200,
-        description="Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
+        description=
+        "Human-readable service name for display (e.g., 'GPT-4 Turbo', 'Claude 3 Opus')",
     )
 
     service_type: ServiceTypeEnum = Field(
@@ -71,7 +72,8 @@ class ServiceOfferingData(BaseModel):
     # Status
     status: OfferingStatusEnum = Field(
         default=OfferingStatusEnum.draft,
-        description="Offering status: draft (skip publish), ready (for review), or deprecated (retired)",
+        description=
+        "Offering status: draft (skip publish), ready (for review), or deprecated (retired)",
     )
 
     # Technical details
@@ -107,5 +109,6 @@ class ServiceOfferingData(BaseModel):
     # Tags for the service (e.g., bring your own API key)
     tags: list[TagEnum] | None = Field(
         default=None,
-        description="List of tags for the service, e.g., 'byop' for bring your own API key",
+        description=
+        "List of tags for the service, e.g., 'byok' for bring your own API key",
     )

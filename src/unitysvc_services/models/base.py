@@ -76,7 +76,6 @@ def _validate_amount_string(v: Any) -> str:
 # Amount string type that allows negative values (for fees, discounts)
 AmountStr = Annotated[str, BeforeValidator(_validate_amount_string)]
 
-
 # ============================================================================
 # Usage Data for cost calculation
 # ============================================================================
@@ -1101,8 +1100,10 @@ class TagEnum(StrEnum):
     Allowed enums, currently not enforced.
     """
 
-    # Service requires users to provide their own API key for access.
-    byop = "byop"
+    byok = "byok"  # bring your own key
+    byoe = "byoe"  # bring your own endpoint
+    managed = "managed"  # services managed by seller
+    autonomous = "autonomous"  # services that will start by itself
 
 
 class TimeWindowEnum(StrEnum):
