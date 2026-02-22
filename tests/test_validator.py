@@ -584,3 +584,70 @@ class TestServiceOptionsValidation:
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 2
+
+    def test_valid_recurrence_options(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "recurrence_enabled": True,
+                "recurrence_min_interval_seconds": 300,
+                "recurrence_max_interval_seconds": 86400,
+                "recurrence_allow_cron": True,
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_recurrence_enabled_wrong_type(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"recurrence_enabled": "yes"},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be bool, got str" in errors[0]
+
+    def test_recurrence_interval_wrong_type(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"recurrence_min_interval_seconds": 5.0},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be int, got float" in errors[0]
+
+    def test_recurrence_interval_zero(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"recurrence_min_interval_seconds": 0},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be >= 1" in errors[0]
+
+    def test_recurrence_min_exceeds_max(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "recurrence_min_interval_seconds": 1000,
+                "recurrence_max_interval_seconds": 500,
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be <= recurrence_max_interval_seconds" in errors[0]
+
+    def test_recurrence_interval_bool_rejected(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"recurrence_min_interval_seconds": True},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be int, got bool" in errors[0]

@@ -217,7 +217,7 @@ def discover_code_examples(
         # Load upstream interfaces from offering (cross-product with documents)
         upstream_interfaces = extract_upstream_interfaces_from_offering(listing_file)
 
-        # For BYOP services, ops_testing_parameters provides upstream credentials
+        # For byok services, ops_testing_parameters provides upstream credentials
         service_options = listing_data.get("service_options", {}) or {}
         default_params = service_options.get("ops_testing_parameters", {}) or {}
 

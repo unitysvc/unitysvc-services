@@ -87,8 +87,15 @@
           "anyOf": [
             {
               "additionalProperties": {
-                "additionalProperties": true,
-                "type": "object"
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
               },
               "propertyNames": {
                 "$ref": "#/$defs/RequestTransformEnum"
@@ -809,7 +816,8 @@
     "RequestTransformEnum": {
       "enum": [
         "proxy_rewrite",
-        "body_transformer"
+        "body_transformer",
+        "set_body"
       ],
       "title": "RequestTransformEnum",
       "type": "string"
@@ -1254,7 +1262,9 @@
     "TagEnum": {
       "description": "Allowed enums, currently not enforced.",
       "enum": [
-        "byop"
+        "byok",
+        "ai",
+        "gateway"
       ],
       "title": "TagEnum",
       "type": "string"
@@ -1647,7 +1657,7 @@
         }
       ],
       "default": null,
-      "description": "List of tags for the service, e.g., 'byop' for bring your own API key",
+      "description": "List of tags for the service, e.g., 'byok' for bring your own API key",
       "title": "Tags"
     },
     "time_created": {

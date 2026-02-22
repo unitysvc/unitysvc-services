@@ -1063,6 +1063,8 @@ class RequestTransformEnum(StrEnum):
     proxy_rewrite = "proxy_rewrite"
     # https://docs.api7.ai/hub/body-transformer
     body_transformer = "body_transformer"
+    # Simple body replacement from rendered enrollment data
+    set_body = "set_body"
 
 
 class ServiceTypeEnum(StrEnum):
@@ -1102,7 +1104,11 @@ class TagEnum(StrEnum):
     """
 
     # Service requires users to provide their own API key for access.
-    byop = "byop"
+    byok = "byok"
+    byoe = "byoe"
+    ai = "ai"
+    gateway = "gateway"
+    managed = "managed"
 
 
 class TimeWindowEnum(StrEnum):
@@ -1260,7 +1266,7 @@ class AccessInterfaceData(BaseModel):
 
     description: str | None = Field(default=None, max_length=500, description="Interface description")
 
-    request_transformer: dict[RequestTransformEnum, dict[str, Any]] | None = Field(
+    request_transformer: dict[RequestTransformEnum, dict[str, Any] | str] | None = Field(
         default=None, description="Request transformation configuration"
     )
 
@@ -1370,6 +1376,10 @@ SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
     "enrollment_limit_per_customer": int,
     "enrollment_limit_per_user": int,
     "ops_testing_parameters": dict,
+    "recurrence_enabled": bool,
+    "recurrence_min_interval_seconds": int,
+    "recurrence_max_interval_seconds": int,
+    "recurrence_allow_cron": bool,
 }
 
 
@@ -1408,6 +1418,23 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
         if expected_type is int and key.startswith("enrollment_limit"):
             if value <= 0:
                 errors.append(f"service_options.{key} must be a positive integer, got {value}")
+
+        # Recurrence interval bounds
+        if key in ("recurrence_min_interval_seconds", "recurrence_max_interval_seconds"):
+            if value < 1:
+                errors.append(f"service_options.{key} must be >= 1, got {value}")
+
+    # Cross-field: min <= max for recurrence intervals
+    if "recurrence_min_interval_seconds" in (service_options or {}) and "recurrence_max_interval_seconds" in (
+        service_options or {}
+    ):
+        min_val = service_options["recurrence_min_interval_seconds"]
+        max_val = service_options["recurrence_max_interval_seconds"]
+        if isinstance(min_val, int) and isinstance(max_val, int) and min_val > max_val:
+            errors.append(
+                f"service_options.recurrence_min_interval_seconds ({min_val}) "
+                f"must be <= recurrence_max_interval_seconds ({max_val})"
+            )
 
     return errors
 
