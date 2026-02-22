@@ -150,13 +150,13 @@ Service files define the service offering from the upstream provider's perspecti
 
 ### Required Fields
 
-| Field                        | Type                        | Description                                                                  |
-| ---------------------------- | --------------------------- | ---------------------------------------------------------------------------- |
-| `schema`                     | string                      | Must be `"offering_v1"`                                                      |
-| `name`                       | string                      | Service identifier (must match directory name, allows slashes for hierarchy) |
-| `service_type`               | enum                        | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))    |
+| Field                        | Type                        | Description                                                                                                                                                                       |
+| ---------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `schema`                     | string                      | Must be `"offering_v1"`                                                                                                                                                           |
+| `name`                       | string                      | Service identifier (must match directory name, allows slashes for hierarchy)                                                                                                      |
+| `service_type`               | enum                        | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))                                                                                                         |
 | `upstream_access_interfaces` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name. Supports Jinja2 templates (e.g. `{{ enrollment_code(6) }}`); expanded at gateway routing time using enrollment context. |
-| `time_created`               | datetime (ISO 8601)         | Timestamp when offering was created                                          |
+| `time_created`               | datetime (ISO 8601)         | Timestamp when offering was created                                                                                                                                               |
 
 ### Optional Fields
 
@@ -166,7 +166,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `description`  | string                | Service description                                           |
 | `logo`         | string/URL            | Path to logo or URL (converted to document)                   |
 | `tagline`      | string                | Short elevator pitch                                          |
-| `tags`         | array of enum         | Service tags (e.g., `["byop"]` for bring-your-own-provider)   |
+| `tags`         | array of enum         | Service tags (e.g., `["byok"]` for bring-your-own-provider)   |
 | `status`       | enum                  | Offering status: `draft` (default), `ready`, or `deprecated`  |
 | `details`      | object                | Service-specific features and information                     |
 | `payout_price` | [Pricing](pricing.md) | Seller pricing information (what seller charges UnitySVC)     |
@@ -249,12 +249,12 @@ Listing files define how a seller presents/sells a service to end users.
 
 The `service_options` field configures backend behavior for service listings. All fields are optional.
 
-| Field                             | Type    | Description                                                                    |
-| --------------------------------- | ------- | ------------------------------------------------------------------------------ |
-| `ops_testing_parameters`          | object  | Default parameter values for testing (see [User Parameters](#user-parameters)) |
-| `enrollment_limit`                | integer | Maximum total active enrollments allowed for this service (global limit)       |
-| `enrollment_limit_per_customer`   | integer | Maximum active enrollments per customer for this service                       |
-| `enrollment_limit_per_user`       | integer | Maximum active enrollments per user (creator) for this service                 |
+| Field                           | Type    | Description                                                                    |
+| ------------------------------- | ------- | ------------------------------------------------------------------------------ |
+| `ops_testing_parameters`        | object  | Default parameter values for testing (see [User Parameters](#user-parameters)) |
+| `enrollment_limit`              | integer | Maximum total active enrollments allowed for this service (global limit)       |
+| `enrollment_limit_per_customer` | integer | Maximum active enrollments per customer for this service                       |
+| `enrollment_limit_per_user`     | integer | Maximum active enrollments per user (creator) for this service                 |
 
 **Enrollment Limits:**
 
@@ -765,16 +765,16 @@ String values in `user_access_interfaces` and `upstream_access_interfaces` can u
 
 **Template context variables:**
 
-| Variable                     | Type   | Description                     |
-| ---------------------------- | ------ | ------------------------------- |
-| `enrollment.id`              | string | Enrollment UUID                 |
-| `enrollment.customer_id`     | string | Customer UUID                   |
-| `enrollment.parameters`      | dict   | All enrollment parameters       |
+| Variable                 | Type   | Description               |
+| ------------------------ | ------ | ------------------------- |
+| `enrollment.id`          | string | Enrollment UUID           |
+| `enrollment.customer_id` | string | Customer UUID             |
+| `enrollment.parameters`  | dict   | All enrollment parameters |
 
 **Template functions:**
 
-| Function               | Returns | Description                                                              |
-| ---------------------- | ------- | ------------------------------------------------------------------------ |
+| Function                    | Returns | Description                                                    |
+| --------------------------- | ------- | -------------------------------------------------------------- |
 | `enrollment_code(length=6)` | string  | Create or retrieve a random code tied to a specific enrollment |
 
 The `enrollment_code` function is idempotent — calling it multiple times for the same enrollment returns the same code. The code is persisted in the `action_code` table and can be referenced from both `user_access_interfaces` and `upstream_access_interfaces` templates.

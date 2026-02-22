@@ -1104,7 +1104,11 @@ class TagEnum(StrEnum):
     """
 
     # Service requires users to provide their own API key for access.
-    byop = "byop"
+    byok = "byok"
+    byoe = "byoe"
+    ai = "ai"
+    gateway = "gateway"
+    managed = "managed"
 
 
 class TimeWindowEnum(StrEnum):
@@ -1421,9 +1425,8 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
                 errors.append(f"service_options.{key} must be >= 1, got {value}")
 
     # Cross-field: min <= max for recurrence intervals
-    if (
-        "recurrence_min_interval_seconds" in (service_options or {})
-        and "recurrence_max_interval_seconds" in (service_options or {})
+    if "recurrence_min_interval_seconds" in (service_options or {}) and "recurrence_max_interval_seconds" in (
+        service_options or {}
     ):
         min_val = service_options["recurrence_min_interval_seconds"]
         max_val = service_options["recurrence_max_interval_seconds"]

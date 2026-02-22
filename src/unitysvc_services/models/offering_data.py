@@ -107,5 +107,5 @@ class ServiceOfferingData(BaseModel):
     # Tags for the service (e.g., bring your own API key)
     tags: list[TagEnum] | None = Field(
         default=None,
-        description="List of tags for the service, e.g., 'byop' for bring your own API key",
+        description="List of tags for the service, e.g., 'byok' for bring your own API key",
     )
