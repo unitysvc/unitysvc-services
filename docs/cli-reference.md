@@ -675,7 +675,7 @@ Before running tests, you need a **customer API key** for gateway access (separa
 ```bash
 # Gateway credentials (used by test scripts)
 export UNITYSVC_API_KEY="svcpass_your_customer_api_key"
-export UNITYSVC_BASE_URL="https://api.unitysvc.com/v1"
+export SERVICE_BASE_URL="https://api.unitysvc.com/v1"
 ```
 
 Your existing `UNITYSVC_SELLER_API_KEY` (seller key) and `UNITYSVC_API_URL` are still used for backend API access.
@@ -1138,7 +1138,7 @@ Test code examples locally with upstream API credentials. These commands discove
 2. Extracts code example documents (category = `code_examples`)
 3. Loads provider credentials from provider files
 4. Renders Jinja2 templates with listing, offering, provider, and seller data
-5. Sets environment variables (UNITYSVC_API_KEY, UNITYSVC_BASE_URL) from provider credentials
+5. Sets environment variables (UNITYSVC_API_KEY, SERVICE_BASE_URL) from provider credentials
 6. Executes code examples using appropriate interpreter (python3, node, bash)
 7. Validates results based on exit code and optional `expect` field
 
@@ -1417,7 +1417,7 @@ usvc services list
 
 # Set gateway credentials for testing (one-time setup, see "usvc services run-tests")
 export UNITYSVC_API_KEY=your-customer-api-key
-export UNITYSVC_BASE_URL=https://api.unitysvc.com/v1
+export SERVICE_BASE_URL=https://api.unitysvc.com/v1
 
 # Run tests via gateway
 usvc services list-tests

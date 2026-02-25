@@ -11,4 +11,4 @@ command = "scripts/update_fireworks_services.py --force"
 
 [services_populator.envs]
 UNITYSVC_API_KEY = "sk_example_key"
-UNITYSVC_BASE_URL = "https://api.fireworks.ai/inference/v1"
+SERVICE_BASE_URL = "https://api.fireworks.ai/inference/v1"

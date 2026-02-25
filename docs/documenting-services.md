@@ -203,7 +203,7 @@ Provider metadata from `provider.toml` or `provider.json`:
 {{ provider.contact_email }}            # Contact email
 ```
 
-Note: For API credentials, use environment variables (`UNITYSVC_API_KEY`, `UNITYSVC_BASE_URL`) instead of template variables.
+Note: For API credentials, use environment variables (`UNITYSVC_API_KEY`, `SERVICE_BASE_URL`) instead of template variables.
 
 ### 4. `seller` - Seller Data (Seller_v1)
 

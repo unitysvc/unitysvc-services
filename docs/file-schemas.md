@@ -72,7 +72,7 @@ requirements = ["httpx", "openai"]
 
 [services_populator.envs]
 UNITYSVC_API_KEY = "sk-YOUR-API-KEY"
-UNITYSVC_BASE_URL = "https://api.openai.com/v1"
+SERVICE_BASE_URL = "https://api.openai.com/v1"
 ```
 
 ### Example (JSON)
@@ -92,7 +92,7 @@ UNITYSVC_BASE_URL = "https://api.openai.com/v1"
         "requirements": ["httpx", "openai"],
         "envs": {
             "UNITYSVC_API_KEY": "sk-YOUR-API-KEY",
-            "UNITYSVC_BASE_URL": "https://api.openai.com/v1"
+            "SERVICE_BASE_URL": "https://api.openai.com/v1"
         }
     }
 }
