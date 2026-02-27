@@ -361,7 +361,7 @@ def show_test(
                 doc = _find_document(documents, title, doc_id)
                 document = await runner.get_document(doc["id"], file_content=script)
 
-            # Resolve interfaces to get actual UNITYSVC_BASE_URL when showing script
+            # Resolve interfaces to get actual SERVICE_BASE_URL when showing script
             interfaces_list = []
             if script:
                 resolved_sid = service_id
@@ -395,11 +395,11 @@ def show_test(
                 for iface_name, iface_url in interfaces_list:
                     if len(interfaces_list) > 1:
                         console.print(f"  # {iface_name}")
-                    console.print(f"  UNITYSVC_BASE_URL={iface_url or '<gateway_url>'}")
+                    console.print(f"  SERVICE_BASE_URL={iface_url or '<gateway_url>'}")
                 console.print("[bold yellow]Set before running:[/bold yellow]")
             else:
                 console.print("[bold yellow]Environment Variables (set these before running):[/bold yellow]")
-                console.print("  UNITYSVC_BASE_URL=<gateway_url>")
+                console.print("  SERVICE_BASE_URL=<gateway_url>")
             console.print("  UNITYSVC_API_KEY=<your_customer_api_key>")
             console.print()
 
@@ -521,7 +521,7 @@ def run_test(
     When --doc-id is provided, service_id is optional — the service is inferred
     from the document's entity.
 
-    Fetches scripts from the backend and executes locally. UNITYSVC_BASE_URL is set
+    Fetches scripts from the backend and executes locally. SERVICE_BASE_URL is set
     automatically per access interface. Set UNITYSVC_API_KEY to your ops_customer
     team API key before running tests:
 
@@ -563,7 +563,7 @@ def run_test(
         """Execute a single script with the given base URL. Returns result dict."""
         exec_env: dict[str, str] = {}
         if resolved_base_url:
-            exec_env["UNITYSVC_BASE_URL"] = resolved_base_url
+            exec_env["SERVICE_BASE_URL"] = resolved_base_url
 
         try:
             result = execute_script_content(
@@ -617,7 +617,7 @@ def run_test(
         api_key = os.environ.get("UNITYSVC_API_KEY", "")
         if interfaces_list or api_key:
             for iface_name, iface_url in interfaces_list:
-                out.print(f"[dim]{iface_name}: UNITYSVC_BASE_URL={iface_url}[/dim]")
+                out.print(f"[dim]{iface_name}: SERVICE_BASE_URL={iface_url}[/dim]")
             api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
             out.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
             out.print()
@@ -712,7 +712,7 @@ def run_test(
                         out.print(f"  [dim]stderr: {base_name}.err[/dim]")
                     env_path = f"{base_name}.env"
                     with open(env_path, "w") as f:
-                        f.write(f"UNITYSVC_BASE_URL={resolved_url}\n")
+                        f.write(f"SERVICE_BASE_URL={resolved_url}\n")
                         f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
                     out.print(f"  [dim]   env: {env_path}[/dim]")
 
