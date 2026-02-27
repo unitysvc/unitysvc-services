@@ -59,6 +59,12 @@ def query_services(
         "--status",
         help="Filter by status (draft, pending, testing, active, rejected, suspended)",
     ),
+    name: str | None = typer.Option(
+        None,
+        "--name",
+        "-n",
+        help="Search by name, display name, or provider name (case-insensitive partial match)",
+    ),
 ):
     """Query services for the current seller.
 
@@ -77,6 +83,9 @@ def query_services(
 
         # Output as JSON
         usvc query --format json
+
+        # Search by name
+        usvc query --name "my-service"
 
         # Pagination
         usvc query --skip 100 --limit 100
@@ -123,6 +132,8 @@ def query_services(
             params: dict[str, Any] = {"skip": skip, "limit": limit}
             if status:
                 params["status"] = status
+            if name:
+                params["name"] = name
 
             services = await query.get("/seller/services", params)
             return services.get("data", services) if isinstance(services, dict) else services
