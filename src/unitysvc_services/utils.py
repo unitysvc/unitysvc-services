@@ -17,6 +17,7 @@ from typing import Any
 
 import json5
 import tomli_w
+from jinja2 import Environment as JinjaEnvironment
 from jinja2 import Template
 
 # =============================================================================
@@ -638,6 +639,7 @@ def render_template_file(
     provider: dict[str, Any] | None = None,
     seller: dict[str, Any] | None = None,
     interface: dict[str, Any] | None = None,
+    local_testing: bool = False,
 ) -> tuple[str, str]:
     """Render a Jinja2 template file and return content and new filename.
 
@@ -651,6 +653,12 @@ def render_template_file(
         provider: Provider data for template rendering (optional)
         seller: Seller data for template rendering (optional)
         interface: AccessInterface data for template rendering (optional, contains base_url, routing_key, etc.)
+        local_testing: When True, signals that the template is being rendered for a local
+            test run (``usvc data run-tests``).  Templates can use ``{% if local_testing %}``
+            blocks to include request parameters that must be supplied directly to the
+            upstream (no gateway / set_body transformer).  When False (default), templates
+            render the clean, user-facing version where the gateway injects parameters from
+            the enrollment automatically.
 
     Returns:
         Tuple of (rendered_content, new_filename_without_j2)
@@ -666,14 +674,19 @@ def render_template_file(
     is_template = file_path.name.endswith(".j2")
 
     if is_template:
-        # Render the template
-        template = Template(file_content)
+        # Build a Jinja2 environment with a tojson filter so templates can
+        # serialise dicts to JSON strings (e.g. ops_testing_parameters).
+        env = JinjaEnvironment()
+        env.filters["tojson"] = json.dumps
+
+        template = env.from_string(file_content)
         rendered_content = template.render(
             listing=listing or {},
             offering=offering or {},
             provider=provider or {},
             seller=seller or {},
             interface=interface or {},
+            local_testing=local_testing,
         )
 
         # Strip .j2 from filename
