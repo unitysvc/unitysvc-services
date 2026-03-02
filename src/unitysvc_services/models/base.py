@@ -1280,6 +1280,11 @@ class AccessInterfaceData(BaseModel):
         description="Rate limit",
     )
     constraints: ServiceConstraints | None = Field(default=None, description="Service constraints and conditions")
+    response_rules: dict[str, dict[str, Any] | str] | None = Field(
+        default=None,
+        description="Response evaluation rules keyed by rule name. "
+        "Values are either a rule dict or a Jinja2 template string. Validated by the backend.",
+    )
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
