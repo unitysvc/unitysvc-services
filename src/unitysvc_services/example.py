@@ -430,7 +430,9 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         if listing_file:
             related_data = load_related_data(Path(listing_file))
 
-        # Render template if applicable (handles both .j2 and non-.j2 files)
+        # Render template if applicable (handles both .j2 and non-.j2 files).
+        # local_testing=True so templates can include request parameters that
+        # would otherwise come from the gateway set_body transformer.
         try:
             file_content, actual_filename = render_template_file(
                 original_path,
@@ -439,6 +441,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
                 provider=related_data.get("provider", {}),
                 seller=related_data.get("seller", {}),
                 interface=code_example.get("interface", {}),
+                local_testing=True,
             )
         except Exception as e:
             result["error"] = f"Template rendering failed: {str(e)}"

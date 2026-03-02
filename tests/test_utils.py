@@ -8,6 +8,7 @@ from unitysvc_services.utils import (
     convert_convenience_fields_to_documents,
     deep_merge_dicts,
     load_data_file,
+    render_template_file,
     resolve_provider_name,
     resolve_service_name_for_listing,
 )
@@ -399,3 +400,89 @@ def test_load_data_file_with_nested_override(tmp_path: Path) -> None:
         },
         "cache": {"enabled": True},  # overridden
     }
+
+
+# =============================================================================
+# render_template_file tests
+# =============================================================================
+
+
+def test_render_template_file_basic(tmp_path: Path) -> None:
+    """Test that a .j2 file renders variables and strips the .j2 extension."""
+    template_file = tmp_path / "hello.txt.j2"
+    template_file.write_text("Hello, {{ offering.name }}!")
+
+    content, filename = render_template_file(
+        template_file, offering={"name": "my-service"}
+    )
+
+    assert content == "Hello, my-service!"
+    assert filename == "hello.txt"
+
+
+def test_render_template_file_local_testing_true(tmp_path: Path) -> None:
+    """Test that {% if local_testing %} blocks are included when True."""
+    template_file = tmp_path / "request.json.j2"
+    template_file.write_text(
+        '{\n  "url": "{{ interface.base_url }}"'
+        "{% if local_testing %},\n"
+        '  "api_key": "{{ listing.api_key }}"'
+        "{% endif %}\n}"
+    )
+
+    content, filename = render_template_file(
+        template_file,
+        interface={"base_url": "https://example.com"},
+        listing={"api_key": "secret-key"},
+        local_testing=True,
+    )
+
+    assert '"api_key": "secret-key"' in content
+    assert filename == "request.json"
+
+
+def test_render_template_file_local_testing_false(tmp_path: Path) -> None:
+    """Test that {% if local_testing %} blocks are excluded by default."""
+    template_file = tmp_path / "request.json.j2"
+    template_file.write_text(
+        '{\n  "url": "{{ interface.base_url }}"'
+        "{% if local_testing %},\n"
+        '  "api_key": "{{ listing.api_key }}"'
+        "{% endif %}\n}"
+    )
+
+    content, _filename = render_template_file(
+        template_file,
+        interface={"base_url": "https://example.com"},
+        listing={"api_key": "secret-key"},
+    )
+
+    assert "api_key" not in content
+
+
+def test_render_template_file_tojson_filter(tmp_path: Path) -> None:
+    """Test that the tojson filter produces valid JSON."""
+    import json
+
+    template_file = tmp_path / "body.json.j2"
+    template_file.write_text("{{ offering.params | tojson }}")
+
+    content, _filename = render_template_file(
+        template_file, offering={"params": {"a": 1, "b": "two"}}
+    )
+
+    parsed = json.loads(content)
+    assert parsed == {"a": 1, "b": "two"}
+
+
+def test_render_template_file_non_template(tmp_path: Path) -> None:
+    """Test that non-.j2 files are returned as-is regardless of params."""
+    plain_file = tmp_path / "script.py"
+    plain_file.write_text("print('{{ not a template }}')")
+
+    content, filename = render_template_file(
+        plain_file, offering={"name": "ignored"}
+    )
+
+    assert content == "print('{{ not a template }}')"
+    assert filename == "script.py"
