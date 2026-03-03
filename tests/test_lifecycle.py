@@ -11,6 +11,7 @@ from unitysvc_services.lifecycle import (
     ServiceLifecycleAPI,
     delete_service,
     deprecate_service,
+    fetch_service_ids_by_status,
     submit_service,
     withdraw_service,
 )
@@ -110,6 +111,44 @@ class TestServiceLifecycleAPI:
 
 
 # =============================================================================
+# fetch_service_ids_by_status tests
+# =============================================================================
+
+
+class TestFetchServiceIdsByStatus:
+    """Tests for the fetch_service_ids_by_status helper."""
+
+    def test_fetch_with_provider_filter(self):
+        """Test that provider filter narrows results by provider_name."""
+        mock_services = {
+            "data": [
+                {"id": "id1", "provider_name": "Acme Corp"},
+                {"id": "id2", "provider_name": "Beta Inc"},
+                {"id": "id3", "provider_name": "acme widgets"},
+            ]
+        }
+        with patch("unitysvc_services.lifecycle.UnitySvcAPI") as MockAPI:
+            instance = MockAPI.return_value
+            instance.get = AsyncMock(return_value=mock_services)
+            result = asyncio.run(fetch_service_ids_by_status(["draft"], provider="acme"))
+            assert result == ["id1", "id3"]
+
+    def test_fetch_without_provider_filter(self):
+        """Test that without provider filter all services are returned."""
+        mock_services = {
+            "data": [
+                {"id": "id1", "provider_name": "Acme Corp"},
+                {"id": "id2", "provider_name": "Beta Inc"},
+            ]
+        }
+        with patch("unitysvc_services.lifecycle.UnitySvcAPI") as MockAPI:
+            instance = MockAPI.return_value
+            instance.get = AsyncMock(return_value=mock_services)
+            result = asyncio.run(fetch_service_ids_by_status(["draft"]))
+            assert result == ["id1", "id2"]
+
+
+# =============================================================================
 # CLI command parameter acceptance tests
 # =============================================================================
 
@@ -172,6 +211,24 @@ class TestDeprecateServiceCLI:
         result = runner.invoke(cli_app, ["deprecate", "test-id"], input="n\n")
         assert "Cancelled" in result.output
 
+    def test_deprecate_provider_requires_all(self, cli_app):
+        """Test --provider requires --all flag."""
+        result = runner.invoke(cli_app, ["deprecate", "test-id", "--provider", "MyProvider"])
+        assert result.exit_code != 0
+        assert "--provider can only be used with --all" in result.output
+
+    def test_deprecate_all_with_provider(self, cli_app):
+        """Test deprecate --all --provider filters by provider."""
+        with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
+            # First call: fetch_service_ids_by_status, second call: _deprecate_all
+            mock_run.side_effect = [
+                ["id1", "id2"],
+                [("id1", {"status": "deprecated"}, None), ("id2", {"status": "deprecated"}, None)],
+            ]
+            result = runner.invoke(cli_app, ["deprecate", "--all", "--provider", "MyProvider", "--yes"])
+            assert result.exit_code == 0
+            assert "provider 'MyProvider'" in result.output
+
 
 class TestSubmitServiceCLI:
     """Tests for the submit_service CLI command."""
@@ -211,6 +268,23 @@ class TestSubmitServiceCLI:
         result = runner.invoke(cli_app, ["submit", "test-id"], input="n\n")
         assert "Cancelled" in result.output
 
+    def test_submit_provider_requires_all(self, cli_app):
+        """Test --provider requires --all flag."""
+        result = runner.invoke(cli_app, ["submit", "test-id", "--provider", "MyProvider"])
+        assert result.exit_code != 0
+        assert "--provider can only be used with --all" in result.output
+
+    def test_submit_all_with_provider(self, cli_app):
+        """Test submit --all --provider filters by provider."""
+        with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
+            mock_run.side_effect = [
+                ["id1"],
+                [("id1", {"status": "pending"}, None)],
+            ]
+            result = runner.invoke(cli_app, ["submit", "--all", "--provider", "MyProvider", "--yes"])
+            assert result.exit_code == 0
+            assert "provider 'MyProvider'" in result.output
+
 
 class TestWithdrawServiceCLI:
     """Tests for the withdraw_service CLI command."""
@@ -249,6 +323,23 @@ class TestWithdrawServiceCLI:
         """Test withdraw prompts for confirmation without --yes."""
         result = runner.invoke(cli_app, ["withdraw", "test-id"], input="n\n")
         assert "Cancelled" in result.output
+
+    def test_withdraw_provider_requires_all(self, cli_app):
+        """Test --provider requires --all flag."""
+        result = runner.invoke(cli_app, ["withdraw", "test-id", "--provider", "MyProvider"])
+        assert result.exit_code != 0
+        assert "--provider can only be used with --all" in result.output
+
+    def test_withdraw_all_with_provider(self, cli_app):
+        """Test withdraw --all --provider filters by provider."""
+        with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
+            mock_run.side_effect = [
+                ["id1"],
+                [("id1", {"status": "draft"}, None)],
+            ]
+            result = runner.invoke(cli_app, ["withdraw", "--all", "--provider", "MyProvider", "--yes"])
+            assert result.exit_code == 0
+            assert "provider 'MyProvider'" in result.output
 
 
 class TestDeleteServiceCLI:
@@ -312,6 +403,36 @@ class TestDeleteServiceCLI:
             # No input needed - dryrun should not prompt
             result = runner.invoke(cli_app, ["delete", "test-id", "--dryrun"])
             assert result.exit_code == 0
+
+    def test_delete_provider_requires_all(self, cli_app):
+        """Test --provider requires --all flag."""
+        result = runner.invoke(cli_app, ["delete", "test-id", "--provider", "MyProvider"])
+        assert result.exit_code != 0
+        assert "--provider can only be used with --all" in result.output
+
+    def test_delete_all_with_provider(self, cli_app):
+        """Test delete --all --provider filters by provider."""
+        with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
+            mock_run.side_effect = [
+                ["id1"],
+                [("id1", {"deleted": True}, None)],
+            ]
+            result = runner.invoke(cli_app, ["delete", "--all", "--provider", "MyProvider", "--yes"])
+            assert result.exit_code == 0
+            assert "provider 'MyProvider'" in result.output
+
+    def test_delete_all_with_provider_and_status(self, cli_app):
+        """Test delete --all --provider --status combines filters."""
+        with patch("unitysvc_services.lifecycle.asyncio.run") as mock_run:
+            mock_run.side_effect = [
+                ["id1", "id2"],
+                [("id1", {"deleted": True}, None), ("id2", {"deleted": True}, None)],
+            ]
+            result = runner.invoke(
+                cli_app, ["delete", "--all", "--status", "draft", "--provider", "MyProvider", "--yes"]
+            )
+            assert result.exit_code == 0
+            assert "provider 'MyProvider'" in result.output
 
 
 # =============================================================================
@@ -380,6 +501,7 @@ class TestServicesIntegration:
         assert result.exit_code == 0
         assert "deprecated" in output.lower()
         assert "--yes" in output
+        assert "--provider" in output
 
     def test_services_submit_help(self):
         """Test submit command help text."""
@@ -390,6 +512,7 @@ class TestServicesIntegration:
         assert result.exit_code == 0
         assert "review" in output.lower() or "pending" in output.lower()
         assert "--yes" in output
+        assert "--provider" in output
 
     def test_services_withdraw_help(self):
         """Test withdraw command help text."""
@@ -400,6 +523,7 @@ class TestServicesIntegration:
         assert result.exit_code == 0
         assert "draft" in output.lower()
         assert "--yes" in output
+        assert "--provider" in output
 
     def test_services_delete_help(self):
         """Test delete command help text."""
@@ -412,3 +536,4 @@ class TestServicesIntegration:
         assert "--dryrun" in output
         assert "--force" in output
         assert "--yes" in output
+        assert "--provider" in output

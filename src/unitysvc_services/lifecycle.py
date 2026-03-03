@@ -11,17 +11,22 @@ from .api import UnitySvcAPI
 console = Console()
 
 
-async def fetch_service_ids_by_status(statuses: list[str]) -> list[str]:
+async def fetch_service_ids_by_status(
+    statuses: list[str],
+    provider: str | None = None,
+) -> list[str]:
     """Fetch all service IDs matching the given status(es).
 
     Args:
         statuses: List of status values to filter by (e.g., ["draft"], ["pending", "rejected"])
+        provider: Optional provider name to filter by (case-insensitive partial match)
 
     Returns:
-        List of service IDs matching any of the given statuses
+        List of service IDs matching any of the given statuses (and provider if specified)
     """
     api = UnitySvcAPI()
     all_ids: list[str] = []
+    provider_lower = provider.lower() if provider else None
 
     for status in statuses:
         try:
@@ -30,6 +35,10 @@ async def fetch_service_ids_by_status(statuses: list[str]) -> list[str]:
             data = services.get("data", services) if isinstance(services, dict) else services
             for svc in data:
                 if svc.get("id"):
+                    if provider_lower:
+                        svc_provider = svc.get("provider_name", "")
+                        if provider_lower not in svc_provider.lower():
+                            continue
                     all_ids.append(svc["id"])
         except Exception:
             # If a status query fails, continue with others
@@ -113,6 +122,11 @@ def deprecate_service(
         "--all",
         help="Deprecate all active services",
     ),
+    provider: str = typer.Option(
+        None,
+        "--provider",
+        help="Filter by provider name when using --all (case-insensitive partial match)",
+    ),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -137,16 +151,28 @@ def deprecate_service(
         # Deprecate all active services
         usvc services deprecate --all
 
+        # Deprecate all active services for a specific provider
+        usvc services deprecate --all --provider "My Company"
+
         # Skip confirmation
         usvc services deprecate 297040cd --yes
     """
+    # Validate --provider usage
+    if provider and not all_active:
+        console.print("[red]Error:[/red] --provider can only be used with --all flag")
+        raise typer.Exit(code=1)
+
     # Handle --all flag
     if all_active:
         if service_ids:
             console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
             raise typer.Exit(code=1)
-        console.print("[cyan]Fetching all active services...[/cyan]")
-        service_ids = asyncio.run(fetch_service_ids_by_status(["active"]))
+        msg = "[cyan]Fetching all active services"
+        if provider:
+            msg += f" for provider '{provider}'"
+        msg += "...[/cyan]"
+        console.print(msg)
+        service_ids = asyncio.run(fetch_service_ids_by_status(["active"], provider=provider))
         if not service_ids:
             console.print("[yellow]No active services found.[/yellow]")
             raise typer.Exit(code=0)
@@ -216,6 +242,11 @@ def submit_service(
         "--all",
         help="Submit all draft and rejected services",
     ),
+    provider: str = typer.Option(
+        None,
+        "--provider",
+        help="Filter by provider name when using --all (case-insensitive partial match)",
+    ),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -240,16 +271,28 @@ def submit_service(
         # Submit all draft services
         usvc services submit --all
 
+        # Submit all draft services for a specific provider
+        usvc services submit --all --provider "My Company"
+
         # Skip confirmation
         usvc services submit 297040cd --yes
     """
+    # Validate --provider usage
+    if provider and not all_drafts:
+        console.print("[red]Error:[/red] --provider can only be used with --all flag")
+        raise typer.Exit(code=1)
+
     # Handle --all flag
     if all_drafts:
         if service_ids:
             console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
             raise typer.Exit(code=1)
-        console.print("[cyan]Fetching all draft and rejected services...[/cyan]")
-        service_ids = asyncio.run(fetch_service_ids_by_status(["draft", "rejected"]))
+        msg = "[cyan]Fetching all draft and rejected services"
+        if provider:
+            msg += f" for provider '{provider}'"
+        msg += "...[/cyan]"
+        console.print(msg)
+        service_ids = asyncio.run(fetch_service_ids_by_status(["draft", "rejected"], provider=provider))
         if not service_ids:
             console.print("[yellow]No draft or rejected services found.[/yellow]")
             raise typer.Exit(code=0)
@@ -313,6 +356,11 @@ def withdraw_service(
         "--all",
         help="Withdraw all pending and rejected services",
     ),
+    provider: str = typer.Option(
+        None,
+        "--provider",
+        help="Filter by provider name when using --all (case-insensitive partial match)",
+    ),
     yes: bool = typer.Option(
         False,
         "--yes",
@@ -341,16 +389,28 @@ def withdraw_service(
         # Withdraw all pending/rejected services
         usvc services withdraw --all
 
+        # Withdraw all pending/rejected services for a specific provider
+        usvc services withdraw --all --provider "My Company"
+
         # Skip confirmation
         usvc services withdraw 297040cd --yes
     """
+    # Validate --provider usage
+    if provider and not all_pending:
+        console.print("[red]Error:[/red] --provider can only be used with --all flag")
+        raise typer.Exit(code=1)
+
     # Handle --all flag
     if all_pending:
         if service_ids:
             console.print("[red]Error:[/red] Cannot specify both service IDs and --all flag")
             raise typer.Exit(code=1)
-        console.print("[cyan]Fetching all pending and rejected services...[/cyan]")
-        service_ids = asyncio.run(fetch_service_ids_by_status(["pending", "rejected"]))
+        msg = "[cyan]Fetching all pending and rejected services"
+        if provider:
+            msg += f" for provider '{provider}'"
+        msg += "...[/cyan]"
+        console.print(msg)
+        service_ids = asyncio.run(fetch_service_ids_by_status(["pending", "rejected"], provider=provider))
         if not service_ids:
             console.print("[yellow]No pending or rejected services found.[/yellow]")
             raise typer.Exit(code=0)
@@ -477,6 +537,11 @@ def delete_service(
         "--status",
         help="Filter by status when using --all (e.g., --all --status draft)",
     ),
+    provider: str = typer.Option(
+        None,
+        "--provider",
+        help="Filter by provider name when using --all (case-insensitive partial match)",
+    ),
     dryrun: bool = typer.Option(
         False,
         "--dryrun",
@@ -514,12 +579,20 @@ def delete_service(
         # Delete all draft services
         usvc services delete --all --status draft
 
+        # Delete all draft services for a specific provider
+        usvc services delete --all --status draft --provider "My Company"
+
         # Delete all deletable services (use with caution!)
         usvc services delete --all
 
         # Force delete without confirmation
         usvc services delete 297040cd def45678 --force --yes
     """
+    # Validate --provider and --status usage
+    if provider and not all_deletable:
+        console.print("[red]Error:[/red] --provider can only be used with --all flag")
+        raise typer.Exit(code=1)
+
     # Handle --all flag
     if all_deletable:
         if service_ids:
@@ -533,8 +606,12 @@ def delete_service(
                 console.print(f"[red]Error:[/red] Status '{status}' is not deletable. Use one of: {valid}")
                 raise typer.Exit(code=1)
             deletable_statuses = [status]
-        console.print(f"[cyan]Fetching services with status: {', '.join(deletable_statuses)}...[/cyan]")
-        service_ids = asyncio.run(fetch_service_ids_by_status(deletable_statuses))
+        msg = f"[cyan]Fetching services with status: {', '.join(deletable_statuses)}"
+        if provider:
+            msg += f" for provider '{provider}'"
+        msg += "...[/cyan]"
+        console.print(msg)
+        service_ids = asyncio.run(fetch_service_ids_by_status(deletable_statuses, provider=provider))
         if not service_ids:
             console.print("[yellow]No deletable services found.[/yellow]")
             raise typer.Exit(code=0)

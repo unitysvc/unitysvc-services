@@ -1000,18 +1000,17 @@ def run_local(
                 if result["stderr"]:
                     console.print(f"  [dim]stderr:[/dim] {result['stderr'][:200]}")
 
-            # Save output to .out, .err, and .status files (even for failures)
+            # Save output to .out, .err, and .status files next to listing (for skip logic)
             if example_listing_file:
-                out_path, err_path = save_output_files(
+                save_output_files(
                     code_example_path,
                     Path(example_listing_file),
                     result.get("stdout", "") or "",
                     result.get("stderr", "") or "",
                     passed=False,
                 )
-                console.print(f"  [dim]Output saved to: {out_path.name}, {err_path.name}[/dim]")
 
-            # Write failed test script and env to current directory (for debugging)
+            # Write failed test artifacts to current directory (for debugging)
             if result.get("listing_file") and result.get("actual_filename"):
                 result_listing_file = Path(result["listing_file"])
                 result_actual_filename = result["actual_filename"]
@@ -1028,6 +1027,26 @@ def run_local(
                     console.print(f"  [yellow]→ Test script saved to:[/yellow] {failed_filename}")
                 except Exception as e:
                     console.print(f"  [yellow]⚠ Failed to save test script: {e}[/yellow]")
+
+                # Write stdout to .out file
+                stdout = result.get("stdout", "") or ""
+                out_filename = f"{failed_filename}.out"
+                try:
+                    with open(out_filename, "w", encoding="utf-8") as f:
+                        f.write(stdout)
+                    console.print(f"  [yellow]→ stdout saved to:[/yellow] {out_filename}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save stdout: {e}[/yellow]")
+
+                # Write stderr to .err file
+                stderr = result.get("stderr", "") or ""
+                err_filename = f"{failed_filename}.err"
+                try:
+                    with open(err_filename, "w", encoding="utf-8") as f:
+                        f.write(stderr)
+                    console.print(f"  [yellow]→ stderr saved to:[/yellow] {err_filename}")
+                except Exception as e:
+                    console.print(f"  [yellow]⚠ Failed to save stderr: {e}[/yellow]")
 
                 # Write environment variables to .env file
                 env_filename = f"{failed_filename}.env"

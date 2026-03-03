@@ -65,6 +65,11 @@ def query_services(
         "-n",
         help="Search by name, display name, or provider name (case-insensitive partial match)",
     ),
+    provider: str | None = typer.Option(
+        None,
+        "--provider",
+        help="Filter by provider name (case-insensitive partial match)",
+    ),
 ):
     """Query services for the current seller.
 
@@ -86,6 +91,9 @@ def query_services(
 
         # Search by name
         usvc query --name "my-service"
+
+        # Filter by provider
+        usvc query --provider "My Company"
 
         # Pagination
         usvc query --skip 100 --limit 100
@@ -136,7 +144,17 @@ def query_services(
                 params["name"] = name
 
             services = await query.get("/seller/services", params)
-            return services.get("data", services) if isinstance(services, dict) else services
+            data = services.get("data", services) if isinstance(services, dict) else services
+
+            # Client-side provider filtering
+            if provider:
+                provider_lower = provider.lower()
+                data = [
+                    svc for svc in data
+                    if provider_lower in svc.get("provider_name", "").lower()
+                ]
+
+            return data
 
     try:
         services = asyncio.run(_query_services_async())
