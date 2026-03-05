@@ -50,6 +50,33 @@ class TestRunner(UnitySvcAPI):
 
         return await self.patch(f"/seller/documents/{document_id}", json_data=data)
 
+    async def ensure_service_routable(self, service_id: str) -> str | None:
+        """Ensure the service is routable via the gateway before running tests.
+
+        Sets draft/rejected services to pending so they become routable.
+        Services already in pending/review/active are already routable.
+
+        Returns:
+            The original status if it was changed, None otherwise.
+            Caller should restore this status after testing completes.
+        """
+        service = await self.get(f"/seller/services/{service_id}")
+        status = service.get("status")
+        if status in ("draft", "rejected"):
+            await self.patch(
+                f"/seller/services/{service_id}",
+                json_data={"status": "pending", "run_tests": False},
+            )
+            return status
+        return None
+
+    async def restore_service_status(self, service_id: str, status: str) -> None:
+        """Restore service status after local testing completes."""
+        await self.patch(
+            f"/seller/services/{service_id}",
+            json_data={"status": status, "run_tests": False},
+        )
+
     async def list_interfaces(self, service_id: str) -> list[dict[str, Any]]:
         """List all access interfaces for a service from the backend."""
         result = await self.get(f"/seller/services/{service_id}/interfaces")
@@ -598,10 +625,15 @@ def run_test(
         filter_doc_id: str | None = None,
     ) -> tuple[list[dict], bool]:
         """Run tests for a single service. Returns (results, stop_early)."""
+        # Ensure service is routable before testing (draft/rejected → pending)
+        original_status = await runner.ensure_service_routable(resolved_service_id)
+
         documents = await runner.list_documents(resolved_service_id, executable_only=True)
 
         if not documents:
             out.print("[yellow]No testable documents found.[/yellow]")
+            if original_status:
+                await runner.restore_service_status(resolved_service_id, original_status)
             return [], False
 
         if filter_title or filter_doc_id:
@@ -744,6 +776,10 @@ def run_test(
                     )
                 except Exception as update_error:
                     out.print(f"  [yellow]Warning: Failed to update test result: {update_error}[/yellow]")
+
+        # Restore original status if we changed it for testing
+        if original_status:
+            await runner.restore_service_status(resolved_service_id, original_status)
 
         return results, stop_early
 
