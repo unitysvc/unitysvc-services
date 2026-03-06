@@ -1377,6 +1377,7 @@ def validate_name(name: str, entity_type: str, display_name: str | None = None, 
 
 
 SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
+    "env": dict,  # Named Jinja2 template values rendered per-enrollment
     "enrollment_limit": int,
     "enrollment_limit_per_customer": int,
     "enrollment_limit_per_user": int,
@@ -1418,6 +1419,18 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
                 type_name = expected_type.__name__
             errors.append(f"service_options.{key} must be {type_name}, got {type(value).__name__}")
             continue
+
+        # Validate env values are all strings (Jinja2 templates)
+        if key == "env":
+            for env_key, env_val in value.items():
+                if not isinstance(env_key, str):
+                    errors.append(
+                        f"service_options.env key must be str, got {type(env_key).__name__}"
+                    )
+                elif not isinstance(env_val, str):
+                    errors.append(
+                        f"service_options.env.{env_key} must be str, got {type(env_val).__name__}"
+                    )
 
         # Non-positive integers for enrollment_limit* keys
         if expected_type is int and key.startswith("enrollment_limit"):

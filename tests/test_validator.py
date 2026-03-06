@@ -651,3 +651,55 @@ class TestServiceOptionsValidation:
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
         assert "must be int, got bool" in errors[0]
+
+    def test_valid_env_option(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "env": {"user_id": "{{ enrollment_code(6) }}"},
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_env_empty_dict_valid(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"env": {}},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
+
+    def test_env_wrong_type(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"env": "not a dict"},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "must be dict, got str" in errors[0]
+
+    def test_env_value_must_be_string(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {"env": {"count": 42}},
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert len(errors) == 1
+        assert "service_options.env.count must be str" in errors[0]
+
+    def test_env_with_other_options(self, schema_dir, example_data_dir):
+        validator = DataValidator(example_data_dir, schema_dir)
+        data = {
+            "schema": "listing_v1",
+            "service_options": {
+                "env": {"topic": "{{ enrollment_code() }}"},
+                "enrollment_limit_per_customer": 5,
+            },
+        }
+        errors = validator.validate_service_options_keys(data, "listing_v1")
+        assert errors == []
