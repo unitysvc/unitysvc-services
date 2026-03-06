@@ -137,7 +137,10 @@ def query_services(
 
     async def _query_services_async():
         async with ServiceDataQuery() as query:
-            params: dict[str, Any] = {"skip": skip, "limit": limit}
+            # When filtering by provider (client-side), fetch all results
+            # first so the limit applies after filtering, not before.
+            fetch_limit = 10000 if provider else limit
+            params: dict[str, Any] = {"skip": skip, "limit": fetch_limit}
             if status:
                 params["status"] = status
             if name:
@@ -153,6 +156,7 @@ def query_services(
                     svc for svc in data
                     if provider_lower in svc.get("provider_name", "").lower()
                 ]
+                data = data[:limit]
 
             return data
 
