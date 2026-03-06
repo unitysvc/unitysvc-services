@@ -139,7 +139,7 @@ def query_services(
         async with ServiceDataQuery() as query:
             # When filtering by provider (client-side), fetch all results
             # first so the limit applies after filtering, not before.
-            fetch_limit = 10000 if provider else limit
+            fetch_limit = 1000 if provider else limit
             params: dict[str, Any] = {"skip": skip, "limit": fetch_limit}
             if status:
                 params["status"] = status
