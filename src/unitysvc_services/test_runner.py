@@ -60,7 +60,7 @@ class TestRunner(UnitySvcAPI):
             The original status if it was changed, None otherwise.
             Caller should restore this status after testing completes.
         """
-        service = await self.get(f"/seller/services/{service_id}")
+        service = await self.get(f"/seller/services/{service_id}/data")
         status = service.get("status")
         if status in ("draft", "rejected"):
             await self.patch(
