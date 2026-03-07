@@ -85,9 +85,9 @@ class TestRunner(UnitySvcAPI):
         return result.get("data", [])
 
     async def get_env(self, service_id: str) -> dict[str, str]:
-        """Get rendered service_options.env for the ops_customer enrollment."""
+        """Get rendered service_options.env for the ops_customer test enrollment."""
         try:
-            result = await self.get(f"/seller/services/{service_id}/env")
+            result = await self.get(f"/seller/services/{service_id}/test-env")
             if isinstance(result, dict):
                 return {k: str(v) for k, v in result.items()}
         except Exception:
