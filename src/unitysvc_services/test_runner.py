@@ -84,6 +84,16 @@ class TestRunner(UnitySvcAPI):
             return result
         return result.get("data", [])
 
+    async def get_env(self, service_id: str) -> dict[str, str]:
+        """Get rendered service_options.env for the ops_customer enrollment."""
+        try:
+            result = await self.get(f"/seller/services/{service_id}/env")
+            if isinstance(result, dict):
+                return {k: str(v) for k, v in result.items()}
+        except Exception:
+            pass
+        return {}
+
     async def resolve_service_id_from_document(self, document_id: str) -> str:
         """Look up the service ID that owns a document.
 
@@ -586,11 +596,21 @@ def run_test(
         raise typer.Exit(code=1)
     from .utils import execute_script_content
 
-    def _execute_script(file_content: str, mime_type: str, output_contains: str | None, resolved_base_url: str) -> dict:
+    def _execute_script(
+        file_content: str,
+        mime_type: str,
+        output_contains: str | None,
+        resolved_base_url: str,
+        service_env: dict[str, str] | None = None,
+    ) -> dict:
         """Execute a single script with the given base URL. Returns result dict."""
         exec_env: dict[str, str] = {}
         if resolved_base_url:
             exec_env["SERVICE_BASE_URL"] = resolved_base_url
+        # Add service_options.env variables (uppercased keys)
+        if service_env:
+            for key, value in service_env.items():
+                exec_env[key.upper()] = value
 
         try:
             result = execute_script_content(
@@ -646,10 +666,15 @@ def run_test(
         except Exception:
             interfaces_list = [("default", "")]
 
+        # Fetch rendered service_options.env for the ops enrollment
+        service_env = await runner.get_env(resolved_service_id)
+
         api_key = os.environ.get("UNITYSVC_API_KEY", "")
         if interfaces_list or api_key:
             for iface_name, iface_url in interfaces_list:
                 out.print(f"[dim]{iface_name}: SERVICE_BASE_URL={iface_url}[/dim]")
+            for env_key, env_val in service_env.items():
+                out.print(f"[dim]{env_key.upper()}={env_val}[/dim]")
             api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
             out.print(f"[dim]UNITYSVC_API_KEY={api_key_display or '(not set)'}[/dim]")
             out.print()
@@ -707,6 +732,7 @@ def run_test(
                     mime_type,
                     output_contains,
                     resolved_url,
+                    service_env,
                 )
                 result["title"] = label
                 result["interface"] = iface_name
@@ -746,6 +772,8 @@ def run_test(
                     with open(env_path, "w") as f:
                         f.write(f"SERVICE_BASE_URL={resolved_url}\n")
                         f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
+                        for env_k, env_v in service_env.items():
+                            f.write(f"{env_k.upper()}={env_v}\n")
                     out.print(f"  [dim]   env: {env_path}[/dim]")
 
                 if fail_fast and result["status"] != "success":
