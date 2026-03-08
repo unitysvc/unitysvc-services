@@ -470,22 +470,6 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             for key, value in rendered_env.items():
                 env_vars[key.upper()] = str(value)
 
-        # Expose request_transformer secret refs as env vars (for local testing).
-        # The gateway resolves these at runtime; for local testing we read
-        # the secret value from the shell environment.
-        offering_data = related_data.get("offering", {})
-        for _name, iface in (offering_data.get("upstream_access_interfaces") or {}).items():
-            rt = iface.get("request_transformer", {}) or {}
-            pr = rt.get("proxy_rewrite", {}) or {}
-            for header_val in (pr.get("headers", {}).get("set") or {}).values():
-                if isinstance(header_val, str):
-                    m = _SECRETS_RE.match(header_val)
-                    if m:
-                        var_name = m.group(1)
-                        env_val = os.environ.get(var_name, "")
-                        if env_val:
-                            env_vars[var_name] = env_val
-
         # Execute script using shared utility
         output_contains = code_example.get("output_contains")
         exec_result = execute_script_content(
