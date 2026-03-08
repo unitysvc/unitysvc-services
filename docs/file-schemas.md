@@ -164,6 +164,7 @@ Service files define the service offering from the upstream provider's perspecti
 | -------------- | --------------------- | ------------------------------------------------------------- |
 | `display_name` | string                | Human-readable service name for display (e.g., 'GPT-4 Turbo') |
 | `description`  | string                | Service description                                           |
+| `capabilities` | array of string       | Specific features this service provides (see [Capabilities](#capabilities)) |
 | `logo`         | string/URL            | Path to logo or URL (converted to document)                   |
 | `tagline`      | string                | Short elevator pitch                                          |
 | `tags`         | array of enum         | Service tags (e.g., `["byok"]` for bring-your-own-provider)   |
@@ -188,6 +189,24 @@ Service files define the service offering from the upstream provider's perspecti
 - `prerecorded_translation` - Batch audio translation
 - `undetermined` - Type not yet determined
 
+### Capabilities
+
+The `capabilities` field lists the specific features a service provides. While `service_type` is a single broad category used for UI grouping, `capabilities` is an array that enables discovery and filtering across multiple features.
+
+- `service_type` answers: **"What kind of service is this?"** (e.g., `llm`)
+- `capabilities` answers: **"What can this service do?"** (e.g., `["llm", "vision_language_model"]`)
+
+Capabilities are free-form strings. Well-known values include all `ServiceTypeEnum` values above, plus:
+`recommendation`, `search`, `classification`, `summarization`, `translation`, `code_generation`, `function_calling`, `fine_tuning`
+
+**Examples:**
+
+| Service | `service_type` | `capabilities` |
+|---------|---------------|----------------|
+| OpenAI GPT-4 | `llm` | `["llm", "vision_language_model"]` |
+| Deepgram Nova | `speech_to_text` | `["speech_to_text", "text_to_speech"]` |
+| Gorse Recommender | `undetermined` | `["recommendation"]` |
+
 ### Example (TOML)
 
 ```toml
@@ -196,6 +215,7 @@ name = "gpt-4"
 display_name = "GPT-4"
 description = "Most capable GPT-4 model for complex reasoning tasks"
 service_type = "llm"
+capabilities = ["llm", "vision_language_model"]
 status = "ready"
 time_created = "2024-01-20T14:00:00Z"
 
@@ -252,9 +272,31 @@ The `service_options` field configures backend behavior for service listings. Al
 | Field                           | Type    | Description                                                                    |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `ops_testing_parameters`        | object  | Default parameter values for testing (see [User Parameters](#user-parameters)) |
+| `enrollment_vars`               | object  | Per-enrollment variables rendered into code examples and test scripts (see below) |
 | `enrollment_limit`              | integer | Maximum total active enrollments allowed for this service (global limit)       |
 | `enrollment_limit_per_customer` | integer | Maximum active enrollments per customer for this service                       |
 | `enrollment_limit_per_user`     | integer | Maximum active enrollments per user (creator) for this service                 |
+
+**Enrollment Variables (`enrollment_vars`):**
+
+The `enrollment_vars` field defines per-enrollment variables that are rendered and passed to code examples and test scripts during both local testing (`usvc data run-tests`) and gateway testing (`usvc services run-tests`). Values support Jinja2 template syntax with access to enrollment context functions.
+
+```json
+{
+    "service_options": {
+        "enrollment_vars": {
+            "USER_ID": "{{ enrollment_code(6) }}",
+            "REGION": "us-east-1"
+        }
+    }
+}
+```
+
+Template functions available in `enrollment_vars` values:
+
+- `{{ enrollment_code(N) }}` — Returns the enrollment's unique code (N = length). The code is stable per enrollment.
+
+Variable names are uppercased when passed to scripts as environment variables. For example, `user_id` becomes `USER_ID`.
 
 **Enrollment Limits:**
 
@@ -271,6 +313,9 @@ The `service_options` field configures backend behavior for service listings. Al
         "ops_testing_parameters": {
             "api_key": "${ secrets.SERVICE_API_KEY }",
             "region": "us-east-1"
+        },
+        "enrollment_vars": {
+            "USER_ID": "{{ enrollment_code(6) }}"
         },
         "enrollment_limit": 100,
         "enrollment_limit_per_customer": 5,
@@ -290,6 +335,9 @@ enrollment_limit_per_user = 2
 [service_options.ops_testing_parameters]
 api_key = "${ secrets.SERVICE_API_KEY }"
 region = "us-east-1"
+
+[service_options.enrollment_vars]
+USER_ID = "{{ enrollment_code(6) }}"
 ```
 
 ### Listing Name Field

@@ -85,7 +85,7 @@ class TestRunner(UnitySvcAPI):
         return result.get("data", [])
 
     async def get_env(self, service_id: str) -> dict[str, str]:
-        """Get rendered service_options.env for the ops_customer test enrollment."""
+        """Get rendered service_options.enrollment_vars for the ops_customer test enrollment."""
         try:
             result = await self.get(f"/seller/services/{service_id}/test-env")
             if isinstance(result, dict):
@@ -607,7 +607,7 @@ def run_test(
         exec_env: dict[str, str] = {}
         if resolved_base_url:
             exec_env["SERVICE_BASE_URL"] = resolved_base_url
-        # Add service_options.env variables (uppercased keys)
+        # Add service_options.enrollment_vars (uppercased keys)
         if service_env:
             for key, value in service_env.items():
                 exec_env[key.upper()] = value
@@ -666,7 +666,7 @@ def run_test(
         except Exception:
             interfaces_list = [("default", "")]
 
-        # Fetch rendered service_options.env for the ops enrollment
+        # Fetch rendered service_options.enrollment_vars for the ops enrollment
         service_env = await runner.get_env(resolved_service_id)
 
         api_key = os.environ.get("UNITYSVC_API_KEY", "")

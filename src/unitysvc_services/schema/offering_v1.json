@@ -110,6 +110,30 @@
           "description": "Request transformation configuration",
           "title": "Request Transformer"
         },
+        "response_rules": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Response evaluation rules keyed by rule name. Values are either a rule dict or a Jinja2 template string. Validated by the backend.",
+          "title": "Response Rules"
+        },
         "routing_key": {
           "anyOf": [
             {
@@ -1263,8 +1287,10 @@
       "description": "Allowed enums, currently not enforced.",
       "enum": [
         "byok",
+        "byoe",
         "ai",
-        "gateway"
+        "gateway",
+        "managed"
       ],
       "title": "TagEnum",
       "type": "string"
@@ -1482,6 +1508,14 @@
   "additionalProperties": false,
   "description": "Service offering model for file-based definitions (offering_v1 schema).\n\nExtends ServiceOfferingData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- logo: Convenience field (converted to documents during import)\n- tags: Tags for the service (e.g., bring your own API key)\n- Typed models (AccessInterface, Document, Pricing) instead of dicts\n- Field validators for name format\n\nThis model is used for validating offering.json/offering.toml files\ncreated by the CLI tool.",
   "properties": {
+    "capabilities": {
+      "description": "Specific features this service provides (e.g., 'text_to_speech', 'embedding')",
+      "items": {
+        "type": "string"
+      },
+      "title": "Capabilities",
+      "type": "array"
+    },
     "currency": {
       "$ref": "#/$defs/CurrencyEnum",
       "default": "USD",

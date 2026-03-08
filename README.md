@@ -159,6 +159,7 @@ See [Data Structure Documentation](https://unitysvc-services.readthedocs.io/en/l
 ## Key Features
 
 - **Unified Upload** - Provider, offering, and listing uploaded together atomically
+- **Service Capabilities** - Tag services with multiple capabilities for discovery and filtering
 - **Pydantic Models** - Type-safe data models for all entities
 - **Data Validation** - Comprehensive schema validation
 - **Local-First** - Work offline, commit to git, upload when ready
