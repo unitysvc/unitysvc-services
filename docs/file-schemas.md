@@ -285,8 +285,8 @@ The `enrollment_vars` field defines per-enrollment variables that are rendered a
 {
     "service_options": {
         "enrollment_vars": {
-            "USER_ID": "{{ enrollment_code(6) }}",
-            "REGION": "us-east-1"
+            "user_id": "{{ enrollment_code(6) }}",
+            "region": "us-east-1"
         }
     }
 }
@@ -296,7 +296,7 @@ Template functions available in `enrollment_vars` values:
 
 - `{{ enrollment_code(N) }}` — Returns the enrollment's unique code (N = length). The code is stable per enrollment.
 
-Variable names are uppercased when passed to scripts as environment variables. For example, `user_id` becomes `USER_ID`.
+Variable names should be lowercase. They are available directly in access interface templates as `{{ var_name }}`.
 
 **Enrollment Limits:**
 
@@ -337,7 +337,7 @@ api_key = "${ secrets.SERVICE_API_KEY }"
 region = "us-east-1"
 
 [service_options.enrollment_vars]
-USER_ID = "{{ enrollment_code(6) }}"
+user_id = "{{ enrollment_code(6) }}"
 ```
 
 ### Listing Name Field

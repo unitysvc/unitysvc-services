@@ -22,7 +22,7 @@ from rich.table import Table
 
 from .models.base import DocumentCategoryEnum
 from .output import format_output
-from .utils import execute_script_content, find_files_by_schema, render_template_file
+from .utils import execute_script_content, find_files_by_schema, load_data_file, render_template_file
 
 app = typer.Typer(help="List and run code examples locally with upstream credentials")
 console = Console()
@@ -41,18 +41,28 @@ def _get_test_enrollment_code(length: int = 6) -> str:
     return _test_enrollment_code
 
 
-def expand_template_strings(data: dict[str, Any]) -> dict[str, Any]:
+def expand_template_strings(
+    data: dict[str, Any],
+    extra_context: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Expand Jinja2 template syntax in string values of a dict.
 
     Uses a fake enrollment_code() for local testing. Only processes
     values that contain {{ or {%.
+
+    Args:
+        data: Dict whose string values may contain Jinja2 templates.
+        extra_context: Additional template variables (e.g. rendered enrollment_vars).
     """
+    ctx: dict[str, Any] = {"enrollment_code": _get_test_enrollment_code}
+    if extra_context:
+        ctx.update(extra_context)
     result = {}
     for key, value in data.items():
         if isinstance(value, str) and ("{{" in value or "{%" in value):
             try:
                 template = _jinja_env.from_string(value)
-                value = template.render(enrollment_code=_get_test_enrollment_code)
+                value = template.render(**ctx)
             except jinja2.TemplateError:
                 pass
         result[key] = value
@@ -371,11 +381,16 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         if not offering:
             return None
 
+        # Render enrollment_vars from listing, then use as context for upstream templates
+        listing_data, _fmt = load_data_file(listing_file)
+        listing_so = listing_data.get("service_options", {}) or {}
+        rendered_vars = expand_template_strings(listing_so.get("enrollment_vars", {}) or {})
+
         # Extract credentials from upstream_access_interfaces (dict keyed by name)
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_interfaces", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
-        first_interface = expand_template_strings(first_interface)
+        first_interface = expand_template_strings(first_interface, extra_context=rendered_vars)
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
@@ -912,7 +927,10 @@ def run_local(
     warned_listings: set[str] = set()
 
     for example, prov_name in discovered:
-        iface = expand_template_strings(example.get("upstream_interface", {}))
+        # Render enrollment_vars first, then use as context for upstream_interface
+        listing_so = example.get("listing_data", {}).get("service_options", {}) or {}
+        rendered_vars = expand_template_strings(listing_so.get("enrollment_vars", {}) or {})
+        iface = expand_template_strings(example.get("upstream_interface", {}), extra_context=rendered_vars)
         api_key = iface.get("api_key")
         base_url = iface.get("base_url")
         if base_url:
