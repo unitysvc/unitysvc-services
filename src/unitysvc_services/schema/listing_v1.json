@@ -110,6 +110,30 @@
           "description": "Request transformation configuration",
           "title": "Request Transformer"
         },
+        "response_rules": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Response evaluation rules keyed by rule name. Values are either a rule dict or a Jinja2 template string. Validated by the backend.",
+          "title": "Response Rules"
+        },
         "routing_key": {
           "anyOf": [
             {

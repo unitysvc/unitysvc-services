@@ -58,6 +58,11 @@ class ServiceOfferingData(BaseModel):
         description="Category for grouping/comparison",
     )
 
+    capabilities: list[str] = Field(
+        default_factory=list,
+        description="Specific features this service provides (e.g., 'text_to_speech', 'embedding')",
+    )
+
     description: str | None = Field(
         default=None,
         description="Service description",
