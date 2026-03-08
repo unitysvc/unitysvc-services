@@ -462,9 +462,9 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             "SERVICE_BASE_URL": credentials["base_url"],
         }
 
-        # Expose service_options.env as environment variables
+        # Expose service_options.enrollment_vars as environment variables
         service_options = listing_data.get("service_options", {}) or {}
-        env_templates = service_options.get("env", {}) or {}
+        env_templates = service_options.get("enrollment_vars", {}) or {}
         if env_templates:
             rendered_env = expand_template_strings(env_templates)
             for key, value in rendered_env.items():
@@ -1062,9 +1062,9 @@ def run_local(
                     with open(env_filename, "w", encoding="utf-8") as f:
                         f.write(f"UNITYSVC_API_KEY={credentials['api_key']}\n")
                         f.write(f"SERVICE_BASE_URL={credentials['base_url']}\n")
-                        # Include service_options.env variables
+                        # Include service_options.enrollment_vars
                         listing_so = example.get("listing_data", {}).get("service_options", {}) or {}
-                        for k, v in expand_template_strings(listing_so.get("env", {}) or {}).items():
+                        for k, v in expand_template_strings(listing_so.get("enrollment_vars", {}) or {}).items():
                             f.write(f"{k.upper()}={v}\n")
                     console.print(f"  [yellow]→ Environment variables saved to:[/yellow] {env_filename}")
                     console.print(f"  [dim]  (source this file to reproduce: source {env_filename})[/dim]")

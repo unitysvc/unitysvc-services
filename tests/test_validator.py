@@ -657,47 +657,47 @@ class TestServiceOptionsValidation:
         data = {
             "schema": "listing_v1",
             "service_options": {
-                "env": {"user_id": "{{ enrollment_code(6) }}"},
+                "enrollment_vars": {"user_id": "{{ enrollment_code(6) }}"},
             },
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert errors == []
 
-    def test_env_empty_dict_valid(self, schema_dir, example_data_dir):
+    def test_enrollment_vars_empty_dict_valid(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
         data = {
             "schema": "listing_v1",
-            "service_options": {"env": {}},
+            "service_options": {"enrollment_vars": {}},
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert errors == []
 
-    def test_env_wrong_type(self, schema_dir, example_data_dir):
+    def test_enrollment_vars_wrong_type(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
         data = {
             "schema": "listing_v1",
-            "service_options": {"env": "not a dict"},
+            "service_options": {"enrollment_vars": "not a dict"},
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
         assert "must be dict, got str" in errors[0]
 
-    def test_env_value_must_be_string(self, schema_dir, example_data_dir):
+    def test_enrollment_vars_value_must_be_string(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
         data = {
             "schema": "listing_v1",
-            "service_options": {"env": {"count": 42}},
+            "service_options": {"enrollment_vars": {"count": 42}},
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
-        assert "service_options.env.count must be str" in errors[0]
+        assert "service_options.enrollment_vars.count must be str" in errors[0]
 
-    def test_env_with_other_options(self, schema_dir, example_data_dir):
+    def test_enrollment_vars_with_other_options(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
         data = {
             "schema": "listing_v1",
             "service_options": {
-                "env": {"topic": "{{ enrollment_code() }}"},
+                "enrollment_vars": {"topic": "{{ enrollment_code() }}"},
                 "enrollment_limit_per_customer": 5,
             },
         }

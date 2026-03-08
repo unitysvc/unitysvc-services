@@ -272,19 +272,19 @@ The `service_options` field configures backend behavior for service listings. Al
 | Field                           | Type    | Description                                                                    |
 | ------------------------------- | ------- | ------------------------------------------------------------------------------ |
 | `ops_testing_parameters`        | object  | Default parameter values for testing (see [User Parameters](#user-parameters)) |
-| `env`                           | object  | Environment variables rendered into code examples and test scripts (see below) |
+| `enrollment_vars`               | object  | Per-enrollment variables rendered into code examples and test scripts (see below) |
 | `enrollment_limit`              | integer | Maximum total active enrollments allowed for this service (global limit)       |
 | `enrollment_limit_per_customer` | integer | Maximum active enrollments per customer for this service                       |
 | `enrollment_limit_per_user`     | integer | Maximum active enrollments per user (creator) for this service                 |
 
-**Environment Variables (`env`):**
+**Enrollment Variables (`enrollment_vars`):**
 
-The `env` field defines environment variables that are rendered and passed to code examples and test scripts during both local testing (`usvc data run-tests`) and gateway testing (`usvc services run-tests`). Values support Jinja2 template syntax with access to enrollment context functions.
+The `enrollment_vars` field defines per-enrollment variables that are rendered and passed to code examples and test scripts during both local testing (`usvc data run-tests`) and gateway testing (`usvc services run-tests`). Values support Jinja2 template syntax with access to enrollment context functions.
 
 ```json
 {
     "service_options": {
-        "env": {
+        "enrollment_vars": {
             "USER_ID": "{{ enrollment_code(6) }}",
             "REGION": "us-east-1"
         }
@@ -292,11 +292,11 @@ The `env` field defines environment variables that are rendered and passed to co
 }
 ```
 
-Template functions available in `env` values:
+Template functions available in `enrollment_vars` values:
 
 - `{{ enrollment_code(N) }}` — Returns the enrollment's unique code (N = length). The code is stable per enrollment.
 
-Environment variable names are uppercased when passed to scripts. For example, `user_id` becomes `USER_ID`.
+Variable names are uppercased when passed to scripts as environment variables. For example, `user_id` becomes `USER_ID`.
 
 **Enrollment Limits:**
 
@@ -314,7 +314,7 @@ Environment variable names are uppercased when passed to scripts. For example, `
             "api_key": "${ secrets.SERVICE_API_KEY }",
             "region": "us-east-1"
         },
-        "env": {
+        "enrollment_vars": {
             "USER_ID": "{{ enrollment_code(6) }}"
         },
         "enrollment_limit": 100,
@@ -336,7 +336,7 @@ enrollment_limit_per_user = 2
 api_key = "${ secrets.SERVICE_API_KEY }"
 region = "us-east-1"
 
-[service_options.env]
+[service_options.enrollment_vars]
 USER_ID = "{{ enrollment_code(6) }}"
 ```
 
