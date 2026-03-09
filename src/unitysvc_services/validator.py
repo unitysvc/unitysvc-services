@@ -190,13 +190,13 @@ class DataValidator:
     def validate_api_key_secrets(self, data: dict[str, Any]) -> list[str]:
         """Validate that all api_key fields use the secrets reference format.
 
-        API keys must be specified as '${ secrets.VAR_NAME }' where VAR_NAME
-        starts with a letter or underscore and contains only letters, numbers,
-        and underscores. Spaces around the variable name are optional.
+        API keys must use one of these formats:
+        - '${ secrets.VAR_NAME }' — seller-owned secret
+        - '${ customer_secrets.VAR_NAME }' — customer-owned secret (BYOK)
+        - '${ customer_secrets.{{ param }} }' — customer secret via Jinja2 indirection (BYOE)
 
         This applies to:
         - upstream_access_interfaces.<name>.api_key
-        - user_access_interfaces.<name>.api_key
         - service_options.ops_testing_parameters.api_key
 
         Args:
@@ -207,8 +207,10 @@ class DataValidator:
         """
         errors: list[str] = []
 
-        # Pattern: ${ secrets.VAR_NAME } with optional spaces
-        secrets_pattern = re.compile(r"^\$\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*\s*\}$")
+        # Seller secrets: ${ secrets.VAR_NAME }
+        seller_secrets_pattern = re.compile(r"^\$\{\s*secrets\.[A-Za-z_][A-Za-z0-9_]*\s*\}$")
+        # Customer secrets: ${ customer_secrets.VAR_NAME } or ${ customer_secrets.{{ jinja }} }
+        customer_secrets_pattern = re.compile(r"^\$\{\s*customer_secrets\..+\s*\}$")
 
         # Paths where api_key is a schema definition or UI config, not an actual key
         skip_prefixes = ("user_parameters_schema.properties.", "user_parameters_ui_schema.")
@@ -228,11 +230,11 @@ class DataValidator:
                             errors.append(
                                 f"Invalid api_key at '{new_path}': expected string, got {type(value).__name__}"
                             )
-                        elif not secrets_pattern.match(value):
+                        elif not seller_secrets_pattern.match(value) and not customer_secrets_pattern.match(value):
                             errors.append(
                                 f"Invalid api_key at '{new_path}': API keys must use secrets reference format. "
-                                f"Got '{value}', expected format: '${{ secrets.VAR_NAME }}'. "
-                                f"Create the secret in your Seller Dashboard and reference it here."
+                                f"Got '{value}', expected format: "
+                                f"'${{ secrets.VAR_NAME }}' or '${{ customer_secrets.VAR_NAME }}'."
                             )
 
                     # Recurse into nested objects
