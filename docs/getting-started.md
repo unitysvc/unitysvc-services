@@ -92,45 +92,86 @@ These three parts are **organized separately** for reusability but **uploaded to
 
 ## Quick Start: Your First Service
 
-### Step 1: Create Data via Web Interface
+```mermaid
+flowchart TD
+    subgraph local["Local (usvc data ...)"]
+        S1["1. Create repo"]
+        S2["2. Define service data"]
+        S3["3. Validate & format"]
+        S4["4. Run local tests"]
+        S5["5. Upload"]
+        S1 --> S2 --> S3 --> S4 --> S5
+    end
 
-1. Go to [unitysvc.com](https://unitysvc.com) and sign in
-2. Create your **Provider** (your company/organization info)
-3. Create an **Offering** (the service you're providing)
-4. Create a **Listing** (how customers see and purchase your service)
-5. **Export** your data as JSON/TOML files
+    S5 --> S6
 
-### Step 2: Set Up Your Local Directory
+    subgraph remote["Remote (usvc services ...)"]
+        S6["6. Run remote tests"]
+        S7["7. Submit for review"]
+        S6 --> S7
+    end
 
-Place the exported files in the expected directory structure:
+    S7 -. "rejected / failed" .-> S2
+
+    style local fill:#e3f2fd,stroke:#1565c0
+    style remote fill:#e8f5e9,stroke:#2e7d32
+```
+
+### Step 1: Create a Local Repository
+
+Create a new repository from the [unitysvc-services-template](https://github.com/unitysvc/unitysvc-services-template), which provides the directory structure, CI/CD workflows, and example files. Alternatively, fork any of the publicly available service repositories under the [unitysvc GitHub organization](https://github.com/unitysvc) (e.g., `unitysvc-services-openai`, `unitysvc-services-groq`) and adapt them to your provider.
+
+Your repository should follow this structure:
 
 ```
 data/
 └── my-provider/
-    ├── provider.json          # Provider Data
+    ├── provider.toml          # Provider Data
     └── services/
         └── my-service/
-            ├── offering.json  # Offering Data
-            └── listing.json   # Listing Data
+            ├── offering.toml  # Offering Data
+            └── listing.toml   # Listing Data
 ```
 
-**Alternative**: You can also create files manually following the [File Schemas](file-schemas.md) documentation.
+### Step 2: Define Your Service Data
 
-### Step 3: Validate Your Data
+There are several ways to create and edit your provider, offering, and listing files:
+
+1. **Manually** — follow the [File Schemas](file-schemas.md) reference and existing examples in the template or forked repository
+2. **Web interface** — use the [UnitySVC web platform](https://unitysvc.com) to fill in forms for your provider, offering, and listing, then export as JSON/TOML files
+3. **AI-assisted** — ask Claude Code or another AI assistant to familiarize itself with the [unitysvc-services documentation](https://unitysvc-services.readthedocs.io) (or even the SDK source code), then have it prepare the data files for you
+
+### Step 3: Validate and Format
 
 ```bash
+# Validate your data against schemas
 usvc data validate
-```
 
-Fix any validation errors reported.
-
-### Step 4: Format Your Files (Optional)
-
-```bash
+# Optional: auto-format for consistent style (helps with cleaner git diffs)
 usvc data format
 ```
 
-This step is optional and not required for upload. It ensures consistent formatting (2-space JSON indentation, sorted keys, proper line endings, etc.), which helps keep data in a consistent format and makes version control diffs easier to read.
+Fix any validation errors before proceeding.
+
+### Step 4: Run Local Tests (Required)
+
+```bash
+usvc data run-tests
+```
+
+Local tests run your code examples and connectivity checks against real upstream endpoints. Provide any required secrets as environment variables:
+
+```bash
+# For managed services
+export PROVIDER_API_KEY="sk-..."
+usvc data run-tests
+
+# For BYOK services
+export GROQ_API_KEY="gsk_..."
+usvc data run-tests data/groq/services/llama-3.3-70b-versatile-byok
+```
+
+All tests must pass before uploading.
 
 ### Step 5: Upload to UnitySVC Platform
 
@@ -144,128 +185,39 @@ export UNITYSVC_SELLER_API_KEY="svcpass_your_seller_api_key"
 Upload your services:
 
 ```bash
-# From data directory
-cd data
 usvc data upload
 
 # Or specify path
 usvc data upload --data-path ./data
 
-# Or upload a single listing file
+# Or upload a single listing
 usvc data upload --data-path ./data/my-provider/services/my-service/listing.toml
 ```
 
-#### How Uploading Works
-
-The `usvc data upload` command uses a **listing-centric** approach:
-
-1. Finds all listing files (`listing_v1` schema) in the directory
-2. For each listing, locates the offering file in the same directory
-3. Locates the provider file in the parent directory
-4. Uploads all three together to `/seller/services`
-
-```mermaid
-flowchart TD
-    subgraph Local["Your Local Data"]
-        A[Provider Data<br/>WHO provides]
-        B[Offering Data<br/>WHAT you offer]
-        C[Listing Data<br/>HOW it's sold]
-    end
-
-    subgraph Upload["usvc data upload"]
-        D{Finds listings}
-        E[Bundles provider + offering + listing]
-    end
-
-    subgraph Platform["UnitySVC Platform"]
-        F{Reviews & Approves}
-        G[Service goes live]
-    end
-
-    C --> D
-    D --> E
-    A --> E
-    B --> E
-    E --> F
-    F -->|Approved| G
-```
-
-| Data Type         | Purpose                     | Key Fields                         |
-| ----------------- | --------------------------- | ---------------------------------- |
-| **Provider Data** | Who provides the service    | Provider name, contact info, terms |
-| **Offering Data** | What you offer to UnitySVC  | API endpoints, upstream pricing    |
-| **Listing Data**  | What you offer to customers | Documentation, customer pricing    |
-
-### Step 6: Verify Your Uploaded Data
+### Step 6: Run Remote Tests (Required)
 
 ```bash
-# List your services on the backend
-usvc services list
-
-# List with custom fields - show only specific columns
-usvc services list --fields id,name,status
-
-# Filter by status
-usvc services list --status active
-
-# List as JSON for programmatic use
-usvc services list --format json
-
-# Show details of a specific service
-usvc services show <service-id>
+usvc services run-tests <service-id>
 ```
+
+Remote tests run against the live platform, verifying that the service works end-to-end through the gateway. Tests must pass (or be explicitly skipped) before submission.
+
+### Step 7: Submit for Review
+
+```bash
+usvc services submit <service-id>
+```
+
+This submits your service for platform review. Once approved, the service goes live on the marketplace.
+
+!!! tip "Iterate until approved"
+    If any step fails or the submission is rejected, fix the issues and repeat from the relevant step. The typical cycle is: edit → validate → test locally → upload → test remotely → submit.
 
 ## Next Steps
 
 - **[Data Structure](data-structure.md)** - Learn about the Service Data model and file organization
 - **[Workflows](workflows.md)** - Explore manual and automated workflows
 - **[CLI Reference](cli-reference.md)** - Browse all available commands
-
-## Common Operations
-
-### List Local Data Files
-
-```bash
-usvc data list services
-usvc data list providers
-usvc data list offerings
-usvc data list listings
-```
-
-### Show Local Data Details
-
-```bash
-usvc data show provider <name>
-usvc data show offering <name>
-usvc data show listing <name>
-usvc data show service <name>
-```
-
-### Manage Service Lifecycle (Remote)
-
-```bash
-# Submit draft services for review
-usvc services submit <service-id>
-
-# Deprecate active services
-usvc services deprecate <service-id>
-
-# Withdraw pending services back to draft
-usvc services withdraw <service-id>
-
-# Delete services
-usvc services delete <service-id>
-```
-
-### Automated Service Generation
-
-For providers with large catalogs, set up automated generation:
-
-1. Add `services_populator` configuration to `provider.toml`
-2. Create a script to fetch and generate service files
-3. Run: `usvc data populate`
-
-See [Workflows](workflows.md#automated-workflow) for details.
 
 ## Troubleshooting
 

@@ -21,9 +21,25 @@ The UnitySVC Seller SDK is a Python package that enables digital service provide
 -   **Manage Lifecycle** - Submit services for review, deprecate, or withdraw services
 -   **Query** and verify uploaded data
 
+## Types of Services
+
+The UnitySVC platform can route a wide variety of digital services. See [Service Types](service-types.md) for full specification and examples.
+
+| Type | Description | Enrollment? | Examples |
+|------|-------------|:-----------:|---------|
+| **Managed** | Seller provides upstream credentials | No | LLM inference (OpenAI, Anthropic), embedding APIs, image generation, translation |
+| **BYOK** (Bring Your Own Key) | Customer provides their own API key for a cloud provider | No | Groq, Together AI, Fireworks with customer's own account |
+| **BYOE** (Bring Your Own Endpoint) | Customer provides the URL of their self-hosted instance | Yes | Self-hosted Ollama/vLLM, on-premise inference, private deployments |
+| **With User Parameters** | Customer provides configuration during enrollment; combinable with any type above | Yes | Model preferences, region selection, custom labels |
+| **Recurrent** | Scheduled execution at configured intervals; combinable with any type above | Yes | Uptime monitoring, daily ETL sync, weekly report generation |
+
+Services can be **stateless** (each request independent — most inference APIs) or **stateful** (maintaining history across requests — e.g., recommendation models, conversation context, analytics). In all cases, **no customer credentials or identity are passed to the upstream provider** — the gateway authenticates the customer separately and forwards only the request payload and upstream credentials.
+
+UnitySVC handles **enrollment**, **service delivery via the API gateway**, and **billing** so that service providers can focus entirely on building and operating their digital services. Sellers do not need to build authentication, payment processing, usage metering, or customer management — the platform provides all of this. Sellers define their service endpoints, pricing, and parameters; UnitySVC takes care of routing requests, tracking usage, generating invoices, and processing payouts.
+
 ## The Service Data Model
 
-A **Service** in UnitySVC consists of three complementary data components that work together:
+Sellers provide services through UnitySVC by uploading service specifications using this SDK. A service specification consists of three complementary data components that work together:
 
 | Component | Schema | Purpose | Reusability |
 |-----------|--------|---------|-------------|
