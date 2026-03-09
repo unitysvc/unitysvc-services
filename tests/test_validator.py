@@ -703,3 +703,4 @@ class TestServiceOptionsValidation:
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert errors == []
+
