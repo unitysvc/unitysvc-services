@@ -36,7 +36,6 @@ theme:
 
 plugins:
   - search
-  - autorefs
 
 markdown_extensions:
   - admonition
@@ -63,6 +62,7 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation & Quick Start: getting-started.md
+      - Service Types: service-types.md
       - Data Structure: data-structure.md
       - Workflows: workflows.md
       - Seller Lifecycle: seller-lifecycle.md

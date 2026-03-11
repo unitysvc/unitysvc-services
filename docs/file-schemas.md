@@ -388,7 +388,9 @@ mime_type = "markdown"
 
 ## User Parameters
 
-User parameters allow services to collect configuration values from subscribers when they create subscriptions. These parameters are defined using JSON Schema and rendered as interactive forms using the react-jsonschema-form library.
+User parameters collect **configuration values** from customers during enrollment. These are real settings the customer chooses (model preferences, regions, feature flags) — not API keys or credentials.
+
+> **Note**: API keys and credentials are handled separately through [Secrets](#secrets-for-sensitive-information), not through user parameters. See [BYOK Services](#byok-services-bring-your-own-key) for how to set up services that require a customer's API key.
 
 ### Overview
 
@@ -396,11 +398,13 @@ User parameters enable dynamic service configuration through:
 
 1. **`user_parameters_schema`** - JSON Schema defining parameters, validation rules, and UI components
 2. **`user_parameters_ui_schema`** - UI customization for form rendering
-3. **`service_options.ops_testing_parameters`** - Default values for testing services before deployment (see [Service Options](#service-options))
+3. **`service_options.ops_testing_parameters`** - Default values for testing parameters before deployment
+
+Services that define `user_parameters_schema` **require enrollment** — the customer must provide their configuration before using the service.
 
 ### user_parameters_schema
 
-Defines the parameters users must provide when subscribing to a service. Uses [JSON Schema](https://json-schema.org/) format with extensions from [react-jsonschema-form](https://rjsf-team.github.io/react-jsonschema-form/).
+Defines the parameters users must provide when enrolling in a service. Uses [JSON Schema](https://json-schema.org/) format with extensions from [react-jsonschema-form](https://rjsf-team.github.io/react-jsonschema-form/).
 
 **Common properties:**
 
@@ -418,11 +422,6 @@ Defines the parameters users must provide when subscribing to a service. Uses [J
     "type": "object",
     "title": "Service Configuration",
     "properties": {
-        "api_key": {
-            "type": "string",
-            "title": "API Key",
-            "description": "Your API key for authentication"
-        },
         "model": {
             "type": "string",
             "title": "Model",
@@ -439,7 +438,7 @@ Defines the parameters users must provide when subscribing to a service. Uses [J
             "maximum": 2
         }
     },
-    "required": ["api_key", "model"]
+    "required": ["model"]
 }
 ```
 
@@ -453,116 +452,31 @@ Customizes how the form is rendered. Controls field order, visibility, widgets, 
 - `ui:placeholder` - Placeholder text
 - `ui:help` - Additional help text
 - `ui:description` - Field description text
-- `ui:disabled` - Disable field (e.g., for secrets managed separately)
+- `ui:disabled` - Disable field
 - `ui:order` - Field display order
-- `ui:options` - Additional options object (e.g., `{"secret": "SECRET_NAME"}` for secret-backed parameters)
 
 **Example:**
 
 ```json
 {
-    "api_key": {
-        "ui:options": {
-            "secret": "PROVIDER_API_KEY"
-        },
-        "ui:disabled": true,
-        "ui:description": "Managed via secrets"
-    },
     "model": {
         "ui:widget": "select"
     },
     "temperature": {
         "ui:widget": "range"
     },
-    "ui:order": ["model", "temperature", "api_key"]
+    "ui:order": ["model", "temperature"]
 }
-```
-
-### Handling Secrets
-
-Sensitive values like API keys should be handled through the secrets management system, not collected directly through forms.
-
-**Best practices for secrets:**
-
-1. **Define in schema** - Include secret fields in `user_parameters_schema` for documentation
-2. **Mark as secret-backed** - Use `ui:options.secret` in `user_parameters_ui_schema` to specify which secret the parameter maps to
-3. **Disable in UI** - Set `"ui:disabled": true` in `user_parameters_ui_schema`
-4. **Add help text** - Guide users to add secrets separately
-5. **Use secret references** - In `ops_testing_parameters` and `service_options.ops_testing_parameters`, reference secrets using `${ secrets.SECRET_NAME }`
-
-#### Secret-Backed Parameters with ui:options.secret
-
-The `ui:options.secret` field in `user_parameters_ui_schema` declares that a parameter's value should come from a customer's secret. This enables:
-
-- **Auto-population**: When a customer enrolls, the system checks if the required secret already exists and auto-populates the parameter
-- **Enrollment status**: If the secret exists, enrollment status is set to `active`; otherwise, it's set to `pending` until the customer provides the secret
-- **Secret management integration**: The UI can display appropriate prompts for secret creation
-
-**Example with secret-backed API key:**
-
-```json
-{
-    "user_parameters_schema": {
-        "type": "object",
-        "title": "Be Your Own Provider",
-        "description": "Access service with your own api-key",
-        "properties": {
-            "api_key": {
-                "type": "string",
-                "title": "API Key (PROVIDER_API_KEY)",
-                "default": ""
-            }
-        },
-        "required": ["api_key"]
-    },
-    "user_parameters_ui_schema": {
-        "api_key": {
-            "ui:options": {
-                "secret": "PROVIDER_API_KEY"
-            },
-            "ui:disabled": true,
-            "ui:description": "Managed via secrets"
-        }
-    },
-    "service_options": {
-        "ops_testing_parameters": {
-            "api_key": "${ secrets.PROVIDER_API_KEY }"
-        }
-    }
-}
-```
-
-**Key points:**
-
-- **`ui:options.secret`**: Specifies the secret name (e.g., `"PROVIDER_API_KEY"`) that this parameter maps to
-- **`title` with secret name**: Include the secret name in the title (e.g., `"API Key (PROVIDER_API_KEY)"`) for clarity
-- **`ui:disabled: true`**: Prevents direct editing since the value comes from secrets
-- **`service_options.ops_testing_parameters`**: Defines the runtime value using secret reference syntax
-
-#### Enrollment Workflow with Secrets
-
-When a customer enrolls in a service with secret-backed parameters:
-
-1. **Check for existing secret**: System checks if the customer has the required secret (e.g., `PROVIDER_API_KEY`)
-2. **If secret exists**: Enrollment is created with `status: active`, parameter auto-populated
-3. **If secret missing**: Enrollment is created with `status: pending`, prompting customer to add the secret
-4. **On secret creation**: All pending enrollments depending on that secret are updated to `active`
-
-```
-[not enrolled] → (enroll) → pending → (add secret) → active
-                     │
-                     └─→ active  (if secret already exists)
 ```
 
 ### service_options.ops_testing_parameters
 
-Provides default parameter values for testing services before deployment. This is **required** when `user_parameters_schema` defines required parameters that don't have default values in the schema itself.
+Provides default parameter values for testing services before deployment. Required when `user_parameters_schema` defines required parameters without default values.
 
 **Key requirements:**
 
-1. **All required parameters must have defaults** - Each parameter listed in `user_parameters_schema.required` must have either a `default` value in the schema OR a value in `ops_testing_parameters`
-2. **Secrets use special syntax** - Reference seller secrets using `${ secrets.SECRET_NAME }`
-3. **Must be testable** - Values must allow the service to be tested successfully
+1. **All required parameters must have defaults** - Each parameter in `user_parameters_schema.required` must have either a `default` in the schema OR a value in `ops_testing_parameters`
+2. **Must be testable** - Values must allow the service to be tested successfully
 
 **Example:**
 
@@ -570,7 +484,6 @@ Provides default parameter values for testing services before deployment. This i
 {
     "service_options": {
         "ops_testing_parameters": {
-            "api_key": "${ secrets.OPENAI_API_KEY }",
             "model": "gpt-4",
             "temperature": 0.7
         }
@@ -580,33 +493,26 @@ Provides default parameter values for testing services before deployment. This i
 
 ### Complete Example (JSON)
 
+A service with user-configurable parameters (model, token limits, streaming):
+
 ```json
 {
     "schema": "listing_v1",
     "display_name": "Custom AI Service",
     "status": "ready",
-    "time_created": "2024-01-25T16:00:00Z",
     "user_parameters_schema": {
         "type": "object",
         "title": "Service Configuration",
-        "description": "Configure your AI service subscription",
         "properties": {
-            "api_key": {
-                "type": "string",
-                "title": "API Key",
-                "description": "Your service API key for authentication"
-            },
             "model": {
                 "type": "string",
                 "title": "Model",
-                "description": "AI model to use",
                 "enum": ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"],
                 "default": "gpt-4"
             },
             "max_tokens": {
                 "type": "integer",
                 "title": "Max Tokens",
-                "description": "Maximum tokens per request",
                 "default": 1000,
                 "minimum": 1,
                 "maximum": 4096
@@ -614,33 +520,19 @@ Provides default parameter values for testing services before deployment. This i
             "enable_streaming": {
                 "type": "boolean",
                 "title": "Enable Streaming",
-                "description": "Enable streaming responses",
                 "default": false
             }
         },
-        "required": ["api_key", "model"]
+        "required": ["model"]
     },
     "user_parameters_ui_schema": {
-        "api_key": {
-            "ui:widget": "password",
-            "ui:disabled": true,
-            "ui:help": "API key is managed through secrets. Use 'Add Secret' to provide your key."
-        },
-        "model": {
-            "ui:widget": "select"
-        },
-        "max_tokens": {
-            "ui:widget": "range",
-            "ui:help": "Higher values allow longer responses but cost more"
-        },
-        "enable_streaming": {
-            "ui:widget": "checkbox"
-        },
-        "ui:order": ["model", "max_tokens", "enable_streaming", "api_key"]
+        "model": { "ui:widget": "select" },
+        "max_tokens": { "ui:widget": "range" },
+        "enable_streaming": { "ui:widget": "checkbox" },
+        "ui:order": ["model", "max_tokens", "enable_streaming"]
     },
     "service_options": {
         "ops_testing_parameters": {
-            "api_key": "${ secrets.SERVICE_API_KEY }",
             "model": "gpt-4",
             "max_tokens": 1000,
             "enable_streaming": false
@@ -655,135 +547,109 @@ Provides default parameter values for testing services before deployment. This i
 }
 ```
 
-### Complete Example (TOML)
-
-```toml
-schema = "listing_v1"
-display_name = "Custom AI Service"
-status = "ready"
-time_created = "2024-01-25T16:00:00Z"
-
-[user_parameters_schema]
-type = "object"
-title = "Service Configuration"
-description = "Configure your AI service subscription"
-required = ["api_key", "model"]
-
-[user_parameters_schema.properties.api_key]
-type = "string"
-title = "API Key"
-description = "Your service API key for authentication"
-
-[user_parameters_schema.properties.model]
-type = "string"
-title = "Model"
-description = "AI model to use"
-default = "gpt-4"
-enum = ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]
-
-[user_parameters_schema.properties.max_tokens]
-type = "integer"
-title = "Max Tokens"
-description = "Maximum tokens per request"
-default = 1000
-minimum = 1
-maximum = 4096
-
-[user_parameters_schema.properties.enable_streaming]
-type = "boolean"
-title = "Enable Streaming"
-description = "Enable streaming responses"
-default = false
-
-[user_parameters_ui_schema.api_key]
-"ui:widget" = "password"
-"ui:disabled" = true
-"ui:help" = "API key is managed through secrets. Use 'Add Secret' to provide your key."
-
-[user_parameters_ui_schema.model]
-"ui:widget" = "select"
-
-[user_parameters_ui_schema.max_tokens]
-"ui:widget" = "range"
-"ui:help" = "Higher values allow longer responses but cost more"
-
-[user_parameters_ui_schema.enable_streaming]
-"ui:widget" = "checkbox"
-
-[user_parameters_ui_schema]
-"ui:order" = ["model", "max_tokens", "enable_streaming", "api_key"]
-
-[service_options.ops_testing_parameters]
-api_key = "${ secrets.SERVICE_API_KEY }"
-model = "gpt-4"
-max_tokens = 1000
-enable_streaming = false
-
-[user_access_interfaces."API Access"]
-access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/my-service"
-```
-
 ### Validation Rules
 
-The SDK validates user parameters during the `usvc data validate` command:
+The SDK validates user parameters during `usvc data validate`:
 
-1. **Required parameter defaults** - All parameters in `user_parameters_schema.required` must have either:
-    - A `default` value in the parameter's schema definition, OR
-    - A corresponding value in `service_options.ops_testing_parameters`
-2. **Service options required** - If required parameters exist without defaults in the schema, `service_options` with `ops_testing_parameters` must be defined
-3. **Complete coverage** - Every required parameter must have a testable default value from one of the two sources
-
-**Valid scenarios:**
-
-```json
-// Scenario 1: All required params have defaults in schema (ops_testing_parameters not needed)
-{
-  "user_parameters_schema": {
-    "properties": {
-      "model": {"type": "string", "default": "gpt-4"}
-    },
-    "required": ["model"]
-  }
-}
-
-// Scenario 2: Required params without defaults need ops_testing_parameters
-{
-  "user_parameters_schema": {
-    "properties": {
-      "api_key": {"type": "string"}
-    },
-    "required": ["api_key"]
-  },
-  "service_options": {
-    "ops_testing_parameters": {
-      "api_key": "${ secrets.API_KEY }"
-    }
-  }
-}
-```
-
-**Validation errors:**
+1. All parameters in `user_parameters_schema.required` must have either a `default` in the schema or a value in `ops_testing_parameters`
+2. If required parameters exist without defaults, `service_options.ops_testing_parameters` must be defined
 
 ```
-✗ Required parameters missing default values in service_options.ops_testing_parameters: ['api_key', 'model']
+✗ Required parameters missing default values in service_options.ops_testing_parameters: ['model']
 ```
-
-### Workflow
-
-1. **Define schema** - Create `user_parameters_schema` with required and optional parameters
-2. **Customize UI** - Create `user_parameters_ui_schema` for form customization
-3. **Disable secrets** - Set `"ui:disabled": true` for sensitive fields
-4. **Add testing defaults** - Create `service_options.ops_testing_parameters` with all required values
-5. **Reference secrets** - Use `${ secrets.SECRET_NAME }` format for API keys
-6. **Validate** - Run `usvc data validate` to check all required parameters have defaults
-7. **Test** - Services are tested using the values in `ops_testing_parameters` before deployment
 
 ### Resources
 
 - [react-jsonschema-form Documentation](https://rjsf-team.github.io/react-jsonschema-form/)
 - [JSON Schema Specification](https://json-schema.org/)
-- [JSON Schema Validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
+
+## BYOK Services (Bring Your Own Key)
+
+BYOK services require the customer to provide their own API key for the upstream provider. Unlike user parameters, API keys are handled through **secrets** — they are stored in the customer's secret store, not on an enrollment record.
+
+### How it works
+
+1. The `user_access_interfaces` entry includes an `api_key` field referencing a secret
+2. The system auto-detects customer-required secrets by scanning `user_access_interfaces` for `${ secrets.XXX }` references
+3. Services with only secret references (no `user_parameters_schema`) **do not require enrollment** — customers can use the service immediately after storing their secret
+4. If the secret is missing at request time, the platform returns an error indicating which secret is needed
+
+### BYOK listing example (JSON)
+
+```json
+{
+    "schema": "listing_v1",
+    "display_name": "Groq LLaMA 3.3 70B (BYOK)",
+    "status": "ready",
+    "user_access_interfaces": {
+        "Provider API": {
+            "access_method": "http",
+            "base_url": "${GATEWAY_BASE_URL}/p/groq",
+            "api_key": "${ secrets.GROQ_API_KEY }",
+            "routing_key": { "model": "llama-3.3-70b-versatile" }
+        }
+    }
+}
+```
+
+That's it — no `user_parameters_schema`, no `user_parameters_ui_schema`, no `ops_testing_parameters` for the API key. The `${ secrets.GROQ_API_KEY }` reference in `user_access_interfaces` tells the platform:
+
+- The customer needs a secret named `GROQ_API_KEY`
+- The marketplace can show a "Bring your own key" badge
+- At routing time, the secret is resolved from the customer's secret store
+
+### BYOK with additional parameters
+
+A BYOK service can also have user parameters (e.g., model selection). In this case, **both** enrollment and a secret are required:
+
+```json
+{
+    "user_access_interfaces": {
+        "Provider API": {
+            "base_url": "${GATEWAY_BASE_URL}/p/openai",
+            "api_key": "${ secrets.OPENAI_API_KEY }",
+            "routing_key": { "model": "gpt-4" }
+        }
+    },
+    "user_parameters_schema": {
+        "type": "object",
+        "properties": {
+            "model": {
+                "type": "string",
+                "enum": ["gpt-4", "gpt-4-turbo"],
+                "default": "gpt-4"
+            }
+        },
+        "required": ["model"]
+    }
+}
+```
+
+### Seller-managed vs customer secrets
+
+The `${ secrets.XXX }` syntax is used in both seller and customer contexts. The **location** determines who provides the secret:
+
+| Location | Who provides | Example |
+|----------|-------------|---------|
+| `user_access_interfaces.*.api_key` | **Customer** (BYOK) | `${ secrets.GROQ_API_KEY }` |
+| `upstream_access_interfaces.*.api_key` | **Seller** | `${ secrets.PROVIDER_KEY }` |
+| `service_options.ops_testing_parameters` | **Seller** (for testing) | `${ secrets.TEST_KEY }` |
+| `request_transformer` values | **Seller** | `${ secrets.AUTH_TOKEN }` |
+
+### Local testing
+
+During `usvc data run-tests`, secret references are expanded from **environment variables**:
+
+```bash
+export GROQ_API_KEY="gsk_your_actual_key"
+usvc data run-tests data/groq/services/llama-3.3-70b-versatile-byok
+```
+
+The test runner resolves `${ secrets.GROQ_API_KEY }` → looks up `GROQ_API_KEY` in the shell environment. This works for secrets in all locations (access interfaces, ops_testing_parameters, request transformers).
+
+### Auto-detection
+
+The system automatically extracts customer-required secrets by scanning `user_access_interfaces` for `${ secrets.XXX }` patterns. No separate declaration is needed — the secret references in the spec **are** the declaration. This avoids inconsistencies between declared and actual secret usage.
 
 ## Data Types
 
