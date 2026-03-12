@@ -332,15 +332,17 @@ def load_related_data(listing_file: Path) -> dict[str, Any]:
     return result
 
 
-_SECRETS_RE = re.compile(r"^\$\{\s*secrets\.([A-Za-z_][A-Za-z0-9_]*)\s*\}$")
+_SECRETS_RE = re.compile(
+    r"^\$\{\s*(?:secrets|customer_secrets)\.([A-Za-z_][A-Za-z0-9_]*)\s*\}$"
+)
 
 
 def resolve_secret_ref(value: str, field_name: str) -> str:
-    """Resolve a ``${ secrets.VAR_NAME }`` reference from the environment.
+    """Resolve a ``${ secrets.VAR }`` or ``${ customer_secrets.VAR }`` reference.
 
     If *value* is a literal string (not a secrets reference) it is returned
-    as-is.  If it matches the ``${ secrets.VAR_NAME }`` pattern the
-    corresponding environment variable is looked up and returned.
+    as-is.  If it matches the pattern the corresponding environment variable
+    is looked up and returned.
 
     Raises:
         typer.Exit: When the environment variable is not set.
@@ -381,10 +383,14 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         if not offering:
             return None
 
-        # Render enrollment_vars from listing, then use as context for upstream templates
+        # Render enrollment_vars from listing, then resolve secret refs
         listing_data, _fmt = load_data_file(listing_file)
         listing_so = listing_data.get("service_options", {}) or {}
         rendered_vars = expand_template_strings(listing_so.get("enrollment_vars", {}) or {})
+        rendered_vars = {
+            k: resolve_secret_ref(str(v), f"enrollment_vars.{k}")
+            for k, v in rendered_vars.items()
+        }
 
         # Extract credentials from upstream_access_interfaces (dict keyed by name)
         # Use first interface for credentials
@@ -483,7 +489,8 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         if env_templates:
             rendered_env = expand_template_strings(env_templates)
             for key, value in rendered_env.items():
-                env_vars[key.upper()] = str(value)
+                resolved = resolve_secret_ref(str(value), f"enrollment_vars.{key}")
+                env_vars[key.upper()] = resolved
 
         # Execute script using shared utility
         output_contains = code_example.get("output_contains")
@@ -927,9 +934,13 @@ def run_local(
     warned_listings: set[str] = set()
 
     for example, prov_name in discovered:
-        # Render enrollment_vars first, then use as context for upstream_interface
+        # Render enrollment_vars first, resolve secret refs, then use as context
         listing_so = example.get("listing_data", {}).get("service_options", {}) or {}
         rendered_vars = expand_template_strings(listing_so.get("enrollment_vars", {}) or {})
+        rendered_vars = {
+            k: resolve_secret_ref(str(v), f"enrollment_vars.{k}")
+            for k, v in rendered_vars.items()
+        }
         iface = expand_template_strings(example.get("upstream_interface", {}), extra_context=rendered_vars)
         api_key = iface.get("api_key")
         base_url = iface.get("base_url")
@@ -1083,7 +1094,8 @@ def run_local(
                         # Include service_options.enrollment_vars
                         listing_so = example.get("listing_data", {}).get("service_options", {}) or {}
                         for k, v in expand_template_strings(listing_so.get("enrollment_vars", {}) or {}).items():
-                            f.write(f"{k.upper()}={v}\n")
+                            resolved = resolve_secret_ref(str(v), f"enrollment_vars.{k}")
+                            f.write(f"{k.upper()}={resolved}\n")
                     console.print(f"  [yellow]→ Environment variables saved to:[/yellow] {env_filename}")
                     console.print(f"  [dim]  (source this file to reproduce: source {env_filename})[/dim]")
                 except Exception as e:
