@@ -259,7 +259,7 @@ def list_tests(
                                 }
                             )
                 else:
-                    for iface_name, iface_url in interfaces:
+                    for iface_name, iface_url, _rk in interfaces:
                         rows.append(
                             {
                                 "service_id": svc_id[:8] + "..." if svc_id else "-",
@@ -330,21 +330,22 @@ def _find_document(documents: list[dict], title: str | None, doc_id: str | None)
         raise ValueError("Either --title or --doc-id must be specified")
 
 
-def _resolve_interfaces(interfaces: list[dict]) -> list[tuple[str, str]]:
-    """Extract (name, base_url) pairs from interface list.
+def _resolve_interfaces(interfaces: list[dict]) -> list[tuple[str, str, dict]]:
+    """Extract (name, base_url, routing_key) tuples from interface list.
 
     Filters out inactive interfaces. The backend resolves
     ``${GATEWAY_BASE_URL}`` placeholders before returning data,
     so base_url values are ready to use as-is.
     """
-    result = []
+    result: list[tuple[str, str, dict]] = []
     for iface in interfaces:
         if not iface.get("is_active", True):
             continue
-        result.append((iface.get("name", "default"), iface.get("base_url", "")))
+        routing_key = iface.get("routing_key") or {}
+        result.append((iface.get("name", "default"), iface.get("base_url", ""), routing_key))
 
     if not result:
-        result.append(("default", ""))
+        result.append(("default", "", {}))
 
     return result
 
@@ -429,10 +430,13 @@ def show_test(
             # Show environment variables needed to run the script
             if interfaces_list:
                 console.print("[bold yellow]Environment Variables:[/bold yellow]")
-                for iface_name, iface_url in interfaces_list:
+                for iface_name, iface_url, iface_rk in interfaces_list:
                     if len(interfaces_list) > 1:
                         console.print(f"  # {iface_name}")
                     console.print(f"  SERVICE_BASE_URL={iface_url or '<gateway_url>'}")
+                    if iface_rk:
+                        for rk_key, rk_val in iface_rk.items():
+                            console.print(f"  {rk_key.upper()}={rk_val}")
                 console.print("[bold yellow]Set before running:[/bold yellow]")
             else:
                 console.print("[bold yellow]Environment Variables (set these before running):[/bold yellow]")
@@ -602,11 +606,16 @@ def run_test(
         output_contains: str | None,
         resolved_base_url: str,
         service_env: dict[str, str] | None = None,
+        routing_key: dict | None = None,
     ) -> dict:
         """Execute a single script with the given base URL. Returns result dict."""
         exec_env: dict[str, str] = {}
         if resolved_base_url:
             exec_env["SERVICE_BASE_URL"] = resolved_base_url
+        # Expose routing_key entries as uppercased env vars
+        if routing_key:
+            for rk_key, rk_val in routing_key.items():
+                exec_env[rk_key.upper()] = str(rk_val)
         # Add service_options.enrollment_vars (uppercased keys)
         if service_env:
             for key, value in service_env.items():
@@ -671,8 +680,11 @@ def run_test(
 
         api_key = os.environ.get("UNITYSVC_API_KEY", "")
         if interfaces_list or api_key:
-            for iface_name, iface_url in interfaces_list:
+            for iface_name, iface_url, iface_rk in interfaces_list:
                 out.print(f"[dim]{iface_name}: SERVICE_BASE_URL={iface_url}[/dim]")
+                if iface_rk:
+                    for rk_key, rk_val in iface_rk.items():
+                        out.print(f"[dim]{iface_name}: {rk_key.upper()}={rk_val}[/dim]")
             for env_key, env_val in service_env.items():
                 out.print(f"[dim]{env_key.upper()}={env_val}[/dim]")
             api_key_display = f"{api_key[:12]}...{api_key[-4:]}" if len(api_key) > 20 else api_key
@@ -722,7 +734,7 @@ def run_test(
             output_contains = full_meta.get("output_contains")
 
             doc_results = []
-            for iface_name, resolved_url in interfaces_list:
+            for iface_name, resolved_url, iface_rk in interfaces_list:
                 label = f"{doc_title} [{iface_name}]" if multi_interface else doc_title
                 out.print(f"[cyan]Running: {label}...[/cyan]")
 
@@ -733,6 +745,7 @@ def run_test(
                     output_contains,
                     resolved_url,
                     service_env,
+                    iface_rk,
                 )
                 result["title"] = label
                 result["interface"] = iface_name

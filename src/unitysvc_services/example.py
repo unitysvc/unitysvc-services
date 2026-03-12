@@ -483,6 +483,12 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
             "SERVICE_BASE_URL": credentials["base_url"],
         }
 
+        # Expose routing_key from upstream_access_interface as env vars
+        upstream_iface = code_example.get("upstream_interface", {}) or {}
+        routing_key = upstream_iface.get("routing_key", {}) or {}
+        for rk_key, rk_val in routing_key.items():
+            env_vars[rk_key.upper()] = str(rk_val)
+
         # Expose service_options.enrollment_vars as environment variables
         service_options = listing_data.get("service_options", {}) or {}
         env_templates = service_options.get("enrollment_vars", {}) or {}
