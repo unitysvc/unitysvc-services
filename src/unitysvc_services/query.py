@@ -222,7 +222,7 @@ def show_service(
             id_table.add_row("Status", str(service.get("status", "N/A")))
             if service.get("status_message"):
                 id_table.add_row("Status Message", str(service["status_message"]))
-            id_table.add_row("Provider Name", str(service.get("provider_name", "N/A")))
+            id_table.add_row("Seller Name", str(service.get("provider_name", "N/A")))
 
             console.print(id_table)
 
