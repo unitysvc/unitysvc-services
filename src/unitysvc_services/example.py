@@ -126,14 +126,17 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
         # Check if this is a testable document (code_example or connectivity_test)
         category = doc.get("category", "")
         if category in testable_categories:
+            # Skip documents marked as skip in meta
+            meta = doc.get("meta", {}) or {}
+            test_meta = meta.get("test", {}) or {}
+            if test_meta.get("status") == "skip":
+                continue
+
             # Resolve file path relative to listing file
             file_path = doc.get("file_path")
             if file_path:
                 # Resolve relative path
                 absolute_path = (listing_file.parent / file_path).resolve()
-
-                # Extract meta fields for code examples (expect, requirements, etc.)
-                meta = doc.get("meta", {}) or {}
 
                 code_example = {
                     "service_name": service_name,
