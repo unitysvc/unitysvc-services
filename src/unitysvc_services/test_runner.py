@@ -785,6 +785,9 @@ def run_test(
                     with open(env_path, "w") as f:
                         f.write(f"SERVICE_BASE_URL={resolved_url}\n")
                         f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
+                        if iface_rk:
+                            for rk_key, rk_val in iface_rk.items():
+                                f.write(f"{rk_key.upper()}={rk_val}\n")
                         for env_k, env_v in service_env.items():
                             f.write(f"{env_k.upper()}={env_v}\n")
                     out.print(f"  [dim]   env: {env_path}[/dim]")
