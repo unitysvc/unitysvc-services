@@ -282,11 +282,21 @@ class BasePriceData(BaseModel):
 
     All pricing types include:
     - type: Discriminator field for the pricing type
+    - price: Summary price for marketplace comparison (required for simple types,
+      optional for composite types where sellers can set a nominal value)
     - description: Optional human-readable description
     - reference: Optional URL to upstream pricing page
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    price: PriceStr | None = Field(
+        default=None,
+        description="Summary price for marketplace comparison and sorting. "
+        "For simple pricing types this is the billing rate. "
+        "For composite types (add, multiply, tiered, graduated) this is a "
+        "seller-provided nominal value for marketplace display.",
+    )
 
     description: str | None = Field(
         default=None,
