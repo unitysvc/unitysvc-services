@@ -37,6 +37,8 @@ Services can be **stateless** (each request independent — most inference APIs)
 
 UnitySVC handles **enrollment**, **service delivery via the API gateway**, and **billing** so that service providers can focus entirely on building and operating their digital services. Sellers do not need to build authentication, payment processing, usage metering, or customer management — the platform provides all of this. Sellers define their service endpoints, pricing, and parameters; UnitySVC takes care of routing requests, tracking usage, generating invoices, and processing payouts.
 
+UnitySVC supports flexible seller business models, including **metered payouts** (sellers earn based on actual usage), **proportional payouts** (a percentage of what customers pay), **promotions** (reducing customer pricing via price rules), and **seller-funded incentives** (sellers pay the platform to offer free or discounted access for service testing and customer acquisition).
+
 ## The Service Data Model
 
 Sellers provide services through UnitySVC by uploading service specifications using this SDK. A service specification consists of three complementary data components that work together:
