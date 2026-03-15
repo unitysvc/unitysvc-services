@@ -590,7 +590,6 @@ class TestServiceOptionsValidation:
         data = {
             "schema": "listing_v1",
             "service_options": {
-                "recurrence_enabled": True,
                 "recurrence_min_interval_seconds": 300,
                 "recurrence_max_interval_seconds": 86400,
                 "recurrence_allow_cron": True,
@@ -599,15 +598,15 @@ class TestServiceOptionsValidation:
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert errors == []
 
-    def test_recurrence_enabled_wrong_type(self, schema_dir, example_data_dir):
+    def test_recurrence_interval_wrong_type_str(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)
         data = {
             "schema": "listing_v1",
-            "service_options": {"recurrence_enabled": "yes"},
+            "service_options": {"recurrence_min_interval_seconds": "fast"},
         }
         errors = validator.validate_service_options_keys(data, "listing_v1")
         assert len(errors) == 1
-        assert "must be bool, got str" in errors[0]
+        assert "must be int, got str" in errors[0]
 
     def test_recurrence_interval_wrong_type(self, schema_dir, example_data_dir):
         validator = DataValidator(example_data_dir, schema_dir)

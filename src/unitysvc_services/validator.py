@@ -231,11 +231,13 @@ class DataValidator:
                                 f"Invalid api_key at '{new_path}': expected string, got {type(value).__name__}"
                             )
                         elif not seller_secrets_pattern.match(value) and not customer_secrets_pattern.match(value):
-                            errors.append(
-                                f"Invalid api_key at '{new_path}': API keys must use secrets reference format. "
-                                f"Got '{value}', expected format: "
-                                f"'${{ secrets.VAR_NAME }}' or '${{ customer_secrets.VAR_NAME }}'."
-                            )
+                            # Allow Jinja2 conditional templates (rendered at enrollment time)
+                            if "{%" not in value:
+                                errors.append(
+                                    f"Invalid api_key at '{new_path}': API keys must use secrets reference format. "
+                                    f"Got '{value}', expected format: "
+                                    f"'${{ secrets.VAR_NAME }}' or '${{ customer_secrets.VAR_NAME }}'."
+                                )
 
                     # Recurse into nested objects
                     if isinstance(value, dict | list):

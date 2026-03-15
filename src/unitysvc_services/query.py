@@ -222,7 +222,7 @@ def show_service(
             id_table.add_row("Status", str(service.get("status", "N/A")))
             if service.get("status_message"):
                 id_table.add_row("Status Message", str(service["status_message"]))
-            id_table.add_row("Provider Name", str(service.get("provider_name", "N/A")))
+            id_table.add_row("Seller Name", str(service.get("provider_name", "N/A")))
 
             console.print(id_table)
 
@@ -292,6 +292,21 @@ def show_service(
                 if listing.get("parameters_schema"):
                     required = listing["parameters_schema"].get("required", [])
                     listing_table.add_row("Required Params", ", ".join(required) if required else "None")
+
+                svc_options = listing.get("service_options") or {}
+                enrollment_vars = svc_options.get("enrollment_vars", {})
+                has_required_params = bool(listing.get("parameters_schema", {}).get("required"))
+                listing_table.add_row("Enrollment Required", str(has_required_params or bool(enrollment_vars)))
+
+                # Collect customer secrets from user_access_interfaces
+                user_ifaces = listing.get("user_access_interfaces") or {}
+                all_secrets: list[str] = []
+                for iface_data in user_ifaces.values():
+                    if isinstance(iface_data, dict):
+                        secrets = iface_data.get("customer_secrets_needed") or []
+                        all_secrets.extend(s for s in secrets if s not in all_secrets)
+                if all_secrets:
+                    listing_table.add_row("Required Secrets", ", ".join(all_secrets))
 
                 console.print(listing_table)
 

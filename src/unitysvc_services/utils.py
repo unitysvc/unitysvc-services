@@ -728,8 +728,9 @@ def execute_script_content(
     import subprocess
     import tempfile
 
-    # Output truncation limit (1KB)
-    MAX_OUTPUT_SIZE = 1000
+    # Output truncation limit (10KB — must be large enough to capture
+    # full Python tracebacks including HTTP error bodies)
+    MAX_OUTPUT_SIZE = 10_000
 
     result: dict[str, Any] = {
         "status": "task_failed",
@@ -775,7 +776,8 @@ def execute_script_content(
 
         result["exit_code"] = process.returncode
         result["stdout"] = process.stdout[:MAX_OUTPUT_SIZE] if process.stdout else None
-        result["stderr"] = process.stderr[:MAX_OUTPUT_SIZE] if process.stderr else None
+        # Keep the tail of stderr — the actual error message is at the bottom
+        result["stderr"] = process.stderr[-MAX_OUTPUT_SIZE:] if process.stderr else None
 
         # Determine status
         if process.returncode != 0:

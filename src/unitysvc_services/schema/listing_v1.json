@@ -187,6 +187,19 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
+        },
         "prices": {
           "description": "List of pricing components to sum together",
           "items": {
@@ -236,13 +249,8 @@
     },
     "ConstantPriceData": {
       "additionalProperties": false,
-      "description": "Price data for a constant/fixed amount.\n\nUsed for fixed fees, discounts, or adjustments that don't depend on usage.\nAmount can be positive (charge) or negative (discount/credit).",
+      "description": "Price data for a constant/fixed price.\n\nUsed for fixed fees, discounts, or adjustments that don't depend on usage.\nPrice can be positive (charge) or negative (discount/credit).",
       "properties": {
-        "amount": {
-          "description": "Fixed amount (positive for charge, negative for discount)",
-          "title": "Amount",
-          "type": "string"
-        },
         "description": {
           "anyOf": [
             {
@@ -255,6 +263,11 @@
           "default": null,
           "description": "Human-readable description of the pricing model",
           "title": "Description"
+        },
+        "price": {
+          "description": "Fixed price (positive for charge, negative for discount)",
+          "title": "Price",
+          "type": "string"
         },
         "reference": {
           "anyOf": [
@@ -277,7 +290,7 @@
         }
       },
       "required": [
-        "amount"
+        "price"
       ],
       "title": "ConstantPriceData",
       "type": "object"
@@ -473,6 +486,19 @@
           "title": "Expr",
           "type": "string"
         },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
+        },
         "reference": {
           "anyOf": [
             {
@@ -520,6 +546,19 @@
           "default": null,
           "description": "Human-readable description of the pricing model",
           "title": "Description"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
         },
         "reference": {
           "anyOf": [
@@ -688,6 +727,19 @@
           "description": "Multiplication factor (e.g., '0.70' for 70%)",
           "title": "Factor",
           "type": "string"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
         },
         "reference": {
           "anyOf": [
@@ -867,6 +919,19 @@
           "description": "Percentage of customer charge that goes to the seller (0-100)",
           "title": "Percentage",
           "type": "string"
+        },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
         },
         "reference": {
           "anyOf": [
@@ -1285,6 +1350,19 @@
           "description": "Human-readable description of the pricing model",
           "title": "Description"
         },
+        "price": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Summary price for marketplace comparison and sorting. For simple pricing types this is the billing rate. For composite types (add, multiply, tiered, graduated) this is a seller-provided nominal value for marketplace display.",
+          "title": "Price"
+        },
         "reference": {
           "anyOf": [
             {
@@ -1382,7 +1460,7 @@
     },
     "TokenPriceData": {
       "additionalProperties": false,
-      "description": "Price data for token-based pricing (LLMs).\nSupports either unified pricing or separate input/output pricing.\nOptionally supports cached_input pricing for providers that offer discounted rates\nfor cached/repeated input tokens.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.50\") to avoid floating-point precision issues.",
+      "description": "Price data for token-based pricing (LLMs).\n\nSupports two modes:\n1. **Unified pricing**: Set ``price`` only — same rate for all token types.\n2. **Separate pricing**: Set ``input`` and ``output`` (and optionally ``cached_input``)\n   for different rates per token type.\n\nIn separate pricing mode, ``price`` serves as a **summary price for marketplace\ncomparison**. If not explicitly set by the seller, the backend calculates it\nduring service ingestion using: ``price = (input + 4*output) / 5``.\n\nPrice values use Decimal for precision. In JSON/TOML, specify as strings\n(e.g., \"0.50\") to avoid floating-point precision issues.",
       "properties": {
         "cached_input": {
           "anyOf": [
@@ -1446,7 +1524,7 @@
             }
           ],
           "default": null,
-          "description": "Unified price per million tokens (used when input/output are the same)",
+          "description": "Summary price per million tokens for marketplace comparison. For unified pricing, this is the billing rate. For separate input/output pricing, this is a representative price for sorting/filtering.",
           "title": "Price"
         },
         "reference": {

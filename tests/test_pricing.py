@@ -101,7 +101,7 @@ class TestConstantPriceData:
 
     def test_simple_constant(self) -> None:
         """Test simple constant amount."""
-        pricing = validate_pricing({"type": "constant", "amount": "5.00"})
+        pricing = validate_pricing({"type": "constant", "price": "5.00"})
         usage = UsageData()
 
         cost = pricing.calculate_cost(usage)
@@ -110,7 +110,7 @@ class TestConstantPriceData:
 
     def test_negative_constant(self) -> None:
         """Test negative constant (discount)."""
-        pricing = validate_pricing({"type": "constant", "amount": "-10.00"})
+        pricing = validate_pricing({"type": "constant", "price": "-10.00"})
         usage = UsageData()
 
         cost = pricing.calculate_cost(usage)
@@ -190,7 +190,7 @@ class TestAddPriceData:
                 "type": "add",
                 "prices": [
                     {"type": "one_million_tokens", "input": "2.00", "output": "2.00"},
-                    {"type": "constant", "amount": "5.00"},
+                    {"type": "constant", "price": "5.00"},
                 ],
             }
         )
@@ -208,7 +208,7 @@ class TestAddPriceData:
                 "type": "add",
                 "prices": [
                     {"type": "one_million_tokens", "input": "1.00", "output": "2.00"},
-                    {"type": "constant", "amount": "-3.00"},
+                    {"type": "constant", "price": "-3.00"},
                 ],
             }
         )
@@ -225,9 +225,9 @@ class TestAddPriceData:
             {
                 "type": "add",
                 "prices": [
-                    {"type": "constant", "amount": "10.00"},
-                    {"type": "constant", "amount": "5.00"},
-                    {"type": "constant", "amount": "-2.50"},
+                    {"type": "constant", "price": "10.00"},
+                    {"type": "constant", "price": "5.00"},
+                    {"type": "constant", "price": "-2.50"},
                 ],
             }
         )
@@ -263,7 +263,7 @@ class TestMultiplyPriceData:
             {
                 "type": "multiply",
                 "factor": "1.25",
-                "base": {"type": "constant", "amount": "100.00"},
+                "base": {"type": "constant", "price": "100.00"},
             }
         )
         usage = UsageData()
@@ -282,7 +282,7 @@ class TestMultiplyPriceData:
                 "base": {
                     "type": "multiply",
                     "factor": "0.90",
-                    "base": {"type": "constant", "amount": "100.00"},
+                    "base": {"type": "constant", "price": "100.00"},
                 },
             }
         )
@@ -304,9 +304,9 @@ class TestTieredPriceData:
                 "type": "tiered",
                 "based_on": "request_count",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                    {"up_to": 10000, "price": {"type": "constant", "amount": "80.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "500.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                    {"up_to": 10000, "price": {"type": "constant", "price": "80.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "500.00"}},
                 ],
             }
         )
@@ -323,9 +323,9 @@ class TestTieredPriceData:
                 "type": "tiered",
                 "based_on": "request_count",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                    {"up_to": 10000, "price": {"type": "constant", "amount": "80.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "500.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                    {"up_to": 10000, "price": {"type": "constant", "price": "80.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "500.00"}},
                 ],
             }
         )
@@ -342,8 +342,8 @@ class TestTieredPriceData:
                 "type": "tiered",
                 "based_on": "request_count",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "50.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "50.00"}},
                 ],
             }
         )
@@ -360,8 +360,8 @@ class TestTieredPriceData:
                 "type": "tiered",
                 "based_on": "request_count",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "50.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "50.00"}},
                 ],
             }
         )
@@ -536,8 +536,8 @@ class TestTieredVsGraduated:
                 "type": "tiered",
                 "based_on": "request_count",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "40.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "40.00"}},
                 ],
             }
         )
@@ -580,11 +580,11 @@ class TestNestedCompositePricing:
                         "type": "tiered",
                         "based_on": "request_count",
                         "tiers": [
-                            {"up_to": 1000, "price": {"type": "constant", "amount": "10.00"}},
-                            {"up_to": None, "price": {"type": "constant", "amount": "50.00"}},
+                            {"up_to": 1000, "price": {"type": "constant", "price": "10.00"}},
+                            {"up_to": None, "price": {"type": "constant", "price": "50.00"}},
                         ],
                     },
-                    {"type": "constant", "amount": "5.00"},  # Platform fee
+                    {"type": "constant", "price": "5.00"},  # Platform fee
                 ],
             }
         )
@@ -608,8 +608,8 @@ class TestNestedCompositePricing:
                     "type": "tiered",
                     "based_on": "request_count",
                     "tiers": [
-                        {"up_to": 1000, "price": {"type": "constant", "amount": "100.00"}},
-                        {"up_to": None, "price": {"type": "constant", "amount": "500.00"}},
+                        {"up_to": 1000, "price": {"type": "constant", "price": "100.00"}},
+                        {"up_to": None, "price": {"type": "constant", "price": "500.00"}},
                     ],
                 },
             }
@@ -642,7 +642,7 @@ class TestNestedCompositePricing:
                             ],
                         },
                     },
-                    {"type": "constant", "amount": "2.00"},  # Fixed fee
+                    {"type": "constant", "price": "2.00"},  # Fixed fee
                 ],
             }
         )
@@ -667,8 +667,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens + output_tokens",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "5.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "5.00"}},
                 ],
             }
         )
@@ -685,8 +685,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens + output_tokens * 4",
                 "tiers": [
-                    {"up_to": 10000, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "10.00"}},
+                    {"up_to": 10000, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "10.00"}},
                 ],
             }
         )
@@ -706,8 +706,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "(input_tokens + output_tokens) * 2",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "5.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "5.00"}},
                 ],
             }
         )
@@ -724,8 +724,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens / 1000 + output_tokens / 1000",
                 "tiers": [
-                    {"up_to": 10, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "5.00"}},
+                    {"up_to": 10, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "5.00"}},
                 ],
             }
         )
@@ -763,8 +763,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens - -100",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "5.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "5.00"}},
                 ],
             }
         )
@@ -781,8 +781,8 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "request_count * 100 + input_tokens",
                 "tiers": [
-                    {"up_to": 10000, "price": {"type": "constant", "amount": "1.00"}},
-                    {"up_to": None, "price": {"type": "constant", "amount": "5.00"}},
+                    {"up_to": 10000, "price": {"type": "constant", "price": "1.00"}},
+                    {"up_to": None, "price": {"type": "constant", "price": "5.00"}},
                 ],
             }
         )
@@ -801,7 +801,7 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens +",  # Invalid syntax
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
                 ],
             }
         )
@@ -817,7 +817,7 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens + unknown_field",
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
                 ],
             }
         )
@@ -833,7 +833,7 @@ class TestExpressionBasedOn:
                 "type": "tiered",
                 "based_on": "input_tokens ** 2",  # Power operator not supported
                 "tiers": [
-                    {"up_to": 1000, "price": {"type": "constant", "amount": "1.00"}},
+                    {"up_to": 1000, "price": {"type": "constant", "price": "1.00"}},
                 ],
             }
         )

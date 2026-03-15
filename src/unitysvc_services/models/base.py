@@ -12,11 +12,14 @@ from pydantic.functional_validators import BeforeValidator
 
 
 def _validate_price_string(v: Any) -> str:
-    """Validate that price values are strings representing valid non-negative decimal numbers.
+    """Validate that price values are strings representing valid decimal numbers.
 
     This prevents floating-point precision issues where values like 2.0
     might become 1.9999999 when saved/loaded. Prices are stored as strings
     and converted to Decimal only when calculations are needed.
+
+    Negative values are allowed to support seller-funded incentives where
+    the payout_price is negative (seller pays the platform).
     """
     if isinstance(v, float):
         raise ValueError(
@@ -30,14 +33,11 @@ def _validate_price_string(v: Any) -> str:
     if not isinstance(v, str):
         raise ValueError(f"Price value must be a string, got {type(v).__name__}")
 
-    # Validate it's a valid decimal number and non-negative
+    # Validate it's a valid decimal number
     try:
-        decimal_val = Decimal(v)
+        Decimal(v)
     except InvalidOperation:
         raise ValueError(f"Price value '{v}' is not a valid decimal number")
-
-    if decimal_val < 0:
-        raise ValueError(f"Price value must be non-negative, got '{v}'")
 
     return v
 
@@ -282,11 +282,21 @@ class BasePriceData(BaseModel):
 
     All pricing types include:
     - type: Discriminator field for the pricing type
+    - price: Summary price for marketplace comparison (required for simple types,
+      optional for composite types where sellers can set a nominal value)
     - description: Optional human-readable description
     - reference: Optional URL to upstream pricing page
     """
 
     model_config = ConfigDict(extra="forbid")
+
+    price: PriceStr | None = Field(
+        default=None,
+        description="Summary price for marketplace comparison and sorting. "
+        "For simple pricing types this is the billing rate. "
+        "For composite types (add, multiply, tiered, graduated) this is a "
+        "seller-provided nominal value for marketplace display.",
+    )
 
     description: str | None = Field(
         default=None,
@@ -302,9 +312,15 @@ class BasePriceData(BaseModel):
 class TokenPriceData(BasePriceData):
     """
     Price data for token-based pricing (LLMs).
-    Supports either unified pricing or separate input/output pricing.
-    Optionally supports cached_input pricing for providers that offer discounted rates
-    for cached/repeated input tokens.
+
+    Supports two modes:
+    1. **Unified pricing**: Set ``price`` only — same rate for all token types.
+    2. **Separate pricing**: Set ``input`` and ``output`` (and optionally ``cached_input``)
+       for different rates per token type.
+
+    In separate pricing mode, ``price`` serves as a **summary price for marketplace
+    comparison**. If not explicitly set by the seller, the backend calculates it
+    during service ingestion using: ``price = (input + 4*output) / 5``.
 
     Price values use Decimal for precision. In JSON/TOML, specify as strings
     (e.g., "0.50") to avoid floating-point precision issues.
@@ -312,13 +328,18 @@ class TokenPriceData(BasePriceData):
 
     type: Literal["one_million_tokens"] = "one_million_tokens"
 
-    # Option 1: Unified price for all tokens
+    # Summary price for marketplace comparison and sorting.
+    # For unified pricing: this is the only price field needed.
+    # For separate pricing: recommended for marketplace comparability.
+    # If not set, the backend auto-computes during ingestion.
     price: PriceStr | None = Field(
         default=None,
-        description="Unified price per million tokens (used when input/output are the same)",
+        description="Summary price per million tokens for marketplace comparison. "
+        "For unified pricing, this is the billing rate. "
+        "For separate input/output pricing, this is a representative price for sorting/filtering.",
     )
 
-    # Option 2: Separate input/output pricing
+    # Separate input/output pricing (for billing)
     input: PriceStr | None = Field(
         default=None,
         description="Price per million input tokens",
@@ -334,23 +355,44 @@ class TokenPriceData(BasePriceData):
 
     @model_validator(mode="after")
     def validate_price_fields(self) -> TokenPriceData:
-        """Ensure either unified price or input/output pair is provided."""
-        has_unified = self.price is not None
+        """Validate pricing field combinations and auto-compute summary price."""
         has_input_output = self.input is not None or self.output is not None
 
-        if has_unified and has_input_output:
+        if not self.price and not has_input_output:
             raise ValueError(
-                "Cannot specify both 'price' and 'input'/'output'. "
-                "Use 'price' for unified pricing or 'input'/'output' for separate pricing."
+                "Must specify either 'price' (unified) or 'input'/'output' (separate pricing)."
             )
 
-        if not has_unified and not has_input_output:
-            raise ValueError("Must specify either 'price' (unified) or 'input'/'output' (separate pricing).")
-
         if has_input_output and (self.input is None or self.output is None):
-            raise ValueError("Both 'input' and 'output' must be specified for separate pricing.")
+            raise ValueError(
+                "Both 'input' and 'output' must be specified for separate pricing."
+            )
+
+        # Auto-compute summary price from input/output if not explicitly set
+        if self.price is None and has_input_output:
+            self.price = self.compute_summary_price()
 
         return self
+
+    def compute_summary_price(self) -> str:
+        """Compute a summary price from input/output for marketplace comparison.
+
+        Formula: (input + 4*output) / 5
+        This weights output 4x higher than input, reflecting typical LLM usage
+        where output tokens are more expensive and represent the dominant cost.
+
+        Returns:
+            Price string (e.g., "3.00"), or the existing price if already set.
+        """
+        if self.price is not None:
+            return self.price
+        if self.input is not None and self.output is not None:
+            input_d = Decimal(self.input)
+            output_d = Decimal(self.output)
+            summary = (input_d + 4 * output_d) / 5
+            # Round to same precision as input
+            return str(summary.quantize(Decimal("0.01")))
+        return "0"
 
     def calculate_cost(
         self,
@@ -565,16 +607,16 @@ class RevenueSharePriceData(BasePriceData):
 
 class ConstantPriceData(BasePriceData):
     """
-    Price data for a constant/fixed amount.
+    Price data for a constant/fixed price.
 
     Used for fixed fees, discounts, or adjustments that don't depend on usage.
-    Amount can be positive (charge) or negative (discount/credit).
+    Price can be positive (charge) or negative (discount/credit).
     """
 
     type: Literal["constant"] = "constant"
 
-    amount: AmountStr = Field(
-        description="Fixed amount (positive for charge, negative for discount)",
+    price: AmountStr = Field(
+        description="Fixed price (positive for charge, negative for discount)",
     )
 
     def calculate_cost(
@@ -583,7 +625,7 @@ class ConstantPriceData(BasePriceData):
         customer_charge: Decimal | None = None,
         request_count: int | None = None,
     ) -> Decimal:
-        """Return the constant amount regardless of usage.
+        """Return the constant price regardless of usage.
 
         Args:
             usage: Usage data (ignored for constant pricing)
@@ -591,9 +633,9 @@ class ConstantPriceData(BasePriceData):
             request_count: Number of requests (ignored for constant pricing)
 
         Returns:
-            The fixed amount
+            The fixed price
         """
-        return Decimal(self.amount)
+        return Decimal(self.price)
 
 
 # Forward reference for nested pricing - will be resolved after Pricing is defined
@@ -1382,7 +1424,6 @@ SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
     "enrollment_limit_per_customer": int,
     "enrollment_limit_per_user": int,
     "ops_testing_parameters": dict,
-    "recurrence_enabled": bool,
     "recurrence_min_interval_seconds": int,
     "recurrence_max_interval_seconds": int,
     "recurrence_allow_cron": bool,

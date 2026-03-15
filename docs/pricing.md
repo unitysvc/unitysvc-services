@@ -85,18 +85,34 @@ For LLM and text-based services. Prices are per million tokens.
 
 **Fields:**
 
-| Field    | Type   | Required | Description                      |
-| -------- | ------ | -------- | -------------------------------- |
-| `type`   | string | **Yes**  | Must be `"one_million_tokens"`   |
-| `price`  | string | \*       | Unified price per million tokens |
-| `input`  | string | \*       | Price per million input tokens   |
-| `output` | string | \*       | Price per million output tokens  |
+| Field          | Type   | Required    | Description                                         |
+| -------------- | ------ | ----------- | --------------------------------------------------- |
+| `type`         | string | **Yes**     | Must be `"one_million_tokens"`                      |
+| `price`        | string | Auto-computed | Summary price for marketplace comparison and sorting |
+| `input`        | string | \*          | Price per million input tokens                      |
+| `output`       | string | \*          | Price per million output tokens                     |
+| `cached_input` | string | No          | Price per million cached input tokens (discounted)  |
+
+**Pricing modes:**
+
+1. **Unified pricing**: Set `price` only — same rate for all token types. Used for billing.
+2. **Separate pricing**: Set `input` and `output` (and optionally `cached_input`). The `price` field is auto-computed as a summary for marketplace comparison if not explicitly set.
+
+**Summary price auto-computation:**
+
+When `input` and `output` are specified without `price`, the system automatically computes:
+
+```
+price = (input + 4 × output) / 5
+```
+
+This formula weights output tokens 4× higher than input, reflecting typical LLM usage where output tokens are more expensive and represent the dominant cost. Sellers can override by setting `price` explicitly.
 
 **Validation Rules:**
 
-- Must specify **either** `price` (unified) **or** both `input` and `output` (separate)
-- Cannot specify both `price` and `input`/`output`
-- All price values must be >= 0
+- Must specify either `price` (unified) or both `input` and `output` (separate)
+- When using separate pricing, `price` is auto-computed if not set
+- Negative values are allowed for `payout_price` (seller-funded incentives)
 
 **Example - Unified Pricing:**
 
@@ -113,9 +129,34 @@ For LLM and text-based services. Prices are per million tokens.
 ```json
 {
     "type": "one_million_tokens",
-    "input": "0.50",
-    "output": "1.50",
-    "description": "GPT-4 Turbo pricing"
+    "input": "3.00",
+    "output": "15.00",
+    "description": "Claude Sonnet pricing"
+}
+```
+
+In this example, `price` is auto-computed as `(3 + 4×15) / 5 = 12.60`. The marketplace displays **$12.60 / 1M tokens** for sorting and comparison.
+
+**Example - With Explicit Summary Price:**
+
+```json
+{
+    "type": "one_million_tokens",
+    "price": "9.00",
+    "input": "3.00",
+    "output": "15.00",
+    "description": "Seller-chosen comparison price"
+}
+```
+
+**Example - Negative Payout (Seller-Funded Incentive):**
+
+```json
+{
+    "type": "one_million_tokens",
+    "input": "-1.00",
+    "output": "-5.00",
+    "description": "Seller pays platform for free customer access"
 }
 ```
 
@@ -127,6 +168,7 @@ type = "one_million_tokens"
 input = "12.00"
 output = "36.00"
 description = "Customer token pricing"
+# price auto-computed as (12 + 4×36) / 5 = 31.20
 ```
 
 ### Time-Based Pricing (`one_second`)
@@ -194,23 +236,23 @@ For diffusion models, iterative processes, and other step-based services.
 
 ### Constant Pricing (`constant`)
 
-A fixed amount per request that doesn't depend on usage metrics.
+A fixed price per request that doesn't depend on usage metrics.
 
-> **Note:** When used for `list_price`, this amount is charged **per API request**. For example, `"amount": "0.01"` means the customer pays $0.01 for each request they make.
+> **Note:** When used for `list_price`, this price is charged **per API request**. For example, `"price": "0.01"` means the customer pays $0.01 for each request they make.
 
 **Fields:**
 
-| Field    | Type   | Required | Description                                               |
-| -------- | ------ | -------- | --------------------------------------------------------- |
-| `type`   | string | **Yes**  | Must be `"constant"`                                      |
-| `amount` | string | **Yes**  | Fixed amount (positive for charge, negative for discount) |
+| Field    | Type   | Required | Description                                              |
+| -------- | ------ | -------- | -------------------------------------------------------- |
+| `type`   | string | **Yes**  | Must be `"constant"`                                     |
+| `price`  | string | **Yes**  | Fixed price (positive for charge, negative for discount) |
 
 **Example - Per-Request Fee:**
 
 ```json
 {
     "type": "constant",
-    "amount": "0.01",
+    "price": "0.01",
     "description": "Per-request fee"
 }
 ```
@@ -240,9 +282,9 @@ When used in volume pricing contexts (e.g., inside `tiered` tiers or combined wi
     "type": "tiered",
     "based_on": "request_count",
     "tiers": [
-        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
-        { "up_to": 10000, "price": { "type": "constant", "amount": "50.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "200.00" } }
+        { "up_to": 1000, "price": { "type": "constant", "price": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "price": "50.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "200.00" } }
     ],
     "description": "Flat monthly fee based on request volume"
 }
@@ -268,7 +310,7 @@ Combines multiple pricing components by summing them together. Useful for base p
         { "type": "one_million_tokens", "input": "0.50", "output": "1.50" },
         {
             "type": "constant",
-            "amount": "0.001",
+            "price": "0.001",
             "description": "Per-request fee"
         }
     ]
@@ -351,9 +393,9 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
     "type": "tiered",
     "based_on": "request_count",
     "tiers": [
-        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
-        { "up_to": 10000, "price": { "type": "constant", "amount": "80.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "500.00" } }
+        { "up_to": 1000, "price": { "type": "constant", "price": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "price": "80.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "500.00" } }
     ],
     "description": "Volume-based flat pricing"
 }
@@ -479,8 +521,8 @@ Both `tiered` and `graduated` pricing support arithmetic expressions in the `bas
     "type": "tiered",
     "based_on": "input_tokens + output_tokens * 4",
     "tiers": [
-        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "10.00" } }
+        { "up_to": 10000, "price": { "type": "constant", "price": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "10.00" } }
     ],
     "description": "Higher tier when weighted token usage exceeds 10k"
 }
@@ -498,8 +540,8 @@ How it works:
     "type": "tiered",
     "based_on": "request_count * 100 + input_tokens",
     "tiers": [
-        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "5.00" } }
+        { "up_to": 10000, "price": { "type": "constant", "price": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "5.00" } }
     ],
     "description": "Tier based on weighted combination of requests and tokens"
 }
@@ -669,7 +711,7 @@ Composite pricing types can be nested for complex scenarios:
         },
         {
             "type": "constant",
-            "amount": "5.00",
+            "price": "5.00",
             "description": "Minimum monthly fee"
         }
     ]
@@ -864,24 +906,12 @@ When you run `usvc data validate`, the pricing structure is validated:
 1. **JSON Schema Validation**: Ensures the structure matches the expected format
 2. **Pydantic Model Validation**: Enforces business rules:
     - `type` must be a valid pricing type
-    - Token pricing requires either `price` OR both `input`/`output`
-    - All price values must be non-negative (>= 0)
+    - Token pricing requires either `price` (unified) or both `input`/`output` (separate)
+    - When `input`/`output` are set without `price`, `price` is auto-computed
+    - Negative values are allowed (for seller-funded incentives via `payout_price`)
     - Extra fields are rejected
 
 ### Common Validation Errors
-
-**Invalid: Both unified and separate pricing**
-
-```json
-{
-    "type": "one_million_tokens",
-    "price": "2.50",
-    "input": "0.50",
-    "output": "1.50"
-}
-```
-
-Error: "Cannot specify both 'price' and 'input'/'output'"
 
 **Invalid: Missing output price**
 
@@ -915,8 +945,8 @@ The backend calculates costs using these formulas:
 
 | Pricing Type                   | Cost Formula                                                            |
 | ------------------------------ | ----------------------------------------------------------------------- |
-| `one_million_tokens`           | (input_tokens × input_price + output_tokens × output_price) / 1,000,000 |
-| `one_million_tokens` (unified) | total_tokens × price / 1,000,000                                        |
+| `one_million_tokens` (separate) | (input_tokens × input + cached_input_tokens × cached_input + output_tokens × output) / 1,000,000 |
+| `one_million_tokens` (unified)  | total_tokens × price / 1,000,000                                        |
 | `one_second`                   | seconds × price                                                         |
 | `image`                        | count × price                                                           |
 | `step`                         | count × price                                                           |
