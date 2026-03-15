@@ -302,9 +302,15 @@ class BasePriceData(BaseModel):
 class TokenPriceData(BasePriceData):
     """
     Price data for token-based pricing (LLMs).
-    Supports either unified pricing or separate input/output pricing.
-    Optionally supports cached_input pricing for providers that offer discounted rates
-    for cached/repeated input tokens.
+
+    Supports two modes:
+    1. **Unified pricing**: Set ``price`` only — same rate for all token types.
+    2. **Separate pricing**: Set ``input`` and ``output`` (and optionally ``cached_input``)
+       for different rates per token type.
+
+    In separate pricing mode, ``price`` serves as a **summary price for marketplace
+    comparison**. If not explicitly set by the seller, the backend calculates it
+    during service ingestion using: ``price = (input + 4*output) / 5``.
 
     Price values use Decimal for precision. In JSON/TOML, specify as strings
     (e.g., "0.50") to avoid floating-point precision issues.
@@ -312,13 +318,18 @@ class TokenPriceData(BasePriceData):
 
     type: Literal["one_million_tokens"] = "one_million_tokens"
 
-    # Option 1: Unified price for all tokens
+    # Summary price for marketplace comparison and sorting.
+    # For unified pricing: this is the only price field needed.
+    # For separate pricing: recommended for marketplace comparability.
+    # If not set, the backend auto-computes during ingestion.
     price: PriceStr | None = Field(
         default=None,
-        description="Unified price per million tokens (used when input/output are the same)",
+        description="Summary price per million tokens for marketplace comparison. "
+        "For unified pricing, this is the billing rate. "
+        "For separate input/output pricing, this is a representative price for sorting/filtering.",
     )
 
-    # Option 2: Separate input/output pricing
+    # Separate input/output pricing (for billing)
     input: PriceStr | None = Field(
         default=None,
         description="Price per million input tokens",
@@ -334,23 +345,44 @@ class TokenPriceData(BasePriceData):
 
     @model_validator(mode="after")
     def validate_price_fields(self) -> TokenPriceData:
-        """Ensure either unified price or input/output pair is provided."""
-        has_unified = self.price is not None
+        """Validate pricing field combinations and auto-compute summary price."""
         has_input_output = self.input is not None or self.output is not None
 
-        if has_unified and has_input_output:
+        if not self.price and not has_input_output:
             raise ValueError(
-                "Cannot specify both 'price' and 'input'/'output'. "
-                "Use 'price' for unified pricing or 'input'/'output' for separate pricing."
+                "Must specify either 'price' (unified) or 'input'/'output' (separate pricing)."
             )
 
-        if not has_unified and not has_input_output:
-            raise ValueError("Must specify either 'price' (unified) or 'input'/'output' (separate pricing).")
-
         if has_input_output and (self.input is None or self.output is None):
-            raise ValueError("Both 'input' and 'output' must be specified for separate pricing.")
+            raise ValueError(
+                "Both 'input' and 'output' must be specified for separate pricing."
+            )
+
+        # Auto-compute summary price from input/output if not explicitly set
+        if self.price is None and has_input_output:
+            self.price = self.compute_summary_price()
 
         return self
+
+    def compute_summary_price(self) -> str:
+        """Compute a summary price from input/output for marketplace comparison.
+
+        Formula: (input + 4*output) / 5
+        This weights output 4x higher than input, reflecting typical LLM usage
+        where output tokens are more expensive and represent the dominant cost.
+
+        Returns:
+            Price string (e.g., "3.00"), or the existing price if already set.
+        """
+        if self.price is not None:
+            return self.price
+        if self.input is not None and self.output is not None:
+            input_d = Decimal(self.input)
+            output_d = Decimal(self.output)
+            summary = (input_d + 4 * output_d) / 5
+            # Round to same precision as input
+            return str(summary.quantize(Decimal("0.01")))
+        return "0"
 
     def calculate_cost(
         self,
