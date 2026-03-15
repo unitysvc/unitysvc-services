@@ -1382,7 +1382,6 @@ SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
     "enrollment_limit_per_customer": int,
     "enrollment_limit_per_user": int,
     "ops_testing_parameters": dict,
-    "recurrence_enabled": bool,
     "recurrence_min_interval_seconds": int,
     "recurrence_max_interval_seconds": int,
     "recurrence_allow_cron": bool,
