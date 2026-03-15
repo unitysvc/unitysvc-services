@@ -597,16 +597,16 @@ class RevenueSharePriceData(BasePriceData):
 
 class ConstantPriceData(BasePriceData):
     """
-    Price data for a constant/fixed amount.
+    Price data for a constant/fixed price.
 
     Used for fixed fees, discounts, or adjustments that don't depend on usage.
-    Amount can be positive (charge) or negative (discount/credit).
+    Price can be positive (charge) or negative (discount/credit).
     """
 
     type: Literal["constant"] = "constant"
 
-    amount: AmountStr = Field(
-        description="Fixed amount (positive for charge, negative for discount)",
+    price: AmountStr = Field(
+        description="Fixed price (positive for charge, negative for discount)",
     )
 
     def calculate_cost(
@@ -615,7 +615,7 @@ class ConstantPriceData(BasePriceData):
         customer_charge: Decimal | None = None,
         request_count: int | None = None,
     ) -> Decimal:
-        """Return the constant amount regardless of usage.
+        """Return the constant price regardless of usage.
 
         Args:
             usage: Usage data (ignored for constant pricing)
@@ -623,9 +623,9 @@ class ConstantPriceData(BasePriceData):
             request_count: Number of requests (ignored for constant pricing)
 
         Returns:
-            The fixed amount
+            The fixed price
         """
-        return Decimal(self.amount)
+        return Decimal(self.price)
 
 
 # Forward reference for nested pricing - will be resolved after Pricing is defined

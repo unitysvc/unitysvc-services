@@ -236,23 +236,23 @@ For diffusion models, iterative processes, and other step-based services.
 
 ### Constant Pricing (`constant`)
 
-A fixed amount per request that doesn't depend on usage metrics.
+A fixed price per request that doesn't depend on usage metrics.
 
-> **Note:** When used for `list_price`, this amount is charged **per API request**. For example, `"amount": "0.01"` means the customer pays $0.01 for each request they make.
+> **Note:** When used for `list_price`, this price is charged **per API request**. For example, `"price": "0.01"` means the customer pays $0.01 for each request they make.
 
 **Fields:**
 
-| Field    | Type   | Required | Description                                               |
-| -------- | ------ | -------- | --------------------------------------------------------- |
-| `type`   | string | **Yes**  | Must be `"constant"`                                      |
-| `amount` | string | **Yes**  | Fixed amount (positive for charge, negative for discount) |
+| Field    | Type   | Required | Description                                              |
+| -------- | ------ | -------- | -------------------------------------------------------- |
+| `type`   | string | **Yes**  | Must be `"constant"`                                     |
+| `price`  | string | **Yes**  | Fixed price (positive for charge, negative for discount) |
 
 **Example - Per-Request Fee:**
 
 ```json
 {
     "type": "constant",
-    "amount": "0.01",
+    "price": "0.01",
     "description": "Per-request fee"
 }
 ```
@@ -282,9 +282,9 @@ When used in volume pricing contexts (e.g., inside `tiered` tiers or combined wi
     "type": "tiered",
     "based_on": "request_count",
     "tiers": [
-        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
-        { "up_to": 10000, "price": { "type": "constant", "amount": "50.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "200.00" } }
+        { "up_to": 1000, "price": { "type": "constant", "price": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "price": "50.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "200.00" } }
     ],
     "description": "Flat monthly fee based on request volume"
 }
@@ -310,7 +310,7 @@ Combines multiple pricing components by summing them together. Useful for base p
         { "type": "one_million_tokens", "input": "0.50", "output": "1.50" },
         {
             "type": "constant",
-            "amount": "0.001",
+            "price": "0.001",
             "description": "Per-request fee"
         }
     ]
@@ -393,9 +393,9 @@ Volume-based pricing where the tier determines the price for ALL usage. Once you
     "type": "tiered",
     "based_on": "request_count",
     "tiers": [
-        { "up_to": 1000, "price": { "type": "constant", "amount": "10.00" } },
-        { "up_to": 10000, "price": { "type": "constant", "amount": "80.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "500.00" } }
+        { "up_to": 1000, "price": { "type": "constant", "price": "10.00" } },
+        { "up_to": 10000, "price": { "type": "constant", "price": "80.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "500.00" } }
     ],
     "description": "Volume-based flat pricing"
 }
@@ -521,8 +521,8 @@ Both `tiered` and `graduated` pricing support arithmetic expressions in the `bas
     "type": "tiered",
     "based_on": "input_tokens + output_tokens * 4",
     "tiers": [
-        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "10.00" } }
+        { "up_to": 10000, "price": { "type": "constant", "price": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "10.00" } }
     ],
     "description": "Higher tier when weighted token usage exceeds 10k"
 }
@@ -540,8 +540,8 @@ How it works:
     "type": "tiered",
     "based_on": "request_count * 100 + input_tokens",
     "tiers": [
-        { "up_to": 10000, "price": { "type": "constant", "amount": "1.00" } },
-        { "up_to": null, "price": { "type": "constant", "amount": "5.00" } }
+        { "up_to": 10000, "price": { "type": "constant", "price": "1.00" } },
+        { "up_to": null, "price": { "type": "constant", "price": "5.00" } }
     ],
     "description": "Tier based on weighted combination of requests and tokens"
 }
@@ -711,7 +711,7 @@ Composite pricing types can be nested for complex scenarios:
         },
         {
             "type": "constant",
-            "amount": "5.00",
+            "price": "5.00",
             "description": "Minimum monthly fee"
         }
     ]
