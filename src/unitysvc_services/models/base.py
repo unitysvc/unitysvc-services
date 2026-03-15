@@ -12,11 +12,14 @@ from pydantic.functional_validators import BeforeValidator
 
 
 def _validate_price_string(v: Any) -> str:
-    """Validate that price values are strings representing valid non-negative decimal numbers.
+    """Validate that price values are strings representing valid decimal numbers.
 
     This prevents floating-point precision issues where values like 2.0
     might become 1.9999999 when saved/loaded. Prices are stored as strings
     and converted to Decimal only when calculations are needed.
+
+    Negative values are allowed to support seller-funded incentives where
+    the payout_price is negative (seller pays the platform).
     """
     if isinstance(v, float):
         raise ValueError(
@@ -30,14 +33,11 @@ def _validate_price_string(v: Any) -> str:
     if not isinstance(v, str):
         raise ValueError(f"Price value must be a string, got {type(v).__name__}")
 
-    # Validate it's a valid decimal number and non-negative
+    # Validate it's a valid decimal number
     try:
-        decimal_val = Decimal(v)
+        Decimal(v)
     except InvalidOperation:
         raise ValueError(f"Price value '{v}' is not a valid decimal number")
-
-    if decimal_val < 0:
-        raise ValueError(f"Price value must be non-negative, got '{v}'")
 
     return v
 
