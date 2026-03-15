@@ -173,12 +173,12 @@ def list_tests(
     """
 
     async def _list():
-        async def _fetch_interfaces(runner: TestRunner, svc_id: str) -> list[tuple[str, str]]:
+        async def _fetch_interfaces(runner: TestRunner, svc_id: str) -> list[tuple[str, str, dict]]:
             try:
                 interfaces = await runner.list_interfaces(svc_id)
                 return _resolve_interfaces(interfaces)
             except Exception:
-                return [("default", "")]
+                return [("default", "", {})]
 
         async with TestRunner() as runner:
             if service_id:
@@ -673,7 +673,7 @@ def run_test(
             interfaces_data = await runner.list_interfaces(resolved_service_id)
             interfaces_list = _resolve_interfaces(interfaces_data)
         except Exception:
-            interfaces_list = [("default", "")]
+            interfaces_list = [("default", "", {})]
 
         # Fetch rendered service_options.enrollment_vars for the ops enrollment
         service_env = await runner.get_env(resolved_service_id)
