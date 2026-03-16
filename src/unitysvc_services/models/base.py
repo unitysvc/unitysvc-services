@@ -179,6 +179,7 @@ class DocumentCategoryEnum(StrEnum):
     code_example = "code_example"
     code_example_output = "code_example_output"
     connectivity_test = "connectivity_test"  # Test connectivity & performance (not visible to users)
+    request_template = "request_template"  # Default request body for playground pre-fill
     use_case = "use_case"
     troubleshooting = "troubleshooting"
     changelog = "changelog"
