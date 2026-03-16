@@ -836,6 +836,7 @@ Documents associated with entities (providers, offerings, listings). The documen
 - `code_example` - Code examples (visible to users)
 - `code_example_output` - Expected output from code examples
 - `connectivity_test` - Connectivity and performance tests (not visible to users, `is_public: false`)
+- `request_template` - Default request body for the playground (JSON, pre-fills the test request editor)
 - `use_case` - Use case descriptions
 - `troubleshooting` - Troubleshooting guides
 - `changelog` - Version changelogs
