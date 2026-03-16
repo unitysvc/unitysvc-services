@@ -497,6 +497,55 @@ Executable code examples in various languages. See [Creating Code Examples](code
 }
 ```
 
+### request_template
+
+Default request body for the Test Request playground. When a customer opens the playground on the service details page, this JSON is pre-filled in the body editor, giving them a working starting point.
+
+**Example (LLM service):**
+
+```json
+"Default Request": {
+    "category": "request_template",
+    "file_path": "default-request.json",
+    "mime_type": "json",
+    "is_public": true,
+    "description": "Default chat completion request"
+}
+```
+
+Where `default-request.json` contains:
+
+```json
+{
+    "messages": [{"role": "user", "content": "Hello"}],
+    "max_tokens": 1024
+}
+```
+
+**Example (BYOE with Jinja2 templates):**
+
+```json
+"Default Request": {
+    "category": "request_template",
+    "file_path": "default-request.json.j2",
+    "mime_type": "json",
+    "is_public": true,
+    "description": "Default request with enrollment parameters"
+}
+```
+
+Where `default-request.json.j2` contains:
+
+```json
+{
+    "model": "{{ params.model }}",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "max_tokens": 1024
+}
+```
+
+The playground uses the first `request_template` document as the default body in the editor.
+
 ### troubleshooting
 
 Frequently asked questions and troubleshooting guides.
@@ -629,7 +678,8 @@ Use clear document categories to help users find information:
     "Overview": {"category": "getting_started", ...},
     "Quick Start": {"category": "getting_started", ...},
     "API Docs": {"category": "api_reference", ...},
-    "Python Example": {"category": "code_example", ...}
+    "Python Example": {"category": "code_example", ...},
+    "Default Request": {"category": "request_template", ...}
 }
 ```
 
