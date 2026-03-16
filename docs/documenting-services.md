@@ -544,7 +544,7 @@ Where `default-request.json.j2` contains:
 }
 ```
 
-Multiple templates can be provided for different use cases (e.g., "Simple chat", "Function calling", "Streaming").
+The playground uses the first `request_template` document as the default body in the editor.
 
 ### troubleshooting
 
