@@ -35,7 +35,7 @@ def query_services(
         help="Output format: table, json, tsv, csv",
     ),
     fields: str = typer.Option(
-        "id,name,provider_name,service_type,status",
+        "id,name,provider_name,service_type,status,revision_of",
         "--fields",
         help=(
             "Comma-separated list of fields to display. Available fields: "
@@ -158,7 +158,33 @@ def query_services(
                 ]
                 data = data[:limit]
 
-            return data
+            # Group active services with their revisions:
+            # active service followed by its revision(s), then remaining services
+            revision_of_map: dict[str, list[dict]] = {}
+            active_ids: set[str] = set()
+            non_revision: list[dict] = []
+
+            for svc in data:
+                rev_of = svc.get("revision_of")
+                if rev_of:
+                    revision_of_map.setdefault(rev_of, []).append(svc)
+                else:
+                    non_revision.append(svc)
+                    if svc.get("status") == "active":
+                        active_ids.add(svc.get("id", ""))
+
+            ordered: list[dict] = []
+            for svc in non_revision:
+                ordered.append(svc)
+                svc_id = svc.get("id", "")
+                if svc_id in revision_of_map:
+                    ordered.extend(revision_of_map.pop(svc_id))
+
+            # Append any orphan revisions whose parent wasn't in results
+            for revisions in revision_of_map.values():
+                ordered.extend(revisions)
+
+            return ordered
 
     try:
         services = asyncio.run(_query_services_async())
