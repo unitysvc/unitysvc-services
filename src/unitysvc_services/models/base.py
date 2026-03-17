@@ -203,6 +203,7 @@ class MimeTypeEnum(StrEnum):
     javascript = "javascript"
     bash = "bash"
     html = "html"
+    json = "json"
     text = "text"
     pdf = "pdf"
     jpeg = "jpeg"
@@ -360,14 +361,10 @@ class TokenPriceData(BasePriceData):
         has_input_output = self.input is not None or self.output is not None
 
         if not self.price and not has_input_output:
-            raise ValueError(
-                "Must specify either 'price' (unified) or 'input'/'output' (separate pricing)."
-            )
+            raise ValueError("Must specify either 'price' (unified) or 'input'/'output' (separate pricing).")
 
         if has_input_output and (self.input is None or self.output is None):
-            raise ValueError(
-                "Both 'input' and 'output' must be specified for separate pricing."
-            )
+            raise ValueError("Both 'input' and 'output' must be specified for separate pricing.")
 
         # Auto-compute summary price from input/output if not explicitly set
         if self.price is None and has_input_output:
@@ -1466,9 +1463,7 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
         if key == "enrollment_vars":
             for env_key, env_val in value.items():
                 if not isinstance(env_key, str):
-                    errors.append(
-                        f"service_options.enrollment_vars key must be str, got {type(env_key).__name__}"
-                    )
+                    errors.append(f"service_options.enrollment_vars key must be str, got {type(env_key).__name__}")
                 elif not isinstance(env_val, str):
                     errors.append(
                         f"service_options.enrollment_vars.{env_key} must be str, got {type(env_val).__name__}"
