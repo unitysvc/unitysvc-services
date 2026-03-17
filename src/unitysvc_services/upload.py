@@ -568,9 +568,11 @@ class ServiceDataPublisher(UnitySvcAPI):
         result["provider_name"] = provider_name_str
 
         # Save service_id to override file for future updates (not in dryrun mode)
+        # For revisions, use revision_of (the original active service ID) so that
+        # future uploads continue targeting the same active service.
         if not dryrun:
             service_result = result.get("service", {})
-            service_id = service_result.get("id")
+            service_id = service_result.get("revision_of") or service_result.get("id")
             if service_id:
                 override_data: dict[str, Any] = {"service_id": service_id}
                 override_path = write_override_file(listing_file, override_data)
@@ -614,6 +616,8 @@ class ServiceDataPublisher(UnitySvcAPI):
                 # Map service-specific statuses to generic ones
                 if status == "revision_created":
                     status = "created"
+                elif status == "revision_updated":
+                    status = "updated"
                 statuses.append(status)
 
         # Dryrun statuses
