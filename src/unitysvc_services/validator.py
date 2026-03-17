@@ -650,8 +650,8 @@ class DataValidator:
             if any(part.startswith(".") for part in file_path.parts):
                 continue
 
-            # Skip schema directory and pyproject.toml (not data files)
-            if "schema" in file_path.parts or file_path.name == "pyproject.toml":
+            # Skip schema directory, docs directory, and pyproject.toml (not data files)
+            if "schema" in file_path.parts or "docs" in file_path.parts or file_path.name == "pyproject.toml":
                 continue
 
             # Check if file should be validated
