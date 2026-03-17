@@ -135,17 +135,24 @@ Example override file content:
 ```
 
 This override file should be:
-- **Committed to version control** - preserves the service identity across team members and CI/CD
+- **Committed to version control** - links the local service definition to a specific service on the UnitySVC platform, ensuring consistent identity across team members and CI/CD
 - **Never manually edited** (except when intentionally uploading as new)
 - **Environment-specific** if deploying to multiple environments (staging, production)
 
+You can verify that all services have been linked using:
+```bash
+usvc data validate --has-service-id
+```
+
 #### Subsequent Uploads: Service Updates
 
-On subsequent uploads, the SDK automatically loads the `service_id` from the override file and includes it in the upload request. This ensures the existing service is **updated** rather than creating a new one:
+On subsequent uploads, the SDK automatically loads the `service_id` from the override file and includes it in the upload request. The behavior depends on the current status of the service on the platform:
+
+**If the service is in draft, pending, or rejected status**, the existing service is updated in place:
 
 ```mermaid
 flowchart LR
-    subgraph Update["Subsequent Upload"]
+    subgraph Update["Update Draft/Pending Service"]
         O2["listing.override.json<br/><i>service_id: abc-123</i>"] --> L2["listing.json"]
         L2 --> API2[Backend API]
         API2 --> S2["Updates EXISTING Service<br/><i>service_id: abc-123</i>"]
@@ -156,8 +163,28 @@ flowchart LR
     style S2 fill:#e8f5e9
 ```
 
+**If the service is already active**, the upload creates (or updates) a **revision** instead of modifying the active service directly. This ensures the live service remains stable while changes are reviewed:
+
+```mermaid
+flowchart LR
+    subgraph Revision["Upload to Active Service"]
+        O3["listing.override.json<br/><i>service_id: abc-123</i>"] --> L3["listing.json"]
+        L3 --> API3[Backend API]
+        API3 --> S3["Active Service<br/><i>abc-123 (unchanged)</i>"]
+        API3 --> R3["Revision (draft)<br/><i>rev-456</i>"]
+        R3 -.->|"on activation"| S3
+    end
+
+    style O3 fill:#e3f2fd
+    style L3 fill:#fff3e0
+    style S3 fill:#e8f5e9
+    style R3 fill:#fff9c4
+```
+
+When a revision is activated, it replaces the content of the active service but preserves the service ID. The local `service_id` in the override file continues to point to the active service throughout this process — subsequent uploads will update the same revision until it is activated.
+
 When updating:
-- The Service ID remains stable (subscriptions continue to work)
+- The Service ID remains stable (enrollments and subscriptions continue to work)
 - Content entities are updated or created as needed
 - If content is unchanged, the upload returns "unchanged" status
 
@@ -193,10 +220,6 @@ staging branch:  listing.override.json  # Staging service_id
 data-prod/my-provider/services/my-service/listing.override.json
 data-staging/my-provider/services/my-service/listing.override.json
 ```
-
-**Option 3: CI/CD management**
-- Gitignore override files
-- Generate them in CI/CD from environment-specific secrets
 
 ## Required File Structure
 
