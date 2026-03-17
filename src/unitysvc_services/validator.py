@@ -784,6 +784,11 @@ def validate(
         None,
         help="Directory containing data files to validate (default: current directory)",
     ),
+    has_service_id: bool = typer.Option(
+        False,
+        "--has-service-id",
+        help="Require service_id field in listing files (from override or data file)",
+    ),
 ):
     """
     Validate data consistency in service and listing files.
@@ -822,6 +827,17 @@ def validate(
     # Also run service directory validation (service/listing relationships)
     directory_errors = validator.validate_all_service_directories(data_dir)
     validation_errors.extend(directory_errors)
+
+    # Check that listing files have service_id (from override or data file)
+    if has_service_id:
+        from .utils import find_files_by_schema
+
+        listing_files = find_files_by_schema(data_dir, "listing_v1")
+        for file_path, _fmt, data in listing_files:
+            if not data.get("service_id"):
+                validation_errors.append(
+                    f"{file_path}: Missing service_id (run 'usvc data upload' first to generate override file)"
+                )
 
     if validation_errors:
         console.print(f"[red]✗ Validation failed with {len(validation_errors)} error(s):[/red]")
