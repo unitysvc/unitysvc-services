@@ -393,3 +393,86 @@ class ModelDataLookup:
                 return openrouter_data[key]
 
         return None
+
+    # =========================================================================
+    # HuggingFace pipeline_tag utilities
+    # =========================================================================
+
+    # Map HuggingFace pipeline_tag to code example template suffix.
+    # pipeline_tag is HuggingFace's standardized task taxonomy:
+    # https://huggingface.co/docs/hub/en/models-tasks
+    PIPELINE_EXAMPLE_SUFFIX: dict[str, str] = {
+        "text-generation": "",
+        "text2text-generation": "",
+        "conversational": "",
+        "feature-extraction": "-sentencetransformers",
+        "sentence-similarity": "-sentencetransformers",
+        "text-to-image": "-image",
+        "image-to-image": "-imagetoimage",
+        "image-to-text": "",
+        "image-text-to-text": "",
+        "visual-question-answering": "",
+        "automatic-speech-recognition": "-prerecordedtranscription",
+        "text-to-speech": "-tts",
+        "text-to-audio": "-tts",
+        "text-to-video": "-ttv",
+        "image-to-video": "-ttv",
+    }
+
+    @staticmethod
+    def get_capabilities_from_hf(
+        model_id: str, fetcher: "ModelDataFetcher"
+    ) -> tuple[list[str], str]:
+        """Get capabilities and example suffix from HuggingFace model metadata.
+
+        Fetches pipeline_tag from the HuggingFace Model Hub API and uses it
+        as the model's capability. Also determines the appropriate code
+        example template suffix.
+
+        Args:
+            model_id: Model identifier (e.g., "meta-llama/Llama-3.1-8B")
+            fetcher: ModelDataFetcher instance for API calls
+
+        Returns:
+            Tuple of (capabilities list, example_suffix string).
+            capabilities uses HF pipeline_tag values directly (e.g., "text-generation",
+            "image-to-image", "automatic-speech-recognition").
+            example_suffix is the template suffix (e.g., "", "-image", "-tts").
+            Falls back to (["llm"], "") if HF metadata is unavailable.
+        """
+        hf_details = fetcher.fetch_huggingface_model_details(model_id, quiet=True)
+        if not hf_details:
+            return ["llm"], ""
+
+        pipeline_tag = hf_details.get("pipeline_tag")
+        if not pipeline_tag:
+            return ["llm"], ""
+
+        capabilities = [pipeline_tag]
+        example_suffix = ModelDataLookup.PIPELINE_EXAMPLE_SUFFIX.get(pipeline_tag, "")
+        return capabilities, example_suffix
+
+    @staticmethod
+    def get_hf_tags(model_id: str, fetcher: "ModelDataFetcher") -> list[str]:
+        """Get cleaned tags from HuggingFace model metadata.
+
+        Fetches tags from the HuggingFace Model Hub API, filtering out
+        metadata-only tags (base_model, region, license).
+
+        Args:
+            model_id: Model identifier
+            fetcher: ModelDataFetcher instance for API calls
+
+        Returns:
+            List of cleaned tag strings, or empty list if unavailable.
+        """
+        hf_details = fetcher.fetch_huggingface_model_details(model_id, quiet=True)
+        if not hf_details:
+            return []
+
+        return [
+            t for t in hf_details.get("tags", [])
+            if not t.startswith("base_model:")
+            and not t.startswith("region:")
+            and not t.startswith("license:")
+        ]
