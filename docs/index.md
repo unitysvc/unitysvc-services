@@ -23,7 +23,7 @@ The UnitySVC Seller SDK is a Python package that enables digital service provide
 
 ## Types of Services
 
-The UnitySVC platform can route a wide variety of digital services. See [Service Types](service-types.md) for full specification and examples.
+The UnitySVC platform can route a wide variety of digital services, such as AI/ML APIs, email delivery, file/media content, compute environments, database access, monitoring, and scheduled tasks — across HTTP, S3, SMTP, and SSH protocols. See [Service Types](service-types.md) for full specification and examples.
 
 | Type | Description | Enrollment? | Examples |
 |------|-------------|:-----------:|---------|
