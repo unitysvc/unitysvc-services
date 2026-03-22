@@ -334,7 +334,7 @@ def _resolve_interfaces(interfaces: list[dict]) -> list[tuple[str, str, dict]]:
     """Extract (name, base_url, routing_key) tuples from interface list.
 
     Filters out inactive interfaces. The backend resolves
-    ``${GATEWAY_BASE_URL}`` placeholders before returning data,
+    ``${API_GATEWAY_BASE_URL}`` placeholders before returning data,
     so base_url values are ready to use as-is.
     """
     result: list[tuple[str, str, dict]] = []

@@ -521,7 +521,7 @@ data/
     "user_access_interfaces": {
         "OpenAI API": {
             "access_method": "http",
-            "base_url": "${GATEWAY_BASE_URL}/p/openai"
+            "base_url": "${API_GATEWAY_BASE_URL}/p/openai"
         }
     },
     "documents": {

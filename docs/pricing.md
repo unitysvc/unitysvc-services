@@ -820,7 +820,7 @@ time_created = "2024-02-01T12:00:00Z"
 
 [[user_access_interfaces]]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/v1/chat/completions"
+base_url = "${API_GATEWAY_BASE_URL}/v1/chat/completions"
 name = "Chat Completions API"
 
 [user_access_interfaces.routing_key]

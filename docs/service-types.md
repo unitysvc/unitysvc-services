@@ -49,7 +49,7 @@ time_created = "2024-01-25T16:00:00Z"
 
 [user_access_interfaces."OpenAI API Access"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/openai"
+base_url = "${API_GATEWAY_BASE_URL}/p/openai"
 
 [user_access_interfaces."OpenAI API Access".routing_key]
 model = "gpt-4"
@@ -98,7 +98,7 @@ time_created = "2024-01-25T16:00:00Z"
 
 [user_access_interfaces."OpenAI API Access"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/openai"
+base_url = "${API_GATEWAY_BASE_URL}/p/openai"
 
 [user_access_interfaces."OpenAI API Access".routing_key]
 model = "gpt-4"
@@ -144,7 +144,7 @@ topic = "{{ enrollment_code(6) }}"
 
 [user_access_interfaces.gateway]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/ntfy/{{ topic }}"
+base_url = "${API_GATEWAY_BASE_URL}/ntfy/{{ topic }}"
 ```
 
 The rendering happens in two phases:
@@ -195,7 +195,7 @@ time_created = "2024-06-01T00:00:00Z"
 
 [user_access_interfaces."Provider API"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/groq"
+base_url = "${API_GATEWAY_BASE_URL}/p/groq"
 
 [user_access_interfaces."Provider API".routing_key]
 model = "llama-3.3-70b-versatile"
@@ -277,7 +277,7 @@ time_created = "2024-06-01T00:00:00Z"
 
 [user_access_interfaces."Ollama API"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/ollama/llama3.3"
+base_url = "${API_GATEWAY_BASE_URL}/p/ollama/llama3.3"
 
 [user_access_interfaces."Ollama API".routing_key]
 model = "llama3.3"
@@ -435,7 +435,7 @@ time_created = "2024-06-01T00:00:00Z"
 
 [user_access_interfaces."Monitor API"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/monitor"
+base_url = "${API_GATEWAY_BASE_URL}/p/monitor"
 
 [service_options]
 recurrence_enabled = true

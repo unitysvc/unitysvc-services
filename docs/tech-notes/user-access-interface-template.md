@@ -42,7 +42,7 @@ The ntfy service exposes a notification gateway where each enrollment gets a uni
 # listing.toml — user-facing endpoint with per-enrollment topic
 [user_access_interfaces.ntfy-gateway]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}"
+base_url = "${API_GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}"
 description = "Your ntfy notification endpoint"
 ```
 
@@ -59,7 +59,7 @@ Both templates call `enrollment_code(6)` and resolve to the same code (e.g. `VTX
 ### After Enrollment
 
 - Topic code `VTXBNM` is generated and persisted in the `action_code` table
-- An enrollment-scoped `AccessInterface` is created with `base_url = "${GATEWAY_BASE_URL}/ntfy/VTXBNM"`
+- An enrollment-scoped `AccessInterface` is created with `base_url = "${API_GATEWAY_BASE_URL}/ntfy/VTXBNM"`
 - The user sees their complete, personalized endpoint
 - At gateway routing time, the upstream template resolves to `https://ntfy.svcpass.com/VTXBNM`
 - Gateway forwards the request to the correct upstream topic

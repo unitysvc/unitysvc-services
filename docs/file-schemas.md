@@ -367,7 +367,7 @@ time_created = "2024-01-25T16:00:00Z"
 
 [user_access_interfaces."OpenAI API Access"]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/p/openai"
+base_url = "${API_GATEWAY_BASE_URL}/p/openai"
 
 [user_access_interfaces."OpenAI API Access".routing_key]
 model = "gpt-4"
@@ -541,7 +541,7 @@ A service with user-configurable parameters (model, token limits, streaming):
     "user_access_interfaces": {
         "API Access": {
             "access_method": "http",
-            "base_url": "${GATEWAY_BASE_URL}/p/my-service"
+            "base_url": "${API_GATEWAY_BASE_URL}/p/my-service"
         }
     }
 }
@@ -584,7 +584,7 @@ BYOK services require the customer to provide their own API key for the upstream
     "user_access_interfaces": {
         "Provider API": {
             "access_method": "http",
-            "base_url": "${GATEWAY_BASE_URL}/p/groq",
+            "base_url": "${API_GATEWAY_BASE_URL}/p/groq",
             "api_key": "${ secrets.GROQ_API_KEY }",
             "routing_key": { "model": "llama-3.3-70b-versatile" }
         }
@@ -606,7 +606,7 @@ A BYOK service can also have user parameters (e.g., model selection). In this ca
 {
     "user_access_interfaces": {
         "Provider API": {
-            "base_url": "${GATEWAY_BASE_URL}/p/openai",
+            "base_url": "${API_GATEWAY_BASE_URL}/p/openai",
             "api_key": "${ secrets.OPENAI_API_KEY }",
             "routing_key": { "model": "gpt-4" }
         }
@@ -705,7 +705,7 @@ The `enrollment_code` function is idempotent — calling it multiple times for t
 ```toml
 [user_access_interfaces.ntfy-gateway]
 access_method = "http"
-base_url = "${GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}"
+base_url = "${API_GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}"
 description = "Your ntfy notification endpoint"
 ```
 
@@ -716,14 +716,14 @@ description = "Your ntfy notification endpoint"
     "user_access_interfaces": {
         "ntfy-gateway": {
             "access_method": "http",
-            "base_url": "${GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}",
+            "base_url": "${API_GATEWAY_BASE_URL}/ntfy/{{ enrollment_code(6) }}",
             "description": "Your ntfy notification endpoint"
         }
     }
 }
 ```
 
-After enrollment, the `base_url` is rendered with the generated code (e.g., `${GATEWAY_BASE_URL}/ntfy/VTXBNM`), creating an enrollment-scoped access interface visible only to that enrollment.
+After enrollment, the `base_url` is rendered with the generated code (e.g., `${API_GATEWAY_BASE_URL}/ntfy/VTXBNM`), creating an enrollment-scoped access interface visible only to that enrollment.
 
 **Example — upstream access interface with template:**
 
@@ -760,7 +760,7 @@ The `routing_key` field enables fine-grained request routing when multiple servi
 {
     "user_access_interfaces": {
         "GPT-4 API": {
-            "base_url": "${GATEWAY_BASE_URL}/p/openai",
+            "base_url": "${API_GATEWAY_BASE_URL}/p/openai",
             "routing_key": { "model": "gpt-4" }
         }
     }
