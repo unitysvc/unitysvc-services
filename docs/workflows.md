@@ -270,7 +270,7 @@ Edit the `.j2` files to replace model-specific values with Jinja2 placeholders:
     "type": "revenue_share",
     "percentage": "100.00"
   },
-  "upstream_access_interfaces": {
+  "upstream_access_config": {
     "{{ provider_display_name }} API": {
       "access_method": "http",
       "api_key": "${ secrets.{{ api_key_secret }} }",

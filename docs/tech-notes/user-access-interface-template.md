@@ -7,7 +7,7 @@
 
 ## Overview
 
-String values in `user_access_interfaces` (and `upstream_access_interfaces`) support **Jinja2 template syntax** for dynamic rendering at enrollment time. This enables per-enrollment access interfaces — for example, generating unique endpoint URLs or routing keys for each subscriber.
+String values in `user_access_interfaces` (and `upstream_access_config`) support **Jinja2 template syntax** for dynamic rendering at enrollment time. This enables per-enrollment access interfaces — for example, generating unique endpoint URLs or routing keys for each subscriber.
 
 Interfaces containing template syntax (`{{` or `{%`) are rendered per-enrollment and create enrollment-scoped `AccessInterface` records. Static interfaces (no template syntax) are shared across all enrollments at the listing level.
 
@@ -25,7 +25,7 @@ Templates are rendered with these variables:
 
 ### `enrollment_code(length=6)`
 
-Creates or retrieves a random code tied to a specific enrollment. The function is **idempotent** — repeated calls for the same enrollment return the same code (looked up by `entity_id` and `code_type=enrollment` in the `action_code` table). This allows both `user_access_interfaces` and `upstream_access_interfaces` to reference the same enrollment-specific code.
+Creates or retrieves a random code tied to a specific enrollment. The function is **idempotent** — repeated calls for the same enrollment return the same code (looked up by `entity_id` and `code_type=enrollment` in the `action_code` table). This allows both `user_access_interfaces` and `upstream_access_config` to reference the same enrollment-specific code.
 
 ```jinja2
 {{ enrollment_code() }}      {# 6-character uppercase token, e.g. VTXBNM #}
@@ -48,7 +48,7 @@ description = "Your ntfy notification endpoint"
 
 ```toml
 # offering.toml — upstream endpoint with same enrollment code
-[upstream_access_interfaces.ntfy-upstream]
+[upstream_access_config.ntfy-upstream]
 access_method = "http"
 base_url = "https://ntfy.svcpass.com/{{ enrollment_code(6) }}"
 description = "Private ntfy instance"
@@ -88,7 +88,7 @@ Enrollment-scoped `AccessInterface` records are only visible to the enrollment t
 ### Upstream access interfaces (gateway routing time)
 
 1. When a request arrives, the gateway identifies the enrollment from the user access interface match
-2. If the offering's `upstream_access_interfaces` contain template syntax, they are rendered using the enrollment context
+2. If the offering's `upstream_access_config` contain template syntax, they are rendered using the enrollment context
 3. `enrollment_code()` resolves to the same code that was created at enrollment time (idempotent lookup)
 4. The resolved upstream URL is used to forward the request — no upstream `AccessInterface` records are created per enrollment
 

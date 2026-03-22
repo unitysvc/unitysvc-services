@@ -1713,12 +1713,12 @@
       "description": "Payout pricing: How to calculate seller payout",
       "title": "Payout Price"
     },
-    "upstream_access_interfaces": {
+    "upstream_access_config": {
       "additionalProperties": {
         "$ref": "#/$defs/AccessInterfaceData"
       },
       "description": "Upstream access interfaces, keyed by name",
-      "title": "Upstream Access Interfaces",
+      "title": "Upstream Access Config",
       "type": "object"
     },
     "documents": {
@@ -1792,7 +1792,7 @@
     "name",
     "description",
     "details",
-    "upstream_access_interfaces",
+    "upstream_access_config",
     "time_created"
   ],
   "title": "OfferingV1",

@@ -196,7 +196,7 @@ class DataValidator:
         - '${ customer_secrets.{{ param }} }' — customer secret via Jinja2 indirection (BYOE)
 
         This applies to:
-        - upstream_access_interfaces.<name>.api_key
+        - upstream_access_config.<name>.api_key
         - service_options.ops_testing_parameters.api_key
 
         Args:

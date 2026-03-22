@@ -158,7 +158,7 @@ def extract_code_examples_from_listing(listing_data: dict[str, Any], listing_fil
 def extract_upstream_interfaces_from_offering(
     listing_file: Path,
 ) -> dict[str, dict[str, Any]]:
-    """Load upstream_access_interfaces from the offering file for a listing.
+    """Load upstream_access_config from the offering file for a listing.
 
     Returns the raw interface data (secrets are NOT resolved here).
 
@@ -173,7 +173,7 @@ def extract_upstream_interfaces_from_offering(
         if not offering_results:
             return {}
         _file_path, _format, offering_data = offering_results[0]
-        return offering_data.get("upstream_access_interfaces", {}) or {}
+        return offering_data.get("upstream_access_config", {}) or {}
     except Exception:
         return {}
 
@@ -250,7 +250,7 @@ def discover_code_examples(
                 service_dir = extract_service_directory_name(listing_file) or str(listing_file)
                 raise ValueError(
                     f"Upstream interface '{iface_name}' in {service_dir} is missing: "
-                    f"base_url. Add it to offering upstream_access_interfaces "
+                    f"base_url. Add it to offering upstream_access_config "
                     f"or listing service_options.ops_testing_parameters."
                 )
             if not iface_data.get("api_key"):
@@ -258,7 +258,7 @@ def discover_code_examples(
                 console.print(
                     f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key. "
                     f"If this service requires authentication, add api_key to offering "
-                    f"upstream_access_interfaces or listing service_options.ops_testing_parameters.[/yellow]"
+                    f"upstream_access_config or listing service_options.ops_testing_parameters.[/yellow]"
                 )
 
         # Extract code examples × upstream interfaces
@@ -395,9 +395,9 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             for k, v in rendered_vars.items()
         }
 
-        # Extract credentials from upstream_access_interfaces (dict keyed by name)
+        # Extract credentials from upstream_access_config (dict keyed by name)
         # Use first interface for credentials
-        upstream_interfaces = offering.get("upstream_access_interfaces", {})
+        upstream_interfaces = offering.get("upstream_access_config", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
         first_interface = expand_template_strings(first_interface, extra_context=rendered_vars)
         api_key = first_interface.get("api_key")

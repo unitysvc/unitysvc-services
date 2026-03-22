@@ -32,7 +32,7 @@ display_name = "GPT-4"
 service_type = "llm"
 status = "ready"
 
-[upstream_access_interfaces."OpenAI API"]
+[upstream_access_config."OpenAI API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 api_key = "${ secrets.OPENAI_API_KEY }"
@@ -83,7 +83,7 @@ display_name = "GPT-4 Configurable"
 service_type = "llm"
 status = "ready"
 
-[upstream_access_interfaces."OpenAI API"]
+[upstream_access_config."OpenAI API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 api_key = "${ secrets.OPENAI_API_KEY }"
@@ -178,7 +178,7 @@ service_type = "llm"
 tags = ["ai", "byok"]
 status = "ready"
 
-[upstream_access_interfaces."Groq API"]
+[upstream_access_config."Groq API"]
 access_method = "http"
 base_url = "https://api.groq.com/openai/v1"
 api_key = "${ customer_secrets.GROQ_API_KEY }"
@@ -212,11 +212,11 @@ The `${ ... }` pattern distinguishes who owns a secret:
 | `${ secrets.NAME }` | **Seller** | Seller's secret store |
 | `${ customer_secrets.NAME }` | **Customer** | Customer's secret store |
 
-Both patterns can appear in `upstream_access_interfaces`, `request_transformer`, and `service_options.ops_testing_parameters`. The `user_access_interfaces` never contains secret references — customers always authenticate to the gateway with their SVCPASS API key.
+Both patterns can appear in `upstream_access_config`, `request_transformer`, and `service_options.ops_testing_parameters`. The `user_access_interfaces` never contains secret references — customers always authenticate to the gateway with their SVCPASS API key.
 
 ### Auto-detection
 
-The platform auto-detects required customer secrets by scanning `upstream_access_interfaces` for `${ customer_secrets.XXX }` patterns. No separate declaration is needed. This enables:
+The platform auto-detects required customer secrets by scanning `upstream_access_config` for `${ customer_secrets.XXX }` patterns. No separate declaration is needed. This enables:
 
 - "Bring your own key" badge on the marketplace
 - Display of required secrets with links to the customer's secrets UI
@@ -260,7 +260,7 @@ service_type = "llm"
 tags = ["ai", "byoe"]
 status = "ready"
 
-[upstream_access_interfaces."Ollama API"]
+[upstream_access_config."Ollama API"]
 access_method = "http"
 base_url = "{{ base_url }}"
 api_key = "${ customer_secrets.{{ api_key_secret }} }"
@@ -421,7 +421,7 @@ display_name = "Uptime Monitor"
 service_type = "monitoring"
 status = "ready"
 
-[upstream_access_interfaces."Monitor API"]
+[upstream_access_config."Monitor API"]
 access_method = "http"
 base_url = "https://monitor.example.com/api/v1"
 api_key = "${ secrets.MONITOR_API_KEY }"
@@ -480,7 +480,7 @@ A recurrent BYOK service (e.g., scheduled AI summarization using the customer's 
 
 ```toml
 # offering.toml
-[upstream_access_interfaces."Provider API"]
+[upstream_access_config."Provider API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 api_key = "${ customer_secrets.OPENAI_API_KEY }"

@@ -769,7 +769,7 @@ Composite pricing types can be nested for complex scenarios:
         "context_window": 128000,
         "max_output_tokens": 4096
     },
-    "upstream_access_interfaces": {
+    "upstream_access_config": {
         "OpenAI Chat API": {
             "access_method": "http",
             "base_url": "https://api.openai.com/v1/chat/completions"
@@ -796,7 +796,7 @@ service_type = "audio_transcription"
 currency = "USD"
 time_created = "2024-01-15T10:00:00Z"
 
-[upstream_access_interfaces."OpenAI Audio API"]
+[upstream_access_config."OpenAI Audio API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1/audio/transcriptions"
 
@@ -848,7 +848,7 @@ description = "Premium access with priority support"
         "max_resolution": "2048x2048",
         "supported_formats": ["PNG", "JPEG", "WEBP"]
     },
-    "upstream_access_interfaces": {
+    "upstream_access_config": {
         "Image Generation API": {
             "access_method": "http",
             "base_url": "https://api.provider.com/v1/images/generate"

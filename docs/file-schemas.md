@@ -155,7 +155,7 @@ Service files define the service offering from the upstream provider's perspecti
 | `schema`                     | string                      | Must be `"offering_v1"`                                                                                                                                                           |
 | `name`                       | string                      | Service identifier (must match directory name, allows slashes for hierarchy)                                                                                                      |
 | `service_type`               | enum                        | Service category (see [ServiceTypeEnum values](#servicetype-enum-values))                                                                                                         |
-| `upstream_access_interfaces` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name. Supports Jinja2 templates (e.g. `{{ enrollment_code(6) }}`); expanded at gateway routing time using enrollment context. |
+| `upstream_access_config` | dict of AccessInterfaceData | How to access upstream services, keyed by interface name. Supports Jinja2 templates (e.g. `{{ enrollment_code(6) }}`); expanded at gateway routing time using enrollment context. |
 | `time_created`               | datetime (ISO 8601)         | Timestamp when offering was created                                                                                                                                               |
 
 ### Optional Fields
@@ -225,7 +225,7 @@ max_output_tokens = 4096
 supports_function_calling = true
 supports_vision = true
 
-[upstream_access_interfaces."OpenAI API"]
+[upstream_access_config."OpenAI API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 
@@ -351,6 +351,19 @@ user_id = "{{ enrollment_code(6) }}"
 - `draft` - Work in progress, skipped during upload (default)
 - `ready` - Ready for admin review and testing
 - `deprecated` - No longer offered to new customers
+
+### Gateway Base URL
+
+The `base_url` field in `user_access_interfaces` uses a `${..._GATEWAY_BASE_URL}` placeholder that the platform resolves at runtime. UnitySVC provides multiple protocol-specific gateways, each with its own base URL:
+
+| Gateway | Placeholder | Protocol | Example URL |
+| ------- | ----------- | -------- | ----------- |
+| API Gateway (APISIX) | `${API_GATEWAY_BASE_URL}` | HTTP/HTTPS | `https://api.unitysvc.com` |
+| S3 Gateway | `${S3_GATEWAY_BASE_URL}` | S3 API | `https://s3.unitysvc.com` |
+| SMTP Gateway | `${SMTP_GATEWAY_BASE_URL}` | SMTP | `smtp://smtp.unitysvc.com:587` |
+| SSH Gateway | `${SSH_GATEWAY_BASE_URL}` | SSH | `ssh://ssh.unitysvc.com:22` |
+
+Use the placeholder that matches the `access_method` of your service. Most services use the HTTP API gateway (`${API_GATEWAY_BASE_URL}`).
 
 ### Example (TOML)
 
@@ -632,7 +645,7 @@ The `${ secrets.XXX }` syntax is used in both seller and customer contexts. The 
 | Location | Who provides | Example |
 |----------|-------------|---------|
 | `user_access_interfaces.*.api_key` | **Customer** (BYOK) | `${ secrets.GROQ_API_KEY }` |
-| `upstream_access_interfaces.*.api_key` | **Seller** | `${ secrets.PROVIDER_KEY }` |
+| `upstream_access_config.*.api_key` | **Seller** | `${ secrets.PROVIDER_KEY }` |
 | `service_options.ops_testing_parameters` | **Seller** (for testing) | `${ secrets.TEST_KEY }` |
 | `request_transformer` values | **Seller** | `${ secrets.AUTH_TOKEN }` |
 
@@ -675,7 +688,7 @@ The `AccessInterfaceData` object defines how to access a service (used in offeri
 
 #### Jinja2 Template Values
 
-String values in `user_access_interfaces` and `upstream_access_interfaces` can use **Jinja2 template syntax** for dynamic rendering at enrollment time. Templates are rendered with an enrollment context that includes enrollment parameters, customer ID, and enrollment ID.
+String values in `user_access_interfaces` and `upstream_access_config` can use **Jinja2 template syntax** for dynamic rendering at enrollment time. Templates are rendered with an enrollment context that includes enrollment parameters, customer ID, and enrollment ID.
 
 **Template context variables:**
 
@@ -691,12 +704,12 @@ String values in `user_access_interfaces` and `upstream_access_interfaces` can u
 | --------------------------- | ------- | -------------------------------------------------------------- |
 | `enrollment_code(length=6)` | string  | Create or retrieve a random code tied to a specific enrollment |
 
-The `enrollment_code` function is idempotent — calling it multiple times for the same enrollment returns the same code. The code is persisted in the `action_code` table and can be referenced from both `user_access_interfaces` and `upstream_access_interfaces` templates.
+The `enrollment_code` function is idempotent — calling it multiple times for the same enrollment returns the same code. The code is persisted in the `action_code` table and can be referenced from both `user_access_interfaces` and `upstream_access_config` templates.
 
 **Behavior:**
 
 - `user_access_interfaces`: templates are rendered at **enrollment time**, creating enrollment-scoped `AccessInterface` records
-- `upstream_access_interfaces`: templates are rendered at **gateway routing time**, using the enrollment context to resolve the upstream target per-request (no enrollment-scoped records are created)
+- `upstream_access_config`: templates are rendered at **gateway routing time**, using the enrollment context to resolve the upstream target per-request (no enrollment-scoped records are created)
 - Interfaces without template syntax are treated as static and shared across enrollments (listing-scoped)
 - On template rendering errors, the original string value is preserved
 
@@ -731,7 +744,7 @@ The corresponding upstream interface in the offering can reference the same `enr
 
 ```json
 {
-    "upstream_access_interfaces": {
+    "upstream_access_config": {
         "ntfy-upstream": {
             "access_method": "http",
             "base_url": "https://ntfy.svcpass.com/{{ enrollment_code(6) }}",
@@ -952,7 +965,7 @@ ${ secrets.MY_PROVIDER_KEY }
 
 The following fields require secrets references (plain text API keys are not allowed):
 
-- `upstream_access_interfaces.<name>.api_key` - API keys for upstream provider access
+- `upstream_access_config.<name>.api_key` - API keys for upstream provider access
 - `user_access_interfaces.<name>.api_key` - API keys for user-facing interfaces
 - `service_options.ops_testing_parameters.api_key` - Ops testing API key parameters
 
@@ -961,7 +974,7 @@ The following fields require secrets references (plain text API keys are not all
 **TOML:**
 
 ```toml
-[upstream_access_interfaces."OpenAI API"]
+[upstream_access_config."OpenAI API"]
 access_method = "http"
 base_url = "https://api.openai.com/v1"
 api_key = "${ secrets.OPENAI_API_KEY }"
@@ -971,7 +984,7 @@ api_key = "${ secrets.OPENAI_API_KEY }"
 
 ```json
 {
-    "upstream_access_interfaces": {
+    "upstream_access_config": {
         "OpenAI API": {
             "access_method": "http",
             "base_url": "https://api.openai.com/v1",

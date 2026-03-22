@@ -92,7 +92,7 @@ class ServiceOfferingData(BaseModel):
     )
 
     # Access interfaces (keyed by name)
-    upstream_access_interfaces: dict[str, dict[str, Any]] | None = Field(
+    upstream_access_config: dict[str, dict[str, Any]] | None = Field(
         default=None,
         description="Upstream access interfaces, keyed by name",
     )

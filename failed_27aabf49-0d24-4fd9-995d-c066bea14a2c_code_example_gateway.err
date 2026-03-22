@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/var/folders/3t/6zn56c697wnc1fcm0w9fkjk40000gn/T/tmplaglg0ze.py", line 7, in <module>
+    enrollment_code = os.environ["ENROLLMENT_CODE"]
+                      ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 714, in __getitem__
+KeyError: 'ENROLLMENT_CODE'
