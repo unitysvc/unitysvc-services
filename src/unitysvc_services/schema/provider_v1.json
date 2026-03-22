@@ -32,6 +32,10 @@
       "additionalProperties": false,
       "description": "Document data for SDK/API payloads.\n\nNote: The document title is NOT stored here - it's the key in the documents dict.\nWhen stored in the database, the backend extracts the key as the title field.",
       "properties": {
+        "category": {
+          "$ref": "#/$defs/DocumentCategoryEnum",
+          "description": "Document category for organization and filtering"
+        },
         "description": {
           "anyOf": [
             {
@@ -45,56 +49,6 @@
           "default": null,
           "description": "Document description",
           "title": "Description"
-        },
-        "mime_type": {
-          "$ref": "#/$defs/MimeTypeEnum",
-          "description": "Document MIME type"
-        },
-        "version": {
-          "anyOf": [
-            {
-              "maxLength": 50,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Document version",
-          "title": "Version"
-        },
-        "category": {
-          "$ref": "#/$defs/DocumentCategoryEnum",
-          "description": "Document category for organization and filtering"
-        },
-        "meta": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "JSON containing operation stats",
-          "title": "Meta"
-        },
-        "file_path": {
-          "anyOf": [
-            {
-              "maxLength": 1000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Path to file to upload (mutually exclusive with external_url)",
-          "title": "File Path"
         },
         "external_url": {
           "anyOf": [
@@ -110,11 +64,19 @@
           "description": "External URL for the document (mutually exclusive with object_key)",
           "title": "External Url"
         },
-        "sort_order": {
-          "default": 0,
-          "description": "Sort order within category",
-          "title": "Sort Order",
-          "type": "integer"
+        "file_path": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Path to file to upload (mutually exclusive with external_url)",
+          "title": "File Path"
         },
         "is_active": {
           "default": true,
@@ -127,6 +89,44 @@
           "description": "Whether document is publicly accessible without authentication",
           "title": "Is Public",
           "type": "boolean"
+        },
+        "meta": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "JSON containing operation stats",
+          "title": "Meta"
+        },
+        "mime_type": {
+          "$ref": "#/$defs/MimeTypeEnum",
+          "description": "Document MIME type"
+        },
+        "sort_order": {
+          "default": 0,
+          "description": "Sort order within category",
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 50,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Document version",
+          "title": "Version"
         }
       },
       "required": [
@@ -187,6 +187,20 @@
           "description": "Command to execute for populating services (string or list of arguments). Comment out to disable.",
           "title": "Command"
         },
+        "envs": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Environment variables to set when executing the command (values converted to strings)",
+          "title": "Envs"
+        },
         "requirements": {
           "anyOf": [
             {
@@ -202,20 +216,6 @@
           "default": null,
           "description": "Python packages to install before executing the command (e.g., ['any-llm-sdk[anthropic]'])",
           "title": "Requirements"
-        },
-        "envs": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Environment variables to set when executing the command (values converted to strings)",
-          "title": "Envs"
         }
       },
       "title": "ServicesPopulator",
@@ -225,53 +225,10 @@
   "additionalProperties": false,
   "description": "Provider information for service providers (provider_v1 schema).\n\nExtends ProviderData with:\n- schema_version: Schema identifier for file validation\n- time_created: Timestamp for file creation\n- services_populator: How to automatically populate service data (with envs)\n- logo, terms_of_service: Convenience fields (converted to documents during import)\n- Typed Document model instead of dict for file validation\n- Field validators for name format",
   "properties": {
-    "name": {
-      "description": "Unique provider identifier (URL-friendly, e.g., 'fireworks', 'anthropic')",
-      "maxLength": 100,
-      "minLength": 2,
-      "title": "Name",
-      "type": "string"
-    },
-    "display_name": {
-      "anyOf": [
-        {
-          "maxLength": 200,
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Human-readable provider name (e.g., 'Fireworks AI', 'Anthropic')",
-      "title": "Display Name"
-    },
     "contact_email": {
       "description": "Primary contact email for the provider",
       "format": "email",
       "title": "Contact Email",
-      "type": "string"
-    },
-    "secondary_contact_email": {
-      "anyOf": [
-        {
-          "format": "email",
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null,
-      "description": "Secondary contact email",
-      "title": "Secondary Contact Email"
-    },
-    "homepage": {
-      "description": "Provider's homepage URL",
-      "format": "uri",
-      "maxLength": 2083,
-      "minLength": 1,
-      "title": "Homepage",
       "type": "string"
     },
     "description": {
@@ -287,10 +244,19 @@
       "description": "Brief description of the provider",
       "title": "Description"
     },
-    "status": {
-      "$ref": "#/$defs/ProviderStatusEnum",
-      "default": "draft",
-      "description": "Provider status: draft (skip publish), ready (for review), or deprecated (retired)"
+    "display_name": {
+      "anyOf": [
+        {
+          "maxLength": 200,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Human-readable provider name (e.g., 'Fireworks AI', 'Anthropic')",
+      "title": "Display Name"
     },
     "documents": {
       "anyOf": [
@@ -308,27 +274,13 @@
       "description": "Documents associated with the provider, keyed by title (e.g. logo)",
       "title": "Documents"
     },
-    "schema": {
-      "default": "provider_v1",
-      "description": "Schema identifier",
-      "title": "Schema",
+    "homepage": {
+      "description": "Provider's homepage URL",
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Homepage",
       "type": "string"
-    },
-    "time_created": {
-      "format": "date-time",
-      "title": "Time Created",
-      "type": "string"
-    },
-    "services_populator": {
-      "anyOf": [
-        {
-          "$ref": "#/$defs/ServicesPopulator"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "default": null
     },
     "logo": {
       "anyOf": [
@@ -348,6 +300,49 @@
       "default": null,
       "title": "Logo"
     },
+    "name": {
+      "description": "Unique provider identifier (URL-friendly, e.g., 'fireworks', 'anthropic')",
+      "maxLength": 100,
+      "minLength": 2,
+      "title": "Name",
+      "type": "string"
+    },
+    "schema": {
+      "default": "provider_v1",
+      "description": "Schema identifier",
+      "title": "Schema",
+      "type": "string"
+    },
+    "secondary_contact_email": {
+      "anyOf": [
+        {
+          "format": "email",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Secondary contact email",
+      "title": "Secondary Contact Email"
+    },
+    "services_populator": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ServicesPopulator"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "status": {
+      "$ref": "#/$defs/ProviderStatusEnum",
+      "default": "draft",
+      "description": "Provider status: draft (skip publish), ready (for review), or deprecated (retired)"
+    },
     "terms_of_service": {
       "anyOf": [
         {
@@ -366,6 +361,11 @@
       "default": null,
       "description": "Either a path to a .md file or a URL to terms of service",
       "title": "Terms Of Service"
+    },
+    "time_created": {
+      "format": "date-time",
+      "title": "Time Created",
+      "type": "string"
     }
   },
   "required": [
