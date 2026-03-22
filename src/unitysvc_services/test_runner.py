@@ -764,24 +764,29 @@ def run_test(
                 if result["status"] != "success":
                     filename = doc.get("filename", "")
                     script_stem = os.path.splitext(filename)[0] if filename else doc.get("id", "unknown")[:8]
+                    script_ext = os.path.splitext(filename)[1] if filename else ""
                     safe_iface = iface_name.replace(" ", "_").replace("/", "_")
+                    # Include extension in base_name to avoid collisions between
+                    # e.g. code-example.py and code-example.js (.err/.out/.env files)
                     base_name = f"failed_{resolved_service_id}_{script_stem}_{safe_iface}"
                     if result.get("file_content"):
-                        ext = os.path.splitext(filename)[1] if filename else ""
-                        script_name = f"{base_name}{ext}"
+                        script_name = f"{base_name}{script_ext}"
                         with open(script_name, "w") as f:
                             f.write(result["file_content"])
                         os.chmod(script_name, 0o755)
                         out.print(f"  [dim]script: {script_name}[/dim]")
+                    # Use script_name (with extension) as base for output files
+                    # to avoid collisions (e.g., code-example.py vs code-example.js)
+                    output_base = f"{base_name}{script_ext}" if script_ext else base_name
                     if result.get("stdout"):
-                        with open(f"{base_name}.out", "w") as f:
+                        with open(f"{output_base}.out", "w") as f:
                             f.write(result["stdout"])
-                        out.print(f"  [dim]stdout: {base_name}.out[/dim]")
+                        out.print(f"  [dim]stdout: {output_base}.out[/dim]")
                     if result.get("stderr"):
-                        with open(f"{base_name}.err", "w") as f:
+                        with open(f"{output_base}.err", "w") as f:
                             f.write(result["stderr"])
-                        out.print(f"  [dim]stderr: {base_name}.err[/dim]")
-                    env_path = f"{base_name}.env"
+                        out.print(f"  [dim]stderr: {output_base}.err[/dim]")
+                    env_path = f"{output_base}.env"
                     with open(env_path, "w") as f:
                         f.write(f"SERVICE_BASE_URL={resolved_url}\n")
                         f.write(f"UNITYSVC_API_KEY={os.environ.get('UNITYSVC_API_KEY', '')}\n")
