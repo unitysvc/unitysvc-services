@@ -402,19 +402,37 @@ class ModelDataLookup:
     # pipeline_tag is HuggingFace's standardized task taxonomy:
     # https://huggingface.co/docs/hub/en/models-tasks
     PIPELINE_EXAMPLE_SUFFIX: dict[str, str] = {
+        # NLP / text tasks → chat completion template
         "text-generation": "",
         "text2text-generation": "",
         "conversational": "",
+        "fill-mask": "",
+        "text-classification": "",
+        "token-classification": "",
+        "question-answering": "",
+        "summarization": "",
+        "translation": "",
+        "zero-shot-classification": "",
+        "document-question-answering": "",
+        # Embedding / similarity → sentence transformers template
         "feature-extraction": "-sentencetransformers",
         "sentence-similarity": "-sentencetransformers",
+        # Image generation → image template
         "text-to-image": "-image",
+        "unconditional-image-generation": "-image",
+        # Image-to-image → imagetoimage template
         "image-to-image": "-imagetoimage",
+        # Vision → chat template (no dedicated vision template yet)
         "image-to-text": "",
         "image-text-to-text": "",
         "visual-question-answering": "",
+        "image-classification": "",
+        "zero-shot-image-classification": "",
+        # Audio → speech templates
         "automatic-speech-recognition": "-prerecordedtranscription",
         "text-to-speech": "-tts",
         "text-to-audio": "-tts",
+        # Video → text-to-video template
         "text-to-video": "-ttv",
         "image-to-video": "-ttv",
     }
