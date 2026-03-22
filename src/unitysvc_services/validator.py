@@ -833,10 +833,10 @@ def validate(
         from .utils import find_files_by_schema
 
         listing_files = find_files_by_schema(data_dir, "listing_v1")
-        for file_path, _fmt, data in listing_files:
+        for listing_path, _fmt, data in listing_files:
             if not data.get("service_id"):
                 validation_errors.append(
-                    f"{file_path}: Missing service_id (run 'usvc data upload' first to generate override file)"
+                    f"{listing_path}: Missing service_id (run 'usvc data upload' first to generate override file)"
                 )
 
     if validation_errors:
