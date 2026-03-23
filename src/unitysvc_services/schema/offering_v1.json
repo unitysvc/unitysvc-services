@@ -1283,21 +1283,19 @@
       "type": "object"
     },
     "ServiceTypeEnum": {
+      "description": "Broad service category — defines the access pattern and protocol.\n\nAI modalities (vision, tools, rerank, etc.) are tracked via the\n`capabilities` list on ServiceOffering, not service_type.",
       "enum": [
         "llm",
         "embedding",
-        "rerank",
         "image_generation",
-        "streaming_transcription",
-        "prerecorded_transcription",
-        "prerecorded_translation",
-        "vision_language_model",
-        "speech_to_text",
-        "text_to_speech",
-        "video_generation",
-        "text_to_image",
-        "undetermined",
-        "text_to_3d"
+        "notification",
+        "email",
+        "content",
+        "streaming",
+        "compute",
+        "database",
+        "monitoring",
+        "analytics"
       ],
       "title": "ServiceTypeEnum",
       "type": "string"

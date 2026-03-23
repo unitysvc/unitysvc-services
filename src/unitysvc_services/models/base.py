@@ -1135,9 +1135,6 @@ class ServiceTypeEnum(StrEnum):
     monitoring = "monitoring"  # Uptime checks, health monitoring
     analytics = "analytics"  # Recommendation, anomaly detection, forecasting
 
-    # === Scheduling services ===
-    scheduled_task = "scheduled_task"  # Cron jobs, recurrent tasks
-
 
 class TagEnum(StrEnum):
     """
