@@ -1124,7 +1124,8 @@ class ServiceTypeEnum(StrEnum):
     email = "email"  # Email delivery (SMTP gateway)
 
     # === Content services ===
-    content = "content"  # Media libraries, datasets, file downloads
+    content = "content"  # Downloadable files, datasets, images, software
+    streaming = "streaming"  # Video, audio, live feeds (persistent connection)
 
     # === Compute services ===
     compute = "compute"  # GPU instances, dev environments (SSH/WireGuard)
