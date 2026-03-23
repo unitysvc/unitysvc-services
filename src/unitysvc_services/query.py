@@ -287,6 +287,9 @@ def show_service(
                 offering_table.add_row("Display Name", str(offering.get("display_name", "N/A")))
                 offering_table.add_row("Service Type", str(offering.get("service_type", "N/A")))
                 offering_table.add_row("Status", str(offering.get("status", "N/A")))
+                capabilities = offering.get("capabilities")
+                if capabilities:
+                    offering_table.add_row("Capabilities", ", ".join(capabilities))
                 if offering.get("tagline"):
                     offering_table.add_row("Tagline", str(offering["tagline"]))
                 if offering.get("payout_price"):
