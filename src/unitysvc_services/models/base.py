@@ -1108,34 +1108,47 @@ class RequestTransformEnum(StrEnum):
 
 
 class ServiceTypeEnum(StrEnum):
-    llm = "llm"
-    # generate embedding from texts
-    embedding = "embedding"
-    # rerank documents by relevance
+    """Broad service category — defines the access pattern and protocol.
+
+    AI modalities (vision, tools, rerank, etc.) are tracked via the
+    `capabilities` list on ServiceOffering, not service_type.
+    """
+
+    # === AI / ML services (HTTP API) ===
+    llm = "llm"  # Language models, chat completions
+    embedding = "embedding"  # Text/vector embedding
+    image_generation = "image_generation"  # Image creation/editing
+
+    # === Communication services ===
+    notification = "notification"  # Push notifications (HTTP)
+    email = "email"  # Email delivery (SMTP gateway)
+
+    # === Content services ===
+    content = "content"  # Media libraries, datasets, file downloads
+
+    # === Compute services ===
+    compute = "compute"  # GPU instances, dev environments (SSH/WireGuard)
+
+    # === Infrastructure services ===
+    database = "database"  # Managed DB/cache access (SSH tunnel)
+    monitoring = "monitoring"  # Uptime checks, health monitoring
+    recommendation = "recommendation"  # Recommendation engines
+
+    # === Scheduling services ===
+    scheduled_task = "scheduled_task"  # Cron jobs, recurrent tasks
+
+    # === Legacy types (backward compatibility with existing data) ===
     rerank = "rerank"
-    # generation of images from prompts
-    image_generation = "image_generation"
-    # streaming trancription needs websocket connection forwarding, and cannot
-    # be provided for now.
     streaming_transcription = "streaming_transcription"
-    # prerecorded transcription
     prerecorded_transcription = "prerecorded_transcription"
-    # prerecorded translation
     prerecorded_translation = "prerecorded_translation"
-    # describe images
     vision_language_model = "vision_language_model"
-    #
     speech_to_text = "speech_to_text"
-    #
     text_to_speech = "text_to_speech"
-    #
     video_generation = "video_generation"
-    #
     text_to_image = "text_to_image"
-    #
-    undetermined = "undetermined"
-    #
     text_to_3d = "text_to_3d"
+    undetermined = "undetermined"
 
 
 class TagEnum(StrEnum):
