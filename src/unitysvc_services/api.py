@@ -520,10 +520,10 @@ class UnitySvcAPI:
             self.use_curl_fallback = True
             return await self._make_patch_request_curl(endpoint, json_data, params)
 
-    async def check_task(self, task_id: str, poll_interval: float = 2.0, timeout: float = 300.0) -> dict[str, Any]:
+    async def check_task(self, task_id: str, poll_interval: float = 2.0, timeout: float = 600.0) -> dict[str, Any]:
         """Check and wait for task completion (async version).
 
-        Utility function to poll a Celery task until it completes or times out.
+        Utility function to poll a Celery task until it completes or times out (10 min).
         Uses the async HTTP client with curl fallback.
 
         Args:
