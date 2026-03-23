@@ -1135,24 +1135,8 @@ class ServiceTypeEnum(StrEnum):
     monitoring = "monitoring"  # Uptime checks, health monitoring
     analytics = "analytics"  # Recommendation, anomaly detection, forecasting
 
-    # Legacy alias (kept for backward compatibility)
-    recommendation = "recommendation"
-
     # === Scheduling services ===
     scheduled_task = "scheduled_task"  # Cron jobs, recurrent tasks
-
-    # === Legacy types (backward compatibility with existing data) ===
-    rerank = "rerank"
-    streaming_transcription = "streaming_transcription"
-    prerecorded_transcription = "prerecorded_transcription"
-    prerecorded_translation = "prerecorded_translation"
-    vision_language_model = "vision_language_model"
-    speech_to_text = "speech_to_text"
-    text_to_speech = "text_to_speech"
-    video_generation = "video_generation"
-    text_to_image = "text_to_image"
-    text_to_3d = "text_to_3d"
-    undetermined = "undetermined"
 
 
 class TagEnum(StrEnum):
