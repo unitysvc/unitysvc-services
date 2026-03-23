@@ -85,12 +85,15 @@ class ServiceLifecycleAPI(UnitySvcAPI):
         self,
         service_id: str,
         status: str,
+        run_tests: bool = True,
     ) -> dict[str, Any]:
         """Update a service's status.
 
         Args:
             service_id: UUID of the service to update
             status: New status (e.g., "deprecated", "active", "suspended", "pending", "draft")
+            run_tests: Whether to trigger server-side tests (default True).
+                Set to False to change status without running tests.
 
         Returns:
             Response from backend with update details
@@ -98,7 +101,10 @@ class ServiceLifecycleAPI(UnitySvcAPI):
         Raises:
             httpx.HTTPStatusError: If update fails (404, 403, etc.)
         """
-        return await self.patch(f"/seller/services/{service_id}", json_data={"status": status})
+        data: dict[str, Any] = {"status": status}
+        if not run_tests:
+            data["run_tests"] = False
+        return await self.patch(f"/seller/services/{service_id}", json_data=data)
 
     async def dedup_services(self) -> dict[str, Any]:
         """Remove duplicate draft services.
@@ -253,6 +259,14 @@ def submit_service(
         "-y",
         help="Skip confirmation prompt",
     ),
+    no_test: bool = typer.Option(
+        False,
+        "--no-test",
+        help="Submit without running server-side tests. Use this to temporarily "
+        "set services to 'pending' so they are testable by external scripts "
+        "(e.g. 'usvc services run-tests'). Withdraw with 'usvc services withdraw' "
+        "when done to return services to draft.",
+    ),
 ):
     """Submit one or more services for review (draft → pending).
 
@@ -276,6 +290,11 @@ def submit_service(
 
         # Skip confirmation
         usvc services submit 297040cd --yes
+
+        # Submit without tests (for external testing, withdraw when done)
+        usvc services submit 297040cd --no-test
+        usvc services run-tests 297040cd    # run external tests
+        usvc services withdraw 297040cd     # return to draft
     """
     # Validate --provider usage
     if provider and not all_drafts:
@@ -318,7 +337,9 @@ def submit_service(
         results = []
         for service_id in service_ids:
             try:
-                result = await api.update_service_status(service_id, status="pending")
+                result = await api.update_service_status(
+                    service_id, status="pending", run_tests=not no_test
+                )
                 results.append((service_id, result, None))
             except Exception as e:
                 results.append((service_id, None, str(e)))
