@@ -1133,7 +1133,10 @@ class ServiceTypeEnum(StrEnum):
     # === Infrastructure services ===
     database = "database"  # Managed DB/cache access (SSH tunnel)
     monitoring = "monitoring"  # Uptime checks, health monitoring
-    recommendation = "recommendation"  # Recommendation engines
+    analytics = "analytics"  # Recommendation, anomaly detection, forecasting
+
+    # Legacy alias (kept for backward compatibility)
+    recommendation = "recommendation"
 
     # === Scheduling services ===
     scheduled_task = "scheduled_task"  # Cron jobs, recurrent tasks
