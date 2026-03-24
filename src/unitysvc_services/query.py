@@ -324,7 +324,7 @@ def show_service(
 
                 svc_options = listing.get("service_options") or {}
                 enrollment_vars = svc_options.get("enrollment_vars", {})
-                has_required_params = bool(listing.get("parameters_schema", {}).get("required"))
+                has_required_params = bool((listing.get("parameters_schema") or {}).get("required"))
                 listing_table.add_row("Enrollment Required", str(has_required_params or bool(enrollment_vars)))
 
                 # Collect customer secrets from user_access_interfaces
