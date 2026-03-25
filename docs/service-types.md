@@ -125,7 +125,7 @@ The platform triggers requests on a schedule. Recurrence is orthogonal to delive
 
 ```toml
 [service_options]
-recurrence_enabled = true
+prompt_recurrence = true
 recurrence_min_interval_seconds = 300    # minimum 5 minutes
 recurrence_max_interval_seconds = 86400  # maximum 1 day
 recurrence_allow_cron = true
@@ -133,7 +133,7 @@ recurrence_allow_cron = true
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `recurrence_enabled` | bool | `false` | Enable scheduled execution |
+| `prompt_recurrence` | bool | `false` | Enable scheduled execution |
 | `recurrence_min_interval_seconds` | int | `60` | Minimum interval |
 | `recurrence_max_interval_seconds` | int | `604800` | Maximum interval (7 days) |
 | `recurrence_allow_cron` | bool | `true` | Allow cron expressions |
@@ -177,7 +177,7 @@ See [User Access Interface Templates](tech-notes/user-access-interface-template.
 |-----------|-----|
 | `user_parameters_schema` is non-empty | Customer must provide configuration |
 | `enrollment_vars` is non-empty | Per-enrollment URL templating |
-| `recurrence_enabled` is true | Per-enrollment schedule |
+| `prompt_recurrence` is true | Per-enrollment schedule |
 | Subscription pricing | Heartbeat linked to enrollment lifecycle |
 
 Conditions that do **not** require enrollment:
