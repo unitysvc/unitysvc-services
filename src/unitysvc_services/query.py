@@ -249,6 +249,8 @@ def show_service(
             if service.get("status_message"):
                 id_table.add_row("Status Message", str(service["status_message"]))
             id_table.add_row("Seller Name", str(service.get("provider_name", "N/A")))
+            if service.get("routing_vars"):
+                id_table.add_row("Routing Vars", json.dumps(service["routing_vars"]))
 
             console.print(id_table)
 
