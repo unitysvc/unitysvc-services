@@ -8,6 +8,7 @@ from .lifecycle import (
     delete_service,
     deprecate_service,
     submit_service,
+    update_service,
     withdraw_service,
 )
 from .query import show_service
@@ -35,6 +36,9 @@ app.command("delete")(delete_service)
 
 # dedup removes duplicate draft services
 app.command("dedup")(dedup_services)
+
+# update live service properties (routing vars, runtime stats, etc.)
+app.command("update")(update_service)
 
 # test commands - hyphenated for clarity (verb-noun)
 app.command("list-tests")(test_runner.list_tests)

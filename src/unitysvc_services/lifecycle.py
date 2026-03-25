@@ -1,6 +1,7 @@
 """Service lifecycle module for managing service status on UnitySVC backend."""
 
 import asyncio
+import json
 from typing import Any
 
 import typer
@@ -702,3 +703,82 @@ def delete_service(
             raise typer.Exit(code=1)
     elif dryrun:
         console.print("\n[yellow]Dry-run mode: No actual deletion performed[/yellow]")
+
+
+def update_service(
+    service_id: str = typer.Argument(..., help="Service ID (supports partial IDs)"),
+    set_routing_var: list[str] = typer.Option(
+        None,
+        "--set-routing-var",
+        help="Set routing var as key=value (repeatable)",
+    ),
+    remove_routing_var: list[str] = typer.Option(
+        None,
+        "--remove-routing-var",
+        help="Remove routing var by key (repeatable)",
+    ),
+    load_routing_vars: str = typer.Option(
+        None,
+        "--load-routing-vars",
+        help="Load routing vars from a JSON file (merged with --set-routing-var)",
+    ),
+) -> None:
+    """Update a live service (no approval needed).
+
+    Routing vars: the template is the security boundary — sellers can only
+    change values within the boundaries the admin-approved template defines.
+
+    Examples:
+        usvc services update myservice --set-routing-var code1=clients/smith
+        usvc services update myservice --remove-routing-var code1
+        usvc services update myservice --load-routing-vars vars.json
+    """
+    set_dict: dict[str, Any] = {}
+    remove_list: list[str] = list(remove_routing_var) if remove_routing_var else []
+
+    # Parse --set-routing-var key=value pairs
+    if set_routing_var:
+        for item in set_routing_var:
+            if "=" not in item:
+                console.print(f"[red]Error:[/red] Invalid --set-routing-var format: '{item}' (expected key=value)")
+                raise typer.Exit(code=1)
+            key, value = item.split("=", 1)
+            set_dict[key] = value
+
+    # Load from JSON file
+    if load_routing_vars:
+        try:
+            with open(load_routing_vars, encoding="utf-8") as f:
+                loaded = json.load(f)
+            if not isinstance(loaded, dict):
+                console.print("[red]Error:[/red] JSON file must contain an object (dict)")
+                raise typer.Exit(code=1)
+            set_dict.update(loaded)
+        except (OSError, json.JSONDecodeError) as e:
+            console.print(f"[red]Error:[/red] Failed to load {load_routing_vars}: {e}")
+            raise typer.Exit(code=1)
+
+    if not set_dict and not remove_list:
+        console.print("[yellow]Nothing to do:[/yellow] provide --set-routing-var, --remove-routing-var, or --load-routing-vars")
+        raise typer.Exit(code=0)
+
+    body: dict[str, Any] = {}
+    if set_dict:
+        body["set"] = set_dict
+    if remove_list:
+        body["remove"] = remove_list
+
+    async def _update() -> dict[str, Any]:
+        api = UnitySvcAPI()
+        return await api.patch(f"/seller/services/{service_id}/routing-vars", json_data=body)
+
+    try:
+        result = asyncio.run(_update())
+        console.print(f"[green]✓[/green] routing_vars updated for service {result.get('id', service_id)}")
+        if result.get("routing_vars"):
+            console.print(json.dumps(result["routing_vars"], indent=2))
+        else:
+            console.print("[dim](empty)[/dim]")
+    except Exception as e:
+        console.print(f"[red]✗[/red] Failed to update routing_vars: {e}")
+        raise typer.Exit(code=1)
