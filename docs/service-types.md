@@ -133,7 +133,7 @@ recurrence_allow_cron = true
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `prompt_recurrence` | bool | `false` | Enable scheduled execution |
+| `prompt_recurrence` | bool | `false` | Prompt for recurrence parameters during enrollment |
 | `recurrence_min_interval_seconds` | int | `60` | Minimum interval |
 | `recurrence_max_interval_seconds` | int | `604800` | Maximum interval (7 days) |
 | `recurrence_allow_cron` | bool | `true` | Allow cron expressions |
