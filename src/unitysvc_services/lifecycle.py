@@ -715,7 +715,7 @@ def update_service(
     remove_routing_var: list[str] = typer.Option(
         None,
         "--remove-routing-var",
-        help="Remove a routing var by key (repeatable)",
+        help="Remove a routing var by key or dot-path for nested keys, e.g. users.alice (repeatable)",
     ),
     load_routing_vars: str = typer.Option(
         None,
@@ -742,6 +742,7 @@ def update_service(
         usvc services update myservice --set-routing-var count=42
         usvc services update myservice --set-routing-var '{"region": "us-east", "users": {"alice": "admin"}}'
         usvc services update myservice --remove-routing-var code1
+        usvc services update myservice --remove-routing-var users.alice
         usvc services update myservice --load-routing-vars vars.json
         usvc services update myservice --load-routing-vars vars.json --set-routing-var extra=val
     """
