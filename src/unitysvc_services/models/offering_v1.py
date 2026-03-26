@@ -4,9 +4,9 @@ from typing import Any
 from pydantic import ConfigDict, Field, HttpUrl, field_validator
 
 from .base import (
-    AccessInterfaceData,
     DocumentData,
     Pricing,
+    UpstreamAccessConfigData,
     validate_name,
 )
 from .offering_data import ServiceOfferingData
@@ -39,8 +39,9 @@ class OfferingV1(ServiceOfferingData):
         description="Service description",
     )
 
-    # Required in file for static information
+    # Static information (optional — not all service types have meaningful details)
     details: dict[str, Any] = Field(  # type: ignore[assignment]
+        default_factory=dict,
         description="Dictionary of static features and information",
     )
 
@@ -48,7 +49,7 @@ class OfferingV1(ServiceOfferingData):
     logo: str | HttpUrl | None = None
 
     # Override with typed models for file validation
-    upstream_access_config: dict[str, AccessInterfaceData] = Field(  # type: ignore[assignment]
+    upstream_access_config: dict[str, UpstreamAccessConfigData] = Field(  # type: ignore[assignment]
         description="Upstream access interfaces, keyed by name",
     )
 

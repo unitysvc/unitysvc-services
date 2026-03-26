@@ -1288,7 +1288,7 @@ class ServiceConstraints(BaseModel):
 
 
 class AccessInterfaceData(BaseModel):
-    """Access interface data for SDK/API payloads.
+    """User-facing access interface data (customer side).
 
     Note: The interface name is NOT stored here - it's the key in the interfaces dict.
     When stored in the database, the backend extracts the key as the name field.
@@ -1326,6 +1326,20 @@ class AccessInterfaceData(BaseModel):
     is_active: bool = Field(default=True, description="Whether interface is active")
     is_primary: bool = Field(default=False, description="Whether this is the primary interface")
     sort_order: int = Field(default=0, description="Display order")
+
+
+class UpstreamAccessConfigData(AccessInterfaceData):
+    """Upstream (seller-facing) access config data.
+
+    Extends AccessInterfaceData with extra="allow" to support protocol-specific
+    configuration fields (e.g., S3 bucket/region, SMTP host/port) that the
+    gateway needs to reach the upstream service.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    # base_url is optional for upstream configs (e.g., S3 uses bucket + region instead)
+    base_url: str | None = Field(default=None, max_length=500, description="Base URL for api access")  # type: ignore[assignment]
 
 
 def validate_name(name: str, entity_type: str, display_name: str | None = None, *, allow_slash: bool = False) -> str:
