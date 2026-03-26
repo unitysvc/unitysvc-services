@@ -710,39 +710,64 @@ def update_service(
     set_routing_var: list[str] = typer.Option(
         None,
         "--set-routing-var",
-        help="Set routing var as key=value (repeatable)",
+        help="Set routing var(s): key=value or JSON object '{...}'; values are JSON-decoded when possible (repeatable)",
     ),
     remove_routing_var: list[str] = typer.Option(
         None,
         "--remove-routing-var",
-        help="Remove routing var by key (repeatable)",
+        help="Remove a routing var by key (repeatable)",
     ),
     load_routing_vars: str = typer.Option(
         None,
         "--load-routing-vars",
-        help="Load routing vars from a JSON file (merged with --set-routing-var)",
+        help="Merge routing vars from a JSON file; combines with --set-routing-var",
     ),
 ) -> None:
     """Update a live service (no approval needed).
 
-    Routing vars: the template is the security boundary — sellers can only
-    change values within the boundaries the admin-approved template defines.
+    Routing vars let sellers change operational values within the boundaries
+    the admin-approved template defines. All operations merge with existing
+    vars — keys not mentioned are left unchanged.
+
+    To batch-edit, dump current vars with show --format json, edit the file,
+    and reload:
+
+        usvc services show myservice --format json | jq '.routing_vars' > vars.json
+        # edit vars.json
+        usvc services update myservice --load-routing-vars vars.json
 
     Examples:
         usvc services update myservice --set-routing-var code1=clients/smith
+        usvc services update myservice --set-routing-var k1=v1 --set-routing-var k2=v2
+        usvc services update myservice --set-routing-var count=42
+        usvc services update myservice --set-routing-var '{"region": "us-east", "users": {"alice": "admin"}}'
         usvc services update myservice --remove-routing-var code1
         usvc services update myservice --load-routing-vars vars.json
+        usvc services update myservice --load-routing-vars vars.json --set-routing-var extra=val
     """
     set_dict: dict[str, Any] = {}
     remove_list: list[str] = list(remove_routing_var) if remove_routing_var else []
 
-    # Parse --set-routing-var key=value pairs
+    # Parse --set-routing-var: try JSON object first, fall back to key=value.
+    # JSON object: '{"k1": "v1", "k2": 42}' sets multiple keys at once.
+    # key=value: value is JSON-decoded when possible, otherwise kept as string.
     if set_routing_var:
         for item in set_routing_var:
+            try:
+                parsed = json.loads(item)
+                if isinstance(parsed, dict):
+                    set_dict.update(parsed)
+                    continue
+            except (json.JSONDecodeError, ValueError):
+                pass
             if "=" not in item:
-                console.print(f"[red]Error:[/red] Invalid --set-routing-var format: '{item}' (expected key=value)")
+                console.print(f"[red]Error:[/red] Invalid --set-routing-var format: '{item}' (expected key=value or JSON object)")
                 raise typer.Exit(code=1)
-            key, value = item.split("=", 1)
+            key, raw = item.split("=", 1)
+            try:
+                value = json.loads(raw)
+            except (json.JSONDecodeError, ValueError):
+                value = raw
             set_dict[key] = value
 
     # Load from JSON file
