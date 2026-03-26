@@ -1416,6 +1416,7 @@ def validate_name(name: str, entity_type: str, display_name: str | None = None, 
 
 SUPPORTED_SERVICE_OPTIONS: dict[str, type | tuple[type, ...]] = {
     "enrollment_vars": dict,  # Named Jinja2 template values rendered per-enrollment
+    "routing_vars": dict,  # Seller-managed operational variables for template resolution at request time
     "enrollment_limit": int,
     "enrollment_limit_per_customer": int,
     "enrollment_limit_per_user": int,

@@ -399,7 +399,10 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_config", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
-        first_interface = expand_template_strings(first_interface, extra_context=rendered_vars)
+        first_interface = expand_template_strings(
+            first_interface,
+            extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
+        )
         api_key = first_interface.get("api_key")
         base_url = first_interface.get("base_url")
 
@@ -950,7 +953,10 @@ def run_local(
             k: resolve_secret_ref(str(v), f"enrollment_vars.{k}")
             for k, v in rendered_vars.items()
         }
-        iface = expand_template_strings(example.get("upstream_interface", {}), extra_context=rendered_vars)
+        iface = expand_template_strings(
+            example.get("upstream_interface", {}),
+            extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
+        )
         api_key = iface.get("api_key")
         base_url = iface.get("base_url")
         if base_url:
