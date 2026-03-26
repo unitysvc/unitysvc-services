@@ -38,6 +38,13 @@ jobs:
       - name: Type check with mypy
         run: |
           mypy src
+      - name: Check schemas are up to date
+        run: |
+          python scripts/update_schema.py
+          git diff --exit-code -- src/ || {
+            echo "::error::JSON schemas are out of date. Run 'python scripts/update_schema.py' and commit the changes."
+            exit 1
+          }
       - name: Run tests
         run: |
           pytest

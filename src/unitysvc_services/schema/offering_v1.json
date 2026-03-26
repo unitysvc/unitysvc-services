@@ -1,166 +1,5 @@
 {
   "$defs": {
-    "AccessInterfaceData": {
-      "additionalProperties": false,
-      "description": "Access interface data for SDK/API payloads.\n\nNote: The interface name is NOT stored here - it's the key in the interfaces dict.\nWhen stored in the database, the backend extracts the key as the name field.",
-      "properties": {
-        "access_method": {
-          "$ref": "#/$defs/AccessMethodEnum",
-          "default": "http",
-          "description": "Type of access method"
-        },
-        "api_key": {
-          "anyOf": [
-            {
-              "maxLength": 2000,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "API key if required",
-          "title": "Api Key"
-        },
-        "base_url": {
-          "description": "Base URL for api access",
-          "maxLength": 500,
-          "title": "Base Url",
-          "type": "string"
-        },
-        "constraints": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ServiceConstraints"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Service constraints and conditions"
-        },
-        "description": {
-          "anyOf": [
-            {
-              "maxLength": 500,
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Interface description",
-          "title": "Description"
-        },
-        "is_active": {
-          "default": true,
-          "description": "Whether interface is active",
-          "title": "Is Active",
-          "type": "boolean"
-        },
-        "is_primary": {
-          "default": false,
-          "description": "Whether this is the primary interface",
-          "title": "Is Primary",
-          "type": "boolean"
-        },
-        "rate_limits": {
-          "anyOf": [
-            {
-              "items": {
-                "$ref": "#/$defs/RateLimit"
-              },
-              "type": "array"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Rate limit",
-          "title": "Rate Limits"
-        },
-        "request_transformer": {
-          "anyOf": [
-            {
-              "additionalProperties": {
-                "anyOf": [
-                  {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "propertyNames": {
-                "$ref": "#/$defs/RequestTransformEnum"
-              },
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Request transformation configuration",
-          "title": "Request Transformer"
-        },
-        "response_rules": {
-          "anyOf": [
-            {
-              "additionalProperties": {
-                "anyOf": [
-                  {
-                    "additionalProperties": true,
-                    "type": "object"
-                  },
-                  {
-                    "type": "string"
-                  }
-                ]
-              },
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Response evaluation rules keyed by rule name. Values are either a rule dict or a Jinja2 template string. Validated by the backend.",
-          "title": "Response Rules"
-        },
-        "routing_key": {
-          "anyOf": [
-            {
-              "additionalProperties": true,
-              "type": "object"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
-          "title": "Routing Key"
-        },
-        "sort_order": {
-          "default": 0,
-          "description": "Display order",
-          "title": "Sort Order",
-          "type": "integer"
-        }
-      },
-      "required": [
-        "base_url"
-      ],
-      "title": "AccessInterfaceData",
-      "type": "object"
-    },
     "AccessMethodEnum": {
       "enum": [
         "http",
@@ -1348,18 +1187,6 @@
       "title": "StepPriceData",
       "type": "object"
     },
-    "TagEnum": {
-      "description": "Allowed enums, currently not enforced.",
-      "enum": [
-        "byok",
-        "byoe",
-        "ai",
-        "gateway",
-        "managed"
-      ],
-      "title": "TagEnum",
-      "type": "string"
-    },
     "TieredPriceData": {
       "additionalProperties": false,
       "description": "Volume-based tiered pricing where the tier determines price for ALL units.\n\nThe tier is determined by the `based_on` metric, and ALL units are priced\nat that tier's rate. `based_on` can be 'request_count', 'customer_charge',\nor any field from UsageData (e.g., 'input_tokens', 'seconds', 'count').\n\nExample (volume pricing - all units at same rate):\n    {\n        \"type\": \"tiered\",\n        \"based_on\": \"request_count\",\n        \"tiers\": [\n            {\"up_to\": 1000, \"price\": {\"type\": \"constant\", \"amount\": \"10.00\"}},\n            {\"up_to\": 10000, \"price\": {\"type\": \"constant\", \"amount\": \"80.00\"}},\n            {\"up_to\": null, \"price\": {\"type\": \"constant\", \"amount\": \"500.00\"}}\n        ]\n    }\nIf request_count is 5000, the price is $80.00 (falls in 1001-10000 tier).",
@@ -1581,6 +1408,172 @@
       },
       "title": "TokenPriceData",
       "type": "object"
+    },
+    "UpstreamAccessConfigData": {
+      "additionalProperties": true,
+      "description": "Upstream (seller-facing) access config data.\n\nExtends AccessInterfaceData with extra=\"allow\" to support protocol-specific\nconfiguration fields (e.g., S3 bucket/region, SMTP host/port) that the\ngateway needs to reach the upstream service.",
+      "properties": {
+        "access_method": {
+          "$ref": "#/$defs/AccessMethodEnum",
+          "default": "http",
+          "description": "Type of access method"
+        },
+        "api_key": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "API key if required",
+          "title": "Api Key"
+        },
+        "base_url": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Base URL for api access",
+          "title": "Base Url"
+        },
+        "constraints": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ServiceConstraints"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Service constraints and conditions"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Interface description",
+          "title": "Description"
+        },
+        "is_active": {
+          "default": true,
+          "description": "Whether interface is active",
+          "title": "Is Active",
+          "type": "boolean"
+        },
+        "is_primary": {
+          "default": false,
+          "description": "Whether this is the primary interface",
+          "title": "Is Primary",
+          "type": "boolean"
+        },
+        "rate_limits": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/RateLimit"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Rate limit",
+          "title": "Rate Limits"
+        },
+        "request_transformer": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "propertyNames": {
+                "$ref": "#/$defs/RequestTransformEnum"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Request transformation configuration",
+          "title": "Request Transformer"
+        },
+        "response_rules": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ]
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Response evaluation rules keyed by rule name. Values are either a rule dict or a Jinja2 template string. Validated by the backend.",
+          "title": "Response Rules"
+        },
+        "routing_key": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Request routing key for matching (e.g., {'model': 'gpt-4'})",
+          "title": "Routing Key"
+        },
+        "sort_order": {
+          "default": 0,
+          "description": "Display order",
+          "title": "Sort Order",
+          "type": "integer"
+        }
+      },
+      "title": "UpstreamAccessConfigData",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -1760,7 +1753,7 @@
       "anyOf": [
         {
           "items": {
-            "$ref": "#/$defs/TagEnum"
+            "type": "string"
           },
           "type": "array"
         },
@@ -1769,7 +1762,7 @@
         }
       ],
       "default": null,
-      "description": "List of tags for the service, e.g., 'byok' for bring your own API key",
+      "description": "List of tags for the service (arbitrary strings)",
       "title": "Tags"
     },
     "time_created": {
@@ -1779,7 +1772,7 @@
     },
     "upstream_access_config": {
       "additionalProperties": {
-        "$ref": "#/$defs/AccessInterfaceData"
+        "$ref": "#/$defs/UpstreamAccessConfigData"
       },
       "description": "Upstream access interfaces, keyed by name",
       "title": "Upstream Access Config",
@@ -1789,7 +1782,6 @@
   "required": [
     "name",
     "description",
-    "details",
     "upstream_access_config",
     "time_created"
   ],

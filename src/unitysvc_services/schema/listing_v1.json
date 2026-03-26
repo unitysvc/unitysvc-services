@@ -2,7 +2,7 @@
   "$defs": {
     "AccessInterfaceData": {
       "additionalProperties": false,
-      "description": "Access interface data for SDK/API payloads.\n\nNote: The interface name is NOT stored here - it's the key in the interfaces dict.\nWhen stored in the database, the backend extracts the key as the name field.",
+      "description": "User-facing access interface data (customer side).\n\nNote: The interface name is NOT stored here - it's the key in the interfaces dict.\nWhen stored in the database, the backend extracts the key as the name field.",
       "properties": {
         "access_method": {
           "$ref": "#/$defs/AccessMethodEnum",
