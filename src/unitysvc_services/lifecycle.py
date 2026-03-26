@@ -762,7 +762,10 @@ def update_service(
             except (json.JSONDecodeError, ValueError):
                 pass
             if "=" not in item:
-                console.print(f"[red]Error:[/red] Invalid --set-routing-var format: '{item}' (expected key=value or JSON object)")
+                console.print(
+                    f"[red]Error:[/red] Invalid --set-routing-var format: '{item}'"
+                    " (expected key=value or JSON object)"
+                )
                 raise typer.Exit(code=1)
             key, raw = item.split("=", 1)
             try:
@@ -785,7 +788,10 @@ def update_service(
             raise typer.Exit(code=1)
 
     if not set_dict and not remove_list:
-        console.print("[yellow]Nothing to do:[/yellow] provide --set-routing-var, --remove-routing-var, or --load-routing-vars")
+        console.print(
+            "[yellow]Nothing to do:[/yellow] provide --set-routing-var,"
+            " --remove-routing-var, or --load-routing-vars"
+        )
         raise typer.Exit(code=0)
 
     body: dict[str, Any] = {}
