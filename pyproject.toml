@@ -46,6 +46,9 @@ dev = [
   "mkdocs-autorefs",
   "pymdown-extensions",
 ]
+run-tests = [
+  "boto3",  # S3 service testing
+]
 docs = ["mkdocs", "mkdocs-material", "mkdocs-autorefs", "pymdown-extensions"]
 
 [project.urls]
