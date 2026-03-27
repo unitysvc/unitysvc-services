@@ -244,22 +244,8 @@ def discover_code_examples(
                     if field in default_params:
                         iface_data[field] = default_params[field]
 
-        # Validate that each upstream interface has a reachable endpoint
-        for iface_name, iface_data in upstream_interfaces.items():
-            if not (iface_data.get("base_url") or iface_data.get("s3_endpoint")):
-                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
-                raise ValueError(
-                    f"Upstream interface '{iface_name}' in {service_dir} is missing: "
-                    f"base_url or s3_endpoint. Add it to offering upstream_access_config "
-                    f"or listing service_options.ops_testing_parameters."
-                )
-            if not (iface_data.get("api_key") or iface_data.get("access_key")):
-                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
-                console.print(
-                    f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key or access_key. "
-                    f"If this service requires authentication, add credentials to offering "
-                    f"upstream_access_config or listing service_options.ops_testing_parameters.[/yellow]"
-                )
+        # upstream_access_config is protocol-specific (HTTP, S3, SMTP, etc.)
+        # — no structural validation here; the gateway handles interpretation.
 
         # Extract code examples × upstream interfaces
         for example in extract_code_examples_from_listing(listing_data, listing_file):
@@ -419,11 +405,17 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             elif val is not None:
                 credentials[field] = str(val)
 
-        # Ensure standard fields exist
-        if "base_url" not in credentials and "s3_endpoint" in credentials:
-            credentials["base_url"] = credentials["s3_endpoint"]
+        # Ensure base_url exists (derive from s3_endpoint or bucket+region)
+        if "base_url" not in credentials:
+            if "s3_endpoint" in credentials:
+                credentials["base_url"] = credentials["s3_endpoint"]
+            elif "bucket" in credentials and "region" in credentials:
+                # AWS S3: construct virtual-hosted URL
+                credentials["base_url"] = (
+                    f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
+                )
 
-        if credentials.get("base_url") or credentials.get("s3_endpoint"):
+        if credentials.get("base_url"):
             return credentials
     except typer.Exit:
         raise
