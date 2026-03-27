@@ -987,6 +987,8 @@ def run_local(
                 credentials[field] = str(val)
 
         base_url = credentials.get("base_url") or credentials.get("s3_endpoint")
+        if not base_url and credentials.get("bucket") and credentials.get("region"):
+            base_url = f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
         if base_url:
             credentials.setdefault("base_url", base_url)
             credentials.setdefault("api_key", "")
