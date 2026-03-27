@@ -4,7 +4,8 @@
       "enum": [
         "http",
         "websocket",
-        "grpc"
+        "grpc",
+        "smtp"
       ],
       "title": "AccessMethodEnum",
       "type": "string"
