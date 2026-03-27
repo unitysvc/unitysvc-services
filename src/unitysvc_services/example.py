@@ -403,20 +403,20 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             first_interface,
             extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
         )
-        api_key = first_interface.get("api_key")
-        base_url = first_interface.get("base_url") or first_interface.get("s3_endpoint")
+        # Build credentials from all fields in the upstream interface
+        # Resolve any ${ secrets.* } references from environment variables
+        credentials: dict[str, str] = {}
+        for field, val in first_interface.items():
+            if val is not None and isinstance(val, str):
+                credentials[field] = resolve_secret_ref(val, field)
+            elif val is not None:
+                credentials[field] = str(val)
 
-        if base_url:
-            credentials = {
-                "api_key": resolve_secret_ref(str(api_key), "api_key") if api_key else "",
-                "base_url": resolve_secret_ref(str(base_url), "base_url"),
-            }
-            # Include S3-specific fields for storage services
-            for field in ("s3_endpoint", "bucket", "region", "base_path",
-                          "access_key", "secret_key", "addressing_style", "storage_type"):
-                val = first_interface.get(field)
-                if val is not None:
-                    credentials[field] = resolve_secret_ref(str(val), field)
+        # Ensure standard fields exist
+        if "base_url" not in credentials and "s3_endpoint" in credentials:
+            credentials["base_url"] = credentials["s3_endpoint"]
+
+        if credentials.get("base_url") or credentials.get("s3_endpoint"):
             return credentials
     except typer.Exit:
         raise
@@ -491,10 +491,16 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["actual_filename"] = actual_filename
 
         # Prepare environment variables
+        # Export all credential fields as uppercase env vars
+        # Standard fields: api_key → UNITYSVC_API_KEY, base_url → SERVICE_BASE_URL
+        # S3 fields: s3_endpoint → S3_ENDPOINT, bucket → BUCKET, access_key → ACCESS_KEY, etc.
         env_vars = {
-            "UNITYSVC_API_KEY": credentials["api_key"],
-            "SERVICE_BASE_URL": credentials["base_url"],
+            "UNITYSVC_API_KEY": credentials.get("api_key", ""),
+            "SERVICE_BASE_URL": credentials.get("base_url", ""),
         }
+        for field, value in credentials.items():
+            if field not in ("api_key", "base_url"):
+                env_vars[field.upper()] = str(value)
 
         # Expose routing_key from upstream_access_interface as env vars
         upstream_iface = code_example.get("upstream_interface", {}) or {}
