@@ -469,7 +469,7 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         # Get upstream interface for template context (S3 services need bucket, region, etc.)
         offering_data = related_data.get("offering", {})
         upstream_config = offering_data.get("upstream_access_config", {})
-        first_upstream = next(iter(upstream_config.values()), {}) if upstream_config else {}
+        first_upstream: dict = next(iter(upstream_config.values()), {}) if upstream_config else {}
 
         try:
             file_content, actual_filename = render_template_file(
