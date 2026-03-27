@@ -253,11 +253,11 @@ def discover_code_examples(
                     f"base_url or s3_endpoint. Add it to offering upstream_access_config "
                     f"or listing service_options.ops_testing_parameters."
                 )
-            if not iface_data.get("api_key"):
+            if not (iface_data.get("api_key") or iface_data.get("access_key")):
                 service_dir = extract_service_directory_name(listing_file) or str(listing_file)
                 console.print(
-                    f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key. "
-                    f"If this service requires authentication, add api_key to offering "
+                    f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key or access_key. "
+                    f"If this service requires authentication, add credentials to offering "
                     f"upstream_access_config or listing service_options.ops_testing_parameters.[/yellow]"
                 )
 
@@ -405,10 +405,17 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         )
         # Build credentials from all fields in the upstream interface
         # Resolve any ${ secrets.* } references from environment variables
+        # Missing secrets are skipped with a warning (service may still be testable
+        # if it doesn't require authentication, e.g., public S3 buckets)
         credentials: dict[str, str] = {}
         for field, val in first_interface.items():
             if val is not None and isinstance(val, str):
-                credentials[field] = resolve_secret_ref(val, field)
+                try:
+                    credentials[field] = resolve_secret_ref(val, field)
+                except (typer.Exit, SystemExit):
+                    # Secret env var not set — skip this field
+                    # resolve_secret_ref already printed the error message
+                    pass
             elif val is not None:
                 credentials[field] = str(val)
 
