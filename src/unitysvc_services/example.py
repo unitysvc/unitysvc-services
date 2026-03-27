@@ -244,22 +244,8 @@ def discover_code_examples(
                     if field in default_params:
                         iface_data[field] = default_params[field]
 
-        # Validate that each upstream interface has required fields
-        for iface_name, iface_data in upstream_interfaces.items():
-            if not iface_data.get("base_url"):
-                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
-                raise ValueError(
-                    f"Upstream interface '{iface_name}' in {service_dir} is missing: "
-                    f"base_url. Add it to offering upstream_access_config "
-                    f"or listing service_options.ops_testing_parameters."
-                )
-            if not iface_data.get("api_key"):
-                service_dir = extract_service_directory_name(listing_file) or str(listing_file)
-                console.print(
-                    f"[yellow]⚠ Upstream interface '{iface_name}' in {service_dir} has no api_key. "
-                    f"If this service requires authentication, add api_key to offering "
-                    f"upstream_access_config or listing service_options.ops_testing_parameters.[/yellow]"
-                )
+        # upstream_access_config is protocol-specific (HTTP, S3, SMTP, etc.)
+        # — no structural validation here; the gateway handles interpretation.
 
         # Extract code examples × upstream interfaces
         for example in extract_code_examples_from_listing(listing_data, listing_file):
@@ -403,14 +389,34 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             first_interface,
             extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
         )
-        api_key = first_interface.get("api_key")
-        base_url = first_interface.get("base_url")
+        # Build credentials from all fields in the upstream interface
+        # Resolve any ${ secrets.* } references from environment variables
+        # Missing secrets are skipped with a warning (service may still be testable
+        # if it doesn't require authentication, e.g., public S3 buckets)
+        credentials: dict[str, str] = {}
+        for field, val in first_interface.items():
+            if val is not None and isinstance(val, str):
+                try:
+                    credentials[field] = resolve_secret_ref(val, field)
+                except (typer.Exit, SystemExit):
+                    # Secret env var not set — skip this field
+                    # resolve_secret_ref already printed the error message
+                    pass
+            elif val is not None:
+                credentials[field] = str(val)
 
-        if base_url:
-            return {
-                "api_key": resolve_secret_ref(str(api_key), "api_key") if api_key else "",
-                "base_url": resolve_secret_ref(str(base_url), "base_url"),
-            }
+        # Ensure base_url exists (derive from s3_endpoint or bucket+region)
+        if "base_url" not in credentials:
+            if "s3_endpoint" in credentials:
+                credentials["base_url"] = credentials["s3_endpoint"]
+            elif "bucket" in credentials and "region" in credentials:
+                # AWS S3: construct virtual-hosted URL
+                credentials["base_url"] = (
+                    f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
+                )
+
+        if credentials.get("base_url"):
+            return credentials
     except typer.Exit:
         raise
     except Exception as e:
@@ -460,14 +466,19 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         # Render template if applicable (handles both .j2 and non-.j2 files).
         # local_testing=True so templates can include request parameters that
         # would otherwise come from the gateway set_body transformer.
+        # Get upstream interface for template context (S3 services need bucket, region, etc.)
+        offering_data = related_data.get("offering", {})
+        upstream_config = offering_data.get("upstream_access_config", {})
+        first_upstream: dict = next(iter(upstream_config.values()), {}) if upstream_config else {}
+
         try:
             file_content, actual_filename = render_template_file(
                 original_path,
                 listing=listing_data,
-                offering=related_data.get("offering", {}),
+                offering=offering_data,
                 provider=related_data.get("provider", {}),
                 seller=related_data.get("seller", {}),
-                interface=code_example.get("interface", {}),
+                interface=first_upstream or code_example.get("interface", {}),
                 local_testing=True,
             )
         except Exception as e:
@@ -484,10 +495,16 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["actual_filename"] = actual_filename
 
         # Prepare environment variables
+        # Export all credential fields as uppercase env vars
+        # Standard fields: api_key → UNITYSVC_API_KEY, base_url → SERVICE_BASE_URL
+        # S3 fields: s3_endpoint → S3_ENDPOINT, bucket → BUCKET, access_key → ACCESS_KEY, etc.
         env_vars = {
-            "UNITYSVC_API_KEY": credentials["api_key"],
-            "SERVICE_BASE_URL": credentials["base_url"],
+            "UNITYSVC_API_KEY": credentials.get("api_key", ""),
+            "SERVICE_BASE_URL": credentials.get("base_url", ""),
         }
+        for field, value in credentials.items():
+            if field not in ("api_key", "base_url"):
+                env_vars[field.upper()] = str(value)
 
         # Expose routing_key from upstream_access_interface as env vars
         upstream_iface = code_example.get("upstream_interface", {}) or {}
@@ -957,14 +974,24 @@ def run_local(
             example.get("upstream_interface", {}),
             extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
         )
-        api_key = iface.get("api_key")
-        base_url = iface.get("base_url")
+        iface_name = example.get("upstream_interface_name", "default")
+        # Build credentials from all fields, resolving secrets gracefully
+        credentials: dict[str, str] = {}
+        for field, val in iface.items():
+            if val is not None and isinstance(val, str):
+                try:
+                    credentials[field] = resolve_secret_ref(val, f"{iface_name}.{field}")
+                except (typer.Exit, SystemExit):
+                    pass  # Secret env var not set — skip field
+            elif val is not None:
+                credentials[field] = str(val)
+
+        base_url = credentials.get("base_url") or credentials.get("s3_endpoint")
+        if not base_url and credentials.get("bucket") and credentials.get("region"):
+            base_url = f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
         if base_url:
-            iface_name = example.get("upstream_interface_name", "default")
-            credentials = {
-                "api_key": resolve_secret_ref(str(api_key), f"{iface_name}.api_key") if api_key else "",
-                "base_url": resolve_secret_ref(str(base_url), f"{iface_name}.base_url"),
-            }
+            credentials.setdefault("base_url", base_url)
+            credentials.setdefault("api_key", "")
             all_code_examples.append((example, prov_name, credentials))
         else:
             listing_file_str = str(example.get("listing_file", ""))

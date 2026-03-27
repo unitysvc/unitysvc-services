@@ -302,6 +302,23 @@ def show_service(
 
                 console.print(offering_table)
 
+                # Upstream Access Config (sensitive fields masked)
+                uac = offering.get("upstream_access_config")
+                if uac and isinstance(uac, dict):
+                    console.print(f"\n[bold]Upstream Access Config[/bold] ({len(uac)})")
+                    for iface_name, iface_data in uac.items():
+                        uac_table = Table(show_header=False, box=None, title=f"  {iface_name}")
+                        uac_table.add_column("Field", style="cyan")
+                        uac_table.add_column("Value")
+                        if isinstance(iface_data, dict):
+                            for k, v in iface_data.items():
+                                display_val = str(v)
+                                # Mask secret references for readability
+                                if isinstance(v, str) and "${ secrets." in v:
+                                    display_val = v  # Show reference, not resolved value
+                                uac_table.add_row(k, display_val)
+                        console.print(uac_table)
+
             # Listing Information
             listing = service.get("listing")
             if listing and isinstance(listing, dict):
