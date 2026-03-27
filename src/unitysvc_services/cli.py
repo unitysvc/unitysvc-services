@@ -1,7 +1,6 @@
 """Console script for unitysvc_services."""
 
 import importlib.metadata
-from typing import Optional
 
 import typer
 
@@ -20,7 +19,7 @@ app = typer.Typer()
 
 @app.callback()
 def main(
-    version: Optional[bool] = typer.Option(  # noqa: UP007
+    version: bool | None = typer.Option(
         None, "--version", "-V", help="Show version and exit.", callback=version_callback, is_eager=True
     ),
 ) -> None:
