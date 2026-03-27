@@ -1136,19 +1136,6 @@ class ServiceTypeEnum(StrEnum):
     analytics = "analytics"  # Recommendation, anomaly detection, forecasting
 
 
-class TagEnum(StrEnum):
-    """
-    Allowed enums, currently not enforced.
-    """
-
-    # Service requires users to provide their own API key for access.
-    byok = "byok"
-    byoe = "byoe"
-    ai = "ai"
-    gateway = "gateway"
-    managed = "managed"
-
-
 class TimeWindowEnum(StrEnum):
     second = "second"
     minute = "minute"
