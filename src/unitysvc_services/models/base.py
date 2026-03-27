@@ -114,6 +114,7 @@ class AccessMethodEnum(StrEnum):
     http = "http"
     websocket = "websocket"
     grpc = "grpc"
+    smtp = "smtp"
 
 
 class CurrencyEnum(StrEnum):
