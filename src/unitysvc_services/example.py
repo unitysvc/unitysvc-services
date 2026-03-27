@@ -977,14 +977,22 @@ def run_local(
             example.get("upstream_interface", {}),
             extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
         )
-        api_key = iface.get("api_key")
-        base_url = iface.get("base_url")
+        iface_name = example.get("upstream_interface_name", "default")
+        # Build credentials from all fields, resolving secrets gracefully
+        credentials: dict[str, str] = {}
+        for field, val in iface.items():
+            if val is not None and isinstance(val, str):
+                try:
+                    credentials[field] = resolve_secret_ref(val, f"{iface_name}.{field}")
+                except (typer.Exit, SystemExit):
+                    pass  # Secret env var not set — skip field
+            elif val is not None:
+                credentials[field] = str(val)
+
+        base_url = credentials.get("base_url") or credentials.get("s3_endpoint")
         if base_url:
-            iface_name = example.get("upstream_interface_name", "default")
-            credentials = {
-                "api_key": resolve_secret_ref(str(api_key), f"{iface_name}.api_key") if api_key else "",
-                "base_url": resolve_secret_ref(str(base_url), f"{iface_name}.base_url"),
-            }
+            credentials.setdefault("base_url", base_url)
+            credentials.setdefault("api_key", "")
             all_code_examples.append((example, prov_name, credentials))
         else:
             listing_file_str = str(example.get("listing_file", ""))
