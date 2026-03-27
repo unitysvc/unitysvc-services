@@ -244,13 +244,13 @@ def discover_code_examples(
                     if field in default_params:
                         iface_data[field] = default_params[field]
 
-        # Validate that each upstream interface has required fields
+        # Validate that each upstream interface has a reachable endpoint
         for iface_name, iface_data in upstream_interfaces.items():
-            if not iface_data.get("base_url"):
+            if not (iface_data.get("base_url") or iface_data.get("s3_endpoint")):
                 service_dir = extract_service_directory_name(listing_file) or str(listing_file)
                 raise ValueError(
                     f"Upstream interface '{iface_name}' in {service_dir} is missing: "
-                    f"base_url. Add it to offering upstream_access_config "
+                    f"base_url or s3_endpoint. Add it to offering upstream_access_config "
                     f"or listing service_options.ops_testing_parameters."
                 )
             if not iface_data.get("api_key"):
@@ -404,13 +404,20 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
         )
         api_key = first_interface.get("api_key")
-        base_url = first_interface.get("base_url")
+        base_url = first_interface.get("base_url") or first_interface.get("s3_endpoint")
 
         if base_url:
-            return {
+            credentials = {
                 "api_key": resolve_secret_ref(str(api_key), "api_key") if api_key else "",
                 "base_url": resolve_secret_ref(str(base_url), "base_url"),
             }
+            # Include S3-specific fields for storage services
+            for field in ("s3_endpoint", "bucket", "region", "base_path",
+                          "access_key", "secret_key", "addressing_style", "storage_type"):
+                val = first_interface.get(field)
+                if val is not None:
+                    credentials[field] = resolve_secret_ref(str(val), field)
+            return credentials
     except typer.Exit:
         raise
     except Exception as e:
