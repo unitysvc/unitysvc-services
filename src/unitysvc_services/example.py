@@ -474,14 +474,19 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         # Render template if applicable (handles both .j2 and non-.j2 files).
         # local_testing=True so templates can include request parameters that
         # would otherwise come from the gateway set_body transformer.
+        # Get upstream interface for template context (S3 services need bucket, region, etc.)
+        offering_data = related_data.get("offering", {})
+        upstream_config = offering_data.get("upstream_access_config", {})
+        first_upstream = next(iter(upstream_config.values()), {}) if upstream_config else {}
+
         try:
             file_content, actual_filename = render_template_file(
                 original_path,
                 listing=listing_data,
-                offering=related_data.get("offering", {}),
+                offering=offering_data,
                 provider=related_data.get("provider", {}),
                 seller=related_data.get("seller", {}),
-                interface=code_example.get("interface", {}),
+                interface=first_upstream or code_example.get("interface", {}),
                 local_testing=True,
             )
         except Exception as e:
