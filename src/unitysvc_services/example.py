@@ -381,13 +381,22 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             for k, v in rendered_vars.items()
         }
 
+        # Merge ops_testing_parameters as the "params" context
+        # (simulates what the backend does at enrollment time)
+        ops_params = listing_so.get("ops_testing_parameters", {}) or {}
+
         # Extract credentials from upstream_access_config (dict keyed by name)
         # Use first interface for credentials
         upstream_interfaces = offering.get("upstream_access_config", {})
         first_interface: dict[str, Any] = next(iter(upstream_interfaces.values()), {}) if upstream_interfaces else {}
         first_interface = expand_template_strings(
             first_interface,
-            extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
+            extra_context={
+                "enrollment_vars": rendered_vars,
+                "params": ops_params,
+                **rendered_vars,
+                **ops_params,
+            },
         )
         # Build credentials from all fields in the upstream interface
         # Resolve any ${ secrets.* } references from environment variables
@@ -970,9 +979,15 @@ def run_local(
             k: resolve_secret_ref(str(v), f"enrollment_vars.{k}")
             for k, v in rendered_vars.items()
         }
+        ops_params = listing_so.get("ops_testing_parameters", {}) or {}
         iface = expand_template_strings(
             example.get("upstream_interface", {}),
-            extra_context={"enrollment_vars": rendered_vars, **rendered_vars},
+            extra_context={
+                "enrollment_vars": rendered_vars,
+                "params": ops_params,
+                **rendered_vars,
+                **ops_params,
+            },
         )
         iface_name = example.get("upstream_interface_name", "default")
         # Build credentials from all fields, resolving secrets gracefully
