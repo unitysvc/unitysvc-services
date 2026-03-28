@@ -424,7 +424,9 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
                     f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
                 )
 
-        if credentials.get("base_url"):
+        # Return credentials if we have any meaningful content
+        # (base_url for HTTP/S3, or host for SMTP, or any resolved fields)
+        if credentials.get("base_url") or credentials.get("host") or credentials.get("access_key"):
             return credentials
     except typer.Exit:
         raise
@@ -1006,6 +1008,8 @@ def run_local(
             base_url = f"https://{credentials['bucket']}.s3.{credentials['region']}.amazonaws.com"
         if base_url:
             credentials.setdefault("base_url", base_url)
+        # Accept credentials if we have base_url, host (SMTP), or access_key (S3)
+        if base_url or credentials.get("host") or credentials.get("access_key"):
             credentials.setdefault("api_key", "")
             all_code_examples.append((example, prov_name, credentials))
         else:
@@ -1146,8 +1150,8 @@ def run_local(
                 env_filename = f"{failed_filename}.env"
                 try:
                     with open(env_filename, "w", encoding="utf-8") as f:
-                        f.write(f"UNITYSVC_API_KEY={credentials['api_key']}\n")
-                        f.write(f"SERVICE_BASE_URL={credentials['base_url']}\n")
+                        f.write(f"UNITYSVC_API_KEY={credentials.get('api_key', '')}\n")
+                        f.write(f"SERVICE_BASE_URL={credentials.get('base_url', '')}\n")
                         # Include service_options.enrollment_vars
                         listing_so = example.get("listing_data", {}).get("service_options", {}) or {}
                         for k, v in expand_template_strings(listing_so.get("enrollment_vars", {}) or {}).items():
