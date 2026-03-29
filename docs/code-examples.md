@@ -121,6 +121,85 @@ usvc services run-tests <service_id> --force
 3. **Validation**: Use web-based testing for final validation before publishing
 4. **CI/CD**: Either method works; web-based is simpler, SDK-based offers more control
 
+## Test Environment Variables
+
+Code examples and connectivity tests run in two different contexts, each with different environment variables available.
+
+### Gateway Testing (`usvc services run-tests`)
+
+Tests run through the UnitySVC gateway. Only these variables are available:
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `SERVICE_BASE_URL` | `user_access_interfaces.base_url` | Gateway endpoint URL (e.g. `https://api.svcpass.com/u/openai`, `smtp://smtp.svcpass.com:587`) |
+| `UNITYSVC_API_KEY` | Customer API key | Authentication key for the gateway |
+| Routing key entries | `user_access_interfaces.routing_key` | Flattened as uppercased env vars (e.g. `{"username": "foo"}` → `USERNAME=foo`, `{"model": "gpt-4"}` → `MODEL=gpt-4`) |
+
+**No other variables are available.** Customer code examples should only use these variables since they represent what real customers see.
+
+### Local/Upstream Testing (`usvc data run-tests`)
+
+Tests run directly against the upstream service (no gateway). All fields from `upstream_access_config` are available as uppercased environment variables, with two special mappings:
+
+| Variable | Source | Description |
+|----------|--------|-------------|
+| `SERVICE_BASE_URL` | `upstream_access_config.base_url` | Upstream endpoint URL |
+| `UNITYSVC_API_KEY` | `upstream_access_config.api_key` | Upstream API key |
+| `HOST`, `PORT`, etc. | Other `upstream_access_config` fields | Exported as uppercased keys |
+| Routing key entries | `upstream_access_config.routing_key` | Flattened as uppercased env vars |
+
+Secret references (`${ customer_secrets.NAME }`, `${ secrets.NAME }`) are resolved from your local environment variables. Set them in your shell before running tests:
+
+```bash
+export SMTP_HOST=smtp.gmail.com
+export SMTP_PORT=587
+usvc data run-tests
+```
+
+### Writing Tests for Both Contexts
+
+Use the `{% if local_testing %}` Jinja2 condition to handle differences between local and gateway testing. This is necessary when:
+
+- The upstream protocol differs from the gateway protocol
+- Local testing needs credentials not available through the gateway
+- The test needs to parse `SERVICE_BASE_URL` for gateway testing
+
+**Example: SMTP connectivity test**
+
+```bash
+#!/bin/bash
+# Test SMTP connectivity
+{% if local_testing %}
+# Local: HOST and PORT from upstream_access_config
+SMTP_HOST=${HOST:-localhost}
+SMTP_PORT=${PORT:-587}
+{% else %}
+# Gateway: parse SERVICE_BASE_URL (smtp://host:port)
+SMTP_HOST=$(echo "$SERVICE_BASE_URL" | sed -E 's|^smtps?://||' | cut -d: -f1)
+SMTP_PORT=$(echo "$SERVICE_BASE_URL" | sed -E 's|^smtps?://||' | cut -d: -f2 | cut -d/ -f1)
+SMTP_HOST=${SMTP_HOST:-localhost}
+SMTP_PORT=${SMTP_PORT:-587}
+{% endif %}
+(sleep 1; echo "QUIT") | nc -w5 "$SMTP_HOST" "$SMTP_PORT" | grep -q "220" && echo "connectivity ok"
+```
+
+**Example: HTTP API code example (no branching needed)**
+
+When both local and gateway testing use the same `SERVICE_BASE_URL` and `UNITYSVC_API_KEY`, no `local_testing` condition is needed:
+
+```python
+import os, httpx
+
+response = httpx.post(
+    f"{os.environ['SERVICE_BASE_URL']}/chat/completions",
+    headers={"Authorization": f"Bearer {os.environ['UNITYSVC_API_KEY']}"},
+    json={"model": os.environ.get("MODEL", "default"), "messages": [{"role": "user", "content": "test"}]}
+)
+print(response.json())
+```
+
+This works for both contexts because `SERVICE_BASE_URL` and `UNITYSVC_API_KEY` are mapped from `upstream_access_config.base_url`/`api_key` in local testing and from `user_access_interfaces.base_url`/customer API key in gateway testing.
+
 ## Basic Concepts
 
 Before diving into creating code examples, understand these fundamental principles:
