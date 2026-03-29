@@ -384,6 +384,7 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Merge ops_testing_parameters as the "params" context
         # (simulates what the backend does at enrollment time)
         ops_params = listing_so.get("ops_testing_parameters", {}) or {}
+        routing_vars = listing_so.get("routing_vars", {}) or {}
 
         # Extract credentials from upstream_access_config (dict keyed by name)
         # Use first interface for credentials
@@ -394,6 +395,7 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
             extra_context={
                 "enrollment_vars": rendered_vars,
                 "params": ops_params,
+                "routing_vars": routing_vars,
                 **rendered_vars,
                 **ops_params,
             },
@@ -402,9 +404,11 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
         # Resolve any ${ secrets.* } references from environment variables
         # Missing secrets are skipped with a warning (service may still be testable
         # if it doesn't require authentication, e.g., public S3 buckets)
-        credentials: dict[str, str] = {}
+        credentials: dict[str, Any] = {}
         for field, val in first_interface.items():
-            if val is not None and isinstance(val, str):
+            if field == "routing_key" and isinstance(val, dict):
+                credentials[field] = val  # Keep as dict for flattening later
+            elif val is not None and isinstance(val, str):
                 try:
                     credentials[field] = resolve_secret_ref(val, field)
                 except (typer.Exit, SystemExit):
@@ -436,12 +440,12 @@ def load_upstream_access_interface(listing_file: Path) -> dict[str, str] | None:
     return None
 
 
-def execute_code_example(code_example: dict[str, Any], credentials: dict[str, str]) -> dict[str, Any]:
+def execute_code_example(code_example: dict[str, Any], credentials: dict[str, Any]) -> dict[str, Any]:
     """Execute a code example script with upstream credentials.
 
     Args:
         code_example: Code example metadata with file_path and listing_data
-        credentials: Dictionary with api_key and base_url
+        credentials: Upstream access config fields (api_key, base_url, host, routing_key, etc.)
 
     Returns:
         Result dictionary with success, exit_code, stdout, stderr, rendered_content, file_suffix
@@ -505,32 +509,22 @@ def execute_code_example(code_example: dict[str, Any], credentials: dict[str, st
         result["listing_file"] = listing_file
         result["actual_filename"] = actual_filename
 
-        # Prepare environment variables
-        # Export all credential fields as uppercase env vars
-        # Standard fields: api_key → UNITYSVC_API_KEY, base_url → SERVICE_BASE_URL
-        # S3 fields: s3_endpoint → S3_ENDPOINT, bucket → BUCKET, access_key → ACCESS_KEY, etc.
-        env_vars = {
-            "UNITYSVC_API_KEY": credentials.get("api_key", ""),
-            "SERVICE_BASE_URL": credentials.get("base_url", ""),
-        }
+        # Prepare environment variables from upstream_access_config
+        # (see docs/upstream-test-context-algorithm.py for the full algorithm)
+        env_vars: dict[str, str] = {}
         for field, value in credentials.items():
-            if field not in ("api_key", "base_url"):
+            if field == "routing_key" and isinstance(value, dict):
+                # Flatten routing_key dict: {"username": "foo"} -> USERNAME=foo
+                for sub_key, sub_val in value.items():
+                    env_vars[sub_key.upper()] = str(sub_val)
+            elif not isinstance(value, (str, int, float, bool)):
+                continue
+            elif field == "base_url":
+                env_vars["SERVICE_BASE_URL"] = str(value)
+            elif field == "api_key":
+                env_vars["UNITYSVC_API_KEY"] = str(value)
+            else:
                 env_vars[field.upper()] = str(value)
-
-        # Expose routing_key from upstream_access_interface as env vars
-        upstream_iface = code_example.get("upstream_interface", {}) or {}
-        routing_key = upstream_iface.get("routing_key", {}) or {}
-        for rk_key, rk_val in routing_key.items():
-            env_vars[rk_key.upper()] = str(rk_val)
-
-        # Expose service_options.enrollment_vars as environment variables
-        service_options = listing_data.get("service_options", {}) or {}
-        env_templates = service_options.get("enrollment_vars", {}) or {}
-        if env_templates:
-            rendered_env = expand_template_strings(env_templates)
-            for key, value in rendered_env.items():
-                resolved = resolve_secret_ref(str(value), f"enrollment_vars.{key}")
-                env_vars[key.upper()] = resolved
 
         # Execute script using shared utility
         output_contains = code_example.get("output_contains")
@@ -982,20 +976,24 @@ def run_local(
             for k, v in rendered_vars.items()
         }
         ops_params = listing_so.get("ops_testing_parameters", {}) or {}
+        routing_vars = listing_so.get("routing_vars", {}) or {}
         iface = expand_template_strings(
             example.get("upstream_interface", {}),
             extra_context={
                 "enrollment_vars": rendered_vars,
                 "params": ops_params,
+                "routing_vars": routing_vars,
                 **rendered_vars,
                 **ops_params,
             },
         )
         iface_name = example.get("upstream_interface_name", "default")
         # Build credentials from all fields, resolving secrets gracefully
-        credentials: dict[str, str] = {}
+        credentials: dict[str, Any] = {}
         for field, val in iface.items():
-            if val is not None and isinstance(val, str):
+            if field == "routing_key" and isinstance(val, dict):
+                credentials[field] = val  # Keep as dict for flattening later
+            elif val is not None and isinstance(val, str):
                 try:
                     credentials[field] = resolve_secret_ref(val, f"{iface_name}.{field}")
                 except (typer.Exit, SystemExit):
