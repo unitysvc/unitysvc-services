@@ -7,11 +7,13 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from rich.syntax import Syntax
 from rich.table import Table
 
 from .api import UnitySvcAPI
 from .models.promotion_data import (
     PROMOTION_SCHEMA_VERSION,
+    describe_scope,
     strip_schema_field,
     validate_promotion,
 )
@@ -35,12 +37,10 @@ def _find_promotion_files(data_dir: Path) -> list[Path]:
     return sorted([f[0] for f in files])
 
 
-def _load_and_validate(path: Path) -> tuple[dict[str, Any], list[str]]:
-    """Load and validate a promotion file.
-
-    Returns:
-        Tuple of (data dict, list of error strings)
-    """
+def _load_and_validate(
+    path: Path,
+) -> tuple[dict[str, Any], list[str]]:
+    """Load and validate a promotion file."""
     data, _fmt = load_data_file(path)
     errors = validate_promotion(data)
     return data, errors
@@ -50,7 +50,7 @@ def _load_and_validate(path: Path) -> tuple[dict[str, Any], list[str]]:
 def validate_promotions(
     data_path: Path = typer.Argument(
         ...,
-        help="Path to a promotion file or directory containing promotions/",
+        help="Path to a promotion file or directory",
     ),
 ) -> None:
     """Validate promotion files."""
@@ -75,23 +75,27 @@ def validate_promotions(
             for err in errors:
                 console.print(f"    {err}")
         else:
+            scope_desc = describe_scope(data.get("scope"))
             console.print(
-                f"[green]✓[/green] {f.name} — {data.get('name', '?')}"
+                f"[green]✓[/green] {f.name} — "
+                f"{data.get('name', '?')} ({scope_desc})"
             )
 
     if total_errors:
         console.print(f"\n[red]{total_errors} error(s)[/red]")
         raise typer.Exit(code=1)
-    console.print(f"\n[green]All {len(files)} promotion(s) valid[/green]")
+    console.print(
+        f"\n[green]All {len(files)} promotion(s) valid[/green]"
+    )
 
 
 @app.command("show")
-def show_promotion(
+def show_promotion_local(
     path: Path = typer.Argument(
         ..., help="Path to a promotion file"
     ),
 ) -> None:
-    """Display a promotion file with validation status."""
+    """Display a local promotion file with validation status."""
     data, errors = _load_and_validate(path)
 
     console.print(f"\n[bold]{data.get('name', '(unnamed)')}[/bold]")
@@ -103,20 +107,26 @@ def show_promotion(
     table.add_column(style="dim")
     table.add_column()
 
-    table.add_row("pricing", json.dumps(data.get("pricing", {})))
+    # Scope
+    scope = data.get("scope")
+    table.add_row("scope", describe_scope(scope))
+    if scope:
+        table.add_row(
+            "", Syntax(
+                json.dumps(scope, indent=2),
+                "json", theme="monokai",
+            )
+        )
+
+    # Pricing
+    table.add_row(
+        "pricing",
+        json.dumps(data.get("pricing", {}), indent=2),
+    )
     table.add_row("apply_at", str(data.get("apply_at", "request")))
     table.add_row("priority", str(data.get("priority", 0)))
     table.add_row("status", str(data.get("status", "draft")))
-    table.add_row(
-        "requires_redemption",
-        str(data.get("requires_redemption", True)),
-    )
-    if data.get("code"):
-        table.add_row("code", data["code"])
-    if data.get("service_names"):
-        table.add_row(
-            "service_names", ", ".join(data["service_names"])
-        )
+
     if data.get("expires_at"):
         table.add_row("expires_at", str(data["expires_at"]))
     if data.get("max_uses"):
@@ -125,7 +135,9 @@ def show_promotion(
     console.print(table)
 
     if errors:
-        console.print(f"\n[red]{len(errors)} validation error(s):[/red]")
+        console.print(
+            f"\n[red]{len(errors)} validation error(s):[/red]"
+        )
         for err in errors:
             console.print(f"  - {err}")
     else:
@@ -158,10 +170,10 @@ def list_promotions() -> None:
 
     table = Table(title="Promotions")
     table.add_column("Name", style="bold")
+    table.add_column("Scope")
     table.add_column("Code")
     table.add_column("Status")
     table.add_column("Priority", justify="right")
-    table.add_column("Apply At")
     table.add_column("ID", style="dim")
 
     for rule in rules:
@@ -172,12 +184,61 @@ def list_promotions() -> None:
         }.get(rule.get("status", ""), "")
         table.add_row(
             rule.get("name", ""),
+            describe_scope(rule.get("scope")),
             rule.get("code", ""),
             f"[{status_style}]{rule.get('status', '')}[/{status_style}]",
             str(rule.get("priority", 0)),
-            rule.get("apply_at", ""),
             str(rule.get("id", ""))[:8],
         )
+
+    console.print(table)
+
+
+@app.command("show-remote")
+def show_promotion_remote(
+    name_or_id: str = typer.Argument(
+        ..., help="Promotion name or ID"
+    ),
+) -> None:
+    """Show details of a promotion on the backend."""
+
+    async def _show() -> dict[str, Any]:
+        api = UnitySvcAPI()
+        return await _find_promotion_by_name(api, name_or_id)
+
+    try:
+        rule = asyncio.run(_show())
+    except Exception as e:
+        console.print(f"[red]✗[/red] {e}")
+        raise typer.Exit(code=1)
+
+    console.print(f"\n[bold]{rule.get('name', '?')}[/bold]")
+    if rule.get("description"):
+        console.print(f"  {rule['description']}")
+    console.print()
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column(style="dim")
+    table.add_column()
+
+    table.add_row("id", str(rule.get("id", "")))
+    table.add_row("scope", describe_scope(rule.get("scope")))
+    table.add_row("code", rule.get("code", "(none)"))
+    table.add_row(
+        "pricing",
+        json.dumps(rule.get("pricing", {}), indent=2),
+    )
+    table.add_row("apply_at", str(rule.get("apply_at", "")))
+    table.add_row("priority", str(rule.get("priority", 0)))
+
+    status_val = rule.get("status", "")
+    status_style = {
+        "active": "green", "draft": "yellow", "paused": "red",
+    }.get(status_val, "")
+    table.add_row(
+        "status",
+        f"[{status_style}]{status_val}[/{status_style}]",
+    )
 
     console.print(table)
 
@@ -189,10 +250,10 @@ def upload_promotions(
         help="Path to a promotion file or directory",
     ),
     dry_run: bool = typer.Option(
-        False, "--dry-run", help="Validate only, don't upload"
+        False, "--dry-run", help="Validate only, don't upload",
     ),
 ) -> None:
-    """Upload promotion files to the backend (create or update by name)."""
+    """Upload promotion files to the backend (upsert by name)."""
     if data_path.is_file():
         files = [data_path]
     elif data_path.is_dir():
@@ -205,7 +266,7 @@ def upload_promotions(
         console.print("[yellow]No promotion files found[/yellow]")
         raise typer.Exit(code=0)
 
-    # Validate all files first
+    # Validate all first
     all_data: list[tuple[Path, dict[str, Any]]] = []
     has_errors = False
     for f in files:
@@ -219,31 +280,38 @@ def upload_promotions(
             all_data.append((f, data))
 
     if has_errors:
-        console.print("\n[red]Fix validation errors before uploading[/red]")
+        console.print(
+            "\n[red]Fix validation errors before uploading[/red]"
+        )
         raise typer.Exit(code=1)
 
     if dry_run:
         console.print(
-            f"\n[yellow]Dry run:[/yellow] {len(all_data)} promotion(s) "
-            "would be uploaded"
+            f"\n[yellow]Dry run:[/yellow] {len(all_data)} "
+            "promotion(s) would be uploaded"
         )
         return
 
-    # Upload each promotion
+    # Upload via PUT (upsert by name)
     success = 0
     for f, data in all_data:
         payload = strip_schema_field(data)
 
         async def _upload(p: dict[str, Any]) -> dict[str, Any]:
             api = UnitySvcAPI()
-            return await api.post("/seller/promotions", json_data=p)
+            return await api.put(
+                "/seller/promotions", json_data=p,
+            )
 
         try:
             result = asyncio.run(_upload(payload))
             name = result.get("name", data.get("name", "?"))
+            code = result.get("code", "")
             rule_id = str(result.get("id", ""))[:8]
+            code_info = f" code={code}" if code else ""
             console.print(
-                f"[green]✓[/green] {f.name} → {name} ({rule_id})"
+                f"[green]✓[/green] {f.name} → "
+                f"{name} ({rule_id}){code_info}"
             )
             success += 1
         except Exception as e:
@@ -257,7 +325,7 @@ def upload_promotions(
 @app.command("activate")
 def activate_promotion(
     name_or_id: str = typer.Argument(
-        ..., help="Promotion name or ID"
+        ..., help="Promotion name or ID",
     ),
 ) -> None:
     """Activate a promotion."""
@@ -266,13 +334,14 @@ def activate_promotion(
         api = UnitySvcAPI()
         promo = await _find_promotion_by_name(api, name_or_id)
         return await api.post(
-            f"/seller/promotions/{promo['id']}/activate"
+            f"/seller/promotions/{promo['id']}/activate",
         )
 
     try:
         result = asyncio.run(_activate())
         console.print(
-            f"[green]✓[/green] Activated: {result.get('name', name_or_id)}"
+            f"[green]✓[/green] Activated: "
+            f"{result.get('name', name_or_id)}"
         )
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to activate: {e}")
@@ -282,7 +351,7 @@ def activate_promotion(
 @app.command("pause")
 def pause_promotion(
     name_or_id: str = typer.Argument(
-        ..., help="Promotion name or ID"
+        ..., help="Promotion name or ID",
     ),
 ) -> None:
     """Pause a promotion."""
@@ -291,13 +360,14 @@ def pause_promotion(
         api = UnitySvcAPI()
         promo = await _find_promotion_by_name(api, name_or_id)
         return await api.post(
-            f"/seller/promotions/{promo['id']}/pause"
+            f"/seller/promotions/{promo['id']}/pause",
         )
 
     try:
         result = asyncio.run(_pause())
         console.print(
-            f"[green]✓[/green] Paused: {result.get('name', name_or_id)}"
+            f"[green]✓[/green] Paused: "
+            f"{result.get('name', name_or_id)}"
         )
     except Exception as e:
         console.print(f"[red]✗[/red] Failed to pause: {e}")
@@ -307,16 +377,16 @@ def pause_promotion(
 @app.command("delete")
 def delete_promotion(
     name_or_id: str = typer.Argument(
-        ..., help="Promotion name or ID"
+        ..., help="Promotion name or ID",
     ),
     force: bool = typer.Option(
-        False, "--force", "-f", help="Skip confirmation"
+        False, "--force", "-f", help="Skip confirmation",
     ),
 ) -> None:
     """Delete a promotion."""
     if not force:
         confirm = typer.confirm(
-            f"Delete promotion '{name_or_id}'?"
+            f"Delete promotion '{name_or_id}'?",
         )
         if not confirm:
             raise typer.Exit(code=0)
@@ -340,11 +410,9 @@ def delete_promotion(
 
 
 async def _find_promotion_by_name(
-    api: UnitySvcAPI, name_or_id: str
+    api: UnitySvcAPI, name_or_id: str,
 ) -> dict[str, Any]:
     """Find a promotion by name or ID prefix.
-
-    Fetches all promotions and matches by name (exact) or ID prefix.
 
     Raises:
         typer.Exit: If not found or ambiguous match
@@ -352,21 +420,23 @@ async def _find_promotion_by_name(
     result = await api.get("/seller/promotions")
     rules = result.get("data", [])
 
-    # Try exact name match first
+    # Exact name match first
     for rule in rules:
         if rule.get("name") == name_or_id:
             return rule
 
-    # Try ID prefix match
+    # ID prefix match
     matches = [
-        r for r in rules if str(r.get("id", "")).startswith(name_or_id)
+        r
+        for r in rules
+        if str(r.get("id", "")).startswith(name_or_id)
     ]
     if len(matches) == 1:
         return matches[0]
     if len(matches) > 1:
         console.print(
-            f"[red]Error:[/red] Ambiguous ID prefix '{name_or_id}' "
-            f"matches {len(matches)} promotions"
+            f"[red]Error:[/red] Ambiguous ID prefix "
+            f"'{name_or_id}' matches {len(matches)} promotions"
         )
         raise typer.Exit(code=1)
 

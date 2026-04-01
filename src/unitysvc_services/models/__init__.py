@@ -33,6 +33,7 @@ from .offering_data import ServiceOfferingData
 from .offering_v1 import OfferingV1
 from .promotion_data import (
     PROMOTION_SCHEMA_VERSION,
+    describe_scope,
     is_promotion_file,
     strip_schema_field,
     validate_promotion,
@@ -84,6 +85,7 @@ __all__ = [
     # Promotions
     "PROMOTION_SCHEMA_VERSION",
     "is_promotion_file",
+    "describe_scope",
     "strip_schema_field",
     "validate_promotion",
 ]

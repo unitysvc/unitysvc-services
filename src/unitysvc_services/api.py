@@ -520,6 +520,31 @@ class UnitySvcAPI:
             self.use_curl_fallback = True
             return await self._make_patch_request_curl(endpoint, json_data, params)
 
+    async def put(
+        self, endpoint: str, json_data: dict[str, Any] | None = None, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Make a PUT request to the backend API.
+
+        Args:
+            endpoint: API endpoint path
+            json_data: JSON body data
+            params: Query parameters
+
+        Returns:
+            JSON response as dictionary
+        """
+        try:
+            response = await self.client.put(f"{self.base_url}{endpoint}", json=json_data, params=params)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            try:
+                error_data = e.response.json()
+                error_detail = error_data.get("detail", str(e))
+            except Exception:
+                error_detail = str(e)
+            raise httpx.HTTPStatusError(error_detail, request=e.request, response=e.response) from None
+
     async def check_task(self, task_id: str, poll_interval: float = 2.0, timeout: float = 600.0) -> dict[str, Any]:
         """Check and wait for task completion (async version).
 
