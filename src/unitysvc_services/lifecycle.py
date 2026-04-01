@@ -705,6 +705,36 @@ def delete_service(
         console.print("\n[yellow]Dry-run mode: No actual deletion performed[/yellow]")
 
 
+def _parse_set_options(items: list[str], option_name: str) -> dict[str, Any]:
+    """Parse --set-* options: try JSON object first, fall back to key=value.
+
+    JSON object: '{"k1": "v1", "k2": 42}' sets multiple keys at once.
+    key=value: value is JSON-decoded when possible, otherwise kept as string.
+    """
+    result: dict[str, Any] = {}
+    for item in items:
+        try:
+            parsed = json.loads(item)
+            if isinstance(parsed, dict):
+                result.update(parsed)
+                continue
+        except (json.JSONDecodeError, ValueError):
+            pass
+        if "=" not in item:
+            console.print(
+                f"[red]Error:[/red] Invalid {option_name} format: '{item}'"
+                " (expected key=value or JSON object)"
+            )
+            raise typer.Exit(code=1)
+        key, raw = item.split("=", 1)
+        try:
+            value = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            value = raw
+        result[key] = value
+    return result
+
+
 def update_service(
     service_id: str = typer.Argument(..., help="Service ID (supports partial IDs)"),
     set_routing_var: list[str] = typer.Option(
@@ -722,6 +752,16 @@ def update_service(
         "--load-routing-vars",
         help="Merge routing vars from a JSON file; combines with --set-routing-var",
     ),
+    set_price: list[str] = typer.Option(
+        None,
+        "--set-price",
+        help="Set list_price field(s): key=value, JSON object '{...}', or plain number for constant pricing (repeatable)",
+    ),
+    remove_price_field: list[str] = typer.Option(
+        None,
+        "--remove-price-field",
+        help="Remove a list_price field by key or dot-path (repeatable)",
+    ),
 ) -> None:
     """Update a live service (no approval needed).
 
@@ -729,88 +769,111 @@ def update_service(
     the admin-approved template defines. All operations merge with existing
     vars — keys not mentioned are left unchanged.
 
-    To batch-edit, dump current vars with show --format json, edit the file,
-    and reload:
-
-        usvc services show myservice --format json | jq '.routing_vars' > vars.json
-        # edit vars.json
-        usvc services update myservice --load-routing-vars vars.json
+    --set-price updates list_price on the service listing. Accepts:
+    - Full JSON pricing object: '{"type": "one_million_tokens", "input": "0.40", "output": "1.20"}'
+    - Individual field updates: input=0.40 or price=0.50
+    - Plain number shorthand for constant pricing: 0.50
 
     Examples:
         usvc services update myservice --set-routing-var code1=clients/smith
-        usvc services update myservice --set-routing-var k1=v1 --set-routing-var k2=v2
-        usvc services update myservice --set-routing-var count=42
-        usvc services update myservice --set-routing-var '{"region": "us-east", "users": {"alice": "admin"}}'
+        usvc services update myservice --set-routing-var '{"region": "us-east"}'
         usvc services update myservice --remove-routing-var code1
-        usvc services update myservice --remove-routing-var users.alice
         usvc services update myservice --load-routing-vars vars.json
-        usvc services update myservice --load-routing-vars vars.json --set-routing-var extra=val
+        usvc services update myservice --set-price '{"type": "one_million_tokens", "input": "0.40"}'
+        usvc services update myservice --set-price input=0.50
+        usvc services update myservice --set-price 0.50
+        usvc services update myservice --remove-price-field reference
     """
-    set_dict: dict[str, Any] = {}
-    remove_list: list[str] = list(remove_routing_var) if remove_routing_var else []
+    has_routing = bool(set_routing_var or remove_routing_var or load_routing_vars)
+    has_price = bool(set_price or remove_price_field)
 
-    # Parse --set-routing-var: try JSON object first, fall back to key=value.
-    # JSON object: '{"k1": "v1", "k2": 42}' sets multiple keys at once.
-    # key=value: value is JSON-decoded when possible, otherwise kept as string.
-    if set_routing_var:
-        for item in set_routing_var:
-            try:
-                parsed = json.loads(item)
-                if isinstance(parsed, dict):
-                    set_dict.update(parsed)
-                    continue
-            except (json.JSONDecodeError, ValueError):
-                pass
-            if "=" not in item:
-                console.print(
-                    f"[red]Error:[/red] Invalid --set-routing-var format: '{item}'"
-                    " (expected key=value or JSON object)"
-                )
-                raise typer.Exit(code=1)
-            key, raw = item.split("=", 1)
-            try:
-                value = json.loads(raw)
-            except (json.JSONDecodeError, ValueError):
-                value = raw
-            set_dict[key] = value
-
-    # Load from JSON file
-    if load_routing_vars:
-        try:
-            with open(load_routing_vars, encoding="utf-8") as f:
-                loaded = json.load(f)
-            if not isinstance(loaded, dict):
-                console.print("[red]Error:[/red] JSON file must contain an object (dict)")
-                raise typer.Exit(code=1)
-            set_dict.update(loaded)
-        except (OSError, json.JSONDecodeError) as e:
-            console.print(f"[red]Error:[/red] Failed to load {load_routing_vars}: {e}")
-            raise typer.Exit(code=1)
-
-    if not set_dict and not remove_list:
+    if not has_routing and not has_price:
         console.print(
             "[yellow]Nothing to do:[/yellow] provide --set-routing-var,"
-            " --remove-routing-var, or --load-routing-vars"
+            " --remove-routing-var, --load-routing-vars, --set-price,"
+            " or --remove-price-field"
         )
         raise typer.Exit(code=0)
 
-    body: dict[str, Any] = {}
-    if set_dict:
-        body["set"] = set_dict
-    if remove_list:
-        body["remove"] = remove_list
+    # --- Routing vars ---
+    if has_routing:
+        set_dict: dict[str, Any] = {}
+        remove_list: list[str] = list(remove_routing_var) if remove_routing_var else []
 
-    async def _update() -> dict[str, Any]:
-        api = UnitySvcAPI()
-        return await api.patch(f"/seller/services/{service_id}/routing-vars", json_data=body)
+        if set_routing_var:
+            set_dict = _parse_set_options(set_routing_var, "--set-routing-var")
 
-    try:
-        result = asyncio.run(_update())
-        console.print(f"[green]✓[/green] routing_vars updated for service {result.get('id', service_id)}")
-        if result.get("routing_vars"):
-            console.print(json.dumps(result["routing_vars"], indent=2))
-        else:
-            console.print("[dim](empty)[/dim]")
-    except Exception as e:
-        console.print(f"[red]✗[/red] Failed to update routing_vars: {e}")
-        raise typer.Exit(code=1)
+        if load_routing_vars:
+            try:
+                with open(load_routing_vars, encoding="utf-8") as f:
+                    loaded = json.load(f)
+                if not isinstance(loaded, dict):
+                    console.print("[red]Error:[/red] JSON file must contain an object (dict)")
+                    raise typer.Exit(code=1)
+                set_dict.update(loaded)
+            except (OSError, json.JSONDecodeError) as e:
+                console.print(f"[red]Error:[/red] Failed to load {load_routing_vars}: {e}")
+                raise typer.Exit(code=1)
+
+        if set_dict or remove_list:
+            body: dict[str, Any] = {}
+            if set_dict:
+                body["set"] = set_dict
+            if remove_list:
+                body["remove"] = remove_list
+
+            async def _update_routing() -> dict[str, Any]:
+                api = UnitySvcAPI()
+                return await api.patch(f"/seller/services/{service_id}/routing-vars", json_data=body)
+
+            try:
+                result = asyncio.run(_update_routing())
+                console.print(f"[green]✓[/green] routing_vars updated for service {result.get('id', service_id)}")
+                if result.get("routing_vars"):
+                    console.print(json.dumps(result["routing_vars"], indent=2))
+                else:
+                    console.print("[dim](empty)[/dim]")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Failed to update routing_vars: {e}")
+                raise typer.Exit(code=1)
+
+    # --- List price ---
+    if has_price:
+        price_dict: dict[str, Any] = {}
+        price_remove: list[str] = list(remove_price_field) if remove_price_field else []
+
+        if set_price:
+            for item in set_price:
+                # Try plain number shorthand: "0.50" → {"type": "constant", "price": "0.50"}
+                if "=" not in item and not item.startswith("{"):
+                    try:
+                        float(item)
+                        price_dict.update({"type": "constant", "price": item})
+                        continue
+                    except ValueError:
+                        pass
+                # Fall through to standard parsing
+                parsed = _parse_set_options([item], "--set-price")
+                price_dict.update(parsed)
+
+        if price_dict or price_remove:
+            price_body: dict[str, Any] = {}
+            if price_dict:
+                price_body["set"] = price_dict
+            if price_remove:
+                price_body["remove"] = price_remove
+
+            async def _update_price() -> dict[str, Any]:
+                api = UnitySvcAPI()
+                return await api.patch(f"/seller/services/{service_id}/list-price", json_data=price_body)
+
+            try:
+                result = asyncio.run(_update_price())
+                console.print(f"[green]✓[/green] list_price updated for service {result.get('id', service_id)}")
+                if result.get("list_price"):
+                    console.print(json.dumps(result["list_price"], indent=2))
+                else:
+                    console.print("[dim](empty)[/dim]")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Failed to update list_price: {e}")
+                raise typer.Exit(code=1)
