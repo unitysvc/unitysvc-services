@@ -4,7 +4,7 @@ import importlib.metadata
 
 import typer
 
-from . import data, services
+from . import data, promotions, services
 
 
 def version_callback(value: bool) -> None:
@@ -29,3 +29,4 @@ def main(
 # Register main command groups
 app.add_typer(data.app, name="data")
 app.add_typer(services.app, name="services")
+app.add_typer(promotions.app, name="promotions")

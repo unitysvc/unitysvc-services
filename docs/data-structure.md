@@ -245,11 +245,16 @@ data/
 │       └── ${another_service}/
 │           ├── offering.json
 │           └── listing-premium.json     # Can reference ../../docs/code-example.py
-└── ${another_provider}/
-    ├── provider.toml
-    └── services/
-        └── ...
+├── ${another_provider}/
+│   ├── provider.toml
+│   └── services/
+│       └── ...
+└── promotions/                          # Optional: Seller promotions
+    ├── summer-discount.json             # promotion_v1 schema
+    └── volume-tier.json
 ```
+
+**Note:** The `promotions/` directory can live at the top level of the data directory (alongside provider directories). Promotion files use the `promotion_v1` schema and are managed via `usvc promotions` commands. See [CLI Reference](cli-reference.md#usvc-promotions---promotion-management) for details.
 
 ## Naming Rules and Restrictions
 

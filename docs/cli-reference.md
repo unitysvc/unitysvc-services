@@ -57,6 +57,20 @@ Manage services on the backend - can be run from anywhere with the right API key
 | `skip-test`   | Mark a code example test as skipped           |
 | `unskip-test` | Remove skip status from a test                |
 
+### Promotion Management (`usvc promotions`)
+
+Manage seller promotions (pricing rules) — both local files and remote operations.
+
+| Command    | Description                                    |
+| ---------- | ---------------------------------------------- |
+| `validate` | Validate local promotion files                 |
+| `show`     | Display a local promotion file                 |
+| `list`     | List promotions on the backend                 |
+| `upload`   | Upload promotion files (create/update by name) |
+| `activate` | Activate a promotion                           |
+| `pause`    | Pause a promotion                              |
+| `delete`   | Delete a promotion                             |
+
 **Note:** To create initial service data, use the [UnitySVC web interface](https://unitysvc.com) which provides a visual editor with validation. You can export your data for use with this SDK.
 
 ## usvc data - Local Data Operations
@@ -600,6 +614,130 @@ Total drafts examined: 5
 
 - `UNITYSVC_API_URL` - Backend API URL
 - `UNITYSVC_SELLER_API_KEY` - API key for authentication
+
+---
+
+## usvc promotions - Promotion Management
+
+Commands for managing seller promotions (pricing rules). Promotions are identified by name (unique per seller) and support both local file management and remote operations.
+
+### Promotion File Format
+
+Promotion files use the `promotion_v1` schema and live in a `promotions/` directory alongside service data:
+
+```
+seller-data/
+├── provider.json
+├── services/
+│   └── my-llm/
+│       ├── offering.json
+│       └── listing.json
+└── promotions/
+    ├── summer-discount.json
+    └── volume-tier.json
+```
+
+Example promotion file:
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "summer-llm-discount",
+  "description": "20% off all LLM services for summer 2026",
+  "applies_to_all_services": false,
+  "service_names": ["gpt-4", "gpt-4-enterprise"],
+  "pricing": {
+    "type": "multiply",
+    "factor": "0.80",
+    "description": "Summer 2026 — 20% discount"
+  },
+  "apply_at": "request",
+  "priority": 10,
+  "requires_redemption": false,
+  "status": "active"
+}
+```
+
+### usvc promotions validate
+
+Validate local promotion files.
+
+```bash
+usvc promotions validate <DATA_PATH>
+```
+
+**Arguments:**
+
+- `DATA_PATH` - Path to a promotion file or directory containing `promotions/`
+
+### usvc promotions show
+
+Display a local promotion file with validation status.
+
+```bash
+usvc promotions show <PATH>
+```
+
+**Arguments:**
+
+- `PATH` - Path to a promotion file
+
+### usvc promotions list
+
+List seller's promotions on the backend.
+
+```bash
+usvc promotions list
+```
+
+**Environment:**
+
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
+
+### usvc promotions upload
+
+Upload promotion files to the backend. Creates new promotions or updates existing ones by name.
+
+```bash
+usvc promotions upload <DATA_PATH> [--dry-run]
+```
+
+**Arguments:**
+
+- `DATA_PATH` - Path to a promotion file or directory
+
+**Options:**
+
+- `--dry-run` - Validate only, don't upload
+
+### usvc promotions activate
+
+Activate a promotion by name or ID.
+
+```bash
+usvc promotions activate <NAME_OR_ID>
+```
+
+### usvc promotions pause
+
+Pause a promotion by name or ID.
+
+```bash
+usvc promotions pause <NAME_OR_ID>
+```
+
+### usvc promotions delete
+
+Delete a promotion by name or ID.
+
+```bash
+usvc promotions delete <NAME_OR_ID> [--force]
+```
+
+**Options:**
+
+- `--force`, `-f` - Skip confirmation prompt
 
 ---
 
