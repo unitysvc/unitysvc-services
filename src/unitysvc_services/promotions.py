@@ -89,7 +89,7 @@ def validate_promotions(
     )
 
 
-@app.command("show")
+@app.command("show-local")
 def show_promotion_local(
     path: Path = typer.Argument(
         ..., help="Path to a promotion file"
@@ -194,7 +194,7 @@ def list_promotions() -> None:
     console.print(table)
 
 
-@app.command("show-remote")
+@app.command("show")
 def show_promotion_remote(
     name_or_id: str = typer.Argument(
         ..., help="Promotion name or ID"

@@ -64,9 +64,9 @@ Manage seller promotions (pricing rules) — both local files and remote operati
 | Command       | Description                                    |
 | ------------- | ---------------------------------------------- |
 | `validate`    | Validate local promotion files                 |
-| `show`        | Display a local promotion file                 |
+| `show-local`  | Display a local promotion file                 |
 | `list`        | List promotions on the backend                 |
-| `show-remote` | Show details of a backend promotion            |
+| `show`        | Show details of a backend promotion            |
 | `upload`      | Upload promotion files (upsert by name)        |
 | `activate`    | Activate a promotion                           |
 | `pause`       | Pause a promotion                              |
@@ -702,7 +702,7 @@ The `scope` field controls which **customers** and **services** a promotion appl
 }
 ```
 
-After upload, `usvc promotions show-remote vip-discount` will show the generated code (e.g., `XKWPQM`).
+After upload, `usvc promotions show vip-discount` will show the generated code (e.g., `XKWPQM`).
 
 **Explicit code for specific services:**
 
@@ -756,12 +756,12 @@ usvc promotions validate <DATA_PATH>
 
 - `DATA_PATH` - Path to a promotion file or directory
 
-### usvc promotions show
+### usvc promotions show-local
 
 Display a local promotion file with validation status.
 
 ```bash
-usvc promotions show <PATH>
+usvc promotions show-local <PATH>
 ```
 
 ### usvc promotions list
@@ -777,12 +777,12 @@ usvc promotions list
 - `UNITYSVC_API_URL` - Backend API URL
 - `UNITYSVC_SELLER_API_KEY` - API key for authentication
 
-### usvc promotions show-remote
+### usvc promotions show
 
 Show details of a promotion on the backend (including generated codes).
 
 ```bash
-usvc promotions show-remote <NAME_OR_ID>
+usvc promotions show <NAME_OR_ID>
 ```
 
 ### usvc promotions upload
