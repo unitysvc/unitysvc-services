@@ -1186,14 +1186,6 @@ class PriceRuleApplyAtEnum(StrEnum):
     statement = "statement"  # Applied during billing/statement generation
 
 
-class PriceRuleSourceEnum(StrEnum):
-    """Source of code matching for price rules."""
-
-    plan_tier = "plan_tier"  # Matches plan tier (free, individual, team, enterprise)
-    plan_name = "plan_name"  # Matches plan name (starter, professional)
-    platform_code = "platform_code"  # Platform-funded promotional code
-    seller_code = "seller_code"  # Seller-funded promotional code
-
 
 class PriceRuleStatusEnum(StrEnum):
     """Status of a price rule in its lifecycle."""
