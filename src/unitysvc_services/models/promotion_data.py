@@ -121,41 +121,10 @@ def is_promotion_file(data: dict[str, Any]) -> bool:
     return data.get("schema") == PROMOTION_SCHEMA_VERSION
 
 
-def promotion_to_api_payload(
-    data: dict[str, Any],
-) -> dict[str, Any]:
-    """Convert a promotion file dict to the seller API create payload.
+def strip_schema_field(data: dict[str, Any]) -> dict[str, Any]:
+    """Return a copy of the data dict without the 'schema' field.
 
-    Maps local field names to the backend SellerPromotionCreate schema.
-
-    Args:
-        data: Validated promotion data dict
-
-    Returns:
-        Dict suitable for POST /seller/promotions
+    The backend accepts the promotion file format directly, so we only
+    need to strip the file-level schema field before POSTing.
     """
-    payload: dict[str, Any] = {
-        "name": data["name"],
-        "pricing": data["pricing"],
-    }
-
-    # Optional fields — only include if present
-    for field in (
-        "description",
-        "code",
-        "applies_to_all_services",
-        "apply_at",
-        "priority",
-        "expires_at",
-        "max_uses",
-    ):
-        if field in data and data[field] is not None:
-            payload[field] = data[field]
-
-    # Default code to name (uppercased) if not specified and requires redemption
-    if "code" not in payload or payload.get("code") is None:
-        requires = data.get("requires_redemption", True)
-        if requires:
-            payload["code"] = data["name"].upper().replace("-", "_")
-
-    return payload
+    return {k: v for k, v in data.items() if k != "schema"}

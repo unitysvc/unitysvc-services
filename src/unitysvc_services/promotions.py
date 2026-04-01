@@ -12,7 +12,7 @@ from rich.table import Table
 from .api import UnitySvcAPI
 from .models.promotion_data import (
     PROMOTION_SCHEMA_VERSION,
-    promotion_to_api_payload,
+    strip_schema_field,
     validate_promotion,
 )
 from .utils import find_files_by_schema, load_data_file
@@ -232,7 +232,7 @@ def upload_promotions(
     # Upload each promotion
     success = 0
     for f, data in all_data:
-        payload = promotion_to_api_payload(data)
+        payload = strip_schema_field(data)
 
         async def _upload(p: dict[str, Any]) -> dict[str, Any]:
             api = UnitySvcAPI()
