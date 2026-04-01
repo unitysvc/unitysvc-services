@@ -1179,6 +1179,33 @@ class ProviderStatusEnum(StrEnum):
     deprecated = "deprecated"
 
 
+class PriceRuleApplyAtEnum(StrEnum):
+    """When the price rule is applied."""
+
+    request = "request"  # Applied per API call
+    statement = "statement"  # Applied during billing/statement generation
+
+
+class PriceRuleSourceEnum(StrEnum):
+    """Source of code matching for price rules."""
+
+    plan_tier = "plan_tier"  # Matches plan tier (free, individual, team, enterprise)
+    plan_name = "plan_name"  # Matches plan name (starter, professional)
+    platform_code = "platform_code"  # Platform-funded promotional code
+    seller_code = "seller_code"  # Seller-funded promotional code
+
+
+class PriceRuleStatusEnum(StrEnum):
+    """Status of a price rule in its lifecycle."""
+
+    draft = "draft"  # Not yet active, can be edited
+    scheduled = "scheduled"  # Waiting for valid_from date
+    active = "active"  # Currently active and applied
+    paused = "paused"  # Temporarily disabled
+    expired = "expired"  # Past valid_until date
+    cancelled = "cancelled"  # Manually cancelled
+
+
 class DocumentData(BaseModel):
     """Document data for SDK/API payloads.
 

@@ -8,7 +8,7 @@ distribution modes.
 
 from typing import Any
 
-from .base import validate_pricing
+from .base import PriceRuleApplyAtEnum, PriceRuleStatusEnum, validate_pricing
 
 
 class PromotionData:
@@ -28,11 +28,9 @@ class PromotionV1:
     """
 
 
-# Allowed values for apply_at
-APPLY_AT_VALUES = {"request", "statement"}
-
-# Allowed values for status
-STATUS_VALUES = {"draft", "active", "paused"}
+# Derive allowed values from enums
+APPLY_AT_VALUES = {e.value for e in PriceRuleApplyAtEnum}
+STATUS_VALUES = {e.value for e in PriceRuleStatusEnum}
 
 
 def validate_promotion(data: dict[str, Any]) -> list[str]:
