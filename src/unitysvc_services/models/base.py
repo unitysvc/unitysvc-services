@@ -1188,14 +1188,16 @@ class PriceRuleApplyAtEnum(StrEnum):
 
 
 class PriceRuleStatusEnum(StrEnum):
-    """Status of a price rule in its lifecycle."""
+    """Seller-facing status values for promotions.
+
+    The backend may define additional statuses (scheduled, expired,
+    cancelled) for internal lifecycle management, but sellers only
+    interact with these three.
+    """
 
     draft = "draft"  # Not yet active, can be edited
-    scheduled = "scheduled"  # Waiting for valid_from date
     active = "active"  # Currently active and applied
     paused = "paused"  # Temporarily disabled
-    expired = "expired"  # Past valid_until date
-    cancelled = "cancelled"  # Manually cancelled
 
 
 class DocumentData(BaseModel):
