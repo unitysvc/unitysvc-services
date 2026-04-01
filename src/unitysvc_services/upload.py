@@ -873,11 +873,10 @@ def upload_callback(
 
     async def _upload_promotions(data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
         """Find and upload promotion_v1 files via PUT (upsert by name)."""
-        from .models.promotion_data import (
-            PROMOTION_SCHEMA_VERSION,
-            strip_schema_field,
-            validate_promotion,
-        )
+        from pydantic import ValidationError
+
+        from .models.promotion_data import PROMOTION_SCHEMA_VERSION, strip_schema_field
+        from .models.promotion_v1 import PromotionV1
 
         promo_files = find_files_by_schema(data_dir, PROMOTION_SCHEMA_VERSION)
         if not promo_files:
@@ -889,12 +888,13 @@ def upload_callback(
         errors_list: list[dict[str, str]] = []
 
         for promo_path, _fmt, promo_data in promo_files:
-            # Validate locally first
-            validation_errors = validate_promotion(promo_data)
-            if validation_errors:
+            # Validate locally first using the Pydantic model
+            try:
+                PromotionV1(**promo_data)
+            except ValidationError as e:
                 errors_list.append({
                     "file": str(promo_path),
-                    "error": "; ".join(validation_errors),
+                    "error": str(e),
                 })
                 continue
 

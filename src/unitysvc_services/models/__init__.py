@@ -32,11 +32,13 @@ from .offering_data import ServiceOfferingData
 from .offering_v1 import OfferingV1
 from .promotion_data import (
     PROMOTION_SCHEMA_VERSION,
+    PromotionData,
     describe_scope,
     is_promotion_file,
     strip_schema_field,
     validate_promotion,
 )
+from .promotion_v1 import PromotionV1
 from .provider_data import ProviderData
 from .provider_v1 import ProviderV1
 
@@ -45,10 +47,12 @@ __all__ = [
     "ProviderV1",
     "OfferingV1",
     "ListingV1",
+    "PromotionV1",
     # Data models (for API/backend use)
     "ProviderData",
     "ServiceOfferingData",
     "ServiceListingData",
+    "PromotionData",
     # Enums
     "ListingStatusEnum",
     "OfferingStatusEnum",
