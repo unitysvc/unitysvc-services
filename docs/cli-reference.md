@@ -59,14 +59,21 @@ Manage services on the backend - can be run from anywhere with the right API key
 
 ### Promotion Management (`usvc promotions`)
 
-Manage seller promotions (pricing rules) — both local files and remote operations.
+Manage seller promotions (pricing rules).
+
+**Local file commands** (work offline, no API credentials needed):
 
 | Command       | Description                                    |
 | ------------- | ---------------------------------------------- |
 | `validate`    | Validate local promotion files                 |
+| `upload`      | Upload local promotion files (upsert by name)  |
+
+**Remote commands** (operate on promotions already uploaded to the backend):
+
+| Command       | Description                                    |
+| ------------- | ---------------------------------------------- |
 | `list`        | List promotions on the backend                 |
-| `show`        | Show details of a backend promotion            |
-| `upload`      | Upload promotion files (upsert by name)        |
+| `show`        | Show details of a promotion (including generated codes) |
 | `activate`    | Activate a promotion                           |
 | `pause`       | Pause a promotion                              |
 | `delete`      | Delete a promotion                             |
@@ -619,7 +626,9 @@ Total drafts examined: 5
 
 ## usvc promotions - Promotion Management
 
-Commands for managing seller promotions (pricing rules). Promotions are identified by name (unique per seller) and support both local file management and remote operations.
+Commands for managing seller promotions (pricing rules). Promotions are identified by name (unique per seller).
+
+Only `validate` and `upload` operate on local files. All other commands (`list`, `show`, `activate`, `pause`, `delete`) operate on promotions already uploaded to the backend.
 
 ### Promotion File Format
 
