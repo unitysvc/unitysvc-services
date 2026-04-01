@@ -564,10 +564,14 @@ class ServiceDataPublisher(UnitySvcAPI):
 
         # Add local metadata to result for display purposes
         result["listing_name"] = listing_name
-        result["service_name"] = offering_data_resolved.get("name")
+        result["service_name"] = (
+            result.get("service", {}).get("name")
+            or offering_data_resolved.get("name")
+        )
         result["provider_name"] = provider_name_str
 
-        # Save service_id to override file for future updates (not in dryrun mode)
+        # Save service_id and resolved name to override file for future updates
+        # (not in dryrun mode).
         # For revisions, use revision_of (the original active service ID) so that
         # future uploads continue targeting the same active service.
         if not dryrun:
@@ -575,6 +579,12 @@ class ServiceDataPublisher(UnitySvcAPI):
             service_id = service_result.get("revision_of") or service_result.get("id")
             if service_id:
                 override_data: dict[str, Any] = {"service_id": service_id}
+                # Save the backend-resolved service name as listing.name so that
+                # future uploads and promotion files have an unambiguous reference.
+                # The backend resolves name as: listing.name ?? offering.name
+                resolved_name = service_result.get("name")
+                if resolved_name:
+                    override_data["name"] = resolved_name
                 override_path = write_override_file(listing_file, override_data)
                 result["override_file"] = str(override_path)
 
