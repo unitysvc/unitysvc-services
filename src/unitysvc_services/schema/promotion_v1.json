@@ -1,0 +1,60 @@
+{
+  "title": "PromotionV1",
+  "description": "Seller promotion (pricing rule) definition.",
+  "type": "object",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "default": "promotion_v1",
+      "description": "Schema identifier"
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 100,
+      "description": "Unique promotion name per seller"
+    },
+    "description": {
+      "anyOf": [{"type": "string", "maxLength": 500}, {"type": "null"}],
+      "default": null,
+      "description": "Human-readable description"
+    },
+    "scope": {
+      "anyOf": [{"type": "object"}, {"type": "null"}],
+      "default": null,
+      "description": "Customer and service targeting (null = all customers, all services)"
+    },
+    "pricing": {
+      "type": "object",
+      "description": "Pricing adjustment specification"
+    },
+    "apply_at": {
+      "type": "string",
+      "enum": ["request", "statement"],
+      "default": "request",
+      "description": "When the rule is evaluated"
+    },
+    "priority": {
+      "type": "integer",
+      "default": 0,
+      "description": "Higher priority rules applied first"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "paused"],
+      "default": "draft",
+      "description": "Promotion status"
+    },
+    "expires_at": {
+      "anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}],
+      "default": null,
+      "description": "When the promotion expires"
+    },
+    "max_uses": {
+      "anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}],
+      "default": null,
+      "description": "Maximum total redemptions"
+    }
+  },
+  "required": ["name", "pricing"],
+  "additionalProperties": false
+}

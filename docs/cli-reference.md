@@ -61,14 +61,7 @@ Manage services on the backend - can be run from anywhere with the right API key
 
 Manage seller promotions (pricing rules).
 
-**Local file commands** (work offline, no API credentials needed):
-
-| Command       | Description                                    |
-| ------------- | ---------------------------------------------- |
-| `validate`    | Validate local promotion files                 |
-| `upload`      | Upload local promotion files (upsert by name)  |
-
-**Remote commands** (operate on promotions already uploaded to the backend):
+All commands operate on promotions already uploaded to the backend. Use `usvc data validate` and `usvc data upload` for local file operations (promotions are discovered alongside services).
 
 | Command       | Description                                    |
 | ------------- | ---------------------------------------------- |
@@ -628,7 +621,7 @@ Total drafts examined: 5
 
 Commands for managing seller promotions (pricing rules). Promotions are identified by name (unique per seller).
 
-Only `validate` and `upload` operate on local files. All other commands (`list`, `show`, `activate`, `pause`, `delete`) operate on promotions already uploaded to the backend.
+All commands operate on promotions already uploaded to the backend. Local file operations (validate, upload) are handled by `usvc data validate` and `usvc data upload`, which automatically discover `promotion_v1` files alongside service data.
 
 ### Promotion File Format
 
@@ -752,18 +745,6 @@ After upload, `usvc promotions show vip-discount` will show the generated code (
 }
 ```
 
-### usvc promotions validate
-
-Validate local promotion files.
-
-```bash
-usvc promotions validate <DATA_PATH>
-```
-
-**Arguments:**
-
-- `DATA_PATH` - Path to a promotion file or directory
-
 ### usvc promotions list
 
 List seller's promotions on the backend.
@@ -784,18 +765,6 @@ Show details of a promotion on the backend (including generated codes).
 ```bash
 usvc promotions show <NAME_OR_ID>
 ```
-
-### usvc promotions upload
-
-Upload promotion files to the backend. Uses PUT for idempotent upsert — creates new promotions or updates existing ones by name.
-
-```bash
-usvc promotions upload <DATA_PATH> [--dry-run]
-```
-
-**Options:**
-
-- `--dry-run` - Validate only, don't upload
 
 ### usvc promotions activate
 

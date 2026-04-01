@@ -1,8 +1,7 @@
-"""Promotions command group - manage seller pricing rules."""
+"""Promotions command group - remote operations on uploaded promotions."""
 
 import asyncio
 import json
-from pathlib import Path
 from typing import Any
 
 import typer
@@ -10,87 +9,16 @@ from rich.console import Console
 from rich.table import Table
 
 from .api import UnitySvcAPI
-from .models.promotion_data import (
-    PROMOTION_SCHEMA_VERSION,
-    describe_scope,
-    strip_schema_field,
-    validate_promotion,
-)
-from .utils import find_files_by_schema, load_data_file
+from .models.promotion_data import describe_scope
 
 console = Console()
 
 app = typer.Typer(
-    help="Manage seller promotions (pricing rules)."
-)
-
-
-# ============================================================================
-# LOCAL FILE OPERATIONS
-# ============================================================================
-
-
-def _find_promotion_files(data_dir: Path) -> list[Path]:
-    """Find all promotion files in a data directory."""
-    files = find_files_by_schema(data_dir, PROMOTION_SCHEMA_VERSION)
-    return sorted([f[0] for f in files])
-
-
-def _load_and_validate(
-    path: Path,
-) -> tuple[dict[str, Any], list[str]]:
-    """Load and validate a promotion file."""
-    data, _fmt = load_data_file(path)
-    errors = validate_promotion(data)
-    return data, errors
-
-
-@app.command("validate")
-def validate_promotions(
-    data_path: Path = typer.Argument(
-        ...,
-        help="Path to a promotion file or directory",
+    help=(
+        "Manage seller promotions on the backend. "
+        "Use 'usvc data validate' and 'usvc data upload' for local file operations."
     ),
-) -> None:
-    """Validate promotion files."""
-    if data_path.is_file():
-        files = [data_path]
-    elif data_path.is_dir():
-        files = _find_promotion_files(data_path)
-    else:
-        console.print(f"[red]Error:[/red] {data_path} not found")
-        raise typer.Exit(code=1)
-
-    if not files:
-        console.print("[yellow]No promotion files found[/yellow]")
-        raise typer.Exit(code=0)
-
-    total_errors = 0
-    for f in files:
-        data, errors = _load_and_validate(f)
-        if errors:
-            total_errors += len(errors)
-            console.print(f"[red]✗[/red] {f.name}")
-            for err in errors:
-                console.print(f"    {err}")
-        else:
-            scope_desc = describe_scope(data.get("scope"))
-            console.print(
-                f"[green]✓[/green] {f.name} — "
-                f"{data.get('name', '?')} ({scope_desc})"
-            )
-
-    if total_errors:
-        console.print(f"\n[red]{total_errors} error(s)[/red]")
-        raise typer.Exit(code=1)
-    console.print(
-        f"\n[green]All {len(files)} promotion(s) valid[/green]"
-    )
-
-
-# ============================================================================
-# REMOTE OPERATIONS
-# ============================================================================
+)
 
 
 @app.command("list")
@@ -185,85 +113,6 @@ def show_promotion_remote(
     )
 
     console.print(table)
-
-
-@app.command("upload")
-def upload_promotions(
-    data_path: Path = typer.Argument(
-        ...,
-        help="Path to a promotion file or directory",
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", help="Validate only, don't upload",
-    ),
-) -> None:
-    """Upload promotion files to the backend (upsert by name)."""
-    if data_path.is_file():
-        files = [data_path]
-    elif data_path.is_dir():
-        files = _find_promotion_files(data_path)
-    else:
-        console.print(f"[red]Error:[/red] {data_path} not found")
-        raise typer.Exit(code=1)
-
-    if not files:
-        console.print("[yellow]No promotion files found[/yellow]")
-        raise typer.Exit(code=0)
-
-    # Validate all first
-    all_data: list[tuple[Path, dict[str, Any]]] = []
-    has_errors = False
-    for f in files:
-        data, errors = _load_and_validate(f)
-        if errors:
-            has_errors = True
-            console.print(f"[red]✗[/red] {f.name}")
-            for err in errors:
-                console.print(f"    {err}")
-        else:
-            all_data.append((f, data))
-
-    if has_errors:
-        console.print(
-            "\n[red]Fix validation errors before uploading[/red]"
-        )
-        raise typer.Exit(code=1)
-
-    if dry_run:
-        console.print(
-            f"\n[yellow]Dry run:[/yellow] {len(all_data)} "
-            "promotion(s) would be uploaded"
-        )
-        return
-
-    # Upload via PUT (upsert by name)
-    success = 0
-    for f, data in all_data:
-        payload = strip_schema_field(data)
-
-        async def _upload(p: dict[str, Any]) -> dict[str, Any]:
-            api = UnitySvcAPI()
-            return await api.put(
-                "/seller/promotions", json_data=p,
-            )
-
-        try:
-            result = asyncio.run(_upload(payload))
-            name = result.get("name", data.get("name", "?"))
-            code = result.get("code", "")
-            rule_id = str(result.get("id", ""))[:8]
-            code_info = f" code={code}" if code else ""
-            console.print(
-                f"[green]✓[/green] {f.name} → "
-                f"{name} ({rule_id}){code_info}"
-            )
-            success += 1
-        except Exception as e:
-            console.print(f"[red]✗[/red] {f.name}: {e}")
-
-    console.print(f"\n{success}/{len(all_data)} uploaded")
-    if success < len(all_data):
-        raise typer.Exit(code=1)
 
 
 @app.command("activate")

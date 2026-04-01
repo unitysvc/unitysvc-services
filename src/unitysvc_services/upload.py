@@ -852,19 +852,105 @@ def upload_callback(
         console.print(f"[bold blue]Uploading services from:[/bold blue] {data_path}")
     console.print(f"[bold blue]Backend URL:[/bold blue] {os.getenv('UNITYSVC_API_URL', 'N/A')}\n")
 
+    async def _upload_promotions(data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
+        """Find and upload promotion_v1 files via PUT (upsert by name)."""
+        from .models.promotion_data import (
+            PROMOTION_SCHEMA_VERSION,
+            strip_schema_field,
+            validate_promotion,
+        )
+
+        promo_files = find_files_by_schema(data_dir, PROMOTION_SCHEMA_VERSION)
+        if not promo_files:
+            return {"total": 0, "success": 0, "failed": 0, "errors": []}
+
+        api = ServiceDataPublisher()
+        total = len(promo_files)
+        success_count = 0
+        errors_list: list[dict[str, str]] = []
+
+        for promo_path, _fmt, promo_data in promo_files:
+            # Validate locally first
+            validation_errors = validate_promotion(promo_data)
+            if validation_errors:
+                errors_list.append({
+                    "file": str(promo_path),
+                    "error": "; ".join(validation_errors),
+                })
+                continue
+
+            if dryrun:
+                name = promo_data.get("name", "?")
+                console.print(
+                    f"  [yellow]?[/yellow] [yellow]Would upload[/yellow] "
+                    f"promotion: [cyan]{name}[/cyan]"
+                )
+                success_count += 1
+                continue
+
+            payload = strip_schema_field(promo_data)
+            try:
+                result = await api.put(
+                    "/seller/promotions", json_data=payload,
+                )
+                name = result.get("name", promo_data.get("name", "?"))
+                code = result.get("code", "")
+                code_info = f" code={code}" if code else ""
+                console.print(
+                    f"  [green]+[/green] [green]Uploaded[/green] "
+                    f"promotion: [cyan]{name}[/cyan]{code_info}"
+                )
+                success_count += 1
+            except Exception as e:
+                errors_list.append({
+                    "file": str(promo_path),
+                    "error": str(e),
+                })
+
+        return {
+            "total": total,
+            "success": success_count,
+            "failed": total - success_count,
+            "errors": errors_list,
+        }
+
     async def _upload_async():
         async with ServiceDataPublisher() as uploader:
             if is_single_file:
+                # Check if it's a promotion file
+                try:
+                    file_data, _fmt = load_data_file(data_path)
+                    if file_data.get("schema") == "promotion_v1":
+                        promo_result = await _upload_promotions(
+                            data_path.parent, dryrun=dryrun,
+                        )
+                        return promo_result, False
+                except Exception:
+                    pass
+
                 # Upload single service from listing file
                 result = await uploader.post_service_async(data_path, dryrun=dryrun, revision_to=revision_to)
                 return result, True
             else:
                 # Upload all services from directory
                 results = await uploader.upload_all_services(data_path, dryrun=dryrun)
-                return results, False
+
+                # Also upload promotions from the same directory
+                promo_results = await _upload_promotions(
+                    data_path, dryrun=dryrun,
+                )
+
+                return results, False, promo_results
 
     try:
-        result, is_single = asyncio.run(_upload_async())
+        upload_result = asyncio.run(_upload_async())
+
+        # Unpack result — directory uploads return 3-tuple with promo_results
+        if len(upload_result) == 3:
+            result, is_single, promo_results = upload_result
+        else:
+            result, is_single = upload_result
+            promo_results = None
 
         if is_single:
             # Single file result
@@ -898,18 +984,34 @@ def upload_callback(
                 str(result.get("unchanged", 0)) if result.get("unchanged", 0) > 0 else "",
             )
 
+            # Add promotions row if any were found
+            if promo_results and promo_results["total"] > 0:
+                table.add_row(
+                    "Promotions",
+                    str(promo_results["total"]),
+                    str(promo_results["success"]),
+                    "",
+                    str(promo_results["failed"]) if promo_results["failed"] > 0 else "",
+                    "", "", "",
+                )
+
             console.print(table)
 
             # Display errors if any
-            if result.get("errors"):
+            all_errors = list(result.get("errors") or [])
+            if promo_results:
+                all_errors.extend(promo_results.get("errors") or [])
+
+            if all_errors:
                 console.print("\n[bold red]Errors:[/bold red]")
-                for error in result["errors"]:
+                for error in all_errors:
                     console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
                     console.print(f"    {error.get('error', 'unknown error')}")
 
-            if result["failed"] > 0:
+            total_failed = result["failed"] + (promo_results["failed"] if promo_results else 0)
+            if total_failed > 0:
                 console.print(
-                    f"\n[yellow]⚠[/yellow]  Completed with {result['failed']} failure(s)",
+                    f"\n[yellow]⚠[/yellow]  Completed with {total_failed} failure(s)",
                     style="bold yellow",
                 )
                 raise typer.Exit(code=1)
@@ -921,11 +1023,8 @@ def upload_callback(
                     )
                 else:
                     console.print(
-                        "\n[green]✓[/green] All services uploaded successfully!",
+                        "\n[green]✓[/green] All uploads completed successfully!",
                         style="bold green",
-                    )
-                    console.print(
-                        "\n[dim]Next steps: Run 'usvc test' to validate, then 'usvc submit' to submit for review.[/dim]"
                     )
 
     except typer.Exit:
