@@ -755,7 +755,7 @@ def update_service(
     set_price: list[str] = typer.Option(
         None,
         "--set-price",
-        help="Set list_price field(s): key=value, JSON object '{...}', or plain number for constant pricing (repeatable)",
+        help="Set list_price: key=value, JSON '{...}', or plain number for constant pricing (repeatable)",
     ),
     remove_price_field: list[str] = typer.Option(
         None,
