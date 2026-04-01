@@ -1462,7 +1462,7 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
             continue
 
         # Validate enrollment_vars values are all strings (Jinja2 templates)
-        if key == "enrollment_vars":
+        if key == "enrollment_vars" and isinstance(value, dict):
             for env_key, env_val in value.items():
                 if not isinstance(env_key, str):
                     errors.append(f"service_options.enrollment_vars key must be str, got {type(env_key).__name__}")
@@ -1472,12 +1472,12 @@ def validate_service_options(service_options: dict[str, Any] | None) -> list[str
                     )
 
         # Non-positive integers for enrollment_limit* keys
-        if expected_type is int and key.startswith("enrollment_limit"):
+        if expected_type is int and key.startswith("enrollment_limit") and isinstance(value, int):
             if value <= 0:
                 errors.append(f"service_options.{key} must be a positive integer, got {value}")
 
         # Recurrence interval bounds
-        if key in ("recurrence_min_interval_seconds", "recurrence_max_interval_seconds"):
+        if key in ("recurrence_min_interval_seconds", "recurrence_max_interval_seconds") and isinstance(value, int):
             if value < 1:
                 errors.append(f"service_options.{key} must be >= 1, got {value}")
 

@@ -130,9 +130,12 @@ listing-premium.json → listing-premium.override.json
 Example override file content:
 ```json
 {
-  "service_id": "550e8400-e29b-41d4-a716-446655440000"
+  "service_id": "550e8400-e29b-41d4-a716-446655440000",
+  "name": "gpt-4-enterprise"
 }
 ```
+
+The `service_id` is used to update the correct service on subsequent uploads. The `name` is the backend-resolved service name (`listing.name` if set, otherwise `offering.name`), saved here so sellers have an unambiguous reference — for example, when targeting services in promotion files.
 
 This override file should be:
 - **Committed to version control** - links the local service definition to a specific service on the UnitySVC platform, ensuring consistent identity across team members and CI/CD
