@@ -7,7 +7,6 @@ from typing import Any
 
 import typer
 from rich.console import Console
-from rich.syntax import Syntax
 from rich.table import Table
 
 from .api import UnitySvcAPI
@@ -87,61 +86,6 @@ def validate_promotions(
     console.print(
         f"\n[green]All {len(files)} promotion(s) valid[/green]"
     )
-
-
-@app.command("show-local")
-def show_promotion_local(
-    path: Path = typer.Argument(
-        ..., help="Path to a promotion file"
-    ),
-) -> None:
-    """Display a local promotion file with validation status."""
-    data, errors = _load_and_validate(path)
-
-    console.print(f"\n[bold]{data.get('name', '(unnamed)')}[/bold]")
-    if data.get("description"):
-        console.print(f"  {data['description']}")
-    console.print()
-
-    table = Table(show_header=False, box=None, padding=(0, 2))
-    table.add_column(style="dim")
-    table.add_column()
-
-    # Scope
-    scope = data.get("scope")
-    table.add_row("scope", describe_scope(scope))
-    if scope:
-        table.add_row(
-            "", Syntax(
-                json.dumps(scope, indent=2),
-                "json", theme="monokai",
-            )
-        )
-
-    # Pricing
-    table.add_row(
-        "pricing",
-        json.dumps(data.get("pricing", {}), indent=2),
-    )
-    table.add_row("apply_at", str(data.get("apply_at", "request")))
-    table.add_row("priority", str(data.get("priority", 0)))
-    table.add_row("status", str(data.get("status", "draft")))
-
-    if data.get("expires_at"):
-        table.add_row("expires_at", str(data["expires_at"]))
-    if data.get("max_uses"):
-        table.add_row("max_uses", str(data["max_uses"]))
-
-    console.print(table)
-
-    if errors:
-        console.print(
-            f"\n[red]{len(errors)} validation error(s):[/red]"
-        )
-        for err in errors:
-            console.print(f"  - {err}")
-    else:
-        console.print("\n[green]Valid[/green]")
 
 
 # ============================================================================

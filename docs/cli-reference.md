@@ -64,7 +64,6 @@ Manage seller promotions (pricing rules) — both local files and remote operati
 | Command       | Description                                    |
 | ------------- | ---------------------------------------------- |
 | `validate`    | Validate local promotion files                 |
-| `show-local`  | Display a local promotion file                 |
 | `list`        | List promotions on the backend                 |
 | `show`        | Show details of a backend promotion            |
 | `upload`      | Upload promotion files (upsert by name)        |
@@ -755,14 +754,6 @@ usvc promotions validate <DATA_PATH>
 **Arguments:**
 
 - `DATA_PATH` - Path to a promotion file or directory
-
-### usvc promotions show-local
-
-Display a local promotion file with validation status.
-
-```bash
-usvc promotions show-local <PATH>
-```
 
 ### usvc promotions list
 
