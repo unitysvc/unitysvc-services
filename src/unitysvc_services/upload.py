@@ -798,6 +798,13 @@ def upload_callback(
         help="Service ID of an active service to create a revision for. "
         "Only valid when uploading a single service file.",
     ),
+    upload_type: str | None = typer.Option(
+        None,
+        "--type",
+        "-t",
+        help="Upload only a specific type: 'services' or 'promotions' "
+        "(default: upload all types found)",
+    ),
 ):
     """
     Upload service data to backend.
@@ -832,6 +839,18 @@ def upload_callback(
     if not data_path.exists():
         console.print(f"[red]✗[/red] Path not found: {data_path}", style="bold red")
         raise typer.Exit(code=1)
+
+    # Validate --type
+    valid_types = {"services", "promotions"}
+    if upload_type and upload_type not in valid_types:
+        console.print(
+            f"[red]✗[/red] Invalid --type '{upload_type}'. Must be one of: {', '.join(sorted(valid_types))}",
+            style="bold red",
+        )
+        raise typer.Exit(code=1)
+
+    upload_services = upload_type in (None, "services")
+    upload_promotions = upload_type in (None, "promotions")
 
     # Handle single file vs directory
     is_single_file = data_path.is_file()
@@ -914,6 +933,8 @@ def upload_callback(
             "errors": errors_list,
         }
 
+    empty_result = {"total": 0, "success": 0, "failed": 0, "errors": []}
+
     async def _upload_async():
         async with ServiceDataPublisher() as uploader:
             if is_single_file:
@@ -932,13 +953,19 @@ def upload_callback(
                 result = await uploader.post_service_async(data_path, dryrun=dryrun, revision_to=revision_to)
                 return result, True
             else:
-                # Upload all services from directory
-                results = await uploader.upload_all_services(data_path, dryrun=dryrun)
+                # Upload services (unless --type promotions)
+                if upload_services:
+                    results = await uploader.upload_all_services(data_path, dryrun=dryrun)
+                else:
+                    results = dict(empty_result)
 
-                # Also upload promotions from the same directory
-                promo_results = await _upload_promotions(
-                    data_path, dryrun=dryrun,
-                )
+                # Upload promotions (unless --type services)
+                if upload_promotions:
+                    promo_results = await _upload_promotions(
+                        data_path, dryrun=dryrun,
+                    )
+                else:
+                    promo_results = dict(empty_result)
 
                 return results, False, promo_results
 
