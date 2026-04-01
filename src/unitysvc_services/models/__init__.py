@@ -9,6 +9,8 @@ from .base import (
     ListingStatusEnum,
     MultiplyPriceData,
     OfferingStatusEnum,
+    PriceRuleApplyAtEnum,
+    PriceRuleStatusEnum,
     Pricing,
     PricingTypeEnum,
     ProviderStatusEnum,
@@ -28,6 +30,13 @@ from .listing_data import ServiceListingData
 from .listing_v1 import ListingV1
 from .offering_data import ServiceOfferingData
 from .offering_v1 import OfferingV1
+from .promotion_data import (
+    PROMOTION_SCHEMA_VERSION,
+    describe_scope,
+    is_promotion_file,
+    strip_schema_field,
+    validate_promotion,
+)
 from .provider_data import ProviderData
 from .provider_v1 import ProviderV1
 
@@ -43,6 +52,8 @@ __all__ = [
     # Enums
     "ListingStatusEnum",
     "OfferingStatusEnum",
+    "PriceRuleApplyAtEnum",
+    "PriceRuleStatusEnum",
     "ProviderStatusEnum",
     "SellerTypeEnum",
     "ServiceTypeEnum",
@@ -69,4 +80,10 @@ __all__ = [
     "validate_service_options",
     # Cost calculation
     "UsageData",
+    # Promotions
+    "PROMOTION_SCHEMA_VERSION",
+    "is_promotion_file",
+    "describe_scope",
+    "strip_schema_field",
+    "validate_promotion",
 ]

@@ -57,6 +57,20 @@ Manage services on the backend - can be run from anywhere with the right API key
 | `skip-test`   | Mark a code example test as skipped           |
 | `unskip-test` | Remove skip status from a test                |
 
+### Promotion Management (`usvc promotions`)
+
+Manage seller promotions (pricing rules).
+
+All commands operate on promotions already uploaded to the backend. Use `usvc data validate` and `usvc data upload` for local file operations (promotions are discovered alongside services).
+
+| Command       | Description                                    |
+| ------------- | ---------------------------------------------- |
+| `list`        | List promotions on the backend                 |
+| `show`        | Show details of a promotion (including generated codes) |
+| `activate`    | Activate a promotion                           |
+| `pause`       | Pause a promotion                              |
+| `delete`      | Delete a promotion                             |
+
 **Note:** To create initial service data, use the [UnitySVC web interface](https://unitysvc.com) which provides a visual editor with validation. You can export your data for use with this SDK.
 
 ## usvc data - Local Data Operations
@@ -600,6 +614,185 @@ Total drafts examined: 5
 
 - `UNITYSVC_API_URL` - Backend API URL
 - `UNITYSVC_SELLER_API_KEY` - API key for authentication
+
+---
+
+## usvc promotions - Promotion Management
+
+Commands for managing seller promotions (pricing rules). Promotions are identified by name (unique per seller).
+
+All commands operate on promotions already uploaded to the backend. Local file operations (validate, upload) are handled by `usvc data validate` and `usvc data upload`, which automatically discover `promotion_v1` files alongside service data.
+
+### Promotion File Format
+
+Promotion files use the `promotion_v1` schema and live in a `promotions/` directory alongside service data:
+
+```
+seller-data/
+├── provider.json
+├── services/
+│   └── my-llm/
+│       ├── offering.json
+│       └── listing.json
+└── promotions/
+    ├── summer-discount.json
+    └── volume-tier.json
+```
+
+### Fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `schema` | str | `"promotion_v1"` | File schema identifier (stripped before upload) |
+| `name` | str | **required** | Unique per seller. Used for idempotent upsert |
+| `description` | str \| null | null | Human-readable description |
+| `scope` | dict \| null | null | Who + where the promotion applies (see below) |
+| `pricing` | dict | **required** | Pricing adjustment (Pricing union type) |
+| `apply_at` | str | `"request"` | `"request"` (per API call) or `"statement"` (billing) |
+| `priority` | int | 0 | Higher-priority rules applied first |
+| `status` | str | `"draft"` | `"draft"`, `"active"`, `"paused"`, etc. |
+| `expires_at` | datetime \| null | null | When the promotion expires (code-based only) |
+| `max_uses` | int \| null | null | Maximum total redemptions (code-based only) |
+
+### Scope
+
+The `scope` field controls which **customers** and **services** a promotion applies to. When omitted, the promotion is a blanket discount for all customers on all of the seller's services.
+
+**Customer targeting** (`scope.customers`):
+
+| Value | Effect |
+|-------|--------|
+| `"*"` or omitted | All customers (blanket) |
+| `{"code": "SUMMER25"}` | Customers who redeem this code |
+| `{"code": "{{ promotion_code(6) }}"}` | Backend auto-generates a 6-char code |
+| `{"subscription": "premium"}` | Customers on a specific plan tier |
+| `["id1", "id2"]` | Specific customers (backend auto-assigns the code to their accounts) |
+
+**Service targeting** (`scope.services`):
+
+| Value | Effect |
+|-------|--------|
+| `"*"` or omitted | All of this seller's services |
+| `["gpt-4", "gpt-4-enterprise"]` | Specific services by name |
+
+### Examples
+
+**Blanket discount** — 20% off everything, no code needed:
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "summer-sale",
+  "description": "Summer 2026 sale — 20% off all services",
+  "pricing": {"type": "multiply", "factor": "0.80"},
+  "status": "active"
+}
+```
+
+**Code-based with auto-generated code:**
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "vip-discount",
+  "description": "30% off for VIP customers",
+  "scope": {"customers": {"code": "{{ promotion_code(6) }}"}},
+  "pricing": {"type": "multiply", "factor": "0.70"},
+  "expires_at": "2026-12-31T00:00:00Z",
+  "max_uses": 100
+}
+```
+
+After upload, `usvc promotions show vip-discount` will show the generated code (e.g., `XKWPQM`).
+
+**Explicit code for specific services:**
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "launch-promo",
+  "scope": {
+    "customers": {"code": "LAUNCH2026"},
+    "services": ["my-new-service"]
+  },
+  "pricing": {"type": "multiply", "factor": "0.50"},
+  "max_uses": 500
+}
+```
+
+**Tier-restricted discount:**
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "premium-llm-discount",
+  "scope": {
+    "customers": {"subscription": "premium"},
+    "services": ["gpt-4", "claude-3-opus"]
+  },
+  "pricing": {"type": "multiply", "factor": "0.85"}
+}
+```
+
+**Targeted discount for specific customers:**
+
+```json
+{
+  "schema": "promotion_v1",
+  "name": "beta-tester-reward",
+  "scope": {"customers": ["550e8400-...", "6ba7b810-..."]},
+  "pricing": {"type": "constant", "price": "-5.00"}
+}
+```
+
+### usvc promotions list
+
+List seller's promotions on the backend.
+
+```bash
+usvc promotions list
+```
+
+**Environment:**
+
+- `UNITYSVC_API_URL` - Backend API URL
+- `UNITYSVC_SELLER_API_KEY` - API key for authentication
+
+### usvc promotions show
+
+Show details of a promotion on the backend (including generated codes).
+
+```bash
+usvc promotions show <NAME_OR_ID>
+```
+
+### usvc promotions activate
+
+Activate a promotion by name or ID.
+
+```bash
+usvc promotions activate <NAME_OR_ID>
+```
+
+### usvc promotions pause
+
+Pause a promotion by name or ID.
+
+```bash
+usvc promotions pause <NAME_OR_ID>
+```
+
+### usvc promotions delete
+
+Delete a promotion by name or ID.
+
+```bash
+usvc promotions delete <NAME_OR_ID> [--force]
+```
+
+**Options:**
+
+- `--force`, `-f` - Skip confirmation prompt
 
 ---
 

@@ -1179,6 +1179,27 @@ class ProviderStatusEnum(StrEnum):
     deprecated = "deprecated"
 
 
+class PriceRuleApplyAtEnum(StrEnum):
+    """When the price rule is applied."""
+
+    request = "request"  # Applied per API call
+    statement = "statement"  # Applied during billing/statement generation
+
+
+
+class PriceRuleStatusEnum(StrEnum):
+    """Seller-facing status values for promotions.
+
+    The backend may define additional statuses (scheduled, expired,
+    cancelled) for internal lifecycle management, but sellers only
+    interact with these three.
+    """
+
+    draft = "draft"  # Not yet active, can be edited
+    active = "active"  # Currently active and applied
+    paused = "paused"  # Temporarily disabled
+
+
 class DocumentData(BaseModel):
     """Document data for SDK/API payloads.
 
