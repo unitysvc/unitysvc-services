@@ -637,14 +637,17 @@ $ usvc data upload
 
 ### Override File Persistence
 
-After the first successful publish, the override file contains the stable service identity:
+After the first successful publish, the override file contains the stable service identity and the backend-resolved service name:
 
 ```json
 // listing.override.json (auto-generated)
 {
-    "service_id": "550e8400-e29b-41d4-a716-446655440000"
+    "service_id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "gpt-4-enterprise"
 }
 ```
+
+The `name` field is the backend-resolved service name (`listing.name` if set, otherwise `offering.name`). It is saved as a valid `listing.name` field, so it feeds back into subsequent uploads. This provides an unambiguous reference when targeting services in promotion files.
 
 **Best practices for override files:**
 
