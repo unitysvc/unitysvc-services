@@ -1,69 +1,21 @@
-"""Promotion (pricing rule) data model for seller-managed promotions.
+"""Base data model for promotions.
 
-A PromotionData represents a seller-defined pricing adjustment. Promotions
-are identified by name (unique per seller) and use a ``scope`` field to
-control which customers and services the adjustment applies to.
+This module defines ``PromotionData``, a base model containing the core fields
+for promotion data that is shared between:
+- unitysvc-services (CLI): Used for file-based promotion definitions
+- unitysvc (backend): Used for API payloads (``SellerPromotionCreate``)
 
-File schema: ``promotion_v1``
-
-Fields
-------
-name : str (required)
-    Unique identifier per seller. Used for idempotent upsert — uploading
-    a promotion with the same name updates the existing one.
-
-description : str | null
-    Human-readable description shown in the UI and CLI.
-
-scope : dict | null
-    Controls **who** (customers) and **where** (services) the promotion
-    applies.  When omitted or null the promotion is a blanket discount
-    that applies to all customers on all of the seller's services.
-
-    Customer targeting (``scope.customers``):
-
-    * ``"*"`` or omitted — all customers (blanket).
-    * ``{"code": "SUMMER25"}`` — only customers who redeem this code.
-    * ``{"code": "{{ promotion_code(6) }}"}`` — backend auto-generates a
-      6-character code via the ActionCode system (same as enrollment
-      codes).  The generated code is written back to the stored scope
-      on first upload and preserved on subsequent upserts.
-    * ``{"subscription": "premium"}`` — customers on a specific plan
-      tier.
-    * ``["id1", "id2", ...]`` — specific customers.  The backend
-      auto-assigns the code to their accounts (server-side redemption,
-      no customer action needed).
-
-    Service targeting (``scope.services``):
-
-    * ``"*"`` or omitted — all of this seller's services.
-    * ``["gpt-4", "gpt-4-enterprise"]`` — specific services by name
-      (``listing.name ?? offering.name``).
-
-pricing : dict (required)
-    Pricing adjustment using the shared ``Pricing`` union type (e.g.
-    ``multiply``, ``constant``, ``add``).
-
-apply_at : "request" | "statement"  (default "request")
-    When the rule is evaluated — per API call or during billing.
-
-priority : int  (default 0)
-    Higher-priority rules are applied first when multiple rules match.
-
-status : str  (default "draft")
-    Lifecycle status: ``draft``, ``active``, ``paused``, etc.
-
-expires_at : datetime | null
-    When the promotion expires (code-based promotions only).
-
-max_uses : int | null
-    Maximum total redemptions (code-based promotions only).
+The ``validate_promotion()`` function provides dict-level validation for
+raw data (e.g., from TOML files) before constructing the model.
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 from .base import PriceRuleApplyAtEnum, PriceRuleStatusEnum, validate_pricing
 
@@ -77,6 +29,77 @@ PROMOTION_SCHEMA_VERSION = "promotion_v1"
 _PROMOTION_CODE_PATTERN = re.compile(
     r"^\{\{\s*promotion_code\(\s*(\d+)\s*\)\s*\}\}$"
 )
+
+
+class PromotionData(BaseModel):
+    """
+    Base data structure for promotion information.
+
+    This model contains the core fields needed to describe a promotion,
+    without file-specific validation fields. It serves as:
+
+    1. The base class for file-level validation in unitysvc-services
+       (with additional schema_version field)
+
+    2. The data structure imported by unitysvc backend for:
+       - API payload validation (SellerPromotionCreate)
+       - Promotion upsert and CRUD operations
+       - Publish operations from CLI
+
+    Key characteristics:
+    - scope is the source of truth for customer/service targeting
+    - pricing uses the shared Pricing union type
+    - Does not include system fields (seller_id, code, requires_redemption)
+      which are materialized by the backend during ingestion
+    """
+
+    model_config = {"extra": "ignore"}
+
+    name: str = Field(
+        max_length=100,
+        description="Display name of the promotion (unique per seller)",
+    )
+
+    description: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Human-readable description",
+    )
+
+    scope: dict[str, Any] | None = Field(
+        default=None,
+        description="Customer and service targeting. "
+        "null = all customers, all services (blanket promotion).",
+    )
+
+    pricing: dict[str, Any] = Field(
+        description="Pricing specification (e.g., multiply, constant, add)",
+    )
+
+    apply_at: PriceRuleApplyAtEnum = Field(
+        default=PriceRuleApplyAtEnum.request,
+        description="When to apply: 'request' or 'statement'",
+    )
+
+    priority: int = Field(
+        default=0,
+        description="Higher priority rules are applied first",
+    )
+
+    status: PriceRuleStatusEnum = Field(
+        default=PriceRuleStatusEnum.draft,
+        description="Lifecycle status: draft, active, paused",
+    )
+
+    expires_at: datetime | None = Field(
+        default=None,
+        description="When the promotion expires (code-based only)",
+    )
+
+    max_uses: int | None = Field(
+        default=None,
+        description="Maximum total redemptions (code-based only)",
+    )
 
 
 def is_promotion_file(data: dict[str, Any]) -> bool:
