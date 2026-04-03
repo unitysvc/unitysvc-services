@@ -213,11 +213,6 @@ class MimeTypeEnum(StrEnum):
     url = "url"
 
 
-class InterfaceEntityTypeEnum(StrEnum):
-    service_offering = "service_offering"
-    service_listing = "service_listing"
-
-
 class SellerTypeEnum(StrEnum):
     individual = "individual"
     organization = "organization"
