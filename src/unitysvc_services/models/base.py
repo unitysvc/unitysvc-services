@@ -213,6 +213,13 @@ class MimeTypeEnum(StrEnum):
     url = "url"
 
 
+class ServiceGroupStatusEnum(StrEnum):
+    draft = "draft"
+    active = "active"
+    private = "private"
+    archived = "archived"
+
+
 class SellerTypeEnum(StrEnum):
     individual = "individual"
     organization = "organization"
