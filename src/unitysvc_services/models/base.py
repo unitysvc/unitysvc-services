@@ -213,9 +213,11 @@ class MimeTypeEnum(StrEnum):
     url = "url"
 
 
-class InterfaceEntityTypeEnum(StrEnum):
-    service_offering = "service_offering"
-    service_listing = "service_listing"
+class ServiceGroupStatusEnum(StrEnum):
+    draft = "draft"
+    active = "active"
+    private = "private"
+    archived = "archived"
 
 
 class SellerTypeEnum(StrEnum):

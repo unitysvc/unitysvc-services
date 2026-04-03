@@ -841,7 +841,7 @@ def upload_callback(
         raise typer.Exit(code=1)
 
     # Validate --type
-    valid_types = {"services", "promotions"}
+    valid_types = {"services", "promotions", "groups"}
     if upload_type and upload_type not in valid_types:
         console.print(
             f"[red]✗[/red] Invalid --type '{upload_type}'. Must be one of: {', '.join(sorted(valid_types))}",
@@ -851,6 +851,7 @@ def upload_callback(
 
     upload_services = upload_type in (None, "services")
     upload_promotions = upload_type in (None, "promotions")
+    upload_groups = upload_type in (None, "groups")
 
     # Handle single file vs directory
     is_single_file = data_path.is_file()
@@ -933,12 +934,71 @@ def upload_callback(
             "errors": errors_list,
         }
 
+    async def _upload_groups(data_dir: Path, dryrun: bool = False) -> dict[str, Any]:
+        """Find and upload service_group_v1 files via PUT (upsert by name)."""
+        from pydantic import ValidationError
+
+        from .models.service_group_data import SERVICE_GROUP_SCHEMA_VERSION, strip_schema_field
+        from .models.service_group_v1 import ServiceGroupV1
+
+        group_files = find_files_by_schema(data_dir, SERVICE_GROUP_SCHEMA_VERSION)
+        if not group_files:
+            return {"total": 0, "success": 0, "failed": 0, "errors": []}
+
+        api = ServiceDataPublisher()
+        total = len(group_files)
+        success_count = 0
+        errors_list: list[dict[str, str]] = []
+
+        for group_path, _fmt, group_data in group_files:
+            try:
+                ServiceGroupV1(**group_data)
+            except ValidationError as e:
+                errors_list.append({
+                    "file": str(group_path),
+                    "error": str(e),
+                })
+                continue
+
+            if dryrun:
+                name = group_data.get("name", "?")
+                console.print(
+                    f"  [yellow]?[/yellow] [yellow]Would upload[/yellow] "
+                    f"group: [cyan]{name}[/cyan]"
+                )
+                success_count += 1
+                continue
+
+            payload = strip_schema_field(group_data)
+            try:
+                result = await api.put(
+                    "/seller/service-groups", json_data=payload,
+                )
+                name = result.get("name", group_data.get("name", "?"))
+                console.print(
+                    f"  [green]+[/green] [green]Uploaded[/green] "
+                    f"group: [cyan]{name}[/cyan]"
+                )
+                success_count += 1
+            except Exception as e:
+                errors_list.append({
+                    "file": str(group_path),
+                    "error": str(e),
+                })
+
+        return {
+            "total": total,
+            "success": success_count,
+            "failed": total - success_count,
+            "errors": errors_list,
+        }
+
     empty_result = {"total": 0, "success": 0, "failed": 0, "errors": []}
 
     async def _upload_async():
         async with ServiceDataPublisher() as uploader:
             if is_single_file:
-                # Check if it's a promotion file
+                # Check if it's a promotion or group file
                 try:
                     file_data, _fmt = load_data_file(data_path)
                     if file_data.get("schema") == "promotion_v1":
@@ -946,6 +1006,11 @@ def upload_callback(
                             data_path.parent, dryrun=dryrun,
                         )
                         return promo_result, False
+                    if file_data.get("schema") == "service_group_v1":
+                        group_result = await _upload_groups(
+                            data_path.parent, dryrun=dryrun,
+                        )
+                        return group_result, False
                 except Exception:
                     pass
 
@@ -953,13 +1018,13 @@ def upload_callback(
                 result = await uploader.post_service_async(data_path, dryrun=dryrun, revision_to=revision_to)
                 return result, True
             else:
-                # Upload services (unless --type promotions)
+                # Upload services (unless --type restricts)
                 if upload_services:
                     results = await uploader.upload_all_services(data_path, dryrun=dryrun)
                 else:
                     results = dict(empty_result)
 
-                # Upload promotions (unless --type services)
+                # Upload promotions
                 if upload_promotions:
                     promo_results = await _upload_promotions(
                         data_path, dryrun=dryrun,
@@ -967,17 +1032,29 @@ def upload_callback(
                 else:
                     promo_results = dict(empty_result)
 
-                return results, False, promo_results
+                # Upload groups
+                if upload_groups:
+                    group_results = await _upload_groups(
+                        data_path, dryrun=dryrun,
+                    )
+                else:
+                    group_results = dict(empty_result)
+
+                return results, False, promo_results, group_results
 
     try:
         upload_result = asyncio.run(_upload_async())
 
-        # Unpack result — directory uploads return 3-tuple with promo_results
-        if len(upload_result) == 3:
+        # Unpack result — directory uploads return 4-tuple
+        if len(upload_result) == 4:
+            result, is_single, promo_results, group_results = upload_result
+        elif len(upload_result) == 3:
             result, is_single, promo_results = upload_result
+            group_results = None
         else:
             result, is_single = upload_result
             promo_results = None
+            group_results = None
 
         if is_single:
             # Single file result
@@ -1022,12 +1099,25 @@ def upload_callback(
                     "", "", "",
                 )
 
+            # Add groups row if any were found
+            if group_results and group_results["total"] > 0:
+                table.add_row(
+                    "Groups",
+                    str(group_results["total"]),
+                    str(group_results["success"]),
+                    "",
+                    str(group_results["failed"]) if group_results["failed"] > 0 else "",
+                    "", "", "",
+                )
+
             console.print(table)
 
             # Display errors if any
             all_errors = list(result.get("errors") or [])
             if promo_results:
                 all_errors.extend(promo_results.get("errors") or [])
+            if group_results:
+                all_errors.extend(group_results.get("errors") or [])
 
             if all_errors:
                 console.print("\n[bold red]Errors:[/bold red]")
@@ -1035,7 +1125,11 @@ def upload_callback(
                     console.print(f"  [red]✗[/red] {error.get('file', 'unknown')}")
                     console.print(f"    {error.get('error', 'unknown error')}")
 
-            total_failed = result["failed"] + (promo_results["failed"] if promo_results else 0)
+            total_failed = (
+                result["failed"]
+                + (promo_results["failed"] if promo_results else 0)
+                + (group_results["failed"] if group_results else 0)
+            )
             if total_failed > 0:
                 console.print(
                     f"\n[yellow]⚠[/yellow]  Completed with {total_failed} failure(s)",

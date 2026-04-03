@@ -10,6 +10,7 @@ All data files must include a `schema` field identifying their type and version.
 - `seller_v1` - Seller/marketplace information
 - `offering_v1` - Service offering details (upstream provider perspective)
 - `listing_v1` - Service listing (user-facing marketplace perspective)
+- `service_group_v1` - Service group definitions for organizing services
 
 ## Schema: provider_v1
 
@@ -1045,7 +1046,175 @@ The SDK preserves the original format when updating files.
 
 - [Service Options](#service-options) - Configure subscription limits and backend behavior
 - [User Parameters](#user-parameters) - Define and collect subscription configuration
+- [Service Groups](#schema-service_group_v1) - Organize services with rule-based membership
 - [Pricing Specification](pricing.md) - Complete pricing documentation
 - [Data Structure](data-structure.md) - File organization rules
 - [CLI Reference](cli-reference.md#validate) - Validation command
 - [Getting Started](getting-started.md) - Create your first files
+
+---
+
+## Schema: service_group_v1
+
+Service group files define collections of services for organization and
+promotion targeting. Groups use rule-based membership to automatically
+include/exclude services based on their properties.
+
+> **Note:** Seller-defined service groups are currently used primarily for
+> promotion targeting (see [Promotions](cli-reference.md#promotions)).
+> Groups created by sellers are nested under an auto-created root group
+> (`seller:{seller_name}`).
+
+### Required Fields
+
+| Field          | Type   | Description                                                      |
+| -------------- | ------ | ---------------------------------------------------------------- |
+| `schema`       | string | Must be `"service_group_v1"`                                     |
+| `name`         | string | URL-friendly slug (max 100 chars, lowercase with hyphens/colons) |
+| `display_name` | string | Human-readable name (max 200 chars)                              |
+
+### Optional Fields
+
+| Field              | Type   | Default   | Description                                              |
+| ------------------ | ------ | --------- | -------------------------------------------------------- |
+| `description`      | string | `null`    | Detailed description (max 2000 chars)                    |
+| `status`           | string | `"draft"` | Lifecycle status: `draft`, `active`, `private`, `archived` |
+| `parent_group_name`| string | `null`    | Parent group name for hierarchy                          |
+| `membership_rules` | object | `null`    | Rule-based membership (see below)                        |
+| `sort_order`       | int    | `0`       | Display order within parent level                        |
+
+### Status Values
+
+| Status     | Description                                          |
+| ---------- | ---------------------------------------------------- |
+| `draft`    | Being configured, not active                         |
+| `active`   | Live and visible in marketplace                      |
+| `private`  | Live but hidden from marketplace (for promotions)    |
+| `archived` | No longer available                                  |
+
+### Membership Rules
+
+Membership rules automatically include services based on their properties.
+The `expression` field is a Python expression evaluated against each service.
+
+**Available variables:**
+
+| Variable        | Type   | Description                                 |
+| --------------- | ------ | ------------------------------------------- |
+| `service_id`    | string | Service UUID                                |
+| `seller_id`     | string | Seller UUID                                 |
+| `provider_id`   | string | Provider UUID                               |
+| `seller_name`   | string | Seller name                                 |
+| `provider_name` | string | Provider name (e.g., `"openai"`)            |
+| `name`          | string | Service name                                |
+| `display_name`  | string | Service display name                        |
+| `service_type`  | string | Type: `"llm"`, `"embedding"`, `"tts"`, etc. |
+| `status`        | string | Service status                              |
+| `listing_type`  | string | `"regular"`, `"byok"`, `"self_hosted"`      |
+| `tags`          | list   | List of tag strings                         |
+| `is_featured`   | bool   | Whether service is featured                 |
+
+**Example expressions:**
+
+```python
+# All LLM services
+"service_type == 'llm'"
+
+# Services from a specific provider
+"provider_name == 'openai'"
+
+# Multiple types
+"service_type in ('llm', 'embedding', 'tts')"
+
+# Combined conditions
+"provider_name == 'fireworks' and service_type == 'llm'"
+
+# Tag-based
+"'premium' in tags"
+```
+
+### Example Files
+
+**Basic group with membership rules:**
+```json
+{
+    "schema": "service_group_v1",
+    "name": "my-llm-services",
+    "display_name": "My LLM Services",
+    "description": "All LLM services for targeted promotions",
+    "membership_rules": {
+        "expression": "service_type == 'llm'"
+    },
+    "status": "private"
+}
+```
+
+**Group targeting a specific provider:**
+```json
+{
+    "schema": "service_group_v1",
+    "name": "openai-models",
+    "display_name": "OpenAI Models",
+    "description": "All services from OpenAI",
+    "membership_rules": {
+        "expression": "provider_name == 'openai'"
+    },
+    "status": "active"
+}
+```
+
+### CLI Commands
+
+**Upload groups:**
+```bash
+# Upload all group files in directory
+usvc data upload --type groups
+
+# Upload a specific file
+usvc data upload data/groups/my-llm-services.json
+
+# Dry run (validate without uploading)
+usvc data upload --type groups --dryrun
+```
+
+**Validate groups:**
+```bash
+usvc data validate data/groups/
+```
+
+### File Organization
+
+Place group files in a `groups/` directory within your data directory:
+
+```
+data/
+├── providers/
+│   └── my-provider/
+│       ├── provider.toml
+│       └── services/
+│           └── ...
+├── promotions/
+│   └── summer-sale.json
+└── groups/
+    ├── my-llm-services.json
+    └── premium-models.json
+```
+
+### Using Groups with Promotions
+
+Groups are referenced in promotion scope to target services:
+
+```json
+{
+    "schema": "promotion_v1",
+    "name": "LLM Discount",
+    "pricing": {"type": "multiply", "factor": "0.80"},
+    "scope": {
+        "services": ["my-llm-services"]
+    }
+}
+```
+
+This applies the 20% discount to all services in the `my-llm-services` group.
+As services join or leave the group (based on membership rules), the promotion
+automatically applies to the current members.

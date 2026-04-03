@@ -16,6 +16,7 @@ from .base import (
     ProviderStatusEnum,
     RevenueSharePriceData,
     SellerTypeEnum,
+    ServiceGroupStatusEnum,
     ServiceTypeEnum,
     StepPriceData,
     TieredPriceData,
@@ -41,6 +42,13 @@ from .promotion_data import (
 from .promotion_v1 import PromotionV1
 from .provider_data import ProviderData
 from .provider_v1 import ProviderV1
+from .service_group_data import (
+    SERVICE_GROUP_SCHEMA_VERSION,
+    ServiceGroupData,
+    is_service_group_file,
+    validate_service_group,
+)
+from .service_group_v1 import ServiceGroupV1
 
 __all__ = [
     # V1 models (for file validation)
@@ -60,6 +68,7 @@ __all__ = [
     "PriceRuleStatusEnum",
     "ProviderStatusEnum",
     "SellerTypeEnum",
+    "ServiceGroupStatusEnum",
     "ServiceTypeEnum",
     "UpstreamStatusEnum",  # Backwards compatibility alias for OfferingStatusEnum
     # Pricing - Basic types
@@ -90,4 +99,10 @@ __all__ = [
     "describe_scope",
     "strip_schema_field",
     "validate_promotion",
+    # Service Groups
+    "SERVICE_GROUP_SCHEMA_VERSION",
+    "ServiceGroupData",
+    "ServiceGroupV1",
+    "is_service_group_file",
+    "validate_service_group",
 ]
